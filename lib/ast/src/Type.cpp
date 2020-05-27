@@ -5,6 +5,9 @@
 #include <type_traits>
 #include <variant>
 
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+
 using namespace rlc;
 using namespace std;
 using namespace llvm;
@@ -123,3 +126,57 @@ Type* Type::getContainedType(size_t index) const
 
 void Type::print(llvm::raw_ostream& out) { out << getName(); }
 void Type::dump() { print(llvm::outs()); }
+
+Type* TypeDB::getBuiltin(BuiltinType b)
+{
+	if (auto f = builtinTypes.find(b); f != builtinTypes.end())
+		return f->second;
+	auto t = new (allocator.Allocate<Type>()) Type(b);
+	builtinTypes.try_emplace(b, t);
+	return t;
+}
+
+Type* TypeDB::getUserDefined(llvm::StringRef name) const
+{
+	if (auto f = userDefinedTypes.find(name); f != userDefinedTypes.end())
+		return f->second;
+
+	return nullptr;
+}
+
+Type* TypeDB::createUserDefinedType(
+		std::string name, llvm::ArrayRef<Type*> members)
+{
+	if (userDefinedTypes.find(name) != userDefinedTypes.end())
+		return nullptr;
+
+	auto s = new (allocator.Allocate<string>()) string(std::move(name));
+	auto t = new (allocator.Allocate<Type>()) Type(*s, members);
+
+	userDefinedTypes[t->getName()] = t;
+	return t;
+}
+
+Type* TypeDB::getArrayType(Type* tp, size_t size)
+{
+	auto p = make_pair(tp, size);
+	if (auto f = arrayTypes.find(p); f != arrayTypes.end())
+		return f->second;
+
+	auto t = new (allocator.Allocate<Type>()) Type(tp, size);
+	arrayTypes[p] = t;
+	return t;
+}
+
+Type* TypeDB::getFunctionType(Type* returnType, llvm::ArrayRef<Type*> args)
+{
+	llvm::SmallVector<Type*, 3> t({ args.begin(), args.end() });
+	t.push_back(returnType);
+
+	if (auto f = functionTypes.find(t); f != functionTypes.end())
+		return f->second;
+
+	auto tp = new (allocator.Allocate<Type>()) Type(returnType, args);
+	functionTypes[t] = tp;
+	return tp;
+}
