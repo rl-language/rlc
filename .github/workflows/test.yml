@@ -1,0 +1,16 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: collect-dependencies
+      run: git submodule update --recursive --init 
+    - name: build 
+      run: mkdir build && cd build && cmake ../ && make all -j4 && make test
+
