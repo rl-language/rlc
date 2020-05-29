@@ -79,8 +79,6 @@ string ArrayType::getName() const
 	return innerType[0]->getName() + "[" + to_string(siz) + "]";
 }
 
-Type* TypeIterator::operator*() const { return type->getContainedType(index); }
-
 static size_t containedTypes(BuiltinType) { return 0; }
 
 static size_t containedTypes(const ArrayType&) { return 1; }
@@ -179,4 +177,11 @@ Type* TypeDB::getFunctionType(Type* returnType, llvm::ArrayRef<Type*> args)
 	auto tp = new (allocator.Allocate<Type>()) Type(returnType, args);
 	functionTypes[t] = tp;
 	return tp;
+}
+
+template<>
+const Type* SimpleBiIterator<const Type*, const Type*, const Type*>::operator*()
+		const
+{
+	return type->getContainedType(index);
 }

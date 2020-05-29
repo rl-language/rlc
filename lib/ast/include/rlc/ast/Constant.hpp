@@ -82,12 +82,12 @@ namespace rlc
 		void dump() const;
 
 		[[nodiscard]] Type* type(TypeDB& db) const;
-
-		private:
 		template<typename T>
 		ScalarConstant(T constant): content(constant)
 		{
 		}
+
+		private:
 		std::variant<std::int64_t, double, bool> content;
 	};
 

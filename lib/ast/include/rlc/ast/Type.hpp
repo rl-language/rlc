@@ -18,6 +18,7 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
+#include "rlc/utils/SimpleBiIterator.hpp"
 
 namespace rlc
 {
@@ -145,39 +146,10 @@ namespace rlc
 		llvm::SmallVector<Type*, 4> types;
 	};
 
-	class TypeIterator: public llvm::iterator_facade_base<
-													TypeIterator,
-													std::bidirectional_iterator_tag,
-													Type*>
-	{
-		public:
-		TypeIterator(const Type* t, size_t index = 0): index(index), type(t) {}
-		[[nodiscard]] bool operator==(const TypeIterator& other) const
-		{
-			return index == other.index;
-		}
-
-		Type* operator*() const;
-		TypeIterator& operator++()
-		{
-			index++;
-			return *this;
-		}
-
-		TypeIterator& operator--()
-		{
-			index--;
-			return *this;
-		}
-
-		private:
-		size_t index;
-		const Type* type;
-	};
-
 	class Type
 	{
 		public:
+		using iterator = SimpleBiIterator<const Type*, const Type*, const Type*>;
 		friend class TypeDB;
 		template<typename T>
 		[[nodiscard]] bool isA() const
@@ -220,10 +192,10 @@ namespace rlc
 
 		[[nodiscard]] std::string getName() const;
 
-		[[nodiscard]] auto begin() const { return TypeIterator(this); }
-		[[nodiscard]] auto end() const
+		[[nodiscard]] iterator begin() const { return iterator(this); }
+		[[nodiscard]] iterator end() const
 		{
-			return TypeIterator(this, containedTypesCount());
+			return iterator(this, containedTypesCount());
 		}
 
 		[[nodiscard]] bool isVoid() const
