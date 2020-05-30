@@ -27,3 +27,13 @@ TEST(ExpressionTest, callShoulBeConstructable)
 	EXPECT_TRUE(exp.isA<Call>());
 	EXPECT_TRUE(exp.get<Call>().getFunctionExpression().isA<ScalarConstant>());
 }
+
+TEST(ExpressionTest, nestedExpressionsShouldBeIteratable)
+{
+	using E = Expression;
+	auto exp = E::call(E::scalarConstant(0.0), { E::scalarConstant<int64_t>(1) });
+	int elCount = 0;
+	for (auto& subExp : exp)
+		elCount++;
+	EXPECT_EQ(elCount, 2);
+}

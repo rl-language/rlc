@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "rlc/ast/Expression.hpp"
+#include "rlc/utils/IRange.hpp"
 
 using namespace std;
 using namespace llvm;
@@ -17,13 +18,13 @@ Call::Call(
 }
 
 template<>
-Expression& SimpleBiIterator<Call&, Expression>::operator*() const
+Expression& SimpleIterator<Call&, Expression>::operator*() const
 {
 	return type.getSubExpression(index);
 }
 
 template<>
-const Expression& SimpleBiIterator<const Call&, const Expression>::operator*()
+const Expression& SimpleIterator<const Call&, const Expression>::operator*()
 		const
 {
 	return type.getSubExpression(index);
@@ -58,3 +59,12 @@ Call& Call::operator=(const Call& other)
 }
 
 void Call::dump() const { print(); }
+
+[[nodiscard]] bool Call::operator==(const Call& other) const
+{
+	for (auto i : irange(subExpCount()))
+		if (getSubExpression(i) != other.getSubExpression(i))
+			return false;
+
+	return true;
+}

@@ -1,14 +1,16 @@
 #pragma once
 
+#include <initializer_list>
 #include <utility>
 #include <variant>
 
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Call.hpp"
 #include "rlc/ast/Constant.hpp"
 #include "rlc/ast/Reference.hpp"
-#include "rlc/utils/SimpleBiIterator.hpp"
+#include "rlc/utils/SimpleIterator.hpp"
 
 namespace rlc
 {
@@ -17,9 +19,8 @@ namespace rlc
 	class Expression
 	{
 		public:
-		using iterator = SimpleBiIterator<Expression&, Expression>;
-		using const_iterator =
-				SimpleBiIterator<const Expression&, const Expression>;
+		using iterator = SimpleIterator<Expression&, Expression>;
+		using const_iterator = SimpleIterator<const Expression&, const Expression>;
 		[[nodiscard]] Type* getType() const { return type; }
 
 		template<typename T>
@@ -90,15 +91,8 @@ namespace rlc
 			return Expression(ScalarConstant(constant), nullptr);
 		}
 
-		template<typename... Args>
-		static Expression call(Expression call, Args&&... args)
-		{
-			return Expression(
-					Call(
-							llvm::make_unique<Expression>(std::move(call)),
-							{ llvm::make_unique<Expression>(std::forward<Args>(args))... }),
-					nullptr);
-		}
+		static Expression call(
+				Expression call, std::initializer_list<Expression> args = {});
 
 		static Expression reference(std::string refName)
 		{
@@ -121,6 +115,74 @@ namespace rlc
 		}
 
 		static Expression boolConstant(bool d) { return scalarConstant<bool>(d); }
+
+		[[nodiscard]] bool operator==(const Expression& other) const
+		{
+			return content == other.content and type == other.type;
+		}
+
+		[[nodiscard]] bool operator!=(const Expression& other) const
+		{
+			return !(*this == other);
+		}
+
+		[[nodiscard]] Expression operator&&(Expression&& other)
+		{
+			return call(reference("and"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator||(Expression&& other)
+		{
+			return call(reference("or"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator+(Expression&& other)
+		{
+			return call(reference("add"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator-(Expression&& other)
+		{
+			return call(
+					reference("subtract"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator/(Expression&& other)
+		{
+			return call(reference("divide"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator*(Expression&& other)
+		{
+			return call(
+					reference("multiply"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression& operator+=(Expression&& other)
+		{
+			*this = call(reference("add"), { std::move(*this), std::move(other) });
+			return *this;
+		}
+
+		[[nodiscard]] Expression& operator-=(Expression&& other)
+		{
+			*this =
+					call(reference("subtract"), { std::move(*this), std::move(other) });
+			return *this;
+		}
+
+		[[nodiscard]] Expression& operator/=(Expression&& other)
+		{
+			*this = call(reference("divide"), { std::move(*this), std::move(other) });
+			return *this;
+		}
+
+		[[nodiscard]] Expression& operator*=(Expression&& other)
+		{
+			*this =
+					call(reference("multiply"), { std::move(*this), std::move(other) });
+			return *this;
+		}
 
 		private:
 		std::variant<ScalarConstant, Call, Reference> content;

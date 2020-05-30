@@ -18,7 +18,7 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
-#include "rlc/utils/SimpleBiIterator.hpp"
+#include "rlc/utils/SimpleIterator.hpp"
 
 namespace rlc
 {
@@ -149,7 +149,7 @@ namespace rlc
 	class Type
 	{
 		public:
-		using iterator = SimpleBiIterator<const Type*, const Type*, const Type*>;
+		using iterator = SimpleIterator<const Type*, const Type*, const Type*>;
 		friend class TypeDB;
 		template<typename T>
 		[[nodiscard]] bool isA() const

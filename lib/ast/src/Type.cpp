@@ -180,7 +180,7 @@ Type* TypeDB::getFunctionType(Type* returnType, llvm::ArrayRef<Type*> args)
 }
 
 template<>
-const Type* SimpleBiIterator<const Type*, const Type*, const Type*>::operator*()
+const Type* SimpleIterator<const Type*, const Type*, const Type*>::operator*()
 		const
 {
 	return type->getContainedType(index);

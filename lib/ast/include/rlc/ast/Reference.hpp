@@ -14,6 +14,16 @@ namespace rlc
 
 		void print(llvm::raw_ostream& OS) const { OS << name; }
 
+		[[nodiscard]] bool operator==(const Reference& other) const
+		{
+			return name == other.name;
+		}
+
+		[[nodiscard]] bool operator!=(const Reference& other) const
+		{
+			return !(*this == other);
+		}
+
 		private:
 		std::string name;
 	};

@@ -43,14 +43,14 @@ void Expression::print(raw_ostream& OS, size_t indents) const
 void Expression::dump() const { print(); }
 
 template<>
-Expression& SimpleBiIterator<Expression&, Expression>::operator*() const
+Expression& SimpleIterator<Expression&, Expression>::operator*() const
 {
 	return type.subExpression(index);
 }
 
 template<>
 const Expression&
-		SimpleBiIterator<const Expression&, const Expression>::operator*() const
+		SimpleIterator<const Expression&, const Expression>::operator*() const
 {
 	return type.subExpression(index);
 }
@@ -62,4 +62,15 @@ static size_t subExpCount(const Reference& call) { return 0; }
 size_t Expression::subExpressionCount() const
 {
 	return visit([](const auto& c) { return subExpCount(c); });
+}
+
+Expression Expression::call(Expression call, initializer_list<Expression> args)
+{
+	Call::Container newArgs;
+	for (auto& arg : args)
+		newArgs.emplace_back(llvm::make_unique<Expression>(std::move(arg)));
+
+	return Expression(
+			Call(llvm::make_unique<Expression>(std::move(call)), std::move(newArgs)),
+			nullptr);
 }

@@ -87,6 +87,16 @@ namespace rlc
 		{
 		}
 
+		[[nodiscard]] bool operator==(const ScalarConstant& other) const
+		{
+			return content == other.content;
+		}
+
+		[[nodiscard]] bool operator!=(const ScalarConstant& other) const
+		{
+			return !(*this == other);
+		}
+
 		private:
 		std::variant<std::int64_t, double, bool> content;
 	};

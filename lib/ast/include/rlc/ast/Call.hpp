@@ -5,7 +5,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
-#include "rlc/utils/SimpleBiIterator.hpp"
+#include "rlc/utils/SimpleIterator.hpp"
 namespace rlc
 {
 	class Expression;
@@ -13,8 +13,8 @@ namespace rlc
 	{
 		public:
 		friend class Expression;
-		using iterator = SimpleBiIterator<Call&, Expression>;
-		using const_iterator = SimpleBiIterator<const Call&, const Expression>;
+		using iterator = SimpleIterator<Call&, Expression>;
+		using const_iterator = SimpleIterator<const Call&, const Expression>;
 
 		[[nodiscard]] const_iterator begin() const { return const_iterator(*this); }
 		[[nodiscard]] iterator begin() { return iterator(*this); }
@@ -73,11 +73,17 @@ namespace rlc
 		Call& operator=(Call&& other) = default;
 		~Call() = default;
 
+		[[nodiscard]] bool operator==(const Call& other) const;
+
+		[[nodiscard]] bool operator!=(const Call& other) const
+		{
+			return !(*this == other);
+		}
+		using Container = llvm::SmallVector<std::unique_ptr<Expression>, 3>;
+
 		private:
-		explicit Call(
-				std::unique_ptr<Expression> f,
-				llvm::SmallVector<std::unique_ptr<Expression>, 3> args = {});
-		llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
+		explicit Call(std::unique_ptr<Expression> f, Container args = {});
+		Container args;
 	};
 
 }	 // namespace rlc
