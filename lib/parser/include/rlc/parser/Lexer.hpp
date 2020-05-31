@@ -37,16 +37,29 @@ namespace rlc
 		Minus,
 		Mult,
 		Divide,
+		Module,
 		LPar,
 		RPar,
 		RSquare,
 		LSquare,
 		LBracket,
 		RBracket,
+		LEqual,
+		GEqual,
+		EqualEqual,
+		NEqual,
+		ExMark,
+		Comma,
+		LAng,
+		RAng,
+		Equal,
+		Colons,
 		Identifier,
 		Double,
 		Int64,
 		Bool,
+		Dot,
+		Void,
 		Error
 	};
 
@@ -62,11 +75,14 @@ namespace rlc
 		[[nodiscard]] int64_t lastInt64() const { return lInt64; }
 		[[nodiscard]] double lastDouble() const { return lDouble; }
 		[[nodiscard]] llvm::StringRef lastIndent() const { return lIdent; }
+		[[nodiscard]] size_t getCurrentColumn() const { return currentColumn; }
+		[[nodiscard]] size_t getCurrentLine() const { return currentLine; }
 
 		private:
 		char eatChar();
 		std::optional<Token> eatSpaces();
 		std::optional<Token> eatSymbol();
+		std::optional<Token> twoSymbols(char current);
 		Token eatIdent();
 		Token eatNumber();
 

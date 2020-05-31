@@ -1,1 +1,3 @@
-rlcAddTest(parser src/LexerTester.cpp)
+rlcAddTest(parser 
+	src/LexerTester.cpp 
+	src/ParserTest.cpp)

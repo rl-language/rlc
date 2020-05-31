@@ -92,7 +92,7 @@ namespace rlc
 		}
 
 		static Expression call(
-				Expression call, std::initializer_list<Expression> args = {});
+				Expression call, llvm::SmallVector<Expression, 3> args = {});
 
 		static Expression reference(std::string refName)
 		{
@@ -182,6 +182,43 @@ namespace rlc
 			*this =
 					call(reference("multiply"), { std::move(*this), std::move(other) });
 			return *this;
+		}
+
+		[[nodiscard]] Expression operator<(Expression&& other)
+		{
+			return call(reference("less"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator<=(Expression&& other)
+		{
+			return call(
+					reference("lessEqual"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator>(Expression&& other)
+		{
+			return call(
+					reference("greather"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator>=(Expression&& other)
+		{
+			return call(
+					reference("greatherEqual"), { std::move(*this), std::move(other) });
+		}
+
+		[[nodiscard]] Expression operator[](Expression&& other)
+		{
+			return call(
+					reference("arrayAccess"), { std::move(*this), std::move(other) });
+		}
+
+		static Expression memberAccess(
+				Expression&& leftHand, std::string memberName)
+		{
+			return call(
+					reference("memberAccess"),
+					{ std::move(leftHand), reference(std::move(memberName)) });
 		}
 
 		private:

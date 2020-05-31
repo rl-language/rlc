@@ -23,7 +23,7 @@ char Lexer::eatChar()
 	return c;
 }
 
-llvm::StringRef tokenToString(Token t)
+llvm::StringRef rlc::tokenToString(Token t)
 {
 	switch (t)
 	{
@@ -81,6 +81,10 @@ llvm::StringRef tokenToString(Token t)
 			return "LPar";
 		case Token::RPar:
 			return "RPar";
+		case Token::LAng:
+			return "LAng";
+		case Token::RAng:
+			return "RAng";
 		case Token::RSquare:
 			return "RSquare";
 		case Token::LSquare:
@@ -89,6 +93,10 @@ llvm::StringRef tokenToString(Token t)
 			return "LBracket";
 		case Token::RBracket:
 			return "RBracket";
+		case Token::Colons:
+			return "Colonts";
+		case Token::Equal:
+			return "Equal";
 		case Token::Identifier:
 			return "Identifier";
 		case Token::Double:
@@ -99,6 +107,24 @@ llvm::StringRef tokenToString(Token t)
 			return "Bool";
 		case Token::Error:
 			return "Error";
+		case Token::GEqual:
+			return "GEqual";
+		case Token::LEqual:
+			return "LEqual";
+		case Token::EqualEqual:
+			return "EqualEqual";
+		case Token::NEqual:
+			return "NEqual";
+		case Token::ExMark:
+			return "ExMark";
+		case Token::Comma:
+			return "Comma";
+		case Token::Dot:
+			return "Dot";
+		case Token::Void:
+			return "Void";
+		case Token::Module:
+			return "Module";
 	}
 	return "";
 }
@@ -175,6 +201,10 @@ optional<Token> Lexer::eatSymbol()
 			return Token::LPar;
 		case ')':
 			return Token::RPar;
+		case '<':
+			return Token::LAng;
+		case '>':
+			return Token::RAng;
 		case '[':
 			return Token::LSquare;
 		case ']':
@@ -183,8 +213,44 @@ optional<Token> Lexer::eatSymbol()
 			return Token::LBracket;
 		case '}':
 			return Token::RBracket;
+		case '=':
+			return Token::Equal;
+		case '!':
+			return Token::ExMark;
+		case ':':
+			return Token::Colons;
+		case '%':
+			return Token::Module;
+		case ',':
+			return Token::Comma;
+		case '.':
+			return Token::Dot;
 		case '\n':
 			return Token::Newline;
+	}
+	return nullopt;
+}
+
+optional<Token> Lexer::twoSymbols(char current)
+{
+	switch (current)
+	{
+		case '<':
+			if (*in == '=')
+				return Token::LEqual;
+			return nullopt;
+		case '>':
+			if (*in == '=')
+				return Token::GEqual;
+			return nullopt;
+		case '=':
+			if (*in == '=')
+				return Token::EqualEqual;
+			return nullopt;
+		case '!':
+			if (*in == '=')
+				return Token::NEqual;
+			return nullopt;
 	}
 	return nullopt;
 }
@@ -243,6 +309,8 @@ Token Lexer::eatIdent()
 
 	if (name == "or")
 		return Token::KeywordOr;
+	if (name == "void")
+		return Token::Void;
 
 	lIdent = name;
 	return Token::Identifier;
@@ -272,7 +340,13 @@ Token Lexer::next()
 
 	if (auto val = eatSymbol(); val.has_value())
 	{
-		eatChar();
+		auto c = eatChar();
+		if (auto val = twoSymbols(c); val.has_value())
+		{
+			eatChar();
+			return val.value();
+		}
+
 		return val.value();
 	}
 

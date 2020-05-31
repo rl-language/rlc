@@ -88,3 +88,19 @@ TEST(LexerTest, nestedIndentTest)
 	EXPECT_EQ(lexer.next(), Token::LSquare);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
+
+TEST(LexerTest, twoCharSymbolsTest)
+{
+	Lexer lexer("==,!=,<=,>=,=,<");
+	EXPECT_EQ(lexer.next(), Token::EqualEqual);
+	EXPECT_EQ(lexer.next(), Token::Comma);
+	EXPECT_EQ(lexer.next(), Token::NEqual);
+	EXPECT_EQ(lexer.next(), Token::Comma);
+	EXPECT_EQ(lexer.next(), Token::LEqual);
+	EXPECT_EQ(lexer.next(), Token::Comma);
+	EXPECT_EQ(lexer.next(), Token::GEqual);
+	EXPECT_EQ(lexer.next(), Token::Comma);
+	EXPECT_EQ(lexer.next(), Token::Equal);
+	EXPECT_EQ(lexer.next(), Token::Comma);
+	EXPECT_EQ(lexer.next(), Token::LAng);
+}

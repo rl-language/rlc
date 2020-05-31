@@ -2,6 +2,7 @@
 
 #include <variant>
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Constant.hpp"
 #include "rlc/ast/Reference.hpp"
@@ -64,7 +65,7 @@ size_t Expression::subExpressionCount() const
 	return visit([](const auto& c) { return subExpCount(c); });
 }
 
-Expression Expression::call(Expression call, initializer_list<Expression> args)
+Expression Expression::call(Expression call, SmallVector<Expression, 3> args)
 {
 	Call::Container newArgs;
 	for (auto& arg : args)
