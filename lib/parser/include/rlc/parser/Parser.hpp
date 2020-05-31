@@ -3,6 +3,8 @@
 #include <string>
 
 #include "llvm/Support/Error.h"
+#include "rlc/ast/Entity.hpp"
+#include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/Expression.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/utils/SourcePosition.hpp"
@@ -30,6 +32,8 @@ namespace rlc
 		llvm::Expected<Expression> equalityExpression();
 		llvm::Expected<Expression> andExpression();
 		llvm::Expected<Expression> orExpression();
+		llvm::Expected<EntityDeclaration> entityDeclaration();
+		llvm::Expected<EntityField> entityField();
 		llvm::Expected<llvm::SmallVector<Expression, 3>> argumentExpressionList();
 
 		private:
@@ -46,5 +50,8 @@ namespace rlc
 		SourcePosition pos;
 		std::string toParse;
 		Lexer lexer;
+		int64_t lInt64{ 0 };
+		double lDouble{ 0 };
+		std::string lIdent{ "" };
 	};
 }	 // namespace rlc

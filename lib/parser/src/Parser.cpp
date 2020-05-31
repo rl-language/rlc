@@ -3,6 +3,8 @@
 #include <system_error>
 
 #include "llvm/Support/Error.h"
+#include "rlc/ast/Entity.hpp"
+#include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/Expression.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/utils/Error.hpp"
@@ -15,6 +17,12 @@ void Parser::next()
 {
 	pos.setColumn(lexer.getCurrentColumn());
 	pos.setLine(lexer.getCurrentLine());
+	if (current == Token::Identifier)
+		lIdent = lexer.lastIndent();
+	if (current == Token::Int64)
+		lInt64 = lexer.lastInt64();
+	if (current == Token::Double)
+		lDouble = lexer.lastDouble();
 	current = lexer.next();
 }
 
@@ -58,13 +66,13 @@ Expected<Token> Parser::expect(Token t)
 Expected<Expression> Parser::primaryExpression()
 {
 	if (accept<Token::Identifier>())
-		return Expression::reference(lexer.lastIndent());
+		return Expression::reference(lIdent);
 
 	if (accept<Token::Double>())
-		return Expression::scalarConstant(lexer.lastDouble());
+		return Expression::scalarConstant(lDouble);
 
 	if (accept<Token::Int64>())
-		return Expression::scalarConstant(lexer.lastInt64());
+		return Expression::scalarConstant(lInt64);
 
 	if (accept<Token::KeywordFalse>())
 		return Expression::scalarConstant(false);
@@ -131,7 +139,7 @@ Expected<Expression> Parser::postFixExpression()
 	if (accept<Token::Dot>())
 	{
 		EXPECT(Token::Identifier);
-		return Expression::memberAccess(move(*exp), lexer.lastIndent());
+		return Expression::memberAccess(move(*exp), lIdent);
 	}
 	return move(*exp);
 }
@@ -297,3 +305,39 @@ Expected<Expression> Parser::orExpression()
 }
 
 Expected<Expression> Parser::expression() { return orExpression(); }
+
+/**
+ * EntityField : Indetifier Identifier
+ */
+llvm::Expected<EntityField> Parser::entityField()
+{
+	EXPECT(Token::Identifier);
+	auto typeName = lIdent;
+	EXPECT(Token::Identifier);
+	return EntityField(move(typeName), move(lIdent));
+}
+
+/**
+ * EntityDeclaration : Ent Identifier Colons Newline Indent (entityField
+ * Newline)* Deindent
+ */
+llvm::Expected<EntityDeclaration> Parser::entityDeclaration()
+{
+	auto pos = getCurrentSourcePos();
+	EXPECT(Token::KeywordEntity);
+	EXPECT(Token::Identifier);
+	string name = lIdent;
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+	EXPECT(Token::Indent);
+	SmallVector<EntityField, 3> fields;
+
+	while (!accept<Token::Deindent>())
+	{
+		TRY(field, entityField());
+		fields.emplace_back(move(*field));
+		EXPECT(Token::Newline);
+	}
+	auto e = Entity(move(name), move(fields));
+	return EntityDeclaration(move(e), move(pos));
+}

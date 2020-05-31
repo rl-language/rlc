@@ -169,7 +169,7 @@ Token Lexer::eatNumber()
 	string number;
 
 	while (isdigit(*in) != 0)
-		number.push_back(eatChar());
+		number += eatChar();
 
 	if (*in != '.')
 	{
@@ -177,9 +177,9 @@ Token Lexer::eatNumber()
 		return Token::Int64;
 	}
 
-	number.push_back(eatChar());
+	number += eatChar();
 	while (isdigit(*in) != 0)
-		number.push_back(eatChar());
+		number += eatChar();
 
 	lDouble = stod(number);
 	return Token::Double;
@@ -258,9 +258,9 @@ optional<Token> Lexer::twoSymbols(char current)
 Token Lexer::eatIdent()
 {
 	string name;
-	name.push_back(eatChar());
+	name += eatChar();
 	while (isspace(*in) == 0 and not eatSymbol() and *in != '\0')
-		name.push_back(eatChar());
+		name += eatChar();
 
 	if (name == "if")
 		return Token::KeywordIf;

@@ -9,7 +9,7 @@ namespace rlc
 	class SourcePosition
 	{
 		public:
-		SourcePosition(std::string fileName, size_t l = 0, size_t c = 0)
+		SourcePosition(std::string fileName = "", size_t l = 0, size_t c = 0)
 				: sourceFileName(std::make_shared<std::string>(fileName)),
 					line(l),
 					column(c)

@@ -67,3 +67,18 @@ TEST(ParserTest, testAdditiveExpression)
 	EXPECT_TRUE(exp->isA<Call>());
 	EXPECT_EQ(exp->getCall().argsCount(), 2);
 }
+
+TEST(ParserTest, testEntityDeclaration)
+{
+	Parser p("ent something:\n\tdouble a\n\tbool b\nsomethingelse", "fileName");
+
+	auto ent = p.entityDeclaration();
+	if (!ent)
+		FAIL();
+
+	EXPECT_EQ(ent->getEntity().getName(), "something");
+	EXPECT_EQ(ent->getEntity().fieldsCount(), 2);
+	EXPECT_EQ(ent->getEntity()[0].getName(), "a");
+	EXPECT_EQ(ent->getEntity()[1].getName(), "b");
+	EXPECT_EQ(ent->getEntity()[1].getTypeName(), "bool");
+}
