@@ -54,13 +54,13 @@ namespace rlc
 		}
 
 		template<typename Visitor>
-		auto visit(Visitor&& visitor) const
+		auto visit(Visitor&& visitor) const -> decltype(visitor(get<bool>()))
 		{
 			return std::visit(std::forward<Visitor>(visitor), content);
 		}
 
 		template<typename Visitor>
-		auto visit(Visitor&& visitor)
+		auto visit(Visitor&& visitor) -> decltype(visitor(get<bool>()))
 		{
 			return std::visit(std::forward<Visitor>(visitor), content);
 		}

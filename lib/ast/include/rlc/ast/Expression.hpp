@@ -51,12 +51,13 @@ namespace rlc
 
 		template<typename Visitor>
 		[[nodiscard]] auto visit(Visitor&& visitor) const
+				-> decltype(visitor(getCall()))
 		{
 			return std::visit(std::forward<Visitor>(visitor), content);
 		}
 
 		template<typename Visitor>
-		[[nodiscard]] auto visit(Visitor&& visitor)
+		[[nodiscard]] auto visit(Visitor&& visitor) -> decltype(visitor(getCall()))
 		{
 			return std::visit(std::forward<Visitor>(visitor), content);
 		}
@@ -219,6 +220,12 @@ namespace rlc
 			return call(
 					reference("memberAccess"),
 					{ std::move(leftHand), reference(std::move(memberName)) });
+		}
+
+		static Expression assign(Expression&& leftHand, Expression&& rightHand)
+		{
+			return call(
+					reference("assign"), { std::move(leftHand), std::move(rightHand) });
 		}
 
 		private:

@@ -304,7 +304,21 @@ Expected<Expression> Parser::orExpression()
 	return move(*exp);
 }
 
-Expected<Expression> Parser::expression() { return orExpression(); }
+Expected<Expression> Parser::expression() { return assignmentExpression(); }
+
+/**
+ * assigmentExpression : orExpression | orExpression "=" assigmentExpression
+ */
+Expected<Expression> Parser::assignmentExpression()
+{
+	TRY(leftHand, orExpression());
+
+	if (!accept<Token::Equal>())
+		return move(*leftHand);
+
+	TRY(rightHand, assignmentExpression());
+	return Expression::assign(move(*leftHand), move(*rightHand));
+}
 
 /**
  * EntityField : Indetifier Identifier

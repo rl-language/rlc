@@ -2,6 +2,7 @@
 #include <bits/stdint-intn.h>
 
 #include "rlc/ast/Call.hpp"
+#include "rlc/ast/Reference.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/parser/Parser.hpp"
 #include "rlc/utils/ScopeGuard.hpp"
@@ -66,6 +67,21 @@ TEST(ParserTest, testAdditiveExpression)
 
 	EXPECT_TRUE(exp->isA<Call>());
 	EXPECT_EQ(exp->getCall().argsCount(), 2);
+}
+
+TEST(ParserTest, testAssigmentExpression)
+{
+	Parser p("3.14 = 2", "fileName");
+
+	auto exp = p.expression();
+	if (!exp)
+		FAIL();
+
+	EXPECT_TRUE(exp->isA<Call>());
+	EXPECT_EQ(exp->getCall().argsCount(), 2);
+	EXPECT_EQ(
+			exp->getCall().getFunctionExpression().get<Reference>().getName(),
+			"assign");
 }
 
 TEST(ParserTest, testEntityDeclaration)

@@ -26,6 +26,7 @@ namespace rlc
 		llvm::Expected<Expression> postFixExpression();
 		llvm::Expected<Expression> expression();
 		llvm::Expected<Expression> unaryExpression();
+		llvm::Expected<Expression> assignmentExpression();
 		llvm::Expected<Expression> multyplicativeExpression();
 		llvm::Expected<Expression> additiveExpression();
 		llvm::Expected<Expression> relationalExpression();
