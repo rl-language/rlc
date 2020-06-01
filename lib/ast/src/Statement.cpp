@@ -134,6 +134,12 @@ Statement Statement::expStatement(Expression exp, SourcePosition pos)
 	return Statement(ExpressionStatement(move(exp)), move(pos));
 }
 
+Statement Statement::declarationStatement(
+		std::string name, Expression exp, SourcePosition pos)
+{
+	return Statement(DeclarationStatement(move(name), move(exp)), move(pos));
+}
+
 template<typename T>
 size_t subExpCountImp(const T& stat)
 {
@@ -154,6 +160,18 @@ size_t subStatCountImp(const T& stat)
 
 template<>
 size_t subStatCountImp<ExpressionStatement>(const ExpressionStatement&)
+{
+	return 0;
+}
+
+template<>
+size_t subStatCountImp<ReturnStatement>(const ReturnStatement&)
+{
+	return 0;
+}
+
+template<>
+size_t subStatCountImp<DeclarationStatement>(const DeclarationStatement&)
 {
 	return 0;
 }
@@ -185,6 +203,37 @@ auto& getSubStatImp<ExpressionStatement>(
 template<>
 auto& getSubStatImp<const ExpressionStatement>(
 		const ExpressionStatement& stat, size_t index)
+{
+	assert(false && "unrechable");
+	return *static_cast<Statement*>(nullptr);
+}
+
+template<>
+auto& getSubStatImp<ReturnStatement>(ReturnStatement& stat, size_t index)
+{
+	assert(false && "unrechable");
+	return *static_cast<Statement*>(nullptr);
+}
+
+template<>
+auto& getSubStatImp<const ReturnStatement>(
+		const ReturnStatement& stat, size_t index)
+{
+	assert(false && "unrechable");
+	return *static_cast<Statement*>(nullptr);
+}
+
+template<>
+auto& getSubStatImp<DeclarationStatement>(
+		DeclarationStatement& stat, size_t index)
+{
+	assert(false && "unrechable");
+	return *static_cast<Statement*>(nullptr);
+}
+
+template<>
+auto& getSubStatImp<const DeclarationStatement>(
+		const DeclarationStatement& stat, size_t index)
 {
 	assert(false && "unrechable");
 	return *static_cast<Statement*>(nullptr);
@@ -307,6 +356,31 @@ void StatementList::print(raw_ostream& OS, size_t indents) const
 }
 
 void StatementList::dump() const { print(outs()); }
+
+void DeclarationStatement::print(raw_ostream& OS, size_t indents) const
+{
+	OS.indent(indents);
+	OS << "declaration statement: " << getName() << "\n";
+
+	getExpression().print(OS);
+	OS << "\n";
+}
+
+void DeclarationStatement::dump() const { print(outs()); }
+
+void ReturnStatement::print(raw_ostream& OS, size_t indents) const
+{
+	OS.indent(indents);
+	OS << "return statement \n";
+
+	if (!isVoid())
+	{
+		getExpression().print(OS);
+		OS << "\n";
+	}
+}
+
+void ReturnStatement::dump() const { print(outs()); }
 
 template<>
 Statement& SimpleIterator<Statement&, Statement>::operator*() const

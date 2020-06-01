@@ -3,6 +3,7 @@
 
 #include "rlc/ast/Call.hpp"
 #include "rlc/ast/Reference.hpp"
+#include "rlc/ast/Statement.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/parser/Parser.hpp"
 #include "rlc/utils/ScopeGuard.hpp"
@@ -97,4 +98,43 @@ TEST(ParserTest, testEntityDeclaration)
 	EXPECT_EQ(ent->getEntity()[0].getName(), "a");
 	EXPECT_EQ(ent->getEntity()[1].getName(), "b");
 	EXPECT_EQ(ent->getEntity()[1].getTypeName(), "bool");
+}
+
+TEST(ParserTest, declarationTest)
+{
+	Parser p("let a = 5", "fileName");
+	auto s = p.statement();
+	if (!s)
+		FAIL();
+
+	EXPECT_TRUE(s->isDeclarationStatement());
+	auto& dcl = s->get<DeclarationStatement>();
+	EXPECT_EQ(dcl.getName(), "a");
+	EXPECT_TRUE(dcl.getExpression().isA<ScalarConstant>());
+}
+
+TEST(ParserTest, ifElseTest)
+{
+	Parser p("if 1:\n\tcall()\nelse:\n\tbody()\nsomething()", "fileName");
+	auto s = p.statement();
+	if (!s)
+		FAIL();
+
+	EXPECT_TRUE(s->isIfStat());
+	auto& ifS = s->get<IfStatement>();
+	EXPECT_TRUE(ifS.hasFalseBranch());
+	EXPECT_TRUE(ifS.getTrueBranch().isStatmentList());
+	EXPECT_TRUE(ifS.getFalseBranch().isStatmentList());
+}
+
+TEST(ParserTest, whileStatement)
+{
+	Parser p("while 1:\n\ta = call()\nsomething()", "fileName");
+	auto s = p.statement();
+	if (!s)
+		FAIL();
+
+	EXPECT_TRUE(s->isWhileStat());
+	auto& ifS = s->get<WhileStatement>();
+	EXPECT_TRUE(ifS.getBody().isStatmentList());
 }

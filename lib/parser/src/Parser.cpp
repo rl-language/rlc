@@ -6,8 +6,10 @@
 #include "rlc/ast/Entity.hpp"
 #include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/Expression.hpp"
+#include "rlc/ast/Statement.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/utils/Error.hpp"
+#include "rlc/utils/SourcePosition.hpp"
 
 using namespace llvm;
 using namespace rlc;
@@ -354,4 +356,117 @@ llvm::Expected<EntityDeclaration> Parser::entityDeclaration()
 	}
 	auto e = Entity(move(name), move(fields));
 	return EntityDeclaration(move(e), move(pos));
+}
+
+/**
+ * expressionStatement : expression '\n'
+ */
+llvm::Expected<Statement> Parser::expressionStatement()
+{
+	auto pos = getCurrentSourcePos();
+	TRY(exp, expression());
+	EXPECT(Token::Newline);
+
+	return Statement::expStatement(move(*exp), move(pos));
+}
+
+/**
+ * ifStatement : if expression ':\nindent statementList [else ':\n'
+ * statementList ]
+ */
+llvm::Expected<Statement> Parser::ifStatement()
+{
+	SourcePosition pos = getCurrentSourcePos();
+	EXPECT(Token::KeywordIf);
+	TRY(exp, expression());
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+	TRY(tBranch, statementList());
+	if (!accept<Token::KeywordElse>())
+		return Statement::ifStatment(move(*exp), move(*tBranch), move(pos));
+
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+	TRY(fBranch, statementList());
+	return Statement::ifStatment(
+			move(*exp), move(*tBranch), move(*fBranch), move(pos));
+}
+
+/**
+ * whileStatement : While exp ':\n' statementList
+ */
+Expected<Statement> Parser::whileStatement()
+{
+	auto pos = getCurrentSourcePos();
+	EXPECT(Token::KeywordWhile);
+	TRY(exp, expression());
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+	TRY(statLis, statementList());
+	return Statement::whileStatement(move(*exp), move(*statLis), move(pos));
+}
+
+/**
+ * returnStatement : return [expression] '\n'
+ */
+Expected<Statement> Parser::returnStatement()
+{
+	auto pos = getCurrentSourcePos();
+	EXPECT(Token::KeywordReturn);
+	if (accept(Token::Newline))
+		return Statement::returnStatement(move(pos));
+
+	TRY(exp, expression());
+	EXPECT(Token::Newline);
+	return Statement::returnStatement(move(*exp), move(pos));
+}
+
+Expected<Statement> Parser::statement()
+{
+	if (current == Token::KeywordIf)
+		return ifStatement();
+
+	if (current == Token::KeywordReturn)
+		return returnStatement();
+
+	if (current == Token::KeywordWhile)
+		return whileStatement();
+
+	if (current == Token::KeywordLet)
+		return declarationStatement();
+
+	return expressionStatement();
+}
+
+/**
+ * declarationStatement : let identifier '=' expression
+ */
+Expected<Statement> Parser::declarationStatement()
+{
+	auto pos = getCurrentSourcePos();
+	EXPECT(Token::KeywordLet);
+	EXPECT(Token::Identifier);
+	auto name = lIdent;
+
+	EXPECT(Token::Equal);
+	TRY(exp, expression());
+	return Statement::declarationStatement(move(name), move(*exp), move(pos));
+}
+
+/**
+ * statmentList : indent (statement)* deindent
+ */
+Expected<Statement> Parser::statementList()
+{
+	auto pos = getCurrentSourcePos();
+
+	SmallVector<Statement, 3> stmts;
+	EXPECT(Token::Indent);
+	while (!accept<Token::Deindent>())
+	{
+		TRY(s, statement());
+		stmts.emplace_back(move(*s));
+	}
+
+	return Statement::statmentList(move(stmts), move(pos));
 }

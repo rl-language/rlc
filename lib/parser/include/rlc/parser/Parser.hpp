@@ -6,6 +6,7 @@
 #include "rlc/ast/Entity.hpp"
 #include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/Expression.hpp"
+#include "rlc/ast/Statement.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/utils/SourcePosition.hpp"
 
@@ -36,6 +37,14 @@ namespace rlc
 		llvm::Expected<EntityDeclaration> entityDeclaration();
 		llvm::Expected<EntityField> entityField();
 		llvm::Expected<llvm::SmallVector<Expression, 3>> argumentExpressionList();
+
+		llvm::Expected<Statement> expressionStatement();
+		llvm::Expected<Statement> ifStatement();
+		llvm::Expected<Statement> statement();
+		llvm::Expected<Statement> declarationStatement();
+		llvm::Expected<Statement> statementList();
+		llvm::Expected<Statement> whileStatement();
+		llvm::Expected<Statement> returnStatement();
 
 		private:
 		void next();

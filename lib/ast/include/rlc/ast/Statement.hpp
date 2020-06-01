@@ -49,6 +49,80 @@ namespace rlc
 		std::array<Expression, 1> expression;
 	};
 
+	class DeclarationStatement
+	{
+		public:
+		explicit DeclarationStatement(std::string name, Expression exp)
+				: varName(std::move(name)), expression({ std::move(exp) })
+		{
+		}
+
+		[[nodiscard]] const Expression& getExpression() const
+		{
+			return expression[0];
+		}
+		[[nodiscard]] Expression& getExpression() { return expression[0]; }
+
+		[[nodiscard]] auto begin() const { return expression.begin(); }
+		[[nodiscard]] auto begin() { return expression.begin(); }
+		[[nodiscard]] auto end() const { return expression.end(); }
+		[[nodiscard]] auto end() { return expression.end(); }
+
+		[[nodiscard]] size_t subExpCount() const { return expression.size(); }
+		[[nodiscard]] const Expression& getSubExp(size_t index) const
+		{
+			return expression.at(index);
+		}
+		[[nodiscard]] Expression& getSubExp(size_t index)
+		{
+			return expression.at(index);
+		}
+
+		[[nodiscard]] const std::string& getName() const { return varName; }
+
+		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
+		void dump() const;
+
+		private:
+		std::string varName;
+		std::array<Expression, 1> expression;
+	};
+
+	class ReturnStatement
+	{
+		public:
+		explicit ReturnStatement(Expression exp): expression({ std::move(exp) }) {}
+		explicit ReturnStatement() = default;
+
+		[[nodiscard]] bool isVoid() const { return expression.empty(); }
+		[[nodiscard]] const Expression& getExpression() const
+		{
+			return expression[0];
+		}
+		[[nodiscard]] Expression& getExpression() { return expression[0]; }
+
+		[[nodiscard]] auto begin() const { return expression.begin(); }
+		[[nodiscard]] auto begin() { return expression.begin(); }
+		[[nodiscard]] auto end() const { return expression.end(); }
+		[[nodiscard]] auto end() { return expression.end(); }
+
+		[[nodiscard]] size_t subExpCount() const { return expression.size(); }
+		[[nodiscard]] const Expression& getSubExp(size_t index) const
+		{
+			return expression[index];
+		}
+		[[nodiscard]] Expression& getSubExp(size_t index)
+		{
+			return expression[index];
+		}
+
+		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
+		void dump() const;
+
+		private:
+		llvm::SmallVector<Expression, 1> expression;
+	};
+
 	class StatementList
 	{
 		public:
@@ -86,8 +160,9 @@ namespace rlc
 		StatementList& operator=(const StatementList& other);
 		~StatementList() = default;
 
-		private:
 		using Container = llvm::SmallVector<std::unique_ptr<Statement>, 2>;
+
+		private:
 		explicit StatementList(Container c): list(std::move(c)) {}
 		Container list;
 	};
@@ -307,8 +382,16 @@ namespace rlc
 		}
 
 		[[nodiscard]] bool isIfStat() const { return isA<IfStatement>(); }
+		[[nodiscard]] bool isDeclarationStatement() const
+		{
+			return isA<DeclarationStatement>();
+		}
 		[[nodiscard]] bool isWhileStat() const { return isA<WhileStatement>(); }
 		[[nodiscard]] bool isStatmentList() const { return isA<StatementList>(); }
+		[[nodiscard]] bool isReturnStatement() const
+		{
+			return isA<ReturnStatement>();
+		}
 
 		[[nodiscard]] bool isExpStat() const { return isA<ExpressionStatement>(); }
 
@@ -394,6 +477,9 @@ namespace rlc
 		static Statement expStatement(
 				Expression exp, SourcePosition = SourcePosition());
 
+		static Statement declarationStatement(
+				std::string name, Expression exp, SourcePosition = SourcePosition());
+
 		static Statement whileStatement(
 				Expression cond, Statement body, SourcePosition pos = SourcePosition())
 		{
@@ -406,10 +492,27 @@ namespace rlc
 				llvm::SmallVector<Statement, 3> statement,
 				SourcePosition pos = SourcePosition());
 
+		static Statement returnStatement(
+				Expression returnExpression, SourcePosition pos = SourcePosition())
+		{
+			return Statement(
+					ReturnStatement(std::move(returnExpression)), std::move(pos));
+		}
+
+		static Statement returnStatement(SourcePosition pos = SourcePosition())
+		{
+			return Statement(ReturnStatement(), std::move(pos));
+		}
+
 		private:
 		SourcePosition position;
-		std::
-				variant<ExpressionStatement, IfStatement, WhileStatement, StatementList>
-						content;
+		std::variant<
+				ExpressionStatement,
+				IfStatement,
+				WhileStatement,
+				StatementList,
+				ReturnStatement,
+				DeclarationStatement>
+				content;
 	};
 }	 // namespace rlc

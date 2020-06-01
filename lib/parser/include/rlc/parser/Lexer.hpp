@@ -30,6 +30,7 @@ namespace rlc
 		KeywordTrue,
 		KeywordFalse,
 		KeywordIn,
+		KeywordLet,
 		Indent,
 		Deindent,
 		Newline,

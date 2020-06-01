@@ -43,6 +43,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordEvent";
 		case Token::KeywordAction:
 			return "KeywordAction";
+		case Token::KeywordLet:
+			return "KeywordLet";
 		case Token::KeywordEntity:
 			return "KeywordEntity";
 		case Token::KeywordIf:
@@ -309,8 +311,12 @@ Token Lexer::eatIdent()
 
 	if (name == "or")
 		return Token::KeywordOr;
+
 	if (name == "void")
 		return Token::Void;
+
+	if (name == "let")
+		return Token::KeywordLet;
 
 	lIdent = name;
 	return Token::Identifier;
