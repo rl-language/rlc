@@ -6,7 +6,11 @@
 #include "rlc/ast/Entity.hpp"
 #include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/Expression.hpp"
+#include "rlc/ast/FunctionDefinition.hpp"
 #include "rlc/ast/Statement.hpp"
+#include "rlc/ast/System.hpp"
+#include "rlc/ast/Type.hpp"
+#include "rlc/ast/TypeUse.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/utils/Error.hpp"
 #include "rlc/utils/SourcePosition.hpp"
@@ -450,6 +454,7 @@ Expected<Statement> Parser::declarationStatement()
 
 	EXPECT(Token::Equal);
 	TRY(exp, expression());
+	EXPECT(Token::Newline);
 	return Statement::declarationStatement(move(name), move(*exp), move(pos));
 }
 
@@ -469,4 +474,117 @@ Expected<Statement> Parser::statementList()
 	}
 
 	return Statement::statmentList(move(stmts), move(pos));
+}
+
+/**
+ * functionTypeUse : [singleTypeUse ("->" singleTypeUse )*]
+ */
+Expected<SingleTypeUse> Parser::functionTypeUse()
+{
+	SmallVector<SingleTypeUse, 2> tpUse;
+
+	TRY(singleTp, singleTypeUse());
+	tpUse.emplace_back(move(*singleTp));
+	while (accept<Token::Arrow>())
+	{
+		TRY(singleTp, singleTypeUse());
+		tpUse.emplace_back(move(*singleTp));
+	}
+
+	return FunctionTypeUse::functionType(move(tpUse));
+}
+
+/**
+ * singleTypeUse : "(" functionType ")" | identifier["["int64"]"]
+ */
+Expected<SingleTypeUse> Parser::singleTypeUse()
+{
+	if (accept<Token::LPar>())
+	{
+		TRY(fType, functionTypeUse());
+		EXPECT(Token::RPar);
+		return move(*fType);
+	}
+
+	EXPECT(Token::Identifier);
+	auto nm = lIdent;
+	if (!accept<Token::LSquare>())
+		return SingleTypeUse::scalarType(move(nm));
+
+	EXPECT(Token::Int64);
+	auto size = lInt64;
+	EXPECT(Token::RSquare);
+	return SingleTypeUse::arrayType(move(nm), size);
+}
+
+Expected<ArgumentDeclaration> Parser::argDeclaration()
+{
+	auto pos = getCurrentSourcePos();
+	TRY(tp, singleTypeUse());
+	EXPECT(Token::Identifier);
+	auto parName = lIdent;
+	return ArgumentDeclaration(move(parName), move(*tp), move(pos));
+}
+
+/**
+ * functionDefinition : "fun" identifier "(" [argDeclaration (","
+ * argDeclaration)*] ")->" singleTypeUse ":\n" statementList
+ */
+Expected<FunctionDefinition> Parser::functionDefinition()
+{
+	auto pos = getCurrentSourcePos();
+	EXPECT(Token::KeywordFun);
+	EXPECT(Token::Identifier);
+	auto nm = lIdent;
+	EXPECT(Token::LPar);
+
+	llvm::SmallVector<ArgumentDeclaration, 3> args;
+
+	if (current != Token::RPar)
+	{
+		do
+		{
+			TRY(arg, argDeclaration());
+			args.emplace_back(move(*arg));
+		} while (accept<Token::Comma>());
+	}
+
+	EXPECT(Token::RPar);
+	EXPECT(Token::Arrow);
+	TRY(retType, singleTypeUse());
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+
+	TRY(body, statementList());
+	return FunctionDefinition(
+			move(nm), move(*body), move(*retType), move(args), pos);
+}
+
+Expected<System> Parser::system()
+{
+	EXPECT(Token::KeywordSystem);
+	EXPECT(Token::Identifier);
+	System s(lIdent);
+
+	EXPECT(Token::Newline);
+
+	while (current != Token::End)
+	{
+		accept<Token::Newline>();
+		accept<Token::Indent>();
+		accept<Token::Deindent>();
+
+		if (current == Token::KeywordFun)
+		{
+			TRY(f, functionDefinition());
+			s.addFunction(move(*f));
+		}
+
+		if (current == Token::KeywordEntity)
+		{
+			TRY(f, entityDeclaration());
+			s.addEntity(move(*f));
+		}
+	}
+	return move(s);
 }

@@ -6,7 +6,9 @@
 #include "rlc/ast/Entity.hpp"
 #include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/Expression.hpp"
+#include "rlc/ast/FunctionDefinition.hpp"
 #include "rlc/ast/Statement.hpp"
+#include "rlc/ast/System.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/utils/SourcePosition.hpp"
 
@@ -45,6 +47,14 @@ namespace rlc
 		llvm::Expected<Statement> statementList();
 		llvm::Expected<Statement> whileStatement();
 		llvm::Expected<Statement> returnStatement();
+
+		llvm::Expected<ArgumentDeclaration> argDeclaration();
+
+		llvm::Expected<SingleTypeUse> singleTypeUse();
+		llvm::Expected<SingleTypeUse> functionTypeUse();
+		llvm::Expected<FunctionDefinition> functionDefinition();
+
+		llvm::Expected<System> system();
 
 		private:
 		void next();

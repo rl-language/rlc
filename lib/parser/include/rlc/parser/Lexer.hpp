@@ -31,9 +31,11 @@ namespace rlc
 		KeywordFalse,
 		KeywordIn,
 		KeywordLet,
+		KeywordFun,
 		Indent,
 		Deindent,
 		Newline,
+		Arrow,
 		Plus,
 		Minus,
 		Mult,
@@ -60,7 +62,6 @@ namespace rlc
 		Int64,
 		Bool,
 		Dot,
-		Void,
 		Error
 	};
 

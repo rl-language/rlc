@@ -1,0 +1,2 @@
+rlcAddTool(rlc 
+	rlc::parser)

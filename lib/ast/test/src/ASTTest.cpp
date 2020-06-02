@@ -1,6 +1,9 @@
 #include "gtest/gtest.h"
 
+#include "rlc/ast/FunctionDefinition.hpp"
+#include "rlc/ast/Statement.hpp"
 #include "rlc/ast/Type.hpp"
+#include "rlc/ast/TypeUse.hpp"
 
 using namespace rlc;
 
@@ -105,4 +108,20 @@ TEST(TypeTest, equalUserDefinedTypesShouldBeEqual)
 	auto ft2 = db.createUserDefinedType("name", t);
 	EXPECT_EQ(ft2, nullptr);
 	EXPECT_EQ(ft, db.getUserDefined("name"));
+}
+
+TEST(FunctionDefinitionTest, argumentDeclarationTest)
+{
+	ArgumentDeclaration dc("a", SingleTypeUse::scalarType("tp"));
+	EXPECT_EQ(dc.getName(), "a");
+	EXPECT_EQ(dc.getTypeUse().getName(), "tp");
+}
+
+TEST(FunctionDefinitionTest, functionDefinition)
+{
+	FunctionDefinition fd(
+			"f", Statement::statmentList({}), SingleTypeUse::scalarType("tp"));
+	EXPECT_EQ(fd.getName(), "f");
+	EXPECT_EQ(fd.getTypeUse().getName(), "tp");
+	EXPECT_EQ(fd.argumentsCount(), 0);
 }

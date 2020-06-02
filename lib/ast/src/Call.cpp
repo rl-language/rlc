@@ -32,14 +32,17 @@ const Expression& SimpleIterator<const Call&, const Expression>::operator*()
 
 void Call::print(raw_ostream& OS, size_t indents) const
 {
-	OS.indent(indents);
 	OS << "call\n";
 	getFunctionExpression().print(OS, indents + 1);
 	OS << "\n";
 	OS.indent(indents);
-	OS << "Args " << argsCount() << "\n";
+	OS << "call args\n";
 	for (const auto& a : argsRange())
+	{
 		a.print(OS, indents + 1);
+		if (&a != &(*(argsRange().end() - 1)))
+			OS << "\n";
+	}
 }
 
 Call::Call(const Call& other)

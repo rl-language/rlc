@@ -96,7 +96,9 @@ macro(rlcAddTool target)
 	include(GNUInstallDirs)
 	INSTALL(TARGETS ${target} RUNTIME DESTINATION bin)
 
-	add_subdirectory(test)
+	if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test)
+		add_subdirectory(test)
+	endif()
 	
 
 endMacro(rlcAddTool)

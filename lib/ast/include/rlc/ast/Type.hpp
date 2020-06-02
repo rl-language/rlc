@@ -89,7 +89,7 @@ namespace rlc
 
 		private:
 		llvm::StringRef name;
-		const llvm::SmallVector<Type*, 3> memberTypes;
+		llvm::SmallVector<Type*, 3> memberTypes;
 	};
 
 	class FunctionType

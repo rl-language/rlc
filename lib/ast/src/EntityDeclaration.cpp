@@ -7,10 +7,11 @@ using namespace llvm;
 void EntityDeclaration::print(
 		raw_ostream& OS, size_t indents, bool printLocation) const
 {
-	OS.indent(indents);
 	if (printLocation)
+	{
+		OS.indent(indents);
 		OS << pos.toString() << "\n";
-	OS.indent(indents);
+	}
 	entity.print(OS, indents);
 }
 

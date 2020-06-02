@@ -123,10 +123,12 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Comma";
 		case Token::Dot:
 			return "Dot";
-		case Token::Void:
-			return "Void";
 		case Token::Module:
 			return "Module";
+		case Token::Arrow:
+			return "Arrow";
+		case Token::KeywordFun:
+			return "KeywordFun";
 	}
 	return "";
 }
@@ -235,6 +237,10 @@ optional<Token> Lexer::eatSymbol()
 
 optional<Token> Lexer::twoSymbols(char current)
 {
+	if (current == '\n')
+		while (*in == '\n')
+			eatChar();
+
 	switch (current)
 	{
 		case '<':
@@ -252,6 +258,10 @@ optional<Token> Lexer::twoSymbols(char current)
 		case '!':
 			if (*in == '=')
 				return Token::NEqual;
+			return nullopt;
+		case '-':
+			if (*in == '>')
+				return Token::Arrow;
 			return nullopt;
 	}
 	return nullopt;
@@ -312,11 +322,11 @@ Token Lexer::eatIdent()
 	if (name == "or")
 		return Token::KeywordOr;
 
-	if (name == "void")
-		return Token::Void;
-
 	if (name == "let")
 		return Token::KeywordLet;
+
+	if (name == "fun")
+		return Token::KeywordFun;
 
 	lIdent = name;
 	return Token::Identifier;
@@ -325,7 +335,14 @@ Token Lexer::eatIdent()
 Token Lexer::next()
 {
 	if (*in == '\0')
+	{
+		while (indentStack.size() > 1)
+		{
+			indentStack.pop_back();
+			return Token::Deindent;
+		}
 		return Token::End;
+	}
 
 	auto t = eatSpaces();
 	if (t.has_value())

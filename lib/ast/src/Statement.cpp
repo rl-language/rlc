@@ -294,15 +294,14 @@ void Statement::print(raw_ostream& OS, size_t indents, bool printPosition) const
 		OS << "\n";
 	}
 
-	visit([](const auto& cont) { cont.dump(); });
+	visit([&](const auto& cont) { cont.print(OS, indents); });
 }
 
 void Statement::dump() const { print(outs()); }
 
 void ExpressionStatement::print(raw_ostream& OS, size_t indents) const
 {
-	OS.indent(indents);
-	getExpression().print(OS);
+	getExpression().print(OS, indents);
 }
 
 void ExpressionStatement::dump() const { print(outs()); }
@@ -328,15 +327,17 @@ void IfStatement::dump() const { print(outs()); }
 void WhileStatement::print(raw_ostream& OS, size_t indents) const
 {
 	OS.indent(indents);
-	OS << "while statement condition\n";
-	getCondition().print(OS, indents + 1);
+	OS << "while statement\n";
+	OS.indent(indents + 1);
+	OS << "cond:\n";
+	getCondition().print(OS, indents + 2);
 
 	OS << "\n";
-	OS.indent(indents);
-	OS << "body:";
+	OS.indent(indents + 1);
+	OS << "body:\n";
 	for (const auto& b : *this)
 	{
-		b.print(OS, indents + 1);
+		b.print(OS, indents + 2);
 		OS << "\n";
 	}
 }
@@ -351,7 +352,8 @@ void StatementList::print(raw_ostream& OS, size_t indents) const
 	for (const auto& b : *this)
 	{
 		b.print(OS, indents + 1);
-		OS << "\n";
+		if (&b != &(*(end() - 1)))
+			OS << "\n";
 	}
 }
 
@@ -360,10 +362,9 @@ void StatementList::dump() const { print(outs()); }
 void DeclarationStatement::print(raw_ostream& OS, size_t indents) const
 {
 	OS.indent(indents);
-	OS << "declaration statement: " << getName() << "\n";
+	OS << "declaration statement: " << getName() << " = ";
 
 	getExpression().print(OS);
-	OS << "\n";
 }
 
 void DeclarationStatement::dump() const { print(outs()); }
@@ -375,7 +376,7 @@ void ReturnStatement::print(raw_ostream& OS, size_t indents) const
 
 	if (!isVoid())
 	{
-		getExpression().print(OS);
+		getExpression().print(OS, indents + 1);
 		OS << "\n";
 	}
 }

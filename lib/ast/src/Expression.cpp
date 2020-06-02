@@ -19,24 +19,23 @@ static void printOut(const ScalarConstant& c, raw_ostream& OS, size_t indents)
 
 static void printOut(const Call& call, raw_ostream& OS, size_t indents)
 {
-	OS << " Call: \n";
 	call.print(OS, indents);
 }
 
 static void printOut(const Reference& ref, raw_ostream& OS, size_t indents)
 {
-	OS << " Reference ";
+	OS << " ref ";
 	ref.print(OS);
 }
 
 void Expression::print(raw_ostream& OS, size_t indents) const
 {
 	OS.indent(indents);
-	OS << "exp of type ";
 	if (getType() != nullptr)
+	{
+		OS << "type ";
 		getType()->print(OS);
-	else
-		OS << " unkown type ";
+	}
 
 	visit([&](const auto& t) { printOut(t, OS, indents); });
 }

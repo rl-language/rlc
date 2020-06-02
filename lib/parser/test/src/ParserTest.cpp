@@ -102,7 +102,7 @@ TEST(ParserTest, testEntityDeclaration)
 
 TEST(ParserTest, declarationTest)
 {
-	Parser p("let a = 5", "fileName");
+	Parser p("let a = 5\n", "fileName");
 	auto s = p.statement();
 	if (!s)
 		FAIL();
@@ -137,4 +137,68 @@ TEST(ParserTest, whileStatement)
 	EXPECT_TRUE(s->isWhileStat());
 	auto& ifS = s->get<WhileStatement>();
 	EXPECT_TRUE(ifS.getBody().isStatmentList());
+}
+
+TEST(ParserTest, singleTypeTest)
+{
+	Parser p("int", "fileName");
+	auto s = p.singleTypeUse();
+	if (!s)
+		FAIL();
+
+	EXPECT_TRUE(s->isScalar());
+	EXPECT_EQ(s->getName(), "int");
+}
+
+TEST(ParserTest, arrayTypeTest)
+{
+	Parser p("int[10]", "fileName");
+	auto s = p.singleTypeUse();
+	if (!s)
+		FAIL();
+
+	EXPECT_TRUE(s->isArray());
+	EXPECT_EQ(s->getName(), "int");
+	EXPECT_EQ(s->getDimension(), 10);
+}
+
+TEST(ParserTest, functionTypeTest)
+{
+	Parser p("(int[10])", "fileName");
+	auto s = p.singleTypeUse();
+	if (!s)
+		FAIL();
+
+	EXPECT_TRUE(s->isFunctionType());
+	const auto& r = s->getFunctionType().getReturnType();
+	EXPECT_TRUE(r.isArray());
+	EXPECT_EQ(r.getName(), "int");
+	EXPECT_EQ(r.getDimension(), 10);
+}
+
+TEST(ParserTest, complexFunctionTypeTest)
+{
+	Parser p("(int[10] -> int)", "fileName");
+	auto s = p.singleTypeUse();
+	if (!s)
+		FAIL();
+
+	EXPECT_TRUE(s->isFunctionType());
+	EXPECT_EQ(s->getFunctionType().argCount(), 1);
+	const auto& r = s->getFunctionType().getArgType(0);
+	EXPECT_TRUE(r.isArray());
+	EXPECT_EQ(r.getName(), "int");
+	EXPECT_EQ(r.getDimension(), 10);
+}
+
+TEST(ParserTest, functionDefinition)
+{
+	Parser p("fun a()->void:\n\tb()\nc()", "fileName");
+	auto s = p.functionDefinition();
+	if (!s)
+		FAIL();
+
+	EXPECT_EQ(s->getName(), "a");
+	EXPECT_EQ(s->argumentsCount(), 0);
+	EXPECT_EQ(s->getTypeUse().getName(), "void");
 }
