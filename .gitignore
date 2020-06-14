@@ -8,8 +8,6 @@ compile_commands.json
 tags
 build
 release
-.vimrc
-.ycm_extra_conf.py
 .clangd
 .idea
 
