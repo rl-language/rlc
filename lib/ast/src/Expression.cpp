@@ -50,7 +50,7 @@ Expression& SimpleIterator<Expression&, Expression>::operator*() const
 
 template<>
 const Expression&
-SimpleIterator<const Expression&, const Expression>::operator*() const
+		SimpleIterator<const Expression&, const Expression>::operator*() const
 {
 	return type.subExpression(index);
 }
@@ -68,10 +68,10 @@ Expression Expression::call(Expression call, SmallVector<Expression, 3> args)
 {
 	Call::Container newArgs;
 	for (auto& arg : args)
-		newArgs.emplace_back(make_unique<Expression>(std::move(arg)));
+		newArgs.emplace_back(std::make_unique<Expression>(std::move(arg)));
 
 	return Expression(
-			Call(make_unique<Expression>(std::move(call)), std::move(newArgs)),
+			Call(std::make_unique<Expression>(std::move(call)), std::move(newArgs)),
 			nullptr);
 }
 
