@@ -24,6 +24,7 @@ namespace rlc
 			entities.try_emplace(std::move(name), std::move(ent));
 		}
 
+		[[nodiscard]] const std::string& getName() const { return name; }
 		System(std::string name): name(std::move(name)) {}
 
 		private:

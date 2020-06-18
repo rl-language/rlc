@@ -79,6 +79,7 @@ namespace rlc
 		}
 
 		[[nodiscard]] const std::string& getName() const { return varName; }
+		[[nodiscard]] Type* getType() const { return getExpression().getType(); }
 
 		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
 		void dump() const;

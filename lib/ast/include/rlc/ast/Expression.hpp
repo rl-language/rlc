@@ -6,16 +6,17 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Call.hpp"
 #include "rlc/ast/Constant.hpp"
 #include "rlc/ast/Reference.hpp"
+#include "rlc/ast/SymbolTable.hpp"
+#include "rlc/ast/Type.hpp"
 #include "rlc/utils/SimpleIterator.hpp"
 
 namespace rlc
 {
-	class Expression;
-
 	class Expression
 	{
 		public:
@@ -198,8 +199,7 @@ namespace rlc
 
 		[[nodiscard]] Expression operator>(Expression&& other)
 		{
-			return call(
-					reference("greather"), { std::move(*this), std::move(other) });
+			return call(reference("greater"), { std::move(*this), std::move(other) });
 		}
 
 		[[nodiscard]] Expression operator>=(Expression&& other)
@@ -227,6 +227,8 @@ namespace rlc
 			return call(
 					reference("assign"), { std::move(leftHand), std::move(rightHand) });
 		}
+
+		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		std::variant<ScalarConstant, Call, Reference> content;

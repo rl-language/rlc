@@ -586,5 +586,5 @@ Expected<System> Parser::system()
 			s.addEntity(move(*f));
 		}
 	}
-	return move(s);
+	return s;
 }

@@ -28,13 +28,13 @@ namespace rlc
 		[[nodiscard]] reference operator*() { return current; }
 		[[nodiscard]] pointer operator->() const { return &current; }
 		[[nodiscard]] pointer operator->() { return &current; }
-		[[nodiscard]] IRangeIterator operator++(int)	// NOLINT
+		IRangeIterator operator++(int)	// NOLINT
 		{
 			auto copy = *this;
 			++(*this);
 			return copy;
 		}
-		[[nodiscard]] IRangeIterator& operator++()	// NOLINT
+		IRangeIterator& operator++()	// NOLINT
 		{
 			current++;
 			return *this;

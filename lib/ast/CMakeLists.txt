@@ -8,7 +8,8 @@ rlcAddLibrary(ast SHARED
 	src/FunctionDefinition.cpp
 	src/TypeUse.cpp
 	src/System.cpp
-	src/EntityDeclaration.cpp)
+	src/EntityDeclaration.cpp
+	src/SymbolTable.cpp)
 
 target_link_libraries(ast PUBLIC rlc::utils)
 
