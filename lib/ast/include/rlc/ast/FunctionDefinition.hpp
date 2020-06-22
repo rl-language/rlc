@@ -4,46 +4,13 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
+#include "rlc/ast/FunctionDeclaration.hpp"
 #include "rlc/ast/Statement.hpp"
 #include "rlc/ast/TypeUse.hpp"
 #include "rlc/utils/SourcePosition.hpp"
 
 namespace rlc
 {
-	class ArgumentDeclaration
-	{
-		public:
-		[[nodiscard]] Type* getType() const { return tp; }
-		[[nodiscard]] const std::string& getName() const { return name; }
-		[[nodiscard]] const SingleTypeUse& getTypeUse() const { return typeName; }
-		[[nodiscard]] const SourcePosition& getSourcePosition() const
-		{
-			return sourcePosition;
-		}
-
-		ArgumentDeclaration(
-				std::string nm,
-				SingleTypeUse typeUse,
-				SourcePosition pos = SourcePosition())
-				: name(std::move(nm)),
-					typeName(std::move(typeUse)),
-					sourcePosition(std::move(pos))
-		{
-		}
-
-		void print(
-				llvm::raw_ostream& OS,
-				size_t indents = 0,
-				bool dumpPosition = false) const;
-		void dump() const;
-
-		private:
-		std::string name;
-		SingleTypeUse typeName;
-		Type* tp{ nullptr };
-		SourcePosition sourcePosition;
-	};
-
 	class FunctionDefinition
 	{
 		public:
@@ -53,35 +20,46 @@ namespace rlc
 				bool dumpPosition = false) const;
 		void dump() const;
 
-		[[nodiscard]] auto begin() const { return arguments.begin(); }
-		[[nodiscard]] auto begin() { return arguments.begin(); }
-		[[nodiscard]] auto end() const { return arguments.end(); }
-		[[nodiscard]] auto end() { return arguments.end(); }
-		[[nodiscard]] size_t argumentsCount() const { return arguments.size(); }
+		[[nodiscard]] auto begin() const { return declaration.begin(); }
+		[[nodiscard]] auto begin() { return declaration.begin(); }
+		[[nodiscard]] auto end() const { return declaration.end(); }
+		[[nodiscard]] auto end() { return declaration.end(); }
+		[[nodiscard]] size_t argumentsCount() const
+		{
+			return declaration.argumentsCount();
+		}
 		[[nodiscard]] const ArgumentDeclaration& operator[](size_t index) const
 		{
 			assert(index < argumentsCount());
-			return arguments[index];
+			return declaration[index];
 		}
 		[[nodiscard]] ArgumentDeclaration& operator[](size_t index)
 		{
 			assert(index < argumentsCount());
-			return arguments[index];
+			return declaration[index];
 		}
 
-		[[nodiscard]] Type* getType() const { return type; }
+		[[nodiscard]] Type* getType() const { return declaration.getType(); }
 
-		[[nodiscard]] const std::string& getName() const { return name; }
+		[[nodiscard]] const std::string& getName() const
+		{
+			return declaration.getName();
+		}
+
+		[[nodiscard]] std::string canonicalName() const
+		{
+			return declaration.canonicalName();
+		}
 
 		[[nodiscard]] const Statement& getBody() const { return body; }
 		[[nodiscard]] const SingleTypeUse& getTypeUse() const
 		{
-			return returnTypeName;
+			return declaration.getTypeUse();
 		}
 
 		[[nodiscard]] const SourcePosition& getSourcePosition() const
 		{
-			return position;
+			return declaration.getSourcePosition();
 		}
 
 		FunctionDefinition(
@@ -90,11 +68,9 @@ namespace rlc
 				SingleTypeUse returnTypeName,
 				llvm::SmallVector<ArgumentDeclaration, 3> arguments = {},
 				SourcePosition pos = SourcePosition())
-				: name(std::move(name)),
-					body(std::move(body)),
-					arguments(std::move(arguments)),
-					returnTypeName(std::move(returnTypeName)),
-					position(std::move(pos))
+				: declaration(
+							std::move(name), std::move(returnTypeName), std::move(arguments)),
+					body(std::move(body))
 		{
 		}
 
@@ -103,20 +79,20 @@ namespace rlc
 				Statement body,
 				SingleTypeUse returnTypeName,
 				SourcePosition pos)
-				: name(std::move(name)),
-					body(std::move(body)),
-					arguments(),
-					returnTypeName(std::move(returnTypeName)),
-					position(std::move(pos))
+				: declaration(
+							std::move(name), std::move(returnTypeName), std::move(pos)),
+					body(std::move(body))
 		{
 		}
 
+		[[nodiscard]] const FunctionDeclaration& getDeclaration() const
+		{
+			return declaration;
+		}
+		[[nodiscard]] FunctionDeclaration& getDeclaration() { return declaration; }
+
 		private:
-		std::string name;
+		FunctionDeclaration declaration;
 		Statement body;
-		Type* type{ nullptr };
-		llvm::SmallVector<ArgumentDeclaration, 3> arguments;
-		SingleTypeUse returnTypeName;
-		SourcePosition position;
 	};
 }	 // namespace rlc

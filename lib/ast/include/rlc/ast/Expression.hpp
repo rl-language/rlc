@@ -10,6 +10,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Call.hpp"
 #include "rlc/ast/Constant.hpp"
+#include "rlc/ast/MemberAccess.hpp"
 #include "rlc/ast/Reference.hpp"
 #include "rlc/ast/SymbolTable.hpp"
 #include "rlc/ast/Type.hpp"
@@ -194,7 +195,7 @@ namespace rlc
 		[[nodiscard]] Expression operator<=(Expression&& other)
 		{
 			return call(
-					reference("lessEqual"), { std::move(*this), std::move(other) });
+					reference("less_equal"), { std::move(*this), std::move(other) });
 		}
 
 		[[nodiscard]] Expression operator>(Expression&& other)
@@ -205,22 +206,23 @@ namespace rlc
 		[[nodiscard]] Expression operator>=(Expression&& other)
 		{
 			return call(
-					reference("greatherEqual"), { std::move(*this), std::move(other) });
+					reference("greater_equal"), { std::move(*this), std::move(other) });
 		}
 
 		[[nodiscard]] Expression operator[](Expression&& other)
 		{
 			return call(
-					reference("arrayAccess"), { std::move(*this), std::move(other) });
+					reference("array_access"), { std::move(*this), std::move(other) });
 		}
 
 		static Expression memberAccess(
 				Expression&& leftHand, std::string memberName)
 		{
-			return call(
-					reference("memberAccess"),
-					{ std::move(leftHand), reference(std::move(memberName)) });
+			return Expression(
+					MemberAccess(std::move(leftHand), std::move(memberName)), nullptr);
 		}
+
+		void setType(Type* tp) { type = tp; }
 
 		static Expression assign(Expression&& leftHand, Expression&& rightHand)
 		{
@@ -231,7 +233,7 @@ namespace rlc
 		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 
 		private:
-		std::variant<ScalarConstant, Call, Reference> content;
+		std::variant<ScalarConstant, Call, Reference, MemberAccess> content;
 		Type* type;
 	};
 }	 // namespace rlc

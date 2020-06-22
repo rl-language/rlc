@@ -1,6 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "rlc/ast/BuiltinFunctions.hpp"
 #include "rlc/parser/Parser.hpp"
 
 using namespace rlc;
@@ -22,6 +23,7 @@ int main(int argc, char* argv[])
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	Parser parser(buffer->getBufferStart(), InputFileName);
 	auto ast = exitOnErr(parser.system());
+	rlc::addBuilints(ast);
 	ast.dump();
 
 	return 0;

@@ -35,6 +35,7 @@ namespace rlc
 		SingleTypeUse(const SingleTypeUse& other);
 		SingleTypeUse& operator=(const SingleTypeUse& other);
 		~SingleTypeUse() = default;
+		[[nodiscard]] std::string toString() const;
 
 		private:
 		explicit SingleTypeUse(std::string name, bool array, size_t dim = 1)

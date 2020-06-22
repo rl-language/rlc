@@ -25,12 +25,13 @@ StringRef Symbol::getName() const
 	return parent->contains(name);
 }
 
-const Symbol& SymbolTable::get(llvm::StringRef name) const
+iterator_range<SymbolTable::Map::const_iterator> SymbolTable::range(
+		StringRef name) const
 {
-	assert(contains(name));
-	if (auto s = symbols.find(name); s != symbols.end())
-		return s->getValue();
-	return parent->get(name);
+	if (!contains(name) and parent != nullptr)
+		return parent->range(name);
+
+	return make_range(symbols.equal_range(name));
 }
 
 template<typename Symb>

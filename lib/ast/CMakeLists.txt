@@ -6,10 +6,13 @@ rlcAddLibrary(ast SHARED
 	src/Entity.cpp
 	src/Statement.cpp
 	src/FunctionDefinition.cpp
+	src/FunctionDeclaration.cpp
 	src/TypeUse.cpp
 	src/System.cpp
 	src/EntityDeclaration.cpp
-	src/SymbolTable.cpp)
+	src/SymbolTable.cpp
+	src/BuiltinFunctions.cpp
+	src/MemberAccess.cpp)
 
 target_link_libraries(ast PUBLIC rlc::utils)
 

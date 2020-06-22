@@ -7,7 +7,13 @@ namespace rlc
 	enum class RlcErrorCode
 	{
 		success = 0,
-		unexpectedToken
+		unexpectedToken,
+		unknownReference,
+		typelessReference,
+		nonFunctionCalled,
+		argumentCountMissmatch,
+		argumentTypeMissmatch,
+		noMatchingFunction
 	};
 }
 

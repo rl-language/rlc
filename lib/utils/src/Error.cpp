@@ -36,6 +36,18 @@ error_condition rlc::make_error_condition(RlcErrorCode errc)
 			return "Success";
 		case 1:
 			return "Unexpected Token";
+		case 2:
+			return "Unknown Reference";
+		case 3:
+			return "Typeless Reference";
+		case 4:
+			return "Called item was not a function";
+		case 5:
+			return "Arguments missmatch";
+		case 6:
+			return "Arguments count missmatch";
+		case 7:
+			return "No matching function";
 		default:
 			return "Unkown Error";
 	}

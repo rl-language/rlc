@@ -1,6 +1,7 @@
 #include "rlc/ast/TypeUse.hpp"
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "llvm/ADT/iterator_range.h"
@@ -64,4 +65,13 @@ SingleTypeUse& SingleTypeUse::operator=(const SingleTypeUse& other)
 		fType = std::make_unique<FunctionTypeUse>(*other.fType);
 
 	return *this;
+}
+
+string SingleTypeUse::toString() const
+{
+	string toReturn;
+	raw_string_ostream s(toReturn);
+	print(s);
+	s.flush();
+	return toReturn;
 }
