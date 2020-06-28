@@ -4,10 +4,13 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/FunctionDeclaration.hpp"
 #include "rlc/ast/FunctionDefinition.hpp"
+#include "rlc/ast/SymbolTable.hpp"
+#include "rlc/ast/Type.hpp"
 namespace rlc
 {
 	class System
@@ -33,8 +36,12 @@ namespace rlc
 
 		[[nodiscard]] const std::string& getName() const { return name; }
 		System(std::string name): name(std::move(name)) {}
+		llvm::Error typeCheck(const SymbolTable& tb, TypeDB& db);
 
 		private:
+		llvm::Error deduceEntitiesTypes(const SymbolTable& tb, TypeDB& db);
+		llvm::Error collectEntityTypes(SymbolTable& tb, TypeDB& db);
+		llvm::Error deduceFunctionTypes(SymbolTable& tb, TypeDB& db);
 		std::string name;
 		llvm::StringMap<FunctionDeclaration> funDecl;
 		llvm::StringMap<FunctionDefinition> funDef;

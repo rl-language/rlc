@@ -4,6 +4,8 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "rlc/ast/Expression.hpp"
+#include "rlc/ast/SymbolTable.hpp"
+#include "rlc/utils/Error.hpp"
 #include "rlc/utils/SourcePosition.hpp"
 
 using namespace rlc;
@@ -407,4 +409,79 @@ const Expression&
 		SimpleIterator<const Statement&, const Expression>::operator*() const
 {
 	return type.getSubExp(index);
+}
+
+Error ExpressionStatement::deduceTypes(const SymbolTable& tb, TypeDB& db)
+{
+	return getExpression().deduceType(tb, db);
+}
+
+Error ReturnStatement::deduceTypes(const SymbolTable& tb, TypeDB& db)
+{
+	if (isVoid())
+		return Error::success();
+	return getExpression().deduceType(tb, db);
+}
+
+Error StatementList::deduceTypes(SymbolTable& tb, TypeDB& db)
+{
+	SymbolTable t(&tb);
+	for (auto& s : *this)
+		if (auto e = s.deduceTypes(t, db); e)
+			return e;
+
+	return Error::success();
+}
+
+Error IfStatement::deduceTypes(SymbolTable& tb, TypeDB& db)
+{
+	for (auto& s : *this)
+		if (auto e = s.deduceTypes(tb, db); e)
+			return e;
+
+	if (!getCondition().getType()->isBool())
+		return make_error<StringError>(
+				"condition of if statement was not boolean",
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
+
+	return Error::success();
+}
+
+Error WhileStatement::deduceTypes(SymbolTable& tb, TypeDB& db)
+{
+	for (auto& s : *this)
+		if (auto e = s.deduceTypes(tb, db); e)
+			return e;
+
+	for (auto& exp : expRange())
+		if (auto e = exp.deduceType(tb, db); e)
+			return e;
+
+	if (!getCondition().getType()->isBool())
+		return make_error<StringError>(
+				"condition of if statement was not boolean",
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
+
+	return Error::success();
+}
+
+Error DeclarationStatement::deduceTypes(SymbolTable& tb, TypeDB& db)
+{
+	if (!tb.directContain(getName()))
+	{
+		if (auto e = getExpression().deduceType(tb, db); e)
+			return e;
+
+		tb.insert(*this);
+		return Error::success();
+	}
+
+	return make_error<StringError>(
+			"Symbol " + getName() + "was already defined in",
+			RlcErrorCategory::errorCode(RlcErrorCode::alreadyDefininedVariable));
+}
+
+llvm::Error Statement::deduceTypes(SymbolTable& tb, TypeDB& db)
+{
+	return std::visit([&](auto& s) { return s.deduceTypes(tb, db); }, content);
 }

@@ -19,6 +19,7 @@ namespace rlc
 		}
 
 		[[nodiscard]] const Entity& getEntity() const { return entity; }
+		[[nodiscard]] Entity& getEntity() { return entity; }
 		void print(
 				llvm::raw_ostream& OS,
 				size_t indents = 0,

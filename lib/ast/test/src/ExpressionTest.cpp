@@ -2,8 +2,14 @@
 #include <bits/stdint-intn.h>
 
 #include "rlc/ast/Constant.hpp"
+#include "rlc/ast/Entity.hpp"
 #include "rlc/ast/Expression.hpp"
+#include "rlc/ast/FunctionDeclaration.hpp"
 #include "rlc/ast/Reference.hpp"
+#include "rlc/ast/Statement.hpp"
+#include "rlc/ast/SymbolTable.hpp"
+#include "rlc/ast/Type.hpp"
+#include "rlc/ast/TypeUse.hpp"
 
 using namespace rlc;
 
@@ -36,4 +42,51 @@ TEST(ExpressionTest, nestedExpressionsShouldBeIteratable)
 	for (auto& subExp : exp)
 		elCount++;
 	EXPECT_EQ(elCount, 2);
+}
+
+TEST(ExpressionTest, referenceTypeCheck)
+{
+	DeclarationStatement d("var", Expression::int64Constant(3));
+
+	SymbolTable table;
+	TypeDB db;
+
+	auto exp = Expression::reference("var");
+	if (auto e = d.deduceTypes(table, db); e)
+		FAIL();
+	if (auto e = exp.deduceType(table, db); e)
+		FAIL();
+
+	EXPECT_EQ(exp.getType(), db.getLongType());
+}
+
+TEST(ExpressionTest, callTypeCheck)
+{
+	DeclarationStatement d("var", Expression::int64Constant(3));
+	FunctionDeclaration fun(
+			"duplicate",
+			SingleTypeUse::scalarType("int"),
+			{ ArgumentDeclaration("name", SingleTypeUse::scalarType("int")) });
+
+	SymbolTable table;
+	table.insert(fun);
+	TypeDB db;
+
+	Entity i("int", {});
+	if (i.createType(table, db))
+		FAIL();
+	if (i.deduceType(table, db))
+		FAIL();
+
+	auto exp = Expression::call(
+			Expression::reference("duplicate"), { Expression::reference("var") });
+	if (auto e = fun.deduceType(table, db); e)
+		FAIL();
+	if (auto e = d.deduceTypes(table, db); e)
+		FAIL();
+	if (auto e = exp.deduceType(table, db); e)
+		FAIL();
+
+	EXPECT_EQ(exp.getType(), db.getLongType());
+	EXPECT_EQ(fun.getReturnType(), db.getLongType());
 }

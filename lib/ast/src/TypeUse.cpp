@@ -1,12 +1,18 @@
 #include "rlc/ast/TypeUse.hpp"
 
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <string>
 
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
+#include "rlc/ast/Entity.hpp"
+#include "rlc/ast/SymbolTable.hpp"
 #include "rlc/ast/Type.hpp"
+#include "rlc/utils/Error.hpp"
 
 using namespace llvm;
 using namespace std;
@@ -18,6 +24,7 @@ SingleTypeUse::SingleTypeUse(std::unique_ptr<FunctionTypeUse> f)
 }
 
 const FunctionTypeUse& SingleTypeUse::getFunctionType() const { return *fType; }
+FunctionTypeUse& SingleTypeUse::getFunctionType() { return *fType; }
 
 void SingleTypeUse::print(llvm::raw_ostream& OS) const
 {
@@ -74,4 +81,50 @@ string SingleTypeUse::toString() const
 	print(s);
 	s.flush();
 	return toReturn;
+}
+
+static Expected<Type*> typeFromName(
+		llvm::StringRef name, const SymbolTable& tb, TypeDB& db)
+{
+	if (!tb.contains(name))
+		return make_error<StringError>(
+				name.str() + " does not name a type",
+				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference));
+
+	return tb.getUnique<Entity>(name).getType();
+}
+
+Error SingleTypeUse::deduceType(const SymbolTable& tb, TypeDB& db)
+{
+	if (isFunctionType())
+	{
+		if (auto e = getFunctionType().deduceType(tb, db); e)
+			return e;
+
+		type = getFunctionType().getType();
+		return Error::success();
+	}
+
+	Expected<Type*> t = typeFromName(getName(), tb, db);
+	if (!t)
+		return t.takeError();
+
+	type = *t;
+	return Error::success();
+}
+
+Error FunctionTypeUse::deduceType(const SymbolTable& tb, TypeDB& db)
+{
+	for (auto& typeUse : *this)
+		if (auto e = typeUse.deduceType(tb, db); e)
+			return e;
+
+	SmallVector<Type*, 2> types(argCount());
+
+	transform(argsRange(), types.begin(), [](const SingleTypeUse& use) {
+		return use.getType();
+	});
+
+	type = db.getFunctionType(getReturnType().getType(), types);
+	return Error::success();
 }

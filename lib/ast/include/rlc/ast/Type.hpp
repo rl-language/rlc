@@ -87,6 +87,12 @@ namespace rlc
 			return !(*this == other);
 		}
 
+		void addSubType(Type* subType)
+		{
+			assert(subType != nullptr);
+			memberTypes.emplace_back(subType);
+		}
+
 		private:
 		llvm::StringRef name;
 		llvm::SmallVector<Type*, 3> memberTypes;
@@ -150,7 +156,6 @@ namespace rlc
 	{
 		public:
 		using iterator = SimpleIterator<const Type*, const Type*, const Type*>;
-		friend class TypeDB;
 		template<typename T>
 		[[nodiscard]] bool isA() const
 		{
@@ -203,6 +208,11 @@ namespace rlc
 			return isBuiltin() && get<BuiltinType>() == BuiltinType::VOID;
 		}
 
+		[[nodiscard]] bool isBool() const
+		{
+			return isBuiltin() && get<BuiltinType>() == BuiltinType::BOOL;
+		}
+
 		[[nodiscard]] bool isFunctionType() const { return isA<FunctionType>(); }
 
 		[[nodiscard]] Type* getReturnType() const
@@ -239,10 +249,16 @@ namespace rlc
 			return get<ArrayType>().size();
 		}
 
+		void addSubType(Type* subType)
+		{
+			assert(isUserDefined());
+			assert(subType != nullptr);
+
+			get<UserDefinedType>().addSubType(subType);
+		}
+
 		void print(llvm::raw_ostream& out);
 		void dump();
-
-		private:
 		Type(BuiltinType b): content(b) {}
 		Type(Type* t, size_t s): content(ArrayType(t, s)) {}
 		Type(Type* t, llvm::ArrayRef<Type*> args): content(FunctionType(t, args)) {}
@@ -250,14 +266,26 @@ namespace rlc
 				: content(UserDefinedType(name, members))
 		{
 		}
-		const std::variant<BuiltinType, ArrayType, UserDefinedType, FunctionType>
-				content;
+
+		private:
+		template<typename T>
+		[[nodiscard]] T& get()
+		{
+			assert(isA<T>());
+			return std::get<T>(content);
+		}
+
+		std::variant<BuiltinType, ArrayType, UserDefinedType, FunctionType> content;
 	};
 
 	class TypeDB
 	{
 		public:
 		[[nodiscard]] Type* getLongType() { return getBuiltin(BuiltinType::LONG); }
+		[[nodiscard]] Type* getFloatType()
+		{
+			return getBuiltin(BuiltinType::DOUBLE);
+		}
 		[[nodiscard]] Type* getBoolType() { return getBuiltin(BuiltinType::BOOL); }
 		[[nodiscard]] Type* getDoubleType()
 		{
@@ -271,7 +299,7 @@ namespace rlc
 			return getBuiltin(b);
 		}
 
-		[[nodiscard]] Type* getUserDefined(llvm::StringRef name) const;
+		[[nodiscard]] Type* getUserDefined(llvm::StringRef name);
 
 		[[nodiscard]] Type* getBuiltin(BuiltinType b);
 
@@ -289,7 +317,7 @@ namespace rlc
 		[[nodiscard]] Type* getUserDefinedType(llvm::StringRef name)
 		{
 			if (auto f = userDefinedTypes.find(name); f != userDefinedTypes.end())
-				return f->second;
+				return f->second.get();
 			return nullptr;
 		}
 
@@ -302,12 +330,13 @@ namespace rlc
 		{
 			return getFunctionType(retType, { args... });
 		}
+		Type* nameToBuiltinType(llvm::StringRef name);
 
 		private:
 		llvm::BumpPtrAllocator allocator;
-		llvm::StringMap<Type*> userDefinedTypes;
-		std::map<BuiltinType, Type*> builtinTypes;
-		std::map<std::pair<Type*, size_t>, Type*> arrayTypes;
-		std::map<llvm::SmallVector<Type*, 3>, Type*> functionTypes;
+		llvm::StringMap<std::unique_ptr<Type>> userDefinedTypes;
+		std::map<BuiltinType, std::unique_ptr<Type>> builtinTypes;
+		std::map<std::pair<Type*, size_t>, std::unique_ptr<Type>> arrayTypes;
+		std::map<llvm::SmallVector<Type*, 3>, std::unique_ptr<Type>> functionTypes;
 	};
 }	 // namespace rlc

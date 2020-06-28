@@ -39,3 +39,9 @@ MemberAccess::MemberAccess(const MemberAccess& other)
 			exp({ make_unique<Expression>(other.getExp()) })
 {
 }
+
+template<>
+Expression& SimpleIterator<MemberAccess&, Expression>::operator*() const
+{
+	return type.getExp();
+}

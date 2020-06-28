@@ -48,6 +48,10 @@ error_condition rlc::make_error_condition(RlcErrorCode errc)
 			return "Arguments count missmatch";
 		case 7:
 			return "No matching function";
+		case 8:
+			return "Already defined variable";
+		case 9:
+			return "Already declared type";
 		default:
 			return "Unkown Error";
 	}

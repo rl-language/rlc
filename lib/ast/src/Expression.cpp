@@ -7,6 +7,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Constant.hpp"
+#include "rlc/ast/Entity.hpp"
 #include "rlc/ast/FunctionDeclaration.hpp"
 #include "rlc/ast/MemberAccess.hpp"
 #include "rlc/ast/Reference.hpp"
@@ -290,8 +291,25 @@ static Expected<Type*> tpOfExp(Call& call, const SymbolTable& tb, TypeDB& db)
 static Expected<Type*> tpOfExp(
 		MemberAccess& member, const SymbolTable& tb, TypeDB& db)
 {
-	assert(false and "Not implemented");
-	return nullptr;
+	for (auto& sub : member)
+		if (auto e = sub.deduceType(tb, db); e)
+			return move(e);
+
+	auto tp = member.getExp().getType();
+	if (!tp->isUserDefined())
+		return make_error<StringError>(
+				"accessing element of a non user defined type",
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
+
+	auto entity = tb.getUnique<Entity>(tp->getName());
+	auto index = entity.indexOfField(member.getFieldName());
+	if (index <= tp->containedTypesCount())
+		return tp->getContainedType(index);
+
+	return make_error<StringError>(
+			"No known field named " + member.getFieldName() + " in entity " +
+					entity.getName(),
+			RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
 }
 
 Error Expression::deduceType(const SymbolTable& tb, TypeDB& db)

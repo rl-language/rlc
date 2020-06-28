@@ -52,6 +52,7 @@ namespace rlc
 		}
 
 		[[nodiscard]] const Statement& getBody() const { return body; }
+		[[nodiscard]] Statement& getBody() { return body; }
 		[[nodiscard]] const SingleTypeUse& getTypeUse() const
 		{
 			return declaration.getTypeUse();
@@ -90,6 +91,7 @@ namespace rlc
 			return declaration;
 		}
 		[[nodiscard]] FunctionDeclaration& getDeclaration() { return declaration; }
+		llvm::Error deduceTypes(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		FunctionDeclaration declaration;

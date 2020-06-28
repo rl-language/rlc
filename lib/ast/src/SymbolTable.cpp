@@ -28,7 +28,7 @@ StringRef Symbol::getName() const
 iterator_range<SymbolTable::Map::const_iterator> SymbolTable::range(
 		StringRef name) const
 {
-	if (!contains(name) and parent != nullptr)
+	if (!directContain(name) and parent != nullptr)
 		return parent->range(name);
 
 	return make_range(symbols.equal_range(name));
@@ -42,7 +42,7 @@ Type* typeOfSymbol(const Symb& symbol)
 }
 
 template<>
-Type* typeOfSymbol<FunctionDefinition>(const FunctionDefinition& symbol)
+Type* typeOfSymbol<FunctionDeclaration>(const FunctionDeclaration& symbol)
 {
 	return symbol.getType();
 }

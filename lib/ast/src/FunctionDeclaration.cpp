@@ -1,5 +1,8 @@
 #include "rlc/ast/FunctionDeclaration.hpp"
 
+#include <algorithm>
+#include <iterator>
+
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -49,4 +52,26 @@ string FunctionDeclaration::canonicalName() const
 	s << toReturn;
 	s.flush();
 	return toReturn;
+}
+
+Error ArgumentDeclaration::deduceType(const SymbolTable& tb, TypeDB& db)
+{
+	return typeName.deduceType(tb, db);
+}
+
+Error FunctionDeclaration::deduceType(const SymbolTable& tb, TypeDB& db)
+{
+	for (auto& tu : *this)
+		if (auto e = tu.deduceType(tb, db); e)
+			return e;
+
+	if (auto e = returnTypeName.deduceType(tb, db); e)
+		return e;
+
+	SmallVector<Type*, 3> argTypes(argumentsCount());
+	transform(
+			begin(), end(), argTypes.begin(), [](auto& l) { return l.getType(); });
+
+	type = db.getFunctionType(getReturnType(), argTypes);
+	return Error::success();
 }

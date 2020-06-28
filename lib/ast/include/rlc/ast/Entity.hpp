@@ -1,7 +1,9 @@
 #pragma once
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
+#include "rlc/ast/SymbolTable.hpp"
 #include "rlc/ast/Type.hpp"
 namespace rlc
 {
@@ -35,6 +37,7 @@ namespace rlc
 
 		void print(llvm::raw_ostream& OS) const;
 		void dump() const;
+		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		Type* fieldType;
@@ -79,6 +82,10 @@ namespace rlc
 		[[nodiscard]] Type* getType() const { return type; }
 		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
 		void dump() const;
+
+		[[nodiscard]] size_t indexOfField(llvm::StringRef name) const;
+		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
+		llvm::Error createType(SymbolTable& tb, TypeDB& db);
 
 		private:
 		std::string nm;

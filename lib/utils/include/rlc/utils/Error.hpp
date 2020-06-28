@@ -13,7 +13,9 @@ namespace rlc
 		nonFunctionCalled,
 		argumentCountMissmatch,
 		argumentTypeMissmatch,
-		noMatchingFunction
+		noMatchingFunction,
+		alreadyDefininedVariable,
+		alreadyDeclaredType
 	};
 }
 

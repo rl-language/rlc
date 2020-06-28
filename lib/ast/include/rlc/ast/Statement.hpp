@@ -9,6 +9,8 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Expression.hpp"
+#include "rlc/ast/SymbolTable.hpp"
+#include "rlc/ast/Type.hpp"
 #include "rlc/utils/SimpleIterator.hpp"
 #include "rlc/utils/SourcePosition.hpp"
 namespace rlc
@@ -44,6 +46,7 @@ namespace rlc
 
 		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
 		void dump() const;
+		llvm::Error deduceTypes(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		std::array<Expression, 1> expression;
@@ -83,6 +86,7 @@ namespace rlc
 
 		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
 		void dump() const;
+		llvm::Error deduceTypes(SymbolTable& tb, TypeDB& db);
 
 		private:
 		std::string varName;
@@ -119,6 +123,7 @@ namespace rlc
 
 		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
 		void dump() const;
+		llvm::Error deduceTypes(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		llvm::SmallVector<Expression, 1> expression;
@@ -160,6 +165,8 @@ namespace rlc
 		StatementList(const StatementList& other);
 		StatementList& operator=(const StatementList& other);
 		~StatementList() = default;
+
+		llvm::Error deduceTypes(SymbolTable& tb, TypeDB& db);
 
 		using Container = llvm::SmallVector<std::unique_ptr<Statement>, 2>;
 
@@ -248,6 +255,7 @@ namespace rlc
 		IfStatement(const IfStatement& other);
 		IfStatement& operator=(const IfStatement& other);
 		~IfStatement() = default;
+		llvm::Error deduceTypes(SymbolTable& tb, TypeDB& db);
 
 		private:
 		IfStatement(Expression cond, std::unique_ptr<Statement> trueBranch)
@@ -335,6 +343,7 @@ namespace rlc
 		WhileStatement(const WhileStatement& other);
 		WhileStatement& operator=(const WhileStatement& other);
 		~WhileStatement() = default;
+		llvm::Error deduceTypes(SymbolTable& tb, TypeDB& db);
 
 		private:
 		WhileStatement(Expression cond, std::unique_ptr<Statement> bod)
@@ -460,6 +469,7 @@ namespace rlc
 		{
 			return StatIterator(*this, subExpCount());
 		}
+		llvm::Error deduceTypes(SymbolTable& tb, TypeDB& db);
 
 		void print(
 				llvm::raw_ostream& OS,

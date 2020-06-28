@@ -4,7 +4,11 @@
 #include <memory>
 #include <string>
 
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
+#include "rlc/ast/SymbolTable.hpp"
+#include "rlc/ast/Type.hpp"
 namespace rlc
 {
 	class FunctionTypeUse;
@@ -18,6 +22,7 @@ namespace rlc
 		[[nodiscard]] bool isScalar() const { return !array; }
 		[[nodiscard]] bool isFunctionType() const { return fType != nullptr; }
 		[[nodiscard]] const FunctionTypeUse& getFunctionType() const;
+		[[nodiscard]] FunctionTypeUse& getFunctionType();
 
 		static SingleTypeUse scalarType(std::string name)
 		{
@@ -36,6 +41,8 @@ namespace rlc
 		SingleTypeUse& operator=(const SingleTypeUse& other);
 		~SingleTypeUse() = default;
 		[[nodiscard]] std::string toString() const;
+		[[nodiscard]] Type* getType() const { return type; }
+		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		explicit SingleTypeUse(std::string name, bool array, size_t dim = 1)
@@ -47,6 +54,7 @@ namespace rlc
 		bool array{ false };
 		size_t dim{ 1 };
 		std::unique_ptr<FunctionTypeUse> fType{ nullptr };
+		Type* type{ nullptr };
 	};
 
 	/**
@@ -61,6 +69,14 @@ namespace rlc
 		[[nodiscard]] auto begin() { return types.begin(); }
 		[[nodiscard]] auto end() const { return types.end(); }
 		[[nodiscard]] auto end() { return types.end(); }
+		[[nodiscard]] auto argsRange()
+		{
+			return llvm::make_range(begin(), end() - 1);
+		}
+		[[nodiscard]] auto argsRange() const
+		{
+			return llvm::make_range(begin(), end() - 1);
+		}
 		[[nodiscard]] const SingleTypeUse& operator[](size_t index) const
 		{
 			return types[index];
@@ -90,9 +106,12 @@ namespace rlc
 				: types(std::move(types))
 		{
 		}
+		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
+		[[nodiscard]] Type* getType() const { return type; }
 
 		private:
 		llvm::SmallVector<SingleTypeUse, 2> types;
+		Type* type{ nullptr };
 	};
 
 }	 // namespace rlc

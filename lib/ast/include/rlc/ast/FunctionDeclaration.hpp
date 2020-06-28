@@ -5,6 +5,8 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Statement.hpp"
+#include "rlc/ast/SymbolTable.hpp"
+#include "rlc/ast/Type.hpp"
 #include "rlc/ast/TypeUse.hpp"
 #include "rlc/utils/SourcePosition.hpp"
 
@@ -13,7 +15,7 @@ namespace rlc
 	class ArgumentDeclaration
 	{
 		public:
-		[[nodiscard]] Type* getType() const { return tp; }
+		[[nodiscard]] Type* getType() const { return typeName.getType(); }
 		[[nodiscard]] const std::string& getName() const { return name; }
 		[[nodiscard]] const SingleTypeUse& getTypeUse() const { return typeName; }
 		[[nodiscard]] const SourcePosition& getSourcePosition() const
@@ -36,11 +38,11 @@ namespace rlc
 				size_t indents = 0,
 				bool dumpPosition = false) const;
 		void dump() const;
+		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		std::string name;
 		SingleTypeUse typeName;
-		Type* tp{ nullptr };
 		SourcePosition sourcePosition;
 	};
 
@@ -70,6 +72,10 @@ namespace rlc
 		}
 
 		[[nodiscard]] Type* getType() const { return type; }
+		[[nodiscard]] Type* getReturnType() const
+		{
+			return returnTypeName.getType();
+		}
 
 		[[nodiscard]] const std::string& getName() const { return name; }
 
@@ -105,6 +111,7 @@ namespace rlc
 		}
 
 		[[nodiscard]] std::string canonicalName() const;
+		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 
 		private:
 		std::string name;

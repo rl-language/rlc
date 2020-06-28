@@ -15,6 +15,7 @@ namespace rlc
 	class System;
 	class FunctionDeclaration;
 	class DeclarationStatement;
+	class ArgumentDeclaration;
 	class Symbol
 	{
 		public:
@@ -52,7 +53,8 @@ namespace rlc
 				const Entity*,
 				const System*,
 				const FunctionDeclaration*,
-				const DeclarationStatement*>
+				const DeclarationStatement*,
+				const ArgumentDeclaration*>
 				content;
 	};
 
@@ -142,7 +144,7 @@ namespace rlc
 		using filt_const_iterator_range =
 				llvm::iterator_range<filt_const_iterator<Filt>>;
 
-		explicit SymbolTable(const SymbolTable* parent): parent(parent) {}
+		explicit SymbolTable(const SymbolTable* parent = nullptr): parent(parent) {}
 		[[nodiscard]] bool contains(llvm::StringRef name) const;
 		[[nodiscard]] const_iterator_range range(llvm::StringRef name) const;
 
@@ -163,8 +165,21 @@ namespace rlc
 			auto r = range(name);
 			auto d = std::distance(r.begin(), r.end());
 			auto b = Iterator(r.begin(), d);
-			auto e = Iterator(r.begin(), 0);
+			auto e = Iterator(r.end(), 0);
 			return llvm::make_range(b, e);
+		}
+
+		template<typename Selected>
+		[[nodiscard]] const Selected& getUnique(llvm::StringRef name) const
+		{
+			auto r = range<Selected>(name);
+			assert(std::distance(r.begin(), r.end()) == 1);
+			return *r.begin();
+		}
+
+		[[nodiscard]] bool directContain(llvm::StringRef name) const
+		{
+			return symbols.find(name) != symbols.end();
 		}
 
 		private:

@@ -1,9 +1,14 @@
 #include "rlc/ast/System.hpp"
 
 #include "llvm/Support/raw_ostream.h"
+#include "rlc/ast/Entity.hpp"
+#include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/FunctionDeclaration.hpp"
+#include "rlc/ast/FunctionDefinition.hpp"
 #include "rlc/ast/SymbolTable.hpp"
+#include "rlc/ast/Type.hpp"
 #include "rlc/ast/TypeUse.hpp"
+#include "rlc/utils/Error.hpp"
 
 using namespace llvm;
 using namespace rlc;
@@ -54,4 +59,59 @@ void System::addFunDeclaration(
 		args.emplace_back("", SingleTypeUse::scalarType(a));
 
 	addFunDeclaration(FunctionDeclaration(move(name), move(u), move(args)));
+}
+
+Error System::deduceEntitiesTypes(const SymbolTable& tb, TypeDB& db)
+{
+	for (auto& ep : entities)
+		if (auto e = ep.second.getEntity().deduceType(tb, db); e)
+			return e;
+
+	return Error::success();
+}
+
+Error System::collectEntityTypes(SymbolTable& tb, TypeDB& db)
+{
+	for (auto& ep : entities)
+	{
+		auto& entity = ep.second.getEntity();
+		if (auto e = entity.createType(tb, db); e)
+			return e;
+	}
+
+	return Error::success();
+}
+
+Error System::deduceFunctionTypes(SymbolTable& tb, TypeDB& db)
+{
+	for (const auto& fDecl : funDecl)
+		tb.insert(fDecl.second);
+
+	for (const auto& fDef : funDef)
+		tb.insert(fDef.second.getDeclaration());
+
+	for (auto& fDecl : funDecl)
+		if (auto e = fDecl.second.deduceType(tb, db); e)
+			return e;
+
+	for (auto& fDef : funDef)
+		if (auto e = fDef.second.deduceTypes(tb, db); e)
+			return e;
+
+	return Error::success();
+}
+
+Error System::typeCheck(const SymbolTable& tb, TypeDB& db)
+{
+	SymbolTable table(&tb);
+	if (auto e = collectEntityTypes(table, db); e)
+		return e;
+
+	if (auto e = deduceEntitiesTypes(table, db); e)
+		return e;
+
+	if (auto e = deduceFunctionTypes(table, db); e)
+		return e;
+
+	return Error::success();
 }

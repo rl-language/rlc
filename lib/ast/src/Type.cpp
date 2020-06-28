@@ -1,6 +1,7 @@
 #include "rlc/ast/Type.hpp"
 
 #include <iterator>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -128,16 +129,17 @@ void Type::dump() { print(llvm::outs()); }
 Type* TypeDB::getBuiltin(BuiltinType b)
 {
 	if (auto f = builtinTypes.find(b); f != builtinTypes.end())
-		return f->second;
-	auto t = new (allocator.Allocate<Type>()) Type(b);
-	builtinTypes.try_emplace(b, t);
-	return t;
+		return f->second.get();
+	builtinTypes.try_emplace(b, std::make_unique<Type>(b));
+	return builtinTypes[b].get();
 }
 
-Type* TypeDB::getUserDefined(llvm::StringRef name) const
+Type* TypeDB::getUserDefined(llvm::StringRef name)
 {
+	if (auto t = nameToBuiltinType(name); t != nullptr)
+		return t;
 	if (auto f = userDefinedTypes.find(name); f != userDefinedTypes.end())
-		return f->second;
+		return f->second.get();
 
 	return nullptr;
 }
@@ -145,25 +147,26 @@ Type* TypeDB::getUserDefined(llvm::StringRef name) const
 Type* TypeDB::createUserDefinedType(
 		std::string name, llvm::ArrayRef<Type*> members)
 {
+	if (auto t = nameToBuiltinType(name); t != nullptr)
+		return t;
+
 	if (userDefinedTypes.find(name) != userDefinedTypes.end())
 		return nullptr;
 
 	auto s = new (allocator.Allocate<string>()) string(std::move(name));
-	auto t = new (allocator.Allocate<Type>()) Type(*s, members);
 
-	userDefinedTypes[t->getName()] = t;
-	return t;
+	userDefinedTypes[*s] = std::make_unique<Type>(*s, members);
+	return userDefinedTypes[*s].get();
 }
 
 Type* TypeDB::getArrayType(Type* tp, size_t size)
 {
 	auto p = make_pair(tp, size);
 	if (auto f = arrayTypes.find(p); f != arrayTypes.end())
-		return f->second;
+		return f->second.get();
 
-	auto t = new (allocator.Allocate<Type>()) Type(tp, size);
-	arrayTypes[p] = t;
-	return t;
+	arrayTypes[p] = std::make_unique<Type>(tp, size);
+	return arrayTypes[p].get();
 }
 
 Type* TypeDB::getFunctionType(Type* returnType, llvm::ArrayRef<Type*> args)
@@ -172,11 +175,10 @@ Type* TypeDB::getFunctionType(Type* returnType, llvm::ArrayRef<Type*> args)
 	t.push_back(returnType);
 
 	if (auto f = functionTypes.find(t); f != functionTypes.end())
-		return f->second;
+		return f->second.get();
 
-	auto tp = new (allocator.Allocate<Type>()) Type(returnType, args);
-	functionTypes[t] = tp;
-	return tp;
+	functionTypes[t] = std::make_unique<Type>(returnType, args);
+	return functionTypes[t].get();
 }
 
 template<>
@@ -184,4 +186,20 @@ const Type* SimpleIterator<const Type*, const Type*, const Type*>::operator*()
 		const
 {
 	return type->getContainedType(index);
+}
+
+Type* TypeDB::nameToBuiltinType(llvm::StringRef name)
+{
+	if (name == "int")
+		return getLongType();
+
+	if (name == "bool")
+		return getBoolType();
+
+	if (name == "float")
+		return getFloatType();
+
+	if (name == "void")
+		return getVoidType();
+	return nullptr;
 }
