@@ -195,6 +195,12 @@ namespace rlc
 		[[nodiscard]] size_t containedTypesCount() const;
 		[[nodiscard]] Type* getContainedType(size_t index) const;
 
+		[[nodiscard]] auto argumentsRange() const
+		{
+			assert(isFunctionType());
+			return get<FunctionType>().argumentsRange();
+		}
+
 		[[nodiscard]] std::string getName() const;
 
 		[[nodiscard]] iterator begin() const { return iterator(this); }
@@ -205,12 +211,22 @@ namespace rlc
 
 		[[nodiscard]] bool isVoid() const
 		{
-			return isBuiltin() && get<BuiltinType>() == BuiltinType::VOID;
+			return isBuiltin() and get<BuiltinType>() == BuiltinType::VOID;
+		}
+
+		[[nodiscard]] bool isLong() const
+		{
+			return isBuiltin() and get<BuiltinType>() == BuiltinType::LONG;
+		}
+
+		[[nodiscard]] bool isDouble() const
+		{
+			return isBuiltin() and get<BuiltinType>() == BuiltinType::DOUBLE;
 		}
 
 		[[nodiscard]] bool isBool() const
 		{
-			return isBuiltin() && get<BuiltinType>() == BuiltinType::BOOL;
+			return isBuiltin() and get<BuiltinType>() == BuiltinType::BOOL;
 		}
 
 		[[nodiscard]] bool isFunctionType() const { return isA<FunctionType>(); }

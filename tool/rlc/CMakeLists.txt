@@ -1,2 +1,3 @@
 rlcAddTool(rlc 
-	rlc::parser)
+	rlc::parser
+	rlc::lowerer)
