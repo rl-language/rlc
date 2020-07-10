@@ -8,6 +8,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
 
 using namespace rlc;
 using namespace std;
@@ -202,4 +203,37 @@ Type* TypeDB::nameToBuiltinType(llvm::StringRef name)
 	if (name == "void")
 		return getVoidType();
 	return nullptr;
+}
+
+string ArrayType::mangledName() const
+{
+	return getBaseType()->mangledName() + to_string(siz);
+}
+
+string UserDefinedType::mangledName() const { return getName(); }
+string FunctionType::mangledName() const
+{
+	auto s = string("<");
+	for (auto* t : argumentsRange())
+		s = s + t->mangledName() + "-";
+	s += ">";
+	s += getReturnType()->mangledName();
+	return s;
+}
+
+template<typename T>
+string mangledName(const T& t)
+{
+	return t.mangledName();
+}
+
+template<>
+string mangledName<BuiltinType>(const BuiltinType& t)
+{
+	return builtinTypeToString(t);
+}
+
+string Type::mangledName() const
+{
+	return visit([](auto& tp) -> string { return ::mangledName(tp); });
 }

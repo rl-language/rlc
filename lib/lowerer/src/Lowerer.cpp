@@ -32,7 +32,7 @@ llvm::Type* Lowerer::rlcBuiltinTollvmType(rlc::Type* t) const
 llvm::Type* Lowerer::rlcFunctionTypeToLlvmType(rlc::Type* t) const
 {
 	assert(t->isFunctionType());
-	auto returnType = rlcToLlvmType(t->getReturnType());
+	auto* returnType = rlcToLlvmType(t->getReturnType());
 	SmallVector<llvm::Type*, 3> args(t->getArgCount());
 	transform(t->argumentsRange(), args.begin(), [this](Type* tp) {
 		return rlcToLlvmType(tp);
@@ -53,7 +53,7 @@ llvm::Type* Lowerer::uncahedRlcToLlvmType(rlc::Type* t) const
 	if (t->isArray())
 	{
 		const auto lenght = t->getArraySize();
-		auto baseType = rlcToLlvmType(t->getContainedType(0));
+		auto* baseType = rlcToLlvmType(t->getContainedType(0));
 		return llvm::ArrayType::get(baseType, lenght);
 	}
 
@@ -66,7 +66,7 @@ llvm::Type* Lowerer::rlcToLlvmType(rlc::Type* t) const
 	if (auto llvmT = typeToTypeMap.find(t); llvmT != typeToTypeMap.end())
 		return llvmT->second;
 
-	auto type = uncahedRlcToLlvmType(t);
+	auto* type = uncahedRlcToLlvmType(t);
 	typeToTypeMap.try_emplace(t, type);
 	return type;
 }
@@ -85,31 +85,35 @@ Error Lowerer::lowerSystem(const System& system)
 		if (auto e = lowerEntity(ent.second.getEntity(), m); e)
 			return e;
 
-	// for (const auto& decl : system.declarationsRange())
-	// if (auto e = lowerDeclaration(decl.second, m); e)
-	// return e;
+	for (const auto& decl : system.declarationsRange())
+		if (auto e = lowerDeclaration(decl.second, m); e)
+			return e;
 
-	// for (const auto& decl : system.definitionsRange())
-	// if (auto e = lowerDeclaration(decl.second.getDeclaration(), m); e)
-	// return e;
+	for (const auto& decl : system.definitionsRange())
+		if (auto e = lowerDeclaration(decl.second.getDeclaration(), m); e)
+			return e;
 
 	return Error::success();
 }
 
 Error Lowerer::declareOpaqueStruct(const Entity& entity, Module& module)
 {
-	auto realT = StructType::create(context, entity.getName());
-	auto ptrToT = realT->getPointerTo();
+	if (entity.getType()->isBuiltin())
+		return Error::success();
+	auto* realT = StructType::create(context, entity.getName());
+	auto* ptrToT = realT->getPointerTo();
 	typeToTypeMap.try_emplace(entity.getType(), ptrToT);
 	return Error::success();
 }
 
 Error Lowerer::lowerEntity(const Entity& entity, Module& module)
 {
+	if (entity.getType()->isBuiltin())
+		return Error::success();
 	llvm::Type* declaredType =
 			rlcToLlvmType(entity.getType())->getContainedType(0);
 	assert(declaredType->isStructTy());
-	auto strctType = cast<StructType>(declaredType);
+	auto* strctType = cast<StructType>(declaredType);
 
 	SmallVector<llvm::Type*, 3> types(entity.fieldsCount());
 	const auto& fieldToLlvmType = [this](const EntityField& field) {
@@ -127,4 +131,14 @@ bool Lowerer::verify(llvm::raw_ostream& OS)
 		return llvm::verifyModule(*module, &OS);
 	};
 	return none_of(modules, isBroken);
+}
+
+Error Lowerer::lowerDeclaration(const FunctionDeclaration& decl, Module& module)
+{
+	auto* t = rlcFunctionTypeToLlvmType(decl.getType());
+	assert(t != nullptr);
+	assert(isa<llvm::FunctionType>(t));
+	auto* ft = llvm::cast<llvm::FunctionType>(t);
+	module.getOrInsertFunction(decl.mangledName(), ft);
+	return Error::success();
 }

@@ -22,7 +22,7 @@ namespace rlc
 		llvm::Error lowerSystem(const System& system);
 		llvm::Error lowerEntity(const Entity& entity, llvm::Module& module);
 		llvm::Error lowerDeclaration(
-				const FunctionDeclaration& system, llvm::Module& module);
+				const FunctionDeclaration& decl, llvm::Module& module);
 
 		llvm::Error declareOpaqueStruct(const Entity& entity, llvm::Module& module);
 

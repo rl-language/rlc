@@ -110,6 +110,8 @@ namespace rlc
 		{
 		}
 
+		[[nodiscard]] std::string mangledName() const;
+
 		[[nodiscard]] std::string canonicalName() const;
 		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 

@@ -65,7 +65,7 @@ Expression& SimpleIterator<Expression&, Expression>::operator*() const
 
 template<>
 const Expression&
-		SimpleIterator<const Expression&, const Expression>::operator*() const
+SimpleIterator<const Expression&, const Expression>::operator*() const
 {
 	return type.subExpression(index);
 }
@@ -272,10 +272,10 @@ static Expected<Type*> tpOfExp(Call& call, const SymbolTable& tb, TypeDB& db)
 
 	for (auto& c : call.argsRange())
 		if (auto e = c.deduceType(tb, db); e)
-			return move(e);
+			return Expected<Type*>(move(e));
 
 	if (auto e = deduceFunctionType(call, tb, db); e)
-		return move(e);
+		return Expected<Type*>(move(e));
 
 	if (!fExp.getType()->isFunctionType())
 		return make_error<StringError>(
@@ -283,7 +283,7 @@ static Expected<Type*> tpOfExp(Call& call, const SymbolTable& tb, TypeDB& db)
 				RlcErrorCategory::errorCode(RlcErrorCode::nonFunctionCalled));
 
 	if (auto e = checkArguments(call); e)
-		return move(e);
+		return Expected<Type*>(move(e));
 
 	return fExp.getType()->getReturnType();
 }
@@ -293,7 +293,7 @@ static Expected<Type*> tpOfExp(
 {
 	for (auto& sub : member)
 		if (auto e = sub.deduceType(tb, db); e)
-			return move(e);
+			return Expected<Type*>(move(e));
 
 	auto tp = member.getExp().getType();
 	if (!tp->isUserDefined())

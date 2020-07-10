@@ -1,5 +1,6 @@
 #include "rlc/ast/Statement.hpp"
 
+#include <cstdlib>
 #include <memory>
 
 #include "llvm/ADT/STLExtras.h"
@@ -66,7 +67,7 @@ WhileStatement& WhileStatement::operator=(const WhileStatement& other)
 
 template<>
 const Statement&
-		SimpleIterator<const StatementList&, const Statement>::operator*() const
+SimpleIterator<const StatementList&, const Statement>::operator*() const
 {
 	return type.getSubStatement(index);
 }
@@ -79,7 +80,7 @@ Statement& SimpleIterator<StatementList&, Statement>::operator*() const
 
 template<>
 const Statement&
-		SimpleIterator<const IfStatement&, const Statement>::operator*() const
+SimpleIterator<const IfStatement&, const Statement>::operator*() const
 {
 	return type.getSubStatement(index);
 }
@@ -92,7 +93,7 @@ Statement& SimpleIterator<IfStatement&, Statement>::operator*() const
 
 template<>
 const Statement&
-		SimpleIterator<const WhileStatement&, const Statement>::operator*() const
+SimpleIterator<const WhileStatement&, const Statement>::operator*() const
 {
 	return type.getSubStatement(index);
 }
@@ -199,6 +200,7 @@ auto& getSubStatImp<ExpressionStatement>(
 		ExpressionStatement& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Statement*>(nullptr);
 }
 
@@ -207,6 +209,7 @@ auto& getSubStatImp<const ExpressionStatement>(
 		const ExpressionStatement& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Statement*>(nullptr);
 }
 
@@ -214,6 +217,7 @@ template<>
 auto& getSubStatImp<ReturnStatement>(ReturnStatement& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Statement*>(nullptr);
 }
 
@@ -222,6 +226,7 @@ auto& getSubStatImp<const ReturnStatement>(
 		const ReturnStatement& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Statement*>(nullptr);
 }
 
@@ -230,6 +235,7 @@ auto& getSubStatImp<DeclarationStatement>(
 		DeclarationStatement& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Statement*>(nullptr);
 }
 
@@ -238,6 +244,7 @@ auto& getSubStatImp<const DeclarationStatement>(
 		const DeclarationStatement& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Statement*>(nullptr);
 }
 
@@ -257,6 +264,7 @@ template<>
 auto& getSubExpImp<StatementList>(StatementList& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Expression*>(nullptr);
 }
 
@@ -264,6 +272,7 @@ template<>
 auto& getSubExpImp<const StatementList>(const StatementList& stat, size_t index)
 {
 	assert(false && "unrechable");
+	abort();
 	return *static_cast<Expression*>(nullptr);
 }
 
@@ -406,7 +415,7 @@ Expression& SimpleIterator<Statement&, Expression>::operator*() const
 
 template<>
 const Expression&
-		SimpleIterator<const Statement&, const Expression>::operator*() const
+SimpleIterator<const Statement&, const Expression>::operator*() const
 {
 	return type.getSubExp(index);
 }

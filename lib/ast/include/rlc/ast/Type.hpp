@@ -55,6 +55,8 @@ namespace rlc
 			return !(*this == other);
 		}
 
+		[[nodiscard]] std::string mangledName() const;
+
 		private:
 		const std::array<Type*, 1> innerType;
 		const size_t siz;
@@ -86,6 +88,8 @@ namespace rlc
 		{
 			return !(*this == other);
 		}
+
+		[[nodiscard]] std::string mangledName() const;
 
 		void addSubType(Type* subType)
 		{
@@ -135,6 +139,8 @@ namespace rlc
 		{
 			return types == other.types;
 		}
+
+		[[nodiscard]] std::string mangledName() const;
 
 		[[nodiscard]] bool operator!=(const FunctionType& other) const
 		{
@@ -272,6 +278,8 @@ namespace rlc
 
 			get<UserDefinedType>().addSubType(subType);
 		}
+
+		[[nodiscard]] std::string mangledName() const;
 
 		void print(llvm::raw_ostream& out);
 		void dump();

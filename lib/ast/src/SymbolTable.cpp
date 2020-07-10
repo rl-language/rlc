@@ -3,6 +3,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "rlc/ast/Entity.hpp"
 #include "rlc/ast/EntityDeclaration.hpp"
+#include "rlc/ast/FunctionDeclaration.hpp"
 #include "rlc/ast/FunctionDefinition.hpp"
 #include "rlc/ast/Statement.hpp"
 #include "rlc/ast/System.hpp"
@@ -49,6 +50,12 @@ Type* typeOfSymbol<FunctionDeclaration>(const FunctionDeclaration& symbol)
 
 template<>
 Type* typeOfSymbol<DeclarationStatement>(const DeclarationStatement& symbol)
+{
+	return symbol.getType();
+}
+
+template<>
+Type* typeOfSymbol<ArgumentDeclaration>(const ArgumentDeclaration& symbol)
 {
 	return symbol.getType();
 }

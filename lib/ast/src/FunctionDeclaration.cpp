@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iterator>
 
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -74,4 +75,9 @@ Error FunctionDeclaration::deduceType(const SymbolTable& tb, TypeDB& db)
 
 	type = db.getFunctionType(getReturnType(), argTypes);
 	return Error::success();
+}
+
+string FunctionDeclaration::mangledName() const
+{
+	return string("rlc_") + getName() + getType()->mangledName();
 }
