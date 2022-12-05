@@ -7,17 +7,20 @@
 using namespace rlc;
 using namespace std;
 
-MemberAccess::MemberAccess(const Expression& exp, string accessedField)
-		: accessedField(move(accessedField)),
-			exp({ std::make_unique<Expression>(exp) })
+MemberAccess::MemberAccess(
+		const Expression& exp, string accessedField, SourcePosition position)
+		: accessedField(std::move(accessedField)),
+			exp({ std::make_unique<Expression>(exp) }),
+			position(std::move(position))
 {
 }
 
-void MemberAccess::print(llvm::raw_ostream& OS, size_t indent) const
+void MemberAccess::print(
+		llvm::raw_ostream& OS, size_t indent, bool printLocation) const
 {
 	OS.indent(indent);
 	OS << "accessing member " << getFieldName() << " in exp ";
-	getExp().print(OS, indent + 1);
+	getExp().print(OS, indent + 1, printLocation);
 }
 void MemberAccess::dump() const { print(); }
 

@@ -94,18 +94,28 @@ TEST(TypeTest, userDefinedTypes)
 {
 	TypeDB db;
 	auto t = db.getLongType();
-	auto ft = db.createUserDefinedType("name", t);
+	auto ft = db.createUserDefinedType("name", t, std::string("some_name"));
 	EXPECT_EQ(ft->getName(), "name");
 	EXPECT_EQ(ft->containedTypesCount(), 1);
 	EXPECT_EQ(ft->getContainedType(0), t);
+}
+
+TEST(TypeTest, integerVarDeclaration)
+{
+	TypeDB db;
+	SymbolTable table;
+	DeclarationStatement variable("a", Expression::scalarConstant(0));
+	llvm::cantFail(variable.deduceTypes(table, db));
+
+	EXPECT_EQ(variable.getType(), db.getLongType());
 }
 
 TEST(TypeTest, equalUserDefinedTypesShouldBeEqual)
 {
 	TypeDB db;
 	auto t = db.getLongType();
-	auto ft = db.createUserDefinedType("name", t);
-	auto ft2 = db.createUserDefinedType("name", t);
+	auto ft = db.createUserDefinedType("name", t, std::string("field"));
+	auto ft2 = db.createUserDefinedType("name", t, std::string("field"));
 	EXPECT_EQ(ft2, nullptr);
 	EXPECT_EQ(ft, db.getUserDefined("name"));
 }

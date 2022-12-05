@@ -4,6 +4,8 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
+#include "rlc/ast/ArgumentDeclaration.hpp"
+#include "rlc/ast/BuiltinFunctions.hpp"
 #include "rlc/ast/Statement.hpp"
 #include "rlc/ast/SymbolTable.hpp"
 #include "rlc/ast/Type.hpp"
@@ -12,53 +14,25 @@
 
 namespace rlc
 {
-	class ArgumentDeclaration
-	{
-		public:
-		[[nodiscard]] Type* getType() const { return typeName.getType(); }
-		[[nodiscard]] const std::string& getName() const { return name; }
-		[[nodiscard]] const SingleTypeUse& getTypeUse() const { return typeName; }
-		[[nodiscard]] const SourcePosition& getSourcePosition() const
-		{
-			return sourcePosition;
-		}
-
-		ArgumentDeclaration(
-				std::string nm,
-				SingleTypeUse typeUse,
-				SourcePosition pos = SourcePosition())
-				: name(std::move(nm)),
-					typeName(std::move(typeUse)),
-					sourcePosition(std::move(pos))
-		{
-		}
-
-		void print(
-				llvm::raw_ostream& OS,
-				size_t indents = 0,
-				bool dumpPosition = false) const;
-		void dump() const;
-		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
-
-		private:
-		std::string name;
-		SingleTypeUse typeName;
-		SourcePosition sourcePosition;
-	};
 
 	class FunctionDeclaration
 	{
 		public:
+		friend llvm::yaml::MappingTraits<rlc::FunctionDeclaration>;
 		void print(
 				llvm::raw_ostream& OS,
 				size_t indents = 0,
 				bool dumpPosition = false) const;
 		void dump() const;
 
-		[[nodiscard]] auto begin() const { return arguments.begin(); }
-		[[nodiscard]] auto begin() { return arguments.begin(); }
-		[[nodiscard]] auto end() const { return arguments.end(); }
-		[[nodiscard]] auto end() { return arguments.end(); }
+		using iterator = llvm::SmallVector<ArgumentDeclaration, 3>::iterator;
+		using const_iterator =
+				llvm::SmallVector<ArgumentDeclaration, 3>::const_iterator;
+
+		[[nodiscard]] const_iterator begin() const { return arguments.begin(); }
+		[[nodiscard]] iterator begin() { return arguments.begin(); }
+		[[nodiscard]] const_iterator end() const { return arguments.end(); }
+		[[nodiscard]] iterator end() { return arguments.end(); }
 		[[nodiscard]] size_t argumentsCount() const { return arguments.size(); }
 		[[nodiscard]] const ArgumentDeclaration& operator[](size_t index) const
 		{
@@ -89,6 +63,8 @@ namespace rlc
 			return position;
 		}
 
+		[[nodiscard]] bool isPrivate() const { return getName().starts_with("_"); }
+
 		FunctionDeclaration(
 				std::string name,
 				SingleTypeUse returnTypeName,
@@ -102,9 +78,20 @@ namespace rlc
 		}
 
 		FunctionDeclaration(
+				BuiltinFunctions builtin,
+				SingleTypeUse returnTypeName,
+				llvm::SmallVector<ArgumentDeclaration, 3> arguments = {},
+				SourcePosition pos = SourcePosition())
+				: name(builtinFunctionsToString(builtin)),
+					arguments(std::move(arguments)),
+					returnTypeName(std::move(returnTypeName)),
+					position(std::move(pos))
+		{
+		}
+
+		FunctionDeclaration(
 				std::string name, SingleTypeUse returnTypeName, SourcePosition pos)
 				: name(std::move(name)),
-					arguments(),
 					returnTypeName(std::move(returnTypeName)),
 					position(std::move(pos))
 		{
@@ -115,6 +102,11 @@ namespace rlc
 		[[nodiscard]] std::string canonicalName() const;
 		llvm::Error deduceType(const SymbolTable& tb, TypeDB& db);
 
+		[[nodiscard]] bool isBuiltin() const
+		{
+			return position.getFileName() == BuiltinFileName;
+		}
+
 		private:
 		std::string name;
 		Type* type{ nullptr };
@@ -123,3 +115,20 @@ namespace rlc
 		SourcePosition position;
 	};
 }	 // namespace rlc
+
+template<>
+struct llvm::yaml::MappingTraits<rlc::FunctionDeclaration>
+{
+	static void mapping(IO& io, rlc::FunctionDeclaration& value)
+	{
+		assert(io.outputting());
+		io.mapRequired("name", value.name);
+		if (value.type != nullptr)
+			io.mapRequired("type", *value.type);
+		else
+			io.mapRequired("return_type", value.returnTypeName);
+		io.mapRequired("args", value.arguments);
+		if (not value.getSourcePosition().isMissing())
+			io.mapRequired("position", value.position);
+	}
+};

@@ -13,6 +13,7 @@ SET(gtest_build_tests OFF CACHE INTERNAL "")
 SET(gtest_disable_pthreads OFF CACHE INTERNAL "")
 SET(gtest_hide_internal_symbols OFF CACHE INTERNAL "")
 SET(gtest_force_shared_crt OFF CACHE INTERNAL "")
+SET(GTEST_HAS_ABSL OFF CACHE INTERNAL "")
 
 add_subdirectory(googletest)
 
@@ -24,6 +25,17 @@ SET(BENCHMARK_ENABLE_RELEASE OFF CACHE INTERNAL "")
 SET(BENCHMARK_ENABLE_EXCEPTIONS OFF CACHE INTERNAL "")
 SET(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
 SET(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE INTERNAL "")
+SET(BENCHMARK_BUILD_32_BITS OFF CACHE INTERNAL "")
+SET(BENCHMARK_DOWNLOAD_DEPENDENCIES OFF CACHE INTERNAL "")
+SET(BENCHMARK_ENABLE_DOXYGEN OFF CACHE INTERNAL "")
+SET(BENCHMARK_ENABLE_ASSEMBLY_TESTS OFF CACHE INTERNAL "")
+SET(BENCHMARK_ENABLE_LTO OFF CACHE INTERNAL "")
+SET(BENCHMARK_ENABLE_LIBPFM OFF CACHE INTERNAL "")
+SET(BENCHMARK_INSTALL_DOCS OFF CACHE INTERNAL "")
+SET(BENCHMARK_USE_LIBCXX OFF CACHE INTERNAL "")
+SET(BENCHMARK_FORCE_WERROR OFF CACHE INTERNAL "")
+SET(BENCHMARK_ENABLE_WERROR ON CACHE INTERNAL "")
+SET(BENCHMARK_USE_BUNDLED_GTEST CACHE INTERNAL "")
 
 add_subdirectory(benchmark)
 
@@ -44,18 +56,19 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter -Wno-comment -Wno-unused-function")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-int-float-conversion")
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 
-set_tests_properties(${noArgsTests}   PROPERTIES TIMEOUT 10)
+set_tests_properties(${noArgsTests} PROPERTIES TIMEOUT 10)
 include(macros.cmake)
 
 find_package(LLVM REQUIRED CONFIG)
-add_definitions(${LLVM_DEFINITIONS})
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
-include_directories(${LLVM_INCLUDE_DIRS})
+
+find_package(MLIR REQUIRED CONFIG)
 
 ##############################
 ###       Subfolders       ###
@@ -76,7 +89,7 @@ if (DOXYGEN_FOUND)
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
 
     # note the option ALL which allows to build the docs together with the application
-    add_custom_target(doc 
+    add_custom_target(doc
         COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating API documentation with Doxygen"
@@ -99,19 +112,19 @@ if (${CMAKE_CXX_FLAGS} MATCHES ".*--coverage.*")
 		)
 
 	add_custom_command(
-		OUTPUT filtered.info 
+		OUTPUT filtered.info
 		COMMAND ${LCOV} --remove ./total.info "/usr/*" "*/googletest/*" "*/build/*" "*/benchmark/*" --output-file ./filtered.info
 		DEPENDS total.info
 		VERBATIM)
 
 	add_custom_command(
-		OUTPUT total.info 
+		OUTPUT total.info
 		COMMAND ${LCOV} --add-tracefile ./base.info --add-tracefile ./test.info --output-file ./total.info
 		DEPENDS test.info base.info
 		VERBATIM)
 
 	add_custom_command(
-		OUTPUT test.info 
+		OUTPUT test.info
 		COMMAND ${LCOV} --capture --directory . --output-file ./test.info
 		VERBATIM)
 

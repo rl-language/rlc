@@ -9,6 +9,7 @@ tags
 build
 release
 .clangd
+.cache
 .idea
 
 # User-specific stuff

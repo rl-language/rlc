@@ -17,10 +17,23 @@ char Lexer::eatChar()
 	if (c == '\n')
 	{
 		currentLine++;
-		currentColumn = 0;
+		currentColumn = 1;
 	}
 	in++;
 	return c;
+}
+
+void Lexer::dump() { print(llvm::outs()); }
+
+void Lexer::print(llvm::raw_ostream& OS)
+{
+	auto token = next();
+	while (token != Token::End)
+	{
+		OS << tokenToString(token);
+		OS << "\n";
+		token = next();
+	}
 }
 
 llvm::StringRef rlc::tokenToString(Token t)
@@ -271,7 +284,7 @@ Token Lexer::eatIdent()
 {
 	string name;
 	name += eatChar();
-	while (isspace(*in) == 0 and not eatSymbol() and *in != '\0')
+	while ((isspace(*in) == 0 or *in == '_') and not eatSymbol() and *in != '\0')
 		name += eatChar();
 
 	if (name == "if")
@@ -373,7 +386,7 @@ Token Lexer::next()
 		return val.value();
 	}
 
-	if (isalpha(*in) != 0)
+	if (isalpha(*in) != 0 or *in == '_')
 		return eatIdent();
 	return Token::Error;
 }

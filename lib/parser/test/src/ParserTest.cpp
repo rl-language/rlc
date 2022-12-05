@@ -97,7 +97,7 @@ TEST(ParserTest, testEntityDeclaration)
 	EXPECT_EQ(ent->getEntity().fieldsCount(), 2);
 	EXPECT_EQ(ent->getEntity()[0].getName(), "a");
 	EXPECT_EQ(ent->getEntity()[1].getName(), "b");
-	EXPECT_EQ(ent->getEntity()[1].getTypeName(), "bool");
+	EXPECT_EQ(ent->getEntity()[1].getTypeUse().getName(), "bool");
 }
 
 TEST(ParserTest, declarationTest)
@@ -201,4 +201,28 @@ TEST(ParserTest, functionDefinition)
 	EXPECT_EQ(s->getName(), "a");
 	EXPECT_EQ(s->argumentsCount(), 0);
 	EXPECT_EQ(s->getTypeUse().getName(), "void");
+}
+
+TEST(ParserTest, zeroDefinition)
+{
+	Parser p("0", "fileName");
+	auto s = p.primaryExpression();
+	if (!s)
+		FAIL();
+
+	auto& constant = s->get<ScalarConstant>();
+	EXPECT_TRUE(constant.isA<int64_t>());
+	EXPECT_EQ(constant.get<int64_t>(), 0);
+}
+
+TEST(ParserTest, voidDeclaration)
+{
+	Parser p("fun function() -> void:\n\treturn\n", "fileName");
+	auto s = p.functionDefinition();
+	if (!s)
+		FAIL();
+
+	EXPECT_EQ(s->getName(), "function");
+	EXPECT_EQ(s->getDeclaration().getName(), "function");
+	EXPECT_EQ(s->getDeclaration().getTypeUse().getName(), "void");
 }

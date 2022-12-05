@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
 namespace rlc
 {
 	enum class Token
@@ -80,6 +81,9 @@ namespace rlc
 		[[nodiscard]] size_t getCurrentColumn() const { return currentColumn; }
 		[[nodiscard]] size_t getCurrentLine() const { return currentLine; }
 
+		void print(llvm::raw_ostream& OS);
+		void dump();
+
 		private:
 		char eatChar();
 		std::optional<Token> eatSpaces();
@@ -89,8 +93,8 @@ namespace rlc
 		Token eatNumber();
 
 		const char* in;
-		size_t currentLine{ 0 };
-		size_t currentColumn{ 0 };
+		size_t currentLine{ 1 };
+		size_t currentColumn{ 1 };
 		std::vector<size_t> indentStack;
 		bool newLine{ true };
 

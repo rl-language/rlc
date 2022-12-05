@@ -3,6 +3,8 @@
 #include <string>
 
 #include "llvm/Support/Error.h"
+#include "mlir/IR/Diagnostics.h"
+#include "rlc/ast/ActionDefinition.hpp"
 #include "rlc/ast/Entity.hpp"
 #include "rlc/ast/EntityDeclaration.hpp"
 #include "rlc/ast/Expression.hpp"
@@ -43,16 +45,21 @@ namespace rlc
 		llvm::Expected<Statement> expressionStatement();
 		llvm::Expected<Statement> ifStatement();
 		llvm::Expected<Statement> statement();
+		llvm::Expected<Statement> actionStatement();
 		llvm::Expected<Statement> declarationStatement();
 		llvm::Expected<Statement> statementList();
 		llvm::Expected<Statement> whileStatement();
 		llvm::Expected<Statement> returnStatement();
 
+		llvm::Expected<llvm::SmallVector<ArgumentDeclaration, 3>>
+		functionArguments();
 		llvm::Expected<ArgumentDeclaration> argDeclaration();
 
 		llvm::Expected<SingleTypeUse> singleTypeUse();
 		llvm::Expected<SingleTypeUse> functionTypeUse();
 		llvm::Expected<FunctionDefinition> functionDefinition();
+		llvm::Expected<ActionDeclaration> actionDeclaration();
+		llvm::Expected<ActionDefinition> actionDefinition();
 
 		llvm::Expected<System> system();
 
@@ -72,6 +79,6 @@ namespace rlc
 		Lexer lexer;
 		int64_t lInt64{ 0 };
 		double lDouble{ 0 };
-		std::string lIdent{ "" };
+		std::string lIdent;
 	};
 }	 // namespace rlc

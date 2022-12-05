@@ -56,3 +56,5 @@ error_condition rlc::make_error_condition(RlcErrorCode errc)
 			return "Unkown Error";
 	}
 }
+
+const char RlcError::ID = '0';

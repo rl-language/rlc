@@ -37,13 +37,16 @@ add_library(rlc::${target} ALIAS ${target})
 target_include_directories(${target}
 	PRIVATE 
 		src 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>
 	PUBLIC 
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:include>
+	${LLVM_INCLUDE_DIRS}
 		)
 
-target_compile_features(${target} PUBLIC cxx_std_17)
+target_compile_features(${target} PUBLIC cxx_std_20)
+target_compile_definitions(${target} PUBLIC ${LLVM_DEFINITIONS})
 
 #if (BUILD_FUZZER)
 	#target_compile_options(${target} PRIVATE -fsanitize=fuzzer)
@@ -73,7 +76,7 @@ macro(rlcAddTest target)
 	add_executable(rlc::${target}Test ALIAS ${target}Test) 
 	target_link_libraries(${target}Test PRIVATE gtest gtest_main ${target})
 	target_include_directories(${target}Test PUBLIC include PRIVATE src)
-	target_compile_features(${target}Test PUBLIC cxx_std_17)
+	target_compile_features(${target}Test PUBLIC cxx_std_20)
 
 	gtest_add_tests(TARGET     ${target}Test
 					TEST_SUFFIX .noArgs
@@ -91,7 +94,7 @@ macro(rlcAddTool target)
 	add_executable(rlc::${target} ALIAS ${target})
 
 	target_link_libraries(${target} PUBLIC ${ARGN})
-	target_compile_features(${target} PUBLIC cxx_std_17)
+	target_compile_features(${target} PUBLIC cxx_std_20)
 
 	include(GNUInstallDirs)
 	INSTALL(TARGETS ${target} RUNTIME DESTINATION bin)
@@ -112,7 +115,7 @@ macro(rlcAddBenchmark target)
 
 	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE benchmark::benchmark rlc::${target})
 	TARGET_INCLUDE_DIRECTORIES(${target}Benchmark PUBLIC include PRIVATE src)
-	TARGET_COMPILE_FEATURES(${target}Benchmark PUBLIC cxx_std_17)
+	TARGET_COMPILE_FEATURES(${target}Benchmark PUBLIC cxx_std_20)
 
 	INSTALL(TARGETS ${target}Benchmark 
 	RUNTIME DESTINATION bechmark)

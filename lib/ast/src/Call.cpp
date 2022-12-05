@@ -11,10 +11,12 @@ using namespace llvm;
 using namespace rlc;
 
 Call::Call(
-		unique_ptr<Expression> f, SmallVector<std::unique_ptr<Expression>, 3> args)
-		: args(move(args))
+		unique_ptr<Expression> f,
+		SmallVector<std::unique_ptr<Expression>, 3> args,
+		SourcePosition position)
+		: args(std::move(args)), position(std::move(position))
 {
-	this->args.emplace_back(move(f));
+	this->args.emplace_back(std::move(f));
 }
 
 template<>
@@ -30,22 +32,13 @@ const Expression& SimpleIterator<const Call&, const Expression>::operator*()
 	return type.getSubExpression(index);
 }
 
-void Call::print(raw_ostream& OS, size_t indents) const
+void Call::print(raw_ostream& OS, size_t indents, bool printLocation) const
 {
-	OS << "call\n";
-	getFunctionExpression().print(OS, indents + 1);
-	OS << "\n";
-	OS.indent(indents);
-	OS << "call args\n";
-	for (const auto& a : argsRange())
-	{
-		a.print(OS, indents + 1);
-		if (&a != &(*(argsRange().end() - 1)))
-			OS << "\n";
-	}
+	llvm::yaml::Output Output(OS);
+	Output << *const_cast<Call*>(this);
 }
 
-Call::Call(const Call& other)
+Call::Call(const Call& other): position(other.position)
 {
 	for (const auto& exp : other)
 		args.emplace_back(std::make_unique<Expression>(exp));
@@ -58,6 +51,7 @@ Call& Call::operator=(const Call& other)
 	args.clear();
 	for (const auto& exp : other)
 		args.emplace_back(std::make_unique<Expression>(exp));
+	position = other.position;
 	return *this;
 }
 

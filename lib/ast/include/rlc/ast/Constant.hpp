@@ -4,8 +4,10 @@
 #include <type_traits>
 #include <variant>
 
+#include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/ast/Type.hpp"
+#include "rlc/utils/SourcePosition.hpp"
 namespace rlc
 {
 	template<typename From, typename To>
@@ -26,20 +28,62 @@ namespace rlc
 		}
 	}
 
+	template<typename T>
+	llvm::StringRef primitiveTypeToString();
+
+	template<>
+	inline llvm::StringRef primitiveTypeToString<std::int64_t>()
+	{
+		return "int64";
+	}
+
+	template<>
+	inline llvm::StringRef primitiveTypeToString<double>()
+	{
+		return "double";
+	}
+
+	template<>
+	inline llvm::StringRef primitiveTypeToString<bool>()
+	{
+		return "bool";
+	}
+
 	class ScalarConstant
 	{
 		public:
+		static constexpr const char* name = "scalar";
+		friend llvm::yaml::MappingTraits<rlc::ScalarConstant>;
 		ScalarConstant(const ScalarConstant& other) = default;
 		ScalarConstant(ScalarConstant&& other) = default;
 		ScalarConstant& operator=(ScalarConstant&& other) = default;
 		ScalarConstant& operator=(const ScalarConstant& other) = default;
 		~ScalarConstant() = default;
 
-		static ScalarConstant longC(std::int64_t l) { return ScalarConstant(l); }
+		static ScalarConstant longC(
+				std::int64_t l, SourcePosition pos = SourcePosition())
+		{
+			return ScalarConstant(l, std::move(pos));
+		}
 
-		static ScalarConstant boolC(bool b) { return ScalarConstant(b); }
+		static ScalarConstant boolC(bool b, SourcePosition pos = SourcePosition())
+		{
+			return ScalarConstant(b, pos);
+		}
 
-		static ScalarConstant doubleC(double d) { return ScalarConstant(d); }
+		static ScalarConstant doubleC(
+				double d, SourcePosition pos = SourcePosition())
+		{
+			return ScalarConstant(d, pos);
+		}
+
+		template<typename T>
+		static ScalarConstant make(T val)
+		{
+			auto constant = ScalarConstant::boolC(false);
+			constant.content = val;
+			return val;
+		}
 
 		template<typename T>
 		[[nodiscard]] bool isA() const
@@ -48,10 +92,23 @@ namespace rlc
 		}
 
 		template<typename T>
-		[[nodiscard]] T get() const
+		[[nodiscard]] T& get()
 		{
 			return std::get<T>(content);
 		}
+
+		template<typename T>
+		[[nodiscard]] const T& get() const
+		{
+			return std::get<T>(content);
+		}
+
+		[[nodiscard]] const int64_t& getInt() const
+		{
+			return std::get<std::int64_t>(content);
+		}
+
+		[[nodiscard]] int64_t& getInt() { return std::get<std::int64_t>(content); }
 
 		template<typename Visitor>
 		auto visit(Visitor&& visitor) const -> decltype(visitor(get<bool>()))
@@ -83,7 +140,8 @@ namespace rlc
 
 		[[nodiscard]] Type* type(TypeDB& db) const;
 		template<typename T>
-		ScalarConstant(T constant): content(constant)
+		ScalarConstant(T constant, SourcePosition pos)
+				: content(constant), position(std::move(pos))
 		{
 		}
 
@@ -96,9 +154,38 @@ namespace rlc
 		{
 			return !(*this == other);
 		}
+		[[nodiscard]] const SourcePosition& getPosition() const { return position; }
+		void setPosition(const SourcePosition& newPoisition)
+		{
+			position = newPoisition;
+		}
+
+		[[nodiscard]] llvm::StringRef typeToString() const
+		{
+			return visit([]<typename T>(const T& value) -> llvm::StringRef {
+				return primitiveTypeToString<T>();
+			});
+		}
 
 		private:
 		std::variant<std::int64_t, double, bool> content;
+		SourcePosition position;
 	};
 
 }	 // namespace rlc
+
+template<>
+struct llvm::yaml::MappingTraits<rlc::ScalarConstant>
+{
+	static void mapping(IO& io, rlc::ScalarConstant& value)
+	{
+		assert(io.outputting());
+		value.visit([&]<typename T>(T& Value) -> void {
+			auto tID = rlc::primitiveTypeToString<T>().str();
+			io.mapRequired(tID.c_str(), Value);
+			io.mapTag(tID);
+		});
+		if (not value.getPosition().isMissing())
+			io.mapRequired("position", value.position);
+	}
+};

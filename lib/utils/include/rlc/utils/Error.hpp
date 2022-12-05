@@ -1,6 +1,10 @@
 #pragma once
 
 #include <system_error>
+#include <utility>
+
+#include "llvm/Support/Error.h"
+#include "rlc/utils/SourcePosition.hpp"
 
 namespace rlc
 {
@@ -37,8 +41,8 @@ namespace rlc
 	{
 		public:
 		static RlcErrorCategory category;
-		[[nodiscard]] std::error_condition default_error_condition(int ev) const
-				noexcept override;
+		[[nodiscard]] std::error_condition default_error_condition(
+				int ev) const noexcept override;
 
 		[[nodiscard]] const char* name() const noexcept override
 		{
@@ -57,5 +61,31 @@ namespace rlc
 	};
 
 	std::error_condition make_error_condition(RlcErrorCode errc);
+
+	class RlcError: public llvm::ErrorInfo<RlcError>
+	{
+		private:
+		std::string text;
+		std::error_code ec;
+		SourcePosition position;
+
+		public:
+		const static char ID;
+
+		RlcError(std::string text, std::error_code ec, SourcePosition position)
+				: text(std::move(text)), ec(ec), position(std::move(position))
+		{
+		}
+
+		[[nodiscard]] const SourcePosition& getPosition() const { return position; }
+
+		[[nodiscard]] const std::string& getText() const { return text; }
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return ec;
+		}
+		void log(llvm::raw_ostream& OS) const override { OS << text << "\n"; }
+	};
 
 }	 // namespace rlc

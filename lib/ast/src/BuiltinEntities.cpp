@@ -8,7 +8,7 @@ using namespace std;
 using namespace rlc;
 using namespace llvm;
 
-constexpr auto builtinTypes = { "int", "float", "bool", "void" };
+constexpr auto builtinTypes = { "Int", "Float", "Bool", "Void" };
 void rlc::addBuilintsEntities(System& s)
 {
 	for (const auto& t : builtinTypes)

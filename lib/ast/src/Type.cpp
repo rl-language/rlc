@@ -9,6 +9,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "rlc/ast/TypeUse.hpp"
 
 using namespace rlc;
 using namespace std;
@@ -19,13 +20,13 @@ StringRef rlc::builtinTypeToString(BuiltinType t)
 	switch (t)
 	{
 		case BuiltinType::VOID:
-			return "void";
+			return "Void";
 		case BuiltinType::BOOL:
-			return "bool";
+			return "Bool";
 		case BuiltinType::DOUBLE:
-			return "double";
+			return "Float";
 		case BuiltinType::LONG:
-			return "long";
+			return "Int";
 	}
 	assert(false && "unrechable");
 	return "";
@@ -58,7 +59,7 @@ string name(const T& tp)
 template<>
 string name(const BuiltinType& tp)
 {
-	return builtinTypeToString(tp);
+	return builtinTypeToString(tp).str();
 }
 
 string FunctionType::getName() const
@@ -146,7 +147,9 @@ Type* TypeDB::getUserDefined(llvm::StringRef name)
 }
 
 Type* TypeDB::createUserDefinedType(
-		std::string name, llvm::ArrayRef<Type*> members)
+		std::string name,
+		llvm::ArrayRef<Type*> members,
+		llvm::ArrayRef<std::string> names)
 {
 	if (auto t = nameToBuiltinType(name); t != nullptr)
 		return t;
@@ -156,7 +159,7 @@ Type* TypeDB::createUserDefinedType(
 
 	auto s = new (allocator.Allocate<string>()) string(std::move(name));
 
-	userDefinedTypes[*s] = std::make_unique<Type>(*s, members);
+	userDefinedTypes[*s] = std::make_unique<Type>(*s, members, names);
 	return userDefinedTypes[*s].get();
 }
 
@@ -183,24 +186,23 @@ Type* TypeDB::getFunctionType(Type* returnType, llvm::ArrayRef<Type*> args)
 }
 
 template<>
-const Type* SimpleIterator<const Type*, const Type*, const Type*>::operator*()
-		const
+Type* SimpleIterator<Type*, Type*, Type*>::operator*() const
 {
 	return type->getContainedType(index);
 }
 
 Type* TypeDB::nameToBuiltinType(llvm::StringRef name)
 {
-	if (name == "int")
+	if (name == "Int")
 		return getLongType();
 
-	if (name == "bool")
+	if (name == "Bool")
 		return getBoolType();
 
-	if (name == "float")
+	if (name == "Float")
 		return getFloatType();
 
-	if (name == "void")
+	if (name == "Void")
 		return getVoidType();
 	return nullptr;
 }
@@ -230,7 +232,7 @@ string mangledName(const T& t)
 template<>
 string mangledName<BuiltinType>(const BuiltinType& t)
 {
-	return builtinTypeToString(t);
+	return builtinTypeToString(t).str();
 }
 
 string Type::mangledName() const

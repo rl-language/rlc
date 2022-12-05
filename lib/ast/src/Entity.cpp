@@ -10,34 +10,23 @@ using namespace std;
 
 void EntityField::print(llvm::raw_ostream& OS) const
 {
-	OS << "field " << fieldName << " : " << fieldTypeName << " ";
-	if (fieldType == nullptr)
-		return;
-
-	OS << "(";
-	fieldType->print(OS);
-	OS << ") ";
+	llvm::yaml::Output output(OS);
+	output << *const_cast<EntityField*>(this);
 }
 
 void EntityField::dump() const { print(llvm::outs()); }
 
 void Entity::print(llvm::raw_ostream& OS, size_t indents) const
 {
-	OS.indent(indents);
-	OS << "entity " << nm;
-	for (const auto& field : fields)
-	{
-		OS << "\n";
-		OS.indent(indents + 1);
-		field.print(OS);
-	}
+	llvm::yaml::Output output(OS);
+	output << *const_cast<Entity*>(this);
 }
 
 void Entity::dump() const { print(llvm::outs()); }
 
 size_t Entity::indexOfField(StringRef name) const
 {
-	auto accessed = find_if(*this, [&name](const EntityField& child) {
+	const auto* accessed = find_if(*this, [&name](const EntityField& child) {
 		return name == child.getName();
 	});
 
@@ -62,19 +51,12 @@ Error Entity::deduceType(const SymbolTable& tb, TypeDB& db)
 			return e;
 
 	for (auto& field : *this)
-		getType()->addSubType(field.getType());
+		getType()->addSubType(field.getType(), field.getName());
 
 	return Error::success();
 }
 
 Error EntityField::deduceType(const SymbolTable& tb, TypeDB& db)
 {
-	if (!tb.contains(getTypeName()))
-		return make_error<StringError>(
-				"Unkown type " + getTypeName(),
-				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference));
-
-	const auto& ent = tb.getUnique<Entity>(getTypeName());
-	fieldType = ent.getType();
-	return Error::success();
+	return fieldTypeName.deduceType(tb, db);
 }

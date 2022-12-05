@@ -27,6 +27,13 @@ namespace rlc
 			return *this;
 		}
 
+		SimpleIterator operator++(int)
+		{
+			auto copy = *this;
+			index++;
+			return copy;
+		}
+
 		SimpleIterator& operator--()
 		{
 			index--;

@@ -12,8 +12,8 @@ using namespace rlc;
 
 TEST(EntityTest, entityShouldDeduceCorrectBuiltinType)
 {
-	Entity b("bool", {});
-	Entity e("example", { EntityField("bool", "f") });
+	Entity b("Bool", {});
+	Entity e("example", { EntityField(SingleTypeUse::scalarType("Bool"), "f") });
 	SymbolTable tb;
 	TypeDB db;
 	if (b.createType(tb, db))

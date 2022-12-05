@@ -1,8 +1,12 @@
-rlcAddLibrary(ast SHARED 
+rlcAddLibrary(ast SHARED
 	src/Type.cpp
 	src/Constant.cpp
 	src/Call.cpp
 	src/Expression.cpp
+	src/ArrayAccess.cpp
+	src/ArgumentDeclaration.cpp
+	src/ActionDeclaration.cpp
+	src/ActionDefinition.cpp
 	src/Entity.cpp
 	src/Statement.cpp
 	src/FunctionDefinition.cpp

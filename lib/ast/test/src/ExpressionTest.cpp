@@ -65,14 +65,14 @@ TEST(ExpressionTest, callTypeCheck)
 	DeclarationStatement d("var", Expression::int64Constant(3));
 	FunctionDeclaration fun(
 			"duplicate",
-			SingleTypeUse::scalarType("int"),
-			{ ArgumentDeclaration("name", SingleTypeUse::scalarType("int")) });
+			SingleTypeUse::scalarType("Int"),
+			{ ArgumentDeclaration("name", SingleTypeUse::scalarType("Int")) });
 
 	SymbolTable table;
 	table.insert(fun);
 	TypeDB db;
 
-	Entity i("int", {});
+	Entity i("Int", {});
 	if (i.createType(table, db))
 		FAIL();
 	if (i.deduceType(table, db))

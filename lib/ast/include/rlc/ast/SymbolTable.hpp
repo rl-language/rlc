@@ -8,6 +8,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/ADT/iterator_range.h"
+#include "rlc/ast/BuiltinFunctions.hpp"
 #include "rlc/ast/Type.hpp"
 namespace rlc
 {
@@ -30,6 +31,8 @@ namespace rlc
 			return std::holds_alternative<const T*>(content);
 		}
 
+		[[nodiscard]] bool isEntity() const { return isA<Entity>(); }
+
 		template<typename T>
 		[[nodiscard]] const T& get() const
 		{
@@ -37,7 +40,7 @@ namespace rlc
 			return *std::get<const T*>(content);
 		}
 
-		[[nodiscard]] llvm::StringRef getName() const;
+		[[nodiscard]] std::string getName() const;
 
 		template<typename Visitor>
 		auto visit(Visitor&& visitor) const
@@ -47,6 +50,27 @@ namespace rlc
 					[&](const auto* ptr) { return visitor(*ptr); }, content);
 		}
 		[[nodiscard]] Type* getType() const;
+
+		[[nodiscard]] bool hasType() const
+		{
+			return isA<FunctionDeclaration>() or isA<DeclarationStatement>() or
+						 isA<ArgumentDeclaration>();
+		}
+
+		bool operator<(const Symbol& other) const
+		{
+			return content < other.content;
+		}
+
+		// returns true if when this symbol is lowerer, its value can be referenced
+		[[nodiscard]] bool hasAddress() const
+		{
+			return isA<FunctionDeclaration>() or isA<DeclarationStatement>() or
+						 isA<ArgumentDeclaration>();
+		}
+
+		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
+		void dump() const;
 
 		private:
 		std::variant<
@@ -169,6 +193,14 @@ namespace rlc
 			return llvm::make_range(b, e);
 		}
 
+		const FunctionDeclaration* findOverload(BuiltinFunctions f, Type* t) const
+		{
+			return findOverload(builtinFunctionsToString(f), t);
+		}
+
+		const FunctionDeclaration* findOverload(
+				llvm::StringRef mame, Type* t) const;
+
 		template<typename Selected>
 		[[nodiscard]] const Selected& getUnique(llvm::StringRef name) const
 		{
@@ -176,6 +208,9 @@ namespace rlc
 			assert(std::distance(r.begin(), r.end()) == 1);
 			return *r.begin();
 		}
+
+		void print(llvm::raw_ostream& OS, size_t indents = 0) const;
+		void dump() const;
 
 		[[nodiscard]] bool directContain(llvm::StringRef name) const
 		{

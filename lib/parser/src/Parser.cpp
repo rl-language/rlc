@@ -21,7 +21,7 @@ using namespace std;
 
 void Parser::next()
 {
-	pos.setColumn(lexer.getCurrentColumn());
+	pos.setColumn(std::max<int64_t>(1, lexer.getCurrentColumn() - 1));
 	pos.setLine(lexer.getCurrentLine());
 	if (current == Token::Identifier)
 		lIdent = lexer.lastIndent();
@@ -46,14 +46,14 @@ Expected<Token> Parser::expect(Token t)
 	if (accept(t))
 		return t;
 
-	auto errorMessage = pos.toString();
-	errorMessage += "unexpected token ";
+	std::string errorMessage = "\nunexpected token ";
 	errorMessage += tokenToString(current);
-	errorMessage += " expected";
+	errorMessage += " expected ";
 	errorMessage += tokenToString(t);
-	return make_error<StringError>(
-			move(errorMessage),
-			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken));
+	return make_error<RlcError>(
+			std::move(errorMessage),
+			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
+			pos);
 }
 
 #define EXPECT(Token)                                                          \
@@ -71,20 +71,21 @@ Expected<Token> Parser::expect(Token t)
  */
 Expected<Expression> Parser::primaryExpression()
 {
+	auto location = getCurrentSourcePos();
 	if (accept<Token::Identifier>())
-		return Expression::reference(lIdent);
+		return Expression::reference(lIdent, location);
 
 	if (accept<Token::Double>())
-		return Expression::scalarConstant(lDouble);
+		return Expression::scalarConstant(lDouble, location);
 
 	if (accept<Token::Int64>())
-		return Expression::scalarConstant(lInt64);
+		return Expression::scalarConstant(lInt64, location);
 
 	if (accept<Token::KeywordFalse>())
-		return Expression::scalarConstant(false);
+		return Expression::scalarConstant(false, location);
 
 	if (accept<Token::KeywordTrue>())
-		return Expression::scalarConstant(true);
+		return Expression::scalarConstant(true, location);
 
 	if (accept<Token::LPar>())
 	{
@@ -93,9 +94,10 @@ Expected<Expression> Parser::primaryExpression()
 		return exp;
 	}
 
-	return make_error<StringError>(
-			pos.toString() + " empty expression",
-			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken));
+	return make_error<RlcError>(
+			" empty expression",
+			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
+			pos);
 }
 
 /**
@@ -110,7 +112,7 @@ Expected<SmallVector<Expression, 3>> Parser::argumentExpressionList()
 	do
 	{
 		TRY(exp, expression());
-		exps.emplace_back(move(*exp));
+		exps.emplace_back(std::move(*exp));
 	} while (accept<Token::Comma>());
 
 	return exps;
@@ -121,33 +123,54 @@ Expected<SmallVector<Expression, 3>> Parser::argumentExpressionList()
  *			((postFixExpression)*
  *					("["expression"]"
  *					|"("argumentExpressionList ")" |
- *					. identifier))
+ *					. identifier ["(" argumentExpressionList")"]))
  *			| primaryExpression
  */
 Expected<Expression> Parser::postFixExpression()
 {
-	TRY(exp, primaryExpression());
+	TRY(maybeExp, primaryExpression());
+	auto exp = std::move(*maybeExp);
 
-	if (accept<Token::LPar>())
+	while (true)
 	{
-		TRY(args, argumentExpressionList());
-		EXPECT(Token::RPar);
-		return Expression::call(*exp, move(*args));
-	}
+		auto location = getCurrentSourcePos();
+		if (accept<Token::LPar>())
+		{
+			TRY(args, argumentExpressionList());
+			EXPECT(Token::RPar);
+			exp = Expression::call(std::move(exp), std::move(*args), location);
+			continue;
+		}
 
-	if (accept<Token::LSquare>())
-	{
-		TRY(accExp, expression());
-		EXPECT(Token::RSquare);
-		return (*exp)[move(*accExp)];
-	}
+		if (accept<Token::LSquare>())
+		{
+			TRY(accExp, expression());
+			EXPECT(Token::RSquare);
+			auto expression = (exp)[std::move(*accExp)];
+			expression.setPosition(location);
+			exp = expression;
+			continue;
+		}
 
-	if (accept<Token::Dot>())
-	{
-		EXPECT(Token::Identifier);
-		return Expression::memberAccess(move(*exp), lIdent);
+		if (accept<Token::Dot>())
+		{
+			EXPECT(Token::Identifier);
+			auto memberName = lIdent;
+			if (not accept<Token::LPar>())
+			{
+				exp = Expression::memberAccess(std::move(exp), memberName, location);
+				continue;
+			}
+
+			TRY(arguments, argumentExpressionList());
+			EXPECT(Token::RPar);
+			arguments->insert(arguments->begin(), std::move(exp));
+			exp = Expression::call(
+					Expression::reference(memberName), std::move(*arguments), location);
+		}
+		break;
 	}
-	return move(*exp);
+	return exp;
 }
 
 /**
@@ -155,22 +178,29 @@ Expected<Expression> Parser::postFixExpression()
  */
 Expected<Expression> Parser::unaryExpression()
 {
+	auto location = getCurrentSourcePos();
 	if (accept<Token::Plus>())
 	{
 		TRY(exp, unaryExpression());
-		return Expression::call(Expression::reference("plus"), { move(*exp) });
+		return std::move(*exp);
 	}
 
 	if (accept<Token::Minus>())
 	{
 		TRY(exp, unaryExpression());
-		return Expression::call(Expression::reference("minus"), { move(*exp) });
+		return Expression::call(
+				Expression::reference(BuiltinFunctions::Minus),
+				{ std::move(*exp) },
+				location);
 	}
 
 	if (accept<Token::ExMark>())
 	{
 		TRY(exp, unaryExpression());
-		return Expression::call(Expression::reference("not"), { move(*exp) });
+		return Expression::call(
+				Expression::reference(BuiltinFunctions::Not),
+				{ std::move(*exp) },
+				location);
 	}
 
 	return postFixExpression();
@@ -184,24 +214,33 @@ Expected<Expression> Parser::multyplicativeExpression()
 {
 	TRY(exp, unaryExpression());
 
+	auto location = getCurrentSourcePos();
 	if (accept<Token::Mult>())
 	{
 		TRY(rhs, multyplicativeExpression());
-		return (*exp) * (move(*rhs));
+		auto expresion = (*exp) * (std::move(*rhs));
+		expresion.setPosition(location);
+		return expresion;
 	}
 	if (accept<Token::Divide>())
 	{
 		TRY(rhs, multyplicativeExpression());
-		return (*exp) / (move(*rhs));
+		auto expression = (*exp) / (std::move(*rhs));
+		expression.setPosition(location);
+		return expression;
 	}
 	if (accept<Token::Module>())
 	{
 		TRY(rhs, multyplicativeExpression());
-		return Expression::call(
-				Expression::reference("module"), { *move(exp), move(*rhs) });
+		auto expression = Expression::call(
+				Expression::reference(BuiltinFunctions::Reminder),
+				{ *std::move(exp), std::move(*rhs) },
+				location);
+		expression.setPosition(location);
+		return expression;
 	}
 
-	return move(*exp);
+	return std::move(*exp);
 }
 
 /**
@@ -212,17 +251,22 @@ Expected<Expression> Parser::additiveExpression()
 {
 	TRY(exp, multyplicativeExpression());
 
+	auto location = getCurrentSourcePos();
 	if (accept<Token::Plus>())
 	{
 		TRY(rhs, additiveExpression());
-		return (*exp) + (move(*rhs));
+		auto expression = (*exp) + (std::move(*rhs));
+		expression.setPosition(location);
+		return expression;
 	}
 	if (accept<Token::Minus>())
 	{
 		TRY(rhs, additiveExpression());
-		return (*exp) - (move(*rhs));
+		auto expression = (*exp) - (std::move(*rhs));
+		expression.setPosition(location);
+		return expression;
 	}
-	return move(*exp);
+	return std::move(*exp);
 }
 
 /**
@@ -233,27 +277,36 @@ Expected<Expression> Parser::relationalExpression()
 {
 	TRY(exp, additiveExpression());
 
+	auto location = getCurrentSourcePos();
 	if (accept<Token::LAng>())
 	{
 		TRY(rhs, relationalExpression());
-		return (*exp) < (move(*rhs));
+		auto expression = (*exp) < (std::move(*rhs));
+		expression.setPosition(location);
+		return expression;
 	}
 	if (accept<Token::RAng>())
 	{
 		TRY(rhs, relationalExpression());
-		return (*exp) > (move(*rhs));
+		auto expression = (*exp) > (std::move(*rhs));
+		expression.setPosition(location);
+		return expression;
 	}
 	if (accept<Token::GEqual>())
 	{
 		TRY(rhs, relationalExpression());
-		return (*exp) >= (move(*rhs));
+		auto expression = (*exp) >= (std::move(*rhs));
+		expression.setPosition(location);
+		return expression;
 	}
 	if (accept<Token::LEqual>())
 	{
 		TRY(rhs, relationalExpression());
-		return (*exp) <= (move(*rhs));
+		auto expression = (*exp) <= (std::move(*rhs));
+		expression.setPosition(location);
+		return expression;
 	}
-	return move(*exp);
+	return std::move(*exp);
 }
 
 /**
@@ -263,19 +316,24 @@ Expected<Expression> Parser::equalityExpression()
 {
 	TRY(exp, relationalExpression());
 
+	auto location = getCurrentSourcePos();
 	if (accept<Token::EqualEqual>())
 	{
 		TRY(rhs, equalityExpression());
 		return Expression::call(
-				Expression::reference("equal"), { move(*exp), move(*rhs) });
+				Expression::reference(BuiltinFunctions::Equal),
+				{ std::move(*exp), std::move(*rhs) },
+				location);
 	}
 	if (accept<Token::NEqual>())
 	{
 		TRY(rhs, equalityExpression());
 		return Expression::call(
-				Expression::reference("nequal"), { move(*exp), move(*rhs) });
+				Expression::reference(BuiltinFunctions::NotEqual),
+				{ std::move(*exp), std::move(*rhs) },
+				location);
 	}
-	return move(*exp);
+	return std::move(*exp);
 }
 
 /**
@@ -285,13 +343,16 @@ Expected<Expression> Parser::andExpression()
 {
 	TRY(exp, equalityExpression());
 
+	auto location = getCurrentSourcePos();
 	if (accept<Token::KeywordAnd>())
 	{
 		TRY(rhs, andExpression());
 		return Expression::call(
-				Expression::reference("and"), { move(*exp), move(*rhs) });
+				Expression::reference(BuiltinFunctions::And),
+				{ std::move(*exp), std::move(*rhs) },
+				location);
 	}
-	return move(*exp);
+	return std::move(*exp);
 }
 
 /**
@@ -301,13 +362,16 @@ Expected<Expression> Parser::orExpression()
 {
 	TRY(exp, andExpression());
 
+	auto location = getCurrentSourcePos();
 	if (accept<Token::KeywordOr>())
 	{
 		TRY(rhs, orExpression());
 		return Expression::call(
-				Expression::reference("or"), { move(*exp), move(*rhs) });
+				Expression::reference(BuiltinFunctions::Or),
+				{ std::move(*exp), std::move(*rhs) },
+				location);
 	}
-	return move(*exp);
+	return std::move(*exp);
 }
 
 Expected<Expression> Parser::expression() { return assignmentExpression(); }
@@ -319,22 +383,24 @@ Expected<Expression> Parser::assignmentExpression()
 {
 	TRY(leftHand, orExpression());
 
+	auto location = getCurrentSourcePos();
 	if (!accept<Token::Equal>())
-		return move(*leftHand);
+		return std::move(*leftHand);
 
 	TRY(rightHand, assignmentExpression());
-	return Expression::assign(move(*leftHand), move(*rightHand));
+	return Expression::assign(
+			std::move(*leftHand), std::move(*rightHand), location);
 }
 
 /**
- * EntityField : Indetifier Identifier
+ * EntityField : TypeUse Identifier
  */
 llvm::Expected<EntityField> Parser::entityField()
 {
+	auto location = getCurrentSourcePos();
+	TRY(type, singleTypeUse());
 	EXPECT(Token::Identifier);
-	auto typeName = lIdent;
-	EXPECT(Token::Identifier);
-	return EntityField(move(typeName), move(lIdent));
+	return EntityField(std::move(*type), std::move(lIdent), location);
 }
 
 /**
@@ -343,7 +409,7 @@ llvm::Expected<EntityField> Parser::entityField()
  */
 llvm::Expected<EntityDeclaration> Parser::entityDeclaration()
 {
-	auto pos = getCurrentSourcePos();
+	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordEntity);
 	EXPECT(Token::Identifier);
 	string name = lIdent;
@@ -355,11 +421,11 @@ llvm::Expected<EntityDeclaration> Parser::entityDeclaration()
 	while (!accept<Token::Deindent>())
 	{
 		TRY(field, entityField());
-		fields.emplace_back(move(*field));
+		fields.emplace_back(std::move(*field));
 		EXPECT(Token::Newline);
 	}
-	auto e = Entity(move(name), move(fields));
-	return EntityDeclaration(move(e), move(pos));
+	auto e = Entity(std::move(name), std::move(fields));
+	return EntityDeclaration(std::move(e), std::move(location));
 }
 
 /**
@@ -367,11 +433,22 @@ llvm::Expected<EntityDeclaration> Parser::entityDeclaration()
  */
 llvm::Expected<Statement> Parser::expressionStatement()
 {
-	auto pos = getCurrentSourcePos();
+	auto location = getCurrentSourcePos();
 	TRY(exp, expression());
 	EXPECT(Token::Newline);
 
-	return Statement::expStatement(move(*exp), move(pos));
+	return Statement::expStatement(std::move(*exp), std::move(location));
+}
+
+/**
+ * actionStatement : actionDeclaration '\n'
+ */
+llvm::Expected<Statement> Parser::actionStatement()
+{
+	TRY(action, actionDeclaration());
+	EXPECT(Token::Newline);
+
+	return Statement::actionStatement(*action);
 }
 
 /**
@@ -380,20 +457,24 @@ llvm::Expected<Statement> Parser::expressionStatement()
  */
 llvm::Expected<Statement> Parser::ifStatement()
 {
-	SourcePosition pos = getCurrentSourcePos();
+	SourcePosition location = getCurrentSourcePos();
 	EXPECT(Token::KeywordIf);
 	TRY(exp, expression());
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	TRY(tBranch, statementList());
 	if (!accept<Token::KeywordElse>())
-		return Statement::ifStatment(move(*exp), move(*tBranch), move(pos));
+		return Statement::ifStatment(
+				std::move(*exp), std::move(*tBranch), std::move(location));
 
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	TRY(fBranch, statementList());
 	return Statement::ifStatment(
-			move(*exp), move(*tBranch), move(*fBranch), move(pos));
+			std::move(*exp),
+			std::move(*tBranch),
+			std::move(*fBranch),
+			std::move(location));
 }
 
 /**
@@ -401,13 +482,14 @@ llvm::Expected<Statement> Parser::ifStatement()
  */
 Expected<Statement> Parser::whileStatement()
 {
-	auto pos = getCurrentSourcePos();
+	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordWhile);
 	TRY(exp, expression());
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	TRY(statLis, statementList());
-	return Statement::whileStatement(move(*exp), move(*statLis), move(pos));
+	return Statement::whileStatement(
+			std::move(*exp), std::move(*statLis), std::move(location));
 }
 
 /**
@@ -415,18 +497,21 @@ Expected<Statement> Parser::whileStatement()
  */
 Expected<Statement> Parser::returnStatement()
 {
-	auto pos = getCurrentSourcePos();
+	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordReturn);
 	if (accept(Token::Newline))
-		return Statement::returnStatement(move(pos));
+		return Statement::returnStatement(std::move(location));
 
 	TRY(exp, expression());
 	EXPECT(Token::Newline);
-	return Statement::returnStatement(move(*exp), move(pos));
+	return Statement::returnStatement(std::move(*exp), std::move(location));
 }
 
 Expected<Statement> Parser::statement()
 {
+	if (current == Token::KeywordAction)
+		return actionStatement();
+
 	if (current == Token::KeywordIf)
 		return ifStatement();
 
@@ -443,19 +528,31 @@ Expected<Statement> Parser::statement()
 }
 
 /**
- * declarationStatement : let identifier '=' expression
+ * declarationStatement : 'let' identifier ['=' expression | ':' type_use ]
  */
 Expected<Statement> Parser::declarationStatement()
 {
-	auto pos = getCurrentSourcePos();
 	EXPECT(Token::KeywordLet);
 	EXPECT(Token::Identifier);
+	auto location = getCurrentSourcePos();
 	auto name = lIdent;
 
-	EXPECT(Token::Equal);
-	TRY(exp, expression());
+	if (accept<Token::Equal>())
+	{
+		TRY(exp, expression());
+		EXPECT(Token::Newline);
+		return Statement::declarationStatement(
+				std::move(name), std::move(*exp), std::move(location));
+	}
+
+	EXPECT(Token::Colons);
+	auto typePosition = getCurrentSourcePos();
+	TRY(use, singleTypeUse());
 	EXPECT(Token::Newline);
-	return Statement::declarationStatement(move(name), move(*exp), move(pos));
+	return Statement::declarationStatement(
+			std::move(name),
+			Expression::zeroInitializer(std::move(*use), typePosition),
+			location);
 }
 
 /**
@@ -463,17 +560,17 @@ Expected<Statement> Parser::declarationStatement()
  */
 Expected<Statement> Parser::statementList()
 {
-	auto pos = getCurrentSourcePos();
+	auto location = getCurrentSourcePos();
 
 	SmallVector<Statement, 3> stmts;
 	EXPECT(Token::Indent);
 	while (!accept<Token::Deindent>())
 	{
 		TRY(s, statement());
-		stmts.emplace_back(move(*s));
+		stmts.emplace_back(std::move(*s));
 	}
 
-	return Statement::statmentList(move(stmts), move(pos));
+	return Statement::statmentList(std::move(stmts), std::move(location));
 }
 
 /**
@@ -481,17 +578,18 @@ Expected<Statement> Parser::statementList()
  */
 Expected<SingleTypeUse> Parser::functionTypeUse()
 {
+	auto location = getCurrentSourcePos();
 	SmallVector<SingleTypeUse, 2> tpUse;
 
 	TRY(singleTp, singleTypeUse());
-	tpUse.emplace_back(move(*singleTp));
+	tpUse.emplace_back(std::move(*singleTp));
 	while (accept<Token::Arrow>())
 	{
 		TRY(singleTp, singleTypeUse());
-		tpUse.emplace_back(move(*singleTp));
+		tpUse.emplace_back(std::move(*singleTp));
 	}
 
-	return FunctionTypeUse::functionType(move(tpUse));
+	return FunctionTypeUse::functionType(std::move(tpUse), pos);
 }
 
 /**
@@ -499,43 +597,40 @@ Expected<SingleTypeUse> Parser::functionTypeUse()
  */
 Expected<SingleTypeUse> Parser::singleTypeUse()
 {
+	auto location = getCurrentSourcePos();
 	if (accept<Token::LPar>())
 	{
 		TRY(fType, functionTypeUse());
 		EXPECT(Token::RPar);
-		return move(*fType);
+		return std::move(*fType);
 	}
 
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
 	if (!accept<Token::LSquare>())
-		return SingleTypeUse::scalarType(move(nm));
+		return SingleTypeUse::scalarType(std::move(nm), location);
 
 	EXPECT(Token::Int64);
 	auto size = lInt64;
 	EXPECT(Token::RSquare);
-	return SingleTypeUse::arrayType(move(nm), size);
+	return SingleTypeUse::arrayType(std::move(nm), size, location);
 }
 
 Expected<ArgumentDeclaration> Parser::argDeclaration()
 {
-	auto pos = getCurrentSourcePos();
+	auto location = getCurrentSourcePos();
 	TRY(tp, singleTypeUse());
 	EXPECT(Token::Identifier);
 	auto parName = lIdent;
-	return ArgumentDeclaration(move(parName), move(*tp), move(pos));
+	return ArgumentDeclaration(
+			std::move(parName), std::move(*tp), std::move(location));
 }
 
 /**
- * functionDefinition : "fun" identifier "(" [argDeclaration (","
- * argDeclaration)*] ")->" singleTypeUse ":\n" statementList
+ * functionDefinition : "(" [argDeclaration ("," argDeclaration)*] ")"
  */
-Expected<FunctionDefinition> Parser::functionDefinition()
+Expected<llvm::SmallVector<ArgumentDeclaration, 3>> Parser::functionArguments()
 {
-	auto pos = getCurrentSourcePos();
-	EXPECT(Token::KeywordFun);
-	EXPECT(Token::Identifier);
-	auto nm = lIdent;
 	EXPECT(Token::LPar);
 
 	llvm::SmallVector<ArgumentDeclaration, 3> args;
@@ -545,46 +640,122 @@ Expected<FunctionDefinition> Parser::functionDefinition()
 		do
 		{
 			TRY(arg, argDeclaration());
-			args.emplace_back(move(*arg));
+			args.emplace_back(std::move(*arg));
 		} while (accept<Token::Comma>());
 	}
 
 	EXPECT(Token::RPar);
-	EXPECT(Token::Arrow);
-	TRY(retType, singleTypeUse());
+	return args;
+}
+
+/**
+ * functionDefinition : "fun" identifier "(" [argDeclaration (","
+ * argDeclaration)*] ")" ["->" singleTypeUse] ":\n" statementList
+ */
+Expected<FunctionDefinition> Parser::functionDefinition()
+{
+	auto location = getCurrentSourcePos();
+
+	EXPECT(Token::KeywordFun);
+	EXPECT(Token::Identifier);
+	auto nm = lIdent;
+
+	TRY(args, functionArguments());
+
+	SingleTypeUse retType = SingleTypeUse::scalarType(
+			builtinTypeToString(BuiltinType::VOID).str(), location);
+	if (accept<Token::Arrow>())
+	{
+		TRY(actualRetType, singleTypeUse());
+		retType = std::move(*actualRetType);
+	}
+
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 
 	TRY(body, statementList());
 	return FunctionDefinition(
-			move(nm), move(*body), move(*retType), move(args), pos);
+			std::move(nm),
+			std::move(*body),
+			std::move(retType),
+			std::move(*args),
+			location);
+}
+
+/**
+ * actionDeclaration : "act" identifier "(" [argDeclaration (","
+ * argDeclaration)*] ")"
+ */
+Expected<ActionDeclaration> Parser::actionDeclaration()
+{
+	auto location = getCurrentSourcePos();
+
+	EXPECT(Token::KeywordAction);
+	EXPECT(Token::Identifier);
+	auto nm = lIdent;
+
+	TRY(args, functionArguments());
+
+	SingleTypeUse retType = SingleTypeUse::scalarType(
+			builtinTypeToString(BuiltinType::VOID).str(), location);
+	return ActionDeclaration(std::move(nm), std::move(*args), location);
+}
+
+/**
+ * actionDefinition : actionDeclaration ":\n" statementList
+ */
+Expected<ActionDefinition> Parser::actionDefinition()
+{
+	TRY(decl, actionDeclaration());
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+
+	TRY(body, statementList());
+	return ActionDefinition(std::move(*decl), std::move(*body));
 }
 
 Expected<System> Parser::system()
 {
-	EXPECT(Token::KeywordSystem);
-	EXPECT(Token::Identifier);
-	System s(lIdent);
-
-	EXPECT(Token::Newline);
+	auto location = getCurrentSourcePos();
+	System s("anonymous system", location);
+	if (accept<Token::KeywordSystem>())
+	{
+		EXPECT(Token::Identifier);
+		s.setName(lIdent);
+		EXPECT(Token::Newline);
+	}
 
 	while (current != Token::End)
 	{
-		accept<Token::Newline>();
-		accept<Token::Indent>();
-		accept<Token::Deindent>();
+		while (accept<Token::Newline>() or accept<Token::Indent>() or
+					 accept<Token::Deindent>())
+			;
+
+		if (current == Token::KeywordAction)
+		{
+			TRY(f, actionDefinition());
+			s.addAction(std::move(*f));
+			continue;
+		}
 
 		if (current == Token::KeywordFun)
 		{
 			TRY(f, functionDefinition());
-			s.addFunction(move(*f));
+			s.addFunction(std::move(*f));
+			continue;
 		}
 
 		if (current == Token::KeywordEntity)
 		{
 			TRY(f, entityDeclaration());
-			s.addEntity(move(*f));
+			s.addEntity(std::move(*f));
+			continue;
 		}
+		auto location = getCurrentSourcePos();
+		return make_error<RlcError>(
+				"Expected function, action or entity declaration",
+				RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
+				location);
 	}
 	return s;
 }

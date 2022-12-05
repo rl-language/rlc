@@ -29,3 +29,15 @@ TEST(ConstantTest, createDoubleConstant)
 	EXPECT_EQ(c.get<double>(), 1.4);
 	EXPECT_EQ(c.as<int64_t>(), 1);
 }
+
+TEST(ConstantTest, serializeConstant)
+{
+	auto c = ScalarConstant::doubleC(1.4);
+	std::string string;
+	llvm::raw_string_ostream OS(string);
+	llvm::yaml::Output Output(OS);
+
+	Output << c;
+	OS.flush();
+	llvm::outs() << string;
+}

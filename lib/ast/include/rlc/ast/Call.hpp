@@ -6,6 +6,8 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
 #include "rlc/utils/SimpleIterator.hpp"
+#include "rlc/utils/SourcePosition.hpp"
+
 namespace rlc
 {
 	class Expression;
@@ -13,6 +15,8 @@ namespace rlc
 	{
 		public:
 		friend class Expression;
+		friend llvm::yaml::MappingTraits<rlc::Call>;
+		static constexpr const char* name = "call";
 		using iterator = SimpleIterator<Call&, Expression>;
 		using const_iterator = SimpleIterator<const Call&, const Expression>;
 
@@ -64,7 +68,10 @@ namespace rlc
 			return llvm::make_range(begin(), end() - 1);
 		}
 
-		void print(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const;
+		void print(
+				llvm::raw_ostream& OS = llvm::outs(),
+				size_t indents = 0,
+				bool printLocation = false) const;
 		void dump() const;
 
 		Call(const Call& other);
@@ -81,9 +88,43 @@ namespace rlc
 		}
 		using Container = llvm::SmallVector<std::unique_ptr<Expression>, 3>;
 
+		[[nodiscard]] const SourcePosition& getPosition() const { return position; }
+		void setPosition(const SourcePosition& newPoisition)
+		{
+			position = newPoisition;
+		}
+
 		private:
-		explicit Call(std::unique_ptr<Expression> f, Container args = {});
+		explicit Call(
+				std::unique_ptr<Expression> f,
+				Container args = {},
+				SourcePosition position = SourcePosition());
 		Container args;
+		SourcePosition position;
 	};
 
 }	 // namespace rlc
+
+template<>
+struct llvm::yaml::SequenceTraits<rlc::Call::Container>
+{
+	static size_t size(IO& io, rlc::Call::Container& list) { return list.size(); }
+	static rlc::Expression& element(
+			IO& io, rlc::Call::Container& list, size_t index)
+	{
+		assert(io.outputting());
+		return *list[index];
+	}
+};
+
+template<>
+struct llvm::yaml::MappingTraits<rlc::Call>
+{
+	static void mapping(IO& io, rlc::Call& value)
+	{
+		assert(io.outputting());
+		io.mapRequired("args", value.args);
+		if (not value.getPosition().isMissing())
+			io.mapRequired("position", value.position);
+	}
+};

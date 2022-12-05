@@ -20,39 +20,11 @@ using namespace std;
 using namespace llvm;
 using namespace rlc;
 
-static void printOut(const ScalarConstant& c, raw_ostream& OS, size_t indents)
+void Expression::print(
+		raw_ostream& OS, size_t indents, bool printLocation) const
 {
-	OS << " Value: ";
-	c.print(OS);
-}
-
-static void printOut(const Call& call, raw_ostream& OS, size_t indents)
-{
-	call.print(OS, indents);
-}
-
-static void printOut(const Reference& ref, raw_ostream& OS, size_t indents)
-{
-	OS << " ref ";
-	ref.print(OS);
-}
-
-static void printOut(const MemberAccess& acc, raw_ostream& OS, size_t indents)
-{
-	OS << " member access ";
-	acc.print(OS);
-}
-
-void Expression::print(raw_ostream& OS, size_t indents) const
-{
-	OS.indent(indents);
-	if (getType() != nullptr)
-	{
-		OS << "type ";
-		getType()->print(OS);
-	}
-
-	visit([&](const auto& t) { printOut(t, OS, indents); });
+	llvm::yaml::Output Output(OS);
+	Output << *const_cast<Expression*>(this);
 }
 
 void Expression::dump() const { print(); }
@@ -72,7 +44,9 @@ SimpleIterator<const Expression&, const Expression>::operator*() const
 
 static size_t subExpCount(const Call& call) { return call.subExpCount(); }
 static size_t subExpCount(const ScalarConstant& call) { return 0; }
+static size_t subExpCount(const ArrayAccess& call) { return 2; }
 static size_t subExpCount(const Reference& call) { return 0; }
+static size_t subExpCount(const ZeroInitializer& call) { return 0; }
 static size_t subExpCount(const MemberAccess& call) { return 1; }
 
 size_t Expression::subExpressionCount() const
@@ -80,14 +54,18 @@ size_t Expression::subExpressionCount() const
 	return visit([](const auto& c) { return subExpCount(c); });
 }
 
-Expression Expression::call(Expression call, SmallVector<Expression, 3> args)
+Expression Expression::call(
+		Expression call, SmallVector<Expression, 3> args, SourcePosition position)
 {
 	Call::Container newArgs;
 	for (auto& arg : args)
 		newArgs.emplace_back(std::make_unique<Expression>(std::move(arg)));
 
 	return Expression(
-			Call(std::make_unique<Expression>(std::move(call)), std::move(newArgs)),
+			Call(
+					std::make_unique<Expression>(std::move(call)),
+					std::move(newArgs),
+					std::move(position)),
 			nullptr);
 }
 
@@ -98,12 +76,13 @@ static Expected<Type*> tpOfExp(
 }
 
 static Expected<Type*> tpOfExp(
-		const Reference& ref, const SymbolTable& tb, TypeDB& db)
+		Reference& ref, const SymbolTable& tb, TypeDB& db)
 {
 	if (!tb.contains(ref.getName()))
-		return make_error<StringError>(
+		return make_error<RlcError>(
 				"Unkown Reference " + ref.getName(),
-				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference));
+				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference),
+				ref.getPosition());
 
 	SmallVector<Symbol*, 3> sym;
 	for (auto e : tb.range(ref.getName()))
@@ -115,9 +94,12 @@ static Expected<Type*> tpOfExp(
 			"somehow there are two typed symbols with the same name");
 
 	if (sym.empty())
-		return make_error<StringError>(
+		return make_error<RlcError>(
 				ref.getName() + " is not a typed symbol",
-				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference));
+				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference),
+				ref.getPosition());
+
+	ref.setReferred(*sym[0]);
 	return sym[0]->getType();
 }
 
@@ -128,23 +110,29 @@ static Error checkArguments(const Call& call)
 	assert(fType != nullptr);
 	assert(fType->isFunctionType());
 	if (call.argsCount() != fType->getArgCount())
-		return make_error<StringError>(
+		return make_error<RlcError>(
 				"argument count missmatch, expected" + to_string(fType->getArgCount()) +
 						", received " + to_string(call.argsCount()),
-				RlcErrorCategory::errorCode(RlcErrorCode::argumentCountMissmatch));
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentCountMissmatch),
+				call.getPosition());
 
 	for (auto i : irange(call.argsCount()))
 	{
 		if (fType->getArgumentType(i) != call.getArg(i).getType())
-			return make_error<StringError>(
+			return make_error<RlcError>(
 					"argument type missmatch for arg number: " + to_string(i),
-					RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
+					RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch),
+					call.getPosition());
 	}
 	return Error::success();
 }
 
 static bool argTypeMatching(Type* tp, const Call& call)
 {
+	assert(tp != nullptr);
+	if (not tp->isFunctionType())
+		return false;
+
 	if (call.argsCount() != tp->getArgCount())
 		return false;
 
@@ -180,29 +168,50 @@ static Error deduceOverload(Call& call, const SymbolTable& tb, TypeDB& db)
 	}
 
 	// else throw a error
-	return make_error<StringError>(
+	return make_error<RlcError>(
 			"no matching function " + fName,
-			RlcErrorCategory::errorCode(RlcErrorCode::noMatchingFunction));
+			RlcErrorCategory::errorCode(RlcErrorCode::noMatchingFunction),
+			call.getPosition());
 }
 
 static bool isSpecialFunction(const Reference& ref)
 {
 	if (ref.getName() == "assign")
 		return true;
+	if (ref.getName() == "init")
+		return true;
 	return ref.getName() == "array_access";
+}
+
+static Error deduceInitType(Call& call, const SymbolTable& tb, TypeDB& db)
+{
+	if (call.argsCount() != 1)
+		return make_error<RlcError>(
+				"init operation called with more than 1 argument",
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentCountMissmatch),
+				call.getPosition());
+
+	auto t = call.getArg(0).getType();
+
+	auto& fExp = call.getFunctionExpression();
+	fExp.setType(db.getFunctionType(db.getVoidType(), t));
+
+	return Error::success();
 }
 
 static Error deduceAssignType(Call& call, const SymbolTable& tb, TypeDB& db)
 {
 	if (call.argsCount() != 2)
-		return make_error<StringError>(
+		return make_error<RlcError>(
 				"assign operation called with wrong argument count",
-				RlcErrorCategory::errorCode(RlcErrorCode::argumentCountMissmatch));
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentCountMissmatch),
+				call.getPosition());
 
 	if (call.getArg(0).getType() != call.getArg(1).getType())
-		return make_error<StringError>(
+		return make_error<RlcError>(
 				"assign operation called with missmatched types",
-				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch),
+				call.getPosition());
 
 	auto t = call.getArg(0).getType();
 
@@ -213,27 +222,19 @@ static Error deduceAssignType(Call& call, const SymbolTable& tb, TypeDB& db)
 }
 
 static Error deduceArrayAccessType(
-		Call& call, const SymbolTable& tb, TypeDB& db)
+		ArrayAccess& call, const SymbolTable& tb, TypeDB& db)
 {
-	if (call.argsCount() != 2)
-		return make_error<StringError>(
-				"array subscripting operation called with wrong argument count",
-				RlcErrorCategory::errorCode(RlcErrorCode::argumentCountMissmatch));
+	if (call.getIndexing().getType() != db.getLongType())
+		return make_error<RlcError>(
+				"array subscripting  operation called with non int index",
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch),
+				call.getIndexing().getPosition());
 
-	if (call.getArg(1).getType() != db.getLongType())
-		return make_error<StringError>(
-				"array subscripting  operation called with missmatched types",
-				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
-
-	if (call.getArg(0).getType()->isArray())
-		return make_error<StringError>(
-				"array subscripting  operation called with missmatched types",
-				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
-
-	auto t = call.getArg(0).getType();
-
-	auto& fExp = call.getFunctionExpression();
-	fExp.setType(db.getFunctionType(t, db.getLongType(), t->getBaseType()));
+	if (not call.getArray().getType()->isArray())
+		return make_error<RlcError>(
+				"array subscripting operation invoked on a non array type",
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch),
+				call.getArray().getPosition());
 
 	return Error::success();
 }
@@ -244,11 +245,11 @@ static Error deduceSpecialFunction(
 	auto& fExp = call.getFunctionExpression();
 	assert(fExp.isA<Reference>());
 	auto& ref = fExp.get<Reference>();
-	if (ref.getName() == "assign")
+	if (ref.getName() == builtinFunctionsToString(BuiltinFunctions::Assign))
 		return deduceAssignType(call, tb, db);
 
-	if (ref.getName() == "array_access")
-		return deduceArrayAccessType(call, tb, db);
+	if (ref.getName() == builtinFunctionsToString(BuiltinFunctions::Init))
+		return deduceInitType(call, tb, db);
 
 	assert(false && "unrechable");
 	return Error::success();
@@ -266,26 +267,49 @@ static Error deduceFunctionType(Call& call, const SymbolTable& tb, TypeDB& db)
 	return deduceOverload(call, tb, db);
 }
 
+static Expected<Type*> tpOfExp(
+		ArrayAccess& access, const SymbolTable& tb, TypeDB& db)
+{
+	for (auto& c : access)
+		if (auto e = c.deduceType(tb, db); e)
+			return Expected<Type*>(std::move(e));
+
+	if (auto Error = deduceArrayAccessType(access, tb, db); Error)
+		return Error;
+
+	auto t = access.getArray().getType();
+	return t->getBaseType();
+}
+
 static Expected<Type*> tpOfExp(Call& call, const SymbolTable& tb, TypeDB& db)
 {
 	auto& fExp = call.getFunctionExpression();
 
 	for (auto& c : call.argsRange())
 		if (auto e = c.deduceType(tb, db); e)
-			return Expected<Type*>(move(e));
+			return Expected<Type*>(std::move(e));
 
 	if (auto e = deduceFunctionType(call, tb, db); e)
-		return Expected<Type*>(move(e));
+		return Expected<Type*>(std::move(e));
 
 	if (!fExp.getType()->isFunctionType())
-		return make_error<StringError>(
+		return make_error<RlcError>(
 				"object called  was not a function",
-				RlcErrorCategory::errorCode(RlcErrorCode::nonFunctionCalled));
+				RlcErrorCategory::errorCode(RlcErrorCode::nonFunctionCalled),
+				call.getPosition());
 
 	if (auto e = checkArguments(call); e)
-		return Expected<Type*>(move(e));
+		return Expected<Type*>(std::move(e));
 
 	return fExp.getType()->getReturnType();
+}
+
+static Expected<Type*> tpOfExp(
+		ZeroInitializer& initializer, const SymbolTable& tb, TypeDB& db)
+{
+	if (auto Error = initializer.getTypeUse().deduceType(tb, db); Error)
+		return Error;
+	return initializer.getTypeUse().getType();
 }
 
 static Expected<Type*> tpOfExp(
@@ -293,23 +317,25 @@ static Expected<Type*> tpOfExp(
 {
 	for (auto& sub : member)
 		if (auto e = sub.deduceType(tb, db); e)
-			return Expected<Type*>(move(e));
+			return Expected<Type*>(std::move(e));
 
 	auto tp = member.getExp().getType();
 	if (!tp->isUserDefined())
-		return make_error<StringError>(
+		return make_error<RlcError>(
 				"accessing element of a non user defined type",
-				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
+				RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch),
+				member.getPosition());
 
 	auto entity = tb.getUnique<Entity>(tp->getName());
 	auto index = entity.indexOfField(member.getFieldName());
-	if (index <= tp->containedTypesCount())
+	if (index < tp->containedTypesCount())
 		return tp->getContainedType(index);
 
-	return make_error<StringError>(
+	return make_error<RlcError>(
 			"No known field named " + member.getFieldName() + " in entity " +
 					entity.getName(),
-			RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch));
+			RlcErrorCategory::errorCode(RlcErrorCode::argumentTypeMissmatch),
+			member.getPosition());
 }
 
 Error Expression::deduceType(const SymbolTable& tb, TypeDB& db)

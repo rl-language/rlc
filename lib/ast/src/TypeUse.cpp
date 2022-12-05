@@ -4,6 +4,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -18,8 +19,9 @@ using namespace llvm;
 using namespace std;
 using namespace rlc;
 
-SingleTypeUse::SingleTypeUse(std::unique_ptr<FunctionTypeUse> f)
-		: fType(std::move(f))
+SingleTypeUse::SingleTypeUse(
+		std::unique_ptr<FunctionTypeUse> f, SourcePosition position)
+		: fType(std::move(f)), position(std::move(position))
 {
 }
 
@@ -56,7 +58,11 @@ void FunctionTypeUse::print(llvm::raw_ostream& OS) const
 void FunctionTypeUse::dump() const { print(outs()); }
 
 SingleTypeUse::SingleTypeUse(const SingleTypeUse& other)
-		: name(other.name), array(other.array), dim(other.dim)
+		: name(other.name),
+			array(other.array),
+			dim(other.dim),
+			type(other.type),
+			position(other.position)
 {
 	if (other.fType != nullptr)
 		fType = std::make_unique<FunctionTypeUse>(*other.fType);
@@ -68,6 +74,8 @@ SingleTypeUse& SingleTypeUse::operator=(const SingleTypeUse& other)
 	name = other.name;
 	array = other.array;
 	dim = other.dim;
+	position = other.position;
+	type = other.type;
 	if (other.fType != nullptr)
 		fType = std::make_unique<FunctionTypeUse>(*other.fType);
 
@@ -84,18 +92,26 @@ string SingleTypeUse::toString() const
 }
 
 static Expected<Type*> typeFromName(
-		llvm::StringRef name, const SymbolTable& tb, TypeDB& db)
+		llvm::StringRef name,
+		const SymbolTable& tb,
+		TypeDB& db,
+		const SourcePosition& pos)
 {
-	if (!tb.contains(name))
-		return make_error<StringError>(
+	if (not tb.contains(name) or tb.range<Entity>(name).empty())
+	{
+		return make_error<RlcError>(
 				name.str() + " does not name a type",
-				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference));
+				RlcErrorCategory::errorCode(RlcErrorCode::unknownReference),
+				pos);
+	}
 
 	return tb.getUnique<Entity>(name).getType();
 }
 
 Error SingleTypeUse::deduceType(const SymbolTable& tb, TypeDB& db)
 {
+	if (type != nullptr)
+		return Error::success();
 	if (isFunctionType())
 	{
 		if (auto e = getFunctionType().deduceType(tb, db); e)
@@ -105,9 +121,12 @@ Error SingleTypeUse::deduceType(const SymbolTable& tb, TypeDB& db)
 		return Error::success();
 	}
 
-	Expected<Type*> t = typeFromName(getName(), tb, db);
+	Expected<Type*> t = typeFromName(getName(), tb, db, position);
 	if (!t)
 		return t.takeError();
+
+	if (isArray())
+		*t = db.getArrayType(*t, this->dim);
 
 	type = *t;
 	return Error::success();
@@ -115,6 +134,8 @@ Error SingleTypeUse::deduceType(const SymbolTable& tb, TypeDB& db)
 
 Error FunctionTypeUse::deduceType(const SymbolTable& tb, TypeDB& db)
 {
+	if (type != nullptr)
+		return Error::success();
 	for (auto& typeUse : *this)
 		if (auto e = typeUse.deduceType(tb, db); e)
 			return e;

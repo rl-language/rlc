@@ -12,7 +12,7 @@ using namespace std;
 using namespace llvm;
 using namespace rlc;
 
-StringRef Symbol::getName() const
+std::string Symbol::getName() const
 {
 	return visit([](const auto& s) { return s.getName(); });
 }
@@ -64,3 +64,44 @@ Type* typeOfSymbol<ArgumentDeclaration>(const ArgumentDeclaration& symbol)
 {
 	return visit([](const auto& decl) { return typeOfSymbol(decl); });
 }
+
+const FunctionDeclaration* SymbolTable::findOverload(
+		llvm::StringRef name, Type* t) const
+{
+	auto assignmentOperators = range<FunctionDeclaration>(name);
+
+	auto isCorrentAssigmentFunction =
+			[t](const FunctionDeclaration& declaration) {
+				return t == declaration.getType();
+			};
+
+	if (auto iter =
+					llvm::find_if(assignmentOperators, isCorrentAssigmentFunction);
+			iter != assignmentOperators.end())
+		return &*iter;
+
+	return nullptr;
+}
+
+void Symbol::print(llvm::raw_ostream& OS, size_t indents) const
+{
+	OS.indent(indents);
+	llvm::outs() << this->getName();
+	if (hasType())
+	{
+		OS << " type: ";
+		getType()->print(OS);
+	}
+	llvm::outs() << "\n";
+}
+void Symbol::dump() const { print(llvm::outs()); }
+
+void SymbolTable::print(llvm::raw_ostream& OS, size_t indents) const
+{
+	for (const auto& entry : *this)
+		entry.second.print(OS, indents);
+
+	if (parent)
+		parent->print(OS, indents + 1);
+}
+void SymbolTable::dump() const { print(llvm::outs()); }
