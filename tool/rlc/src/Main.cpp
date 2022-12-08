@@ -353,6 +353,7 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::PassManager manager(&context);
+	manager.addPass(rlc::createRLCLowerArrayCalls());
 	manager.addPass(rlc::createRLCToCfLoweringPass());
 	manager.addPass(rlc::createRLCLowerActions());
 	manager.addPass(rlc::createRLCToLLVMLoweringPass());

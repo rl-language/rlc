@@ -67,6 +67,27 @@ namespace mlir::rlc
 
 namespace mlir::rlc::detail
 {
+	static bool areArgsArrayAndCompatible(mlir::ValueRange args)
+	{
+		assert(not args.empty());
+		if (not(*args.begin()).getType().isa<mlir::rlc::ArrayType>())
+			return false;
+
+		auto currentSize =
+				(*args.begin()).getType().cast<mlir::rlc::ArrayType>().getSize();
+
+		for (auto arg : llvm::drop_begin(args))
+		{
+			auto casted = arg.getType().dyn_cast<mlir::rlc::ArrayType>();
+			if (casted == nullptr)
+				return false;
+			if (casted.getSize() != currentSize)
+				return false;
+		}
+
+		return true;
+	}
+
 	template<typename Op>
 	mlir::LogicalResult typeCheckInteralOp(
 			Op op,
@@ -77,13 +98,12 @@ namespace mlir::rlc::detail
 			mlir::Type resType)
 	{
 		std::string opName = ("_" + op.getOperationName().drop_front(4)).str();
-		mlir::SmallPtrSet<mlir::Type, 4> set;
 		mlir::SmallVector<mlir::Type, 4> operandTypes;
 		mlir::SmallVector<mlir::Value, 4> operandValues;
+
 		for (mlir::OpOperand& t : op.getOperation()->getOpOperands())
 		{
 			operandTypes.push_back(t.get().getType());
-			set.insert(operandTypes.back());
 			operandValues.push_back(t.get());
 		}
 
@@ -94,36 +114,33 @@ namespace mlir::rlc::detail
 			op.emitError("argument op operation had unknown type");
 			return mlir::failure();
 		}
+
+		// if it's builtin, early out
 		for (auto type : accetableTypes)
 			if (handleBuiltin(op, rewriter, type, resType).succeeded())
 				return mlir::success();
 
-		// operands are all the same and are arrays
-		if (set.size() == 1 and operandTypes.front().isa<mlir::rlc::ArrayType>())
+		bool isArrayInvocation = areArgsArrayAndCompatible(operandValues);
+
+		mlir::SmallVector<mlir::Type, 4> lookUpUperandTypes(operandTypes);
+		if (isArrayInvocation)
 		{
-			rewriter.replaceOpWithNewOp<Op>(
-					op,
-					resType == nullptr ? operandTypes.front() : resType,
-					operandValues);
-			return mlir::success();
+			for (auto& operand : lookUpUperandTypes)
+				operand = operand.cast<mlir::rlc::ArrayType>().getUnderlying();
 		}
 
-		auto overloadSet = table.get(opName);
-		for (auto entry : overloadSet)
-		{
-			auto candidate = entry.getType().dyn_cast<mlir::FunctionType>();
-			if (not candidate)
-				continue;
+		auto overload = mlir::rlc::findOverload(
+				*op.getOperation(), table, opName, lookUpUperandTypes);
+		if (overload == nullptr)
+			return mlir::failure();
 
-			if (candidate.getInputs() != operandTypes)
-				continue;
-
-			rewriter.replaceOpWithNewOp<mlir::rlc::CallOp>(op, entry, operandValues);
-			return mlir::success();
-		}
-
-		op.emitError("no matching function " + opName);
-		return mlir::failure();
+		if (isArrayInvocation)
+			rewriter.replaceOpWithNewOp<mlir::rlc::ArrayCallOp>(
+					op, overload, operandValues);
+		else
+			rewriter.replaceOpWithNewOp<mlir::rlc::CallOp>(
+					op, overload, operandValues);
+		return mlir::success();
 	}
 
 }	 // namespace mlir::rlc::detail

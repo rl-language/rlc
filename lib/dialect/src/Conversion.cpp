@@ -6,9 +6,7 @@
 #include "rlc/dialect/conversion/TypeConverter.h"
 
 static mlir::Value makeAlloca(
-		mlir::ConversionPatternRewriter& rewriter,
-		mlir::Type type,
-		mlir::Location loc)
+		mlir::RewriterBase& rewriter, mlir::Type type, mlir::Location loc)
 {
 	auto count = rewriter.create<mlir::LLVM::ConstantOp>(
 			loc, rewriter.getI64Type(), rewriter.getI64IntegerAttr(1));
@@ -351,6 +349,24 @@ static mlir::Value lowerLess(
 			rewriter, mlir::LLVM::ICmpPredicate::slt, lhs, rhs, op.getLoc());
 }
 
+class UninitializedConstructRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::UninitializedConstruct>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::UninitializedConstruct>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::UninitializedConstruct op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type = typeConverter->convertType(op.getType());
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+		return mlir::LogicalResult::success();
+	}
+};
+
 class ReferenceRewriter: public mlir::OpConversionPattern<mlir::rlc::Reference>
 {
 	using mlir::OpConversionPattern<mlir::rlc::Reference>::OpConversionPattern;
@@ -364,6 +380,129 @@ class ReferenceRewriter: public mlir::OpConversionPattern<mlir::rlc::Reference>
 		rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(
 				op, type, adaptor.getReferred());
 		return mlir::LogicalResult::success();
+	}
+};
+
+class ArrayConstructRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::ArrayConstructOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::ArrayConstructOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::ArrayConstructOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		op.getOperation()->getParentOp()->dump();
+		int64_t size = op.getType().cast<mlir::rlc::ArrayType>().getSize();
+		rewriter.setInsertionPoint(op);
+		mlir::Value result = nullptr;
+
+		result = rewriter.create<mlir::rlc::UninitializedConstruct>(
+				op.getLoc(), op.getType());
+		rewriter.replaceOp(op, result);
+
+		rewriter.setInsertionPointAfter(result.getDefiningOp());
+		auto index = rewriter.create<mlir::rlc::DeclarationStatement>(
+				op.getLoc(), mlir::rlc::IntegerType::get(op.getContext()), "dc");
+		rewriter.createBlock(&index.getBody());
+		auto zero = rewriter.create<mlir::rlc::Constant>(
+				op.getLoc(), static_cast<int64_t>(0));
+
+		rewriter.create<mlir::rlc::Yield>(op.getLoc(), mlir::ValueRange({ zero }));
+
+		rewriter.setInsertionPointAfter(index);
+		auto whileStm = rewriter.create<mlir::rlc::WhileStatement>(op.getLoc());
+		rewriter.createBlock(&whileStm.getCondition());
+		auto max = rewriter.create<mlir::rlc::Constant>(op.getLoc(), size);
+		auto cond = rewriter.create<mlir::rlc::LessOp>(op.getLoc(), index, max);
+		rewriter.create<mlir::rlc::Yield>(op.getLoc(), mlir::ValueRange({ cond }));
+
+		rewriter.createBlock(&whileStm.getBody());
+		auto elem =
+				rewriter.create<mlir::rlc::ArrayAccess>(op.getLoc(), result, index);
+
+		rewriter.create<mlir::rlc::CallOp>(
+				op.getLoc(), op.getInitializer(), mlir::ValueRange({ elem }));
+
+		auto one = rewriter.create<mlir::rlc::Constant>(
+				op.getLoc(), static_cast<int64_t>(1));
+		auto added = rewriter.create<mlir::rlc::AddOp>(op.getLoc(), index, one);
+		rewriter.create<mlir::rlc::AssignOp>(op.getLoc(), index, added);
+
+		rewriter.create<mlir::rlc::Yield>(op.getLoc());
+		whileStm.getOperation()->getParentOp()->dump();
+
+		return mlir::success();
+	}
+};
+
+class ArrayCallRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::ArrayCallOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::ArrayCallOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::ArrayCallOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		int64_t size =
+				op.getArgs().front().getType().cast<mlir::rlc::ArrayType>().getSize();
+		rewriter.setInsertionPoint(op);
+		mlir::Value result = nullptr;
+		if (op.getNumResults() != 0)
+		{
+			result = rewriter.create<mlir::rlc::UninitializedConstruct>(
+					op.getLoc(), op.getResultTypes());
+			rewriter.replaceOp(op, result);
+		}
+		else
+		{
+			rewriter.eraseOp(op);
+		}
+		rewriter.setInsertionPointAfter(result.getDefiningOp());
+		auto index = rewriter.create<mlir::rlc::DeclarationStatement>(
+				op.getLoc(), mlir::rlc::IntegerType::get(op.getContext()), "dc");
+		rewriter.createBlock(&index.getBody());
+		auto zero = rewriter.create<mlir::rlc::Constant>(
+				op.getLoc(), static_cast<int64_t>(0));
+
+		rewriter.create<mlir::rlc::Yield>(op.getLoc(), mlir::ValueRange({ zero }));
+
+		rewriter.setInsertionPointAfter(index);
+		auto whileStm = rewriter.create<mlir::rlc::WhileStatement>(op.getLoc());
+		rewriter.createBlock(&whileStm.getCondition());
+		auto max = rewriter.create<mlir::rlc::Constant>(op.getLoc(), size);
+		auto cond = rewriter.create<mlir::rlc::LessOp>(op.getLoc(), index, max);
+		rewriter.create<mlir::rlc::Yield>(op.getLoc(), mlir::ValueRange({ cond }));
+
+		rewriter.createBlock(&whileStm.getBody());
+		llvm::SmallVector<mlir::Value> realArgs;
+		for (auto arg : adaptor.getArgs())
+		{
+			realArgs.push_back(
+					rewriter.create<mlir::rlc::ArrayAccess>(op.getLoc(), arg, index));
+		}
+		auto res = rewriter.create<mlir::rlc::CallOp>(
+				op.getLoc(), op.getCallee(), realArgs);
+		if (op.getNumResults() != 0)
+		{
+			auto resElem =
+					rewriter.create<mlir::rlc::ArrayAccess>(op.getLoc(), result, index);
+			rewriter.create<mlir::rlc::AssignOp>(
+					op.getLoc(), resElem, res.getResult(0));
+		}
+
+		auto one = rewriter.create<mlir::rlc::Constant>(
+				op.getLoc(), static_cast<int64_t>(1));
+		auto added = rewriter.create<mlir::rlc::AddOp>(op.getLoc(), index, one);
+		rewriter.create<mlir::rlc::AssignOp>(op.getLoc(), index, added);
+
+		rewriter.create<mlir::rlc::Yield>(op.getLoc());
+
+		return mlir::success();
 	}
 };
 
@@ -1103,6 +1242,7 @@ void rlc::RLCToLLVMLoweringPass::runOnOperation()
 			.add(makeArith(lowerMult, converter, &getContext()))
 			.add<YieldRewriter>(converter, &getContext())
 			.add<ArrayAccessRewriter>(converter, &getContext())
+			.add<UninitializedConstructRewriter>(converter, &getContext())
 			.add<MemberAccessRewriter>(converter, &getContext())
 			.add<ReferenceRewriter>(converter, &getContext())
 			.add<EntityDeclarationEraser>(converter, &getContext())
@@ -1194,4 +1334,20 @@ void rlc::RLCLowerActions::runOnOperation()
 			return;
 		}
 	}
+}
+
+void rlc::RLCLowerArrayCalls::runOnOperation()
+{
+	mlir::ConversionTarget target(getContext());
+
+	target.addLegalDialect<mlir::BuiltinDialect, mlir::rlc::RLCDialect>();
+	target.addIllegalOp<mlir::rlc::ArrayCallOp, mlir::rlc::ArrayConstructOp>();
+
+	mlir::RewritePatternSet patterns(&getContext());
+	patterns.add<ArrayCallRewriter>(&getContext());
+	patterns.add<ArrayConstructRewriter>(&getContext());
+
+	if (failed(
+					applyPartialConversion(getOperation(), target, std::move(patterns))))
+		signalPassFailure();
 }

@@ -6,6 +6,25 @@
 
 namespace rlc
 {
+	struct RLCLowerArrayCalls
+			: public mlir::
+						PassWrapper<RLCLowerArrayCalls, mlir::OperationPass<mlir::ModuleOp>>
+	{
+		public:
+		MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(RLCLowerArrayCalls)
+
+		void getDependentDialects(mlir::DialectRegistry &registry) const override
+		{
+			registry.insert<mlir::rlc::RLCDialect>();
+		}
+		void runOnOperation() final;
+	};
+
+	inline std::unique_ptr<mlir::Pass> createRLCLowerArrayCalls()
+	{
+		return std::make_unique<RLCLowerArrayCalls>();
+	}
+
 	struct RLCToLLVMLoweringPass: public mlir::PassWrapper<
 																		RLCToLLVMLoweringPass,
 																		mlir::OperationPass<mlir::ModuleOp>>

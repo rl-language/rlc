@@ -139,6 +139,21 @@ def RLC_Reference : RLC_Dialect<"ref"> {
   }];
 }
 
+def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
+  let summary = "statement list.";
+
+  let description = [{
+	expression.
+  }];
+
+  let results = (outs AnyType:$result);
+
+
+  let assemblyFormat = [{
+	type($result) attr-dict 
+  }];
+}
+
 def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 
@@ -277,6 +292,64 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
+}
+
+def RLC_ArrayCallOp : RLC_Dialect<"array_call",
+    [CallOpInterface,
+    DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+    ]>
+{
+    let summary = "Invoke operation on each element of array .";
+
+    let arguments = (ins AnyFunctionType:$callee, Variadic<RLC_ArrayType>:$args);
+    let results = (outs Variadic<RLC_ArrayType>);
+
+    let assemblyFormat = [{
+        $callee `:` type($callee) `(` $args `)` attr-dict `:` functional-type($args, results)
+    }];
+
+    let builders = [
+        OpBuilder<(ins "Value":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
+			auto calleeType = callee.getType();
+			auto functionType = calleeType.cast<FunctionType>();
+			auto argumentSize = args.front().getType().cast<ArrayType>().getSize();
+			if (functionType.getResults().size() == 0 or functionType.getResults().front() == VoidType::get($_builder.getContext()))
+				build($_builder, $_state, mlir::TypeRange(), callee, args);
+			else
+			{
+				auto resType = mlir::rlc::ArrayType::get($_builder.getContext(), functionType.getResults().front(), argumentSize);
+				build($_builder, $_state, resType, callee, args);
+			}
+        }]>    
+	];
+
+    let extraClassDeclaration = [{
+        //===------------------------------------------------------------------===//
+        // CallOpInterface
+        //===------------------------------------------------------------------===//
+
+		mlir::FunctionType getCalleeType() {
+			return getCallee().getType().cast<mlir::FunctionType>();
+		}
+
+        /// Get the argument operands to the called function.
+        operand_range getArgOperands() {
+            return { arg_operand_begin(), arg_operand_end() };
+        }
+
+        operand_iterator arg_operand_begin() {
+            return operand_begin();
+        }
+
+        operand_iterator arg_operand_end() {
+            return operand_end();
+        }
+
+        /// Return the callee of this operation.
+        mlir::CallInterfaceCallable getCallableForCallee() {
+            return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+        }
+    }];
 }
 
 def RLC_CallOp : RLC_Dialect<"call",
@@ -429,6 +502,22 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
 
   let assemblyFormat = [{
 	`(` $value `:` type($value) `,` $member_index  `:` type($member_index) `)` `:` type($result) attr-dict 
+  }];
+}
+
+def RLC_ArrayConstructOp : RLC_Dialect<"array_construct"> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins FunctionType:$initializer);
+  let results = (outs RLC_ArrayType:$result);
+
+
+  let assemblyFormat = [{
+		$initializer `:` type($initializer) type($result) attr-dict
   }];
 }
 

@@ -21,6 +21,12 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 	return toReturn;
 }
 
+::mlir::LogicalResult mlir::rlc::ArrayCallOp::verifySymbolUses(
+		::mlir::SymbolTableCollection &symbolTable)
+{
+	return LogicalResult::success();
+}
+
 ::mlir::LogicalResult mlir::rlc::CallOp::verifySymbolUses(
 		::mlir::SymbolTableCollection &symbolTable)
 {
@@ -278,6 +284,15 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 		return mlir::failure();
 	}
 
+	auto realType = deducedType;
+	bool isArray = false;
+	if (auto array = deducedType.dyn_cast<mlir::rlc::ArrayType>();
+			array != nullptr)
+	{
+		isArray = true;
+		deducedType = array.getUnderlying();
+	}
+
 	auto candidate = findOverload(*getOperation(), table, "_init", deducedType);
 	if (candidate == nullptr)
 	{
@@ -285,8 +300,12 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 		return mlir::failure();
 	}
 
-	rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(
-			*this, candidate.getDefiningOp<mlir::rlc::FunctionOp>());
+	if (isArray)
+		rewriter.replaceOpWithNewOp<mlir::rlc::ArrayConstructOp>(
+				*this, realType, candidate.getDefiningOp<mlir::rlc::FunctionOp>());
+	else
+		rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(
+				*this, realType, candidate.getDefiningOp<mlir::rlc::FunctionOp>());
 
 	return mlir::success();
 }
