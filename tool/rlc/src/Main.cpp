@@ -23,21 +23,17 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
+#include "mlir/IR/Verifier.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllTranslations.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
-#include "rlc/ast/BuiltinEntities.hpp"
-#include "rlc/ast/BuiltinFunctions.hpp"
-#include "rlc/ast/SymbolTable.hpp"
-#include "rlc/ast/System.hpp"
-#include "rlc/ast/Type.hpp"
 #include "rlc/dialect/Conversion.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/EmitMain.hpp"
-#include "rlc/lowerer/Lowerer.hpp"
+#include "rlc/dialect/TypeCheck.hpp"
 #include "rlc/parser/Parser.hpp"
 #include "rlc/utils/Error.hpp"
 
@@ -243,9 +239,7 @@ static void compile(
 class RlcExitOnError
 {
 	public:
-	RlcExitOnError(
-			mlir::MLIRContext &context, mlir::SourceMgrDiagnosticHandler &handler)
-			: handler(&handler), context(&context)
+	RlcExitOnError(mlir::SourceMgrDiagnosticHandler &handler): handler(&handler)
 	{
 	}
 
@@ -254,9 +248,7 @@ class RlcExitOnError
 		auto otherErrors =
 				llvm::handleErrors(std::move(error), [this](const rlc::RlcError &e) {
 					handler->emitDiagnostic(
-							sourcePositionToLocation(e.getPosition(), context),
-							e.getText(),
-							mlir::DiagnosticSeverity::Error);
+							e.getPosition(), e.getText(), mlir::DiagnosticSeverity::Error);
 					exit(-1);
 				});
 
@@ -275,7 +267,6 @@ class RlcExitOnError
 	private:
 	static ExitOnError exitOnErrBase;
 	mlir::SourceMgrDiagnosticHandler *handler = nullptr;
-	mlir::MLIRContext *context = nullptr;
 };
 
 ExitOnError RlcExitOnError::exitOnErrBase;
@@ -294,7 +285,7 @@ int main(int argc, char *argv[])
 
 	mlir::MLIRContext context;
 	mlir::SourceMgrDiagnosticHandler diagnostic(sourceManager, &context);
-	RlcExitOnError exitOnErr(context, diagnostic);
+	RlcExitOnError exitOnErr(diagnostic);
 
 	error_code error;
 	raw_fd_ostream OS(outputFile, error);
@@ -312,57 +303,64 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	Parser parser(
-			sourceManager.getMemoryBuffer(1)->getBuffer().str(), AbslutePath);
-	auto ast = exitOnErr(parser.system());
-	rlc::addBuilints(ast);
-	rlc::addBuilintsEntities(ast);
-
-	if (dumpUncheckedAST)
-	{
-		ast.print(OS, not hidePosition);
-		return 0;
-	}
-
-	TypeDB db;
-	exitOnErr(ast.typeCheck(SymbolTable(), db));
-	if (dumpAST)
-	{
-		ast.print(OS, not hidePosition);
-		return 0;
-	}
-
-	Lowerer lowerer(context, db);
 	mlir::DialectRegistry Registry;
 	Registry.insert<mlir::BuiltinDialect, mlir::rlc::RLCDialect>();
 	mlir::registerLLVMDialectTranslation(Registry);
-	lowerer.getContext().appendDialectRegistry(Registry);
-	lowerer.getContext().loadAllAvailableDialects();
-	exitOnErr(lowerer.lowerSystem(ast));
+	context.appendDialectRegistry(Registry);
+	context.loadAllAvailableDialects();
+
+	Parser parser(
+			&context,
+			sourceManager.getMemoryBuffer(1)->getBuffer().str(),
+			AbslutePath);
+	auto ast = exitOnErr(parser.system());
+
+	if (dumpUncheckedAST)
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast->print(OS, flags);
+		return 0;
+	}
+
+	mlir::PassManager typeChecker(&context);
+	typeChecker.addPass(rlc::createRLCTypeCheck());
+	if (typeChecker.run(ast).failed())
+		return -1;
+
+	if (dumpAST)
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast.print(OS, flags);
+		if (mlir::verify(ast).failed())
+			return -1;
+		return 0;
+	}
 
 	if (dumpRLC)
 	{
 		mlir::OpPrintingFlags flags;
 		if (not hidePosition)
 			flags.enableDebugInfo(true);
-		lowerer.getModule(0)->print(OS, flags);
-		if (!lowerer.verify(errs()))
+		ast->print(OS, flags);
+
+		if (mlir::verify(ast).failed())
 			return -1;
 		return 0;
 	}
-
-	if (!lowerer.verify(errs()))
-		return -1;
 
 	mlir::PassManager manager(&context);
 	manager.addPass(rlc::createRLCToCfLoweringPass());
 	manager.addPass(rlc::createRLCLowerActions());
 	manager.addPass(rlc::createRLCToLLVMLoweringPass());
-	if (ast.hasMain())
+	if (ast.lookupSymbol("main() -> !rlc.int") != nullptr)
 	{
 		manager.addPass(createEmitMainPass());
 	}
-	if (manager.run(lowerer.getModule(0)).failed())
+	if (manager.run(ast).failed())
 		return -1;
 
 	if (dumpMLIR)
@@ -370,15 +368,14 @@ int main(int argc, char *argv[])
 		mlir::OpPrintingFlags flags;
 		if (not hidePosition)
 			flags.enableDebugInfo(true);
-		lowerer.getModule(0)->print(OS, flags);
-		if (!lowerer.verify(errs()))
+		ast.print(OS, flags);
+		if (mlir::verify(ast).failed())
 			return -1;
 		return 0;
 	}
 
 	LLVMContext LLVMcontext;
-	auto Module = mlir::translateModuleToLLVMIR(
-			lowerer.getModule(0), LLVMcontext, inputFileName);
+	auto Module = mlir::translateModuleToLLVMIR(ast, LLVMcontext, inputFileName);
 	Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
 
 	assert(Module);

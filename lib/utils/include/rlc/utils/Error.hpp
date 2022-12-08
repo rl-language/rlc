@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "llvm/Support/Error.h"
-#include "rlc/utils/SourcePosition.hpp"
+#include "mlir/IR/Location.h"
 
 namespace rlc
 {
@@ -67,17 +67,17 @@ namespace rlc
 		private:
 		std::string text;
 		std::error_code ec;
-		SourcePosition position;
+		mlir::Location position;
 
 		public:
 		const static char ID;
 
-		RlcError(std::string text, std::error_code ec, SourcePosition position)
+		RlcError(std::string text, std::error_code ec, mlir::Location position)
 				: text(std::move(text)), ec(ec), position(std::move(position))
 		{
 		}
 
-		[[nodiscard]] const SourcePosition& getPosition() const { return position; }
+		[[nodiscard]] const mlir::Location& getPosition() const { return position; }
 
 		[[nodiscard]] const std::string& getText() const { return text; }
 

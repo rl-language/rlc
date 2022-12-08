@@ -37,7 +37,12 @@ namespace mlir::rlc
 		/// the struct by appending a `.` followed by a number to the name. Renaming
 		/// happens even if the existing struct has the same body.
 		static EntityType getNewIdentified(
-				MLIRContext *context, StringRef name, ArrayRef<Type> elements);
+				MLIRContext *context,
+				StringRef name,
+				ArrayRef<Type> elements,
+				ArrayRef<std::string> fieldNames);
+
+		llvm::ArrayRef<std::string> getFieldNames() const;
 
 		/// Set the body of an identified struct. Returns failure if the body could
 		/// not be set, e.g. if the struct already has a body or if it was marked as
@@ -45,7 +50,8 @@ namespace mlir::rlc
 		/// a different thread modified the struct after it was created. Most
 		/// callers are likely to assert this always succeeds, but it is possible to
 		/// implement a local renaming scheme based on the result of this call.
-		LogicalResult setBody(ArrayRef<Type> types);
+		LogicalResult setBody(
+				ArrayRef<Type> types, ArrayRef<std::string> fieldNames);
 
 		/// Checks if a struct is initialized.
 		bool isInitialized() const;

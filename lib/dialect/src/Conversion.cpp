@@ -72,6 +72,22 @@ static void mergeYieldsIntoSplittedBlock(
 	}
 }
 
+class EntityDeclarationEraser
+		: public mlir::OpConversionPattern<mlir::rlc::EntityDeclaration>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::EntityDeclaration>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::EntityDeclaration op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class ConstructRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::ConstructOp>
 {
@@ -88,8 +104,7 @@ class ConstructRewriter
 		rewriter.create<mlir::LLVM::CallOp>(
 				op.getLoc(),
 				mlir::TypeRange(),
-				op.getInitializerAttr(),
-				mlir::ValueRange({ alloca }));
+				mlir::ValueRange({ adaptor.getInitializer(), alloca }));
 		rewriter.replaceOp(op, alloca);
 		return mlir::LogicalResult::success();
 	}
@@ -336,6 +351,22 @@ static mlir::Value lowerLess(
 			rewriter, mlir::LLVM::ICmpPredicate::slt, lhs, rhs, op.getLoc());
 }
 
+class ReferenceRewriter: public mlir::OpConversionPattern<mlir::rlc::Reference>
+{
+	using mlir::OpConversionPattern<mlir::rlc::Reference>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::Reference op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type = typeConverter->convertType(op.getType());
+		rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(
+				op, type, adaptor.getReferred());
+		return mlir::LogicalResult::success();
+	}
+};
+
 class CallRewriter: public mlir::OpConversionPattern<mlir::rlc::CallOp>
 {
 	using mlir::OpConversionPattern<mlir::rlc::CallOp>::OpConversionPattern;
@@ -357,12 +388,12 @@ class CallRewriter: public mlir::OpConversionPattern<mlir::rlc::CallOp>
 			out.push_back(res.cast<mlir::LLVM::LLVMPointerType>().getElementType());
 		}
 
+		rewriter.setInsertionPoint(op);
 		llvm::SmallVector<mlir::Value, 2> args;
 		args.push_back(adaptor.getCallee());
 		for (auto arg : adaptor.getArgs())
 			args.push_back(arg);
 
-		rewriter.setInsertionPoint(op);
 		auto res = rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), out, args);
 
 		if (not out.empty())
@@ -377,30 +408,6 @@ class CallRewriter: public mlir::OpConversionPattern<mlir::rlc::CallOp>
 		{
 			rewriter.eraseOp(op);
 		}
-
-		return mlir::LogicalResult::success();
-	}
-};
-
-class ReferenceRewriter: public mlir::OpConversionPattern<mlir::rlc::Reference>
-{
-	using mlir::OpConversionPattern<mlir::rlc::Reference>::OpConversionPattern;
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::Reference op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		llvm::SmallVector<mlir::Type, 2> out;
-		auto err = typeConverter->convertType(op.getResult().getType(), out);
-		assert(err.succeeded());
-		if (err.failed())
-			return err;
-
-		rewriter.setInsertionPoint(op);
-		auto newOp = rewriter.create<mlir::LLVM::AddressOfOp>(
-				op.getLoc(), out.front(), op.getNameAttr());
-		rewriter.replaceOp(op, { newOp });
 
 		return mlir::LogicalResult::success();
 	}
@@ -711,7 +718,10 @@ class FunctionRewriter
 		rewriter.cloneRegionBefore(
 				op.getBody(), newF.getBody(), newF.getBody().begin());
 		rewriter.eraseOp(op);
-		return rewriter.convertRegionTypes(&newF.getRegion(), *typeConverter);
+		auto convered =
+				rewriter.convertRegionTypes(&newF.getRegion(), *typeConverter);
+		assert(convered.hasValue());
+		return mlir::success();
 	}
 };
 
@@ -763,6 +773,22 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 
 	llvm::SmallVector<mlir::rlc::FunctionOp, 2> ops(
 			op.getOps<mlir::rlc::FunctionOp>());
+
+	for (auto f : ops)
+	{
+		rewriter.setInsertionPoint(f);
+		llvm::SmallVector<mlir::OpOperand*> operands;
+		for (auto& use : f.getResult().getUses())
+			operands.push_back(&use);
+
+		for (auto& use : operands)
+		{
+			rewriter.setInsertionPoint(use->getOwner());
+			auto ref = rewriter.create<mlir::rlc::Reference>(
+					use->getOwner()->getLoc(), f.getFunctionType(), f.getSymName());
+			use->set(ref);
+		}
+	}
 	for (auto f : ops)
 	{
 		if (auto res = squashCF(f, rewriter); res.failed())
@@ -773,11 +799,13 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 		f.setName("dc");
 		auto newF = rewriter.create<mlir::rlc::FlatFunctionOp>(
 				op.getLoc(),
+				f.getFunctionType(),
 				f.getUnmangledName(),
 				rewriter.getStringAttr(name),
-				f.getFunctionType());
+				f.getArgNamesAttr());
 		rewriter.cloneRegionBefore(
 				f.getBody(), newF.getBody(), newF.getBody().begin());
+
 		rewriter.eraseOp(f);
 
 		pruneUnrechableBlocks(newF.getBody(), rewriter);
@@ -1076,8 +1104,9 @@ void rlc::RLCToLLVMLoweringPass::runOnOperation()
 			.add<YieldRewriter>(converter, &getContext())
 			.add<ArrayAccessRewriter>(converter, &getContext())
 			.add<MemberAccessRewriter>(converter, &getContext())
-			.add<ConstructRewriter>(converter, &getContext())
-			.add<ReferenceRewriter>(converter, &getContext());
+			.add<ReferenceRewriter>(converter, &getContext())
+			.add<EntityDeclarationEraser>(converter, &getContext())
+			.add<ConstructRewriter>(converter, &getContext());
 
 	if (failed(
 					applyPartialConversion(getOperation(), target, std::move(patterns))))

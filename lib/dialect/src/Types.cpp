@@ -25,6 +25,20 @@ void mlir::rlc::RLCDialect::registerTypes()
 
 using namespace mlir::rlc;
 
+void mlir::rlc::FunctionUseType::walkImmediateSubElements(
+		llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
+		llvm::function_ref<void(mlir::Type)> walkTypesFn) const
+{
+	for (auto type : getSubTypes())
+		walkTypesFn(type);
+}
+
+mlir::Type mlir::rlc::FunctionUseType::replaceImmediateSubElements(
+		ArrayRef<Attribute> replAttrs, ArrayRef<Type> replTypes) const
+{
+	return get(getContext(), replTypes);
+}
+
 void mlir::rlc::ArrayType::walkImmediateSubElements(
 		llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
 		llvm::function_ref<void(mlir::Type)> walkTypesFn) const
@@ -44,14 +58,17 @@ EntityType EntityType::getIdentified(MLIRContext *context, StringRef name)
 }
 
 EntityType EntityType::getNewIdentified(
-		MLIRContext *context, StringRef name, ArrayRef<Type> elements)
+		MLIRContext *context,
+		StringRef name,
+		ArrayRef<Type> elements,
+		ArrayRef<std::string> fieldNames)
 {
 	std::string stringName = name.str();
 	unsigned counter = 0;
 	do
 	{
 		auto type = EntityType::getIdentified(context, stringName);
-		if (type.isInitialized() || failed(type.setBody(elements)))
+		if (type.isInitialized() || failed(type.setBody(elements, fieldNames)))
 		{
 			counter += 1;
 			stringName = (Twine(name) + "." + std::to_string(counter)).str();
@@ -61,9 +78,10 @@ EntityType EntityType::getNewIdentified(
 	} while (true);
 }
 
-mlir::LogicalResult EntityType::setBody(ArrayRef<Type> types)
+mlir::LogicalResult EntityType::setBody(
+		ArrayRef<Type> types, ArrayRef<std::string> fieldNames)
 {
-	return Base::mutate(types);
+	return Base::mutate(types, fieldNames);
 }
 
 bool EntityType::isInitialized() const { return getImpl()->isInitialized(); }
@@ -104,6 +122,11 @@ mlir::Type EntityType::replaceImmediateSubElements(
 	return nullptr;
 }
 
+llvm::ArrayRef<std::string> EntityType::getFieldNames() const
+{
+	return getImpl()->getFieldNames();
+}
+
 mlir::Type EntityType::parse(mlir::AsmParser &parser)
 {
 	std::string name;
@@ -119,21 +142,31 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 	if (parser.parseLBrace().failed())
 		return toReturn;
 
+	llvm::SmallVector<std::string, 2> names;
 	llvm::SmallVector<mlir::Type, 2> inners;
 	while (parser.parseRBrace().failed())
 	{
+		names.emplace_back();
+		if (parser.parseKeywordOrString(&names.back()).failed() or
+				parser.parseColon().failed())
+		{
+			parser.emitError(
+					parser.getCurrentLocation(), "failed to parse Entity sub type ");
+			return {};
+		}
+
 		mlir::Type elem = {};
 		auto res = parser.parseType(elem);
 		if (res.failed())
 		{
 			parser.emitError(
-					parser.getCurrentLocation(), "failed to parse Entity sub type nam");
+					parser.getCurrentLocation(), "failed to parse Entity sub type ");
 			return {};
 		}
 
 		inners.push_back(elem);
 	}
-	if (toReturn.setBody(inners).failed())
+	if (toReturn.setBody(inners, names).failed())
 	{
 		parser.emitError(
 				parser.getCurrentLocation(),
@@ -151,8 +184,10 @@ mlir::Type EntityType::print(mlir::AsmPrinter &p) const
 		return *this;
 	}
 	p << "{";
-	for (auto type : getBody())
+	for (const auto &[type, name] : llvm::zip(getBody(), getFieldNames()))
 	{
+		p << name;
+		p << ": ";
 		p.printType(type);
 		p << ", ";
 	}

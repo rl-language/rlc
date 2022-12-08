@@ -3,26 +3,22 @@
 #include <system_error>
 
 #include "llvm/Support/Error.h"
-#include "rlc/ast/Entity.hpp"
-#include "rlc/ast/EntityDeclaration.hpp"
-#include "rlc/ast/Expression.hpp"
-#include "rlc/ast/FunctionDefinition.hpp"
-#include "rlc/ast/Statement.hpp"
-#include "rlc/ast/System.hpp"
-#include "rlc/ast/Type.hpp"
-#include "rlc/ast/TypeUse.hpp"
 #include "rlc/parser/Lexer.hpp"
 #include "rlc/utils/Error.hpp"
-#include "rlc/utils/SourcePosition.hpp"
 
 using namespace llvm;
 using namespace rlc;
 using namespace std;
 
+[[nodiscard]] mlir::Location Parser::getCurrentSourcePos() const { return pos; }
+
 void Parser::next()
 {
-	pos.setColumn(std::max<int64_t>(1, lexer.getCurrentColumn() - 1));
-	pos.setLine(lexer.getCurrentLine());
+	pos = mlir::FileLineColLoc::get(
+			ctx,
+			fileName,
+			lexer.getCurrentLine(),
+			std::max<int64_t>(1, lexer.getCurrentColumn() - 1));
 	if (current == Token::Identifier)
 		lIdent = lexer.lastIndent();
 	if (current == Token::Int64)
@@ -53,7 +49,7 @@ Expected<Token> Parser::expect(Token t)
 	return make_error<RlcError>(
 			std::move(errorMessage),
 			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
-			pos);
+			getCurrentSourcePos());
 }
 
 #define EXPECT(Token)                                                          \
@@ -69,23 +65,23 @@ Expected<Token> Parser::expect(Token t)
  * primaryExpression : Ident | Double | int64 | "true" | "false" | "("
  * expression ")"
  */
-Expected<Expression> Parser::primaryExpression()
+Expected<mlir::Value> Parser::primaryExpression()
 {
 	auto location = getCurrentSourcePos();
 	if (accept<Token::Identifier>())
-		return Expression::reference(lIdent, location);
+		return builder.create<mlir::rlc::UnresolvedReference>(location, lIdent);
 
 	if (accept<Token::Double>())
-		return Expression::scalarConstant(lDouble, location);
+		return builder.create<mlir::rlc::Constant>(location, lDouble);
 
 	if (accept<Token::Int64>())
-		return Expression::scalarConstant(lInt64, location);
+		return builder.create<mlir::rlc::Constant>(location, lInt64);
 
 	if (accept<Token::KeywordFalse>())
-		return Expression::scalarConstant(false, location);
+		return builder.create<mlir::rlc::Constant>(location, false);
 
 	if (accept<Token::KeywordTrue>())
-		return Expression::scalarConstant(true, location);
+		return builder.create<mlir::rlc::Constant>(location, true);
 
 	if (accept<Token::LPar>())
 	{
@@ -97,15 +93,15 @@ Expected<Expression> Parser::primaryExpression()
 	return make_error<RlcError>(
 			" empty expression",
 			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
-			pos);
+			location);
 }
 
 /**
  * argumentExpressionList : (expression",")*expression
  */
-Expected<SmallVector<Expression, 3>> Parser::argumentExpressionList()
+Expected<SmallVector<mlir::Value, 3>> Parser::argumentExpressionList()
 {
-	SmallVector<Expression, 3> exps;
+	SmallVector<mlir::Value, 3> exps;
 	if (current == Token::RPar)
 		return exps;
 
@@ -118,6 +114,8 @@ Expected<SmallVector<Expression, 3>> Parser::argumentExpressionList()
 	return exps;
 }
 
+mlir::Type Parser::unkType() { return mlir::rlc::UnknownType::get(ctx); }
+
 /**
  * postFixExpression :
  *			((postFixExpression)*
@@ -126,7 +124,7 @@ Expected<SmallVector<Expression, 3>> Parser::argumentExpressionList()
  *					. identifier ["(" argumentExpressionList")"]))
  *			| primaryExpression
  */
-Expected<Expression> Parser::postFixExpression()
+Expected<mlir::Value> Parser::postFixExpression()
 {
 	TRY(maybeExp, primaryExpression());
 	auto exp = std::move(*maybeExp);
@@ -138,7 +136,8 @@ Expected<Expression> Parser::postFixExpression()
 		{
 			TRY(args, argumentExpressionList());
 			EXPECT(Token::RPar);
-			exp = Expression::call(std::move(exp), std::move(*args), location);
+			exp = builder.create<mlir::rlc::CallOp>(location, unkType(), exp, *args)
+								.getResult(0);
 			continue;
 		}
 
@@ -146,9 +145,8 @@ Expected<Expression> Parser::postFixExpression()
 		{
 			TRY(accExp, expression());
 			EXPECT(Token::RSquare);
-			auto expression = (exp)[std::move(*accExp)];
-			expression.setPosition(location);
-			exp = expression;
+			exp = builder.create<mlir::rlc::ArrayAccess>(
+					location, unkType(), exp, *accExp);
 			continue;
 		}
 
@@ -158,15 +156,22 @@ Expected<Expression> Parser::postFixExpression()
 			auto memberName = lIdent;
 			if (not accept<Token::LPar>())
 			{
-				exp = Expression::memberAccess(std::move(exp), memberName, location);
+				exp = builder.create<mlir::rlc::UnresolvedMemberAccess>(
+						location, unkType(), exp, memberName);
 				continue;
 			}
 
 			TRY(arguments, argumentExpressionList());
 			EXPECT(Token::RPar);
 			arguments->insert(arguments->begin(), std::move(exp));
-			exp = Expression::call(
-					Expression::reference(memberName), std::move(*arguments), location);
+
+			auto ref = builder.create<mlir::rlc::UnresolvedReference>(
+					location, unkType(), memberName);
+
+			exp = builder
+								.create<mlir::rlc::CallOp>(
+										location, unkType(), ref->getResult(0), *arguments)
+								.getResult(0);
 		}
 		break;
 	}
@@ -176,7 +181,7 @@ Expected<Expression> Parser::postFixExpression()
 /**
  * unaryExpression : postFixExpression | unaryOperator unaryExpression
  */
-Expected<Expression> Parser::unaryExpression()
+Expected<mlir::Value> Parser::unaryExpression()
 {
 	auto location = getCurrentSourcePos();
 	if (accept<Token::Plus>())
@@ -188,19 +193,13 @@ Expected<Expression> Parser::unaryExpression()
 	if (accept<Token::Minus>())
 	{
 		TRY(exp, unaryExpression());
-		return Expression::call(
-				Expression::reference(BuiltinFunctions::Minus),
-				{ std::move(*exp) },
-				location);
+		return builder.create<mlir::rlc::MinusOp>(location, unkType(), *exp);
 	}
 
 	if (accept<Token::ExMark>())
 	{
 		TRY(exp, unaryExpression());
-		return Expression::call(
-				Expression::reference(BuiltinFunctions::Not),
-				{ std::move(*exp) },
-				location);
+		builder.create<mlir::rlc::NotOp>(location, unkType(), *exp);
 	}
 
 	return postFixExpression();
@@ -210,7 +209,7 @@ Expected<Expression> Parser::unaryExpression()
  * multicativeExpression : unaryExpression | multiplicativeExpresion ('*' | '%'
  * | '/') unaryExpression
  */
-Expected<Expression> Parser::multyplicativeExpression()
+Expected<mlir::Value> Parser::multyplicativeExpression()
 {
 	TRY(exp, unaryExpression());
 
@@ -218,26 +217,18 @@ Expected<Expression> Parser::multyplicativeExpression()
 	if (accept<Token::Mult>())
 	{
 		TRY(rhs, multyplicativeExpression());
-		auto expresion = (*exp) * (std::move(*rhs));
-		expresion.setPosition(location);
-		return expresion;
+		return builder.create<mlir::rlc::MultOp>(location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::Divide>())
 	{
 		TRY(rhs, multyplicativeExpression());
-		auto expression = (*exp) / (std::move(*rhs));
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::DivOp>(location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::Module>())
 	{
 		TRY(rhs, multyplicativeExpression());
-		auto expression = Expression::call(
-				Expression::reference(BuiltinFunctions::Reminder),
-				{ *std::move(exp), std::move(*rhs) },
-				location);
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::ReminderOp>(
+				location, unkType(), *exp, *rhs);
 	}
 
 	return std::move(*exp);
@@ -247,7 +238,7 @@ Expected<Expression> Parser::multyplicativeExpression()
  * additiveExpression : multiplicativeExpression | additiveExpression ('+' |
  * '-')multiplicativeExpression
  */
-Expected<Expression> Parser::additiveExpression()
+Expected<mlir::Value> Parser::additiveExpression()
 {
 	TRY(exp, multyplicativeExpression());
 
@@ -255,16 +246,12 @@ Expected<Expression> Parser::additiveExpression()
 	if (accept<Token::Plus>())
 	{
 		TRY(rhs, additiveExpression());
-		auto expression = (*exp) + (std::move(*rhs));
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::AddOp>(location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::Minus>())
 	{
 		TRY(rhs, additiveExpression());
-		auto expression = (*exp) - (std::move(*rhs));
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::SubOp>(location, unkType(), *exp, *rhs);
 	}
 	return std::move(*exp);
 }
@@ -273,7 +260,7 @@ Expected<Expression> Parser::additiveExpression()
  * orExpression : additiveExpression (('<' | '>' | '<=' | '>=')
  * additiveExpression)*
  */
-Expected<Expression> Parser::relationalExpression()
+Expected<mlir::Value> Parser::relationalExpression()
 {
 	TRY(exp, additiveExpression());
 
@@ -281,30 +268,25 @@ Expected<Expression> Parser::relationalExpression()
 	if (accept<Token::LAng>())
 	{
 		TRY(rhs, relationalExpression());
-		auto expression = (*exp) < (std::move(*rhs));
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::LessOp>(location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::RAng>())
 	{
 		TRY(rhs, relationalExpression());
-		auto expression = (*exp) > (std::move(*rhs));
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::GreaterOp>(
+				location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::GEqual>())
 	{
 		TRY(rhs, relationalExpression());
-		auto expression = (*exp) >= (std::move(*rhs));
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::GreaterEqualOp>(
+				location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::LEqual>())
 	{
 		TRY(rhs, relationalExpression());
-		auto expression = (*exp) <= (std::move(*rhs));
-		expression.setPosition(location);
-		return expression;
+		return builder.create<mlir::rlc::LessEqualOp>(
+				location, unkType(), *exp, *rhs);
 	}
 	return std::move(*exp);
 }
@@ -312,7 +294,7 @@ Expected<Expression> Parser::relationalExpression()
 /**
  * orExpression : relationalExpression (('==' | '!=') relationalExpression)*
  */
-Expected<Expression> Parser::equalityExpression()
+Expected<mlir::Value> Parser::equalityExpression()
 {
 	TRY(exp, relationalExpression());
 
@@ -320,18 +302,12 @@ Expected<Expression> Parser::equalityExpression()
 	if (accept<Token::EqualEqual>())
 	{
 		TRY(rhs, equalityExpression());
-		return Expression::call(
-				Expression::reference(BuiltinFunctions::Equal),
-				{ std::move(*exp), std::move(*rhs) },
-				location);
+		return builder.create<mlir::rlc::EqualOp>(location, *exp, *rhs);
 	}
 	if (accept<Token::NEqual>())
 	{
 		TRY(rhs, equalityExpression());
-		return Expression::call(
-				Expression::reference(BuiltinFunctions::NotEqual),
-				{ std::move(*exp), std::move(*rhs) },
-				location);
+		return builder.create<mlir::rlc::NotEqualOp>(location, *exp, *rhs);
 	}
 	return std::move(*exp);
 }
@@ -339,7 +315,7 @@ Expected<Expression> Parser::equalityExpression()
 /**
  * orExpression : equalityExpression ('and' equalityExpression)*
  */
-Expected<Expression> Parser::andExpression()
+Expected<mlir::Value> Parser::andExpression()
 {
 	TRY(exp, equalityExpression());
 
@@ -347,10 +323,7 @@ Expected<Expression> Parser::andExpression()
 	if (accept<Token::KeywordAnd>())
 	{
 		TRY(rhs, andExpression());
-		return Expression::call(
-				Expression::reference(BuiltinFunctions::And),
-				{ std::move(*exp), std::move(*rhs) },
-				location);
+		return builder.create<mlir::rlc::AndOp>(location, unkType(), *exp, *rhs);
 	}
 	return std::move(*exp);
 }
@@ -358,7 +331,7 @@ Expected<Expression> Parser::andExpression()
 /**
  * orExpression : andExpression ('or' andExpression)*
  */
-Expected<Expression> Parser::orExpression()
+Expected<mlir::Value> Parser::orExpression()
 {
 	TRY(exp, andExpression());
 
@@ -366,20 +339,17 @@ Expected<Expression> Parser::orExpression()
 	if (accept<Token::KeywordOr>())
 	{
 		TRY(rhs, orExpression());
-		return Expression::call(
-				Expression::reference(BuiltinFunctions::Or),
-				{ std::move(*exp), std::move(*rhs) },
-				location);
+		return builder.create<mlir::rlc::OrOp>(location, unkType(), *exp, *rhs);
 	}
 	return std::move(*exp);
 }
 
-Expected<Expression> Parser::expression() { return assignmentExpression(); }
+Expected<mlir::Value> Parser::expression() { return assignmentExpression(); }
 
 /**
  * assigmentExpression : orExpression | orExpression "=" assigmentExpression
  */
-Expected<Expression> Parser::assignmentExpression()
+Expected<mlir::Value> Parser::assignmentExpression()
 {
 	TRY(leftHand, orExpression());
 
@@ -388,26 +358,26 @@ Expected<Expression> Parser::assignmentExpression()
 		return std::move(*leftHand);
 
 	TRY(rightHand, assignmentExpression());
-	return Expression::assign(
-			std::move(*leftHand), std::move(*rightHand), location);
+	return builder.create<mlir::rlc::AssignOp>(
+			location, unkType(), *leftHand, *rightHand);
 }
 
 /**
  * EntityField : TypeUse Identifier
  */
-llvm::Expected<EntityField> Parser::entityField()
+llvm::Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
+Parser::entityField()
 {
-	auto location = getCurrentSourcePos();
 	TRY(type, singleTypeUse());
 	EXPECT(Token::Identifier);
-	return EntityField(std::move(*type), std::move(lIdent), location);
+	return std::pair{ lIdent, *type };
 }
 
 /**
  * EntityDeclaration : Ent Identifier Colons Newline Indent (entityField
  * Newline)* Deindent
  */
-llvm::Expected<EntityDeclaration> Parser::entityDeclaration()
+llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 {
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordEntity);
@@ -416,98 +386,158 @@ llvm::Expected<EntityDeclaration> Parser::entityDeclaration()
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	EXPECT(Token::Indent);
-	SmallVector<EntityField, 3> fields;
+	SmallVector<mlir::Type, 3> fieldTypes;
+	SmallVector<mlir::Attribute, 3> fieldNames;
 
 	while (!accept<Token::Deindent>())
 	{
 		TRY(field, entityField());
-		fields.emplace_back(std::move(*field));
+		fieldTypes.emplace_back(field->second);
+		fieldNames.emplace_back(builder.getStringAttr(field->first));
 		EXPECT(Token::Newline);
 	}
-	auto e = Entity(std::move(name), std::move(fields));
-	return EntityDeclaration(std::move(e), std::move(location));
+
+	return builder.create<mlir::rlc::EntityDeclaration>(
+			location,
+			unkType(),
+			builder.getStringAttr(name),
+			builder.getTypeArrayAttr(fieldTypes),
+			builder.getArrayAttr(fieldNames));
 }
 
 /**
  * expressionStatement : expression '\n'
  */
-llvm::Expected<Statement> Parser::expressionStatement()
+llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
 {
 	auto location = getCurrentSourcePos();
+	auto expStatement = builder.create<mlir::rlc::ExpressionStatement>(location);
+
+	auto pos = builder.saveInsertionPoint();
+	builder.createBlock(&expStatement.getBody());
 	TRY(exp, expression());
+	builder.create<mlir::rlc::Yield>(location);
+	builder.restoreInsertionPoint(pos);
+
 	EXPECT(Token::Newline);
 
-	return Statement::expStatement(std::move(*exp), std::move(location));
+	return expStatement;
 }
 
 /**
  * actionStatement : actionDeclaration '\n'
  */
-llvm::Expected<Statement> Parser::actionStatement()
+llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 {
 	TRY(action, actionDeclaration());
 	EXPECT(Token::Newline);
 
-	return Statement::actionStatement(*action);
+	llvm::SmallVector<std::string, 3> argNames;
+	for (auto name : action->getArgNames())
+		argNames.push_back(name.cast<mlir::StringAttr>().str());
+
+	auto op = builder.create<mlir::rlc::ActionStatement>(
+			action->getLoc(),
+			action->getArgumentTypes(),
+			action->getUnmangledName(),
+			argNames);
+	action->erase();
+
+	return op;
 }
 
 /**
  * ifStatement : if expression ':\nindent statementList [else ':\n'
  * statementList ]
  */
-llvm::Expected<Statement> Parser::ifStatement()
+llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 {
-	SourcePosition location = getCurrentSourcePos();
+	auto location = getCurrentSourcePos();
+	auto expStatement = builder.create<mlir::rlc::IfStatement>(location);
+	auto pos = builder.saveInsertionPoint();
+
 	EXPECT(Token::KeywordIf);
+	builder.createBlock(&expStatement.getCondition());
 	TRY(exp, expression());
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange(*exp));
+
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
+
+	builder.createBlock(&expStatement.getTrueBranch());
 	TRY(tBranch, statementList());
+	emitYieldIfNeeded(location);
+
+	builder.createBlock(&expStatement.getElseBranch());
 	if (!accept<Token::KeywordElse>())
-		return Statement::ifStatment(
-				std::move(*exp), std::move(*tBranch), std::move(location));
+	{
+		builder.create<mlir::rlc::Yield>(location);
+		builder.restoreInsertionPoint(pos);
+		return expStatement;
+	}
 
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	TRY(fBranch, statementList());
-	return Statement::ifStatment(
-			std::move(*exp),
-			std::move(*tBranch),
-			std::move(*fBranch),
-			std::move(location));
+
+	emitYieldIfNeeded(location);
+	builder.restoreInsertionPoint(pos);
+	return expStatement;
 }
 
 /**
  * whileStatement : While exp ':\n' statementList
  */
-Expected<Statement> Parser::whileStatement()
+Expected<mlir::rlc::WhileStatement> Parser::whileStatement()
 {
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordWhile);
+
+	auto expStatement = builder.create<mlir::rlc::WhileStatement>(location);
+	auto pos = builder.saveInsertionPoint();
+	builder.createBlock(&expStatement.getCondition());
+
 	TRY(exp, expression());
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
+
+	builder.createBlock(&expStatement.getBody());
 	TRY(statLis, statementList());
-	return Statement::whileStatement(
-			std::move(*exp), std::move(*statLis), std::move(location));
+	emitYieldIfNeeded(location);
+
+	builder.restoreInsertionPoint(pos);
+	return expStatement;
 }
 
 /**
  * returnStatement : return [expression] '\n'
  */
-Expected<Statement> Parser::returnStatement()
+Expected<mlir::rlc::ReturnStatement> Parser::returnStatement()
 {
 	auto location = getCurrentSourcePos();
+	auto expStatement =
+			builder.create<mlir::rlc::ReturnStatement>(location, unkType());
+
+	auto pos = builder.saveInsertionPoint();
+	builder.createBlock(&expStatement.getBody());
+
 	EXPECT(Token::KeywordReturn);
 	if (accept(Token::Newline))
-		return Statement::returnStatement(std::move(location));
+	{
+		builder.create<mlir::rlc::Yield>(location, mlir::ValueRange());
+		builder.restoreInsertionPoint(pos);
+		return expStatement;
+	}
 
 	TRY(exp, expression());
 	EXPECT(Token::Newline);
-	return Statement::returnStatement(std::move(*exp), std::move(location));
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
+	builder.restoreInsertionPoint(pos);
+	return expStatement;
 }
 
-Expected<Statement> Parser::statement()
+Expected<mlir::Operation*> Parser::statement()
 {
 	if (current == Token::KeywordAction)
 		return actionStatement();
@@ -527,59 +557,72 @@ Expected<Statement> Parser::statement()
 	return expressionStatement();
 }
 
+void Parser::emitYieldIfNeeded(mlir::Location loc)
+{
+	if (not builder.getBlock()->empty() and
+			builder.getBlock()->back().hasTrait<mlir::OpTrait::IsTerminator>())
+		return;
+
+	builder.create<mlir::rlc::Yield>(loc);
+}
+
 /**
  * declarationStatement : 'let' identifier ['=' expression | ':' type_use ]
  */
-Expected<Statement> Parser::declarationStatement()
+Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 {
 	EXPECT(Token::KeywordLet);
 	EXPECT(Token::Identifier);
 	auto location = getCurrentSourcePos();
 	auto name = lIdent;
 
+	auto expStatement = builder.create<mlir::rlc::DeclarationStatement>(
+			location, unkType(), name);
+
+	auto pos = builder.saveInsertionPoint();
+	builder.createBlock(&expStatement.getBody());
+
 	if (accept<Token::Equal>())
 	{
 		TRY(exp, expression());
 		EXPECT(Token::Newline);
-		return Statement::declarationStatement(
-				std::move(name), std::move(*exp), std::move(location));
+
+		builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
+		builder.restoreInsertionPoint(pos);
+		return expStatement;
 	}
 
 	EXPECT(Token::Colons);
-	auto typePosition = getCurrentSourcePos();
 	TRY(use, singleTypeUse());
 	EXPECT(Token::Newline);
-	return Statement::declarationStatement(
-			std::move(name),
-			Expression::zeroInitializer(std::move(*use), typePosition),
-			location);
+
+	auto exp = builder.create<mlir::rlc::UnresConstructOp>(location, *use);
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ exp }));
+
+	builder.restoreInsertionPoint(pos);
+	return expStatement;
 }
 
 /**
  * statmentList : indent (statement)* deindent
  */
-Expected<Statement> Parser::statementList()
+Expected<bool> Parser::statementList()
 {
-	auto location = getCurrentSourcePos();
-
-	SmallVector<Statement, 3> stmts;
 	EXPECT(Token::Indent);
 	while (!accept<Token::Deindent>())
 	{
 		TRY(s, statement());
-		stmts.emplace_back(std::move(*s));
 	}
 
-	return Statement::statmentList(std::move(stmts), std::move(location));
+	return true;
 }
 
 /**
  * functionTypeUse : [singleTypeUse ("->" singleTypeUse )*]
  */
-Expected<SingleTypeUse> Parser::functionTypeUse()
+Expected<mlir::rlc::FunctionUseType> Parser::functionTypeUse()
 {
-	auto location = getCurrentSourcePos();
-	SmallVector<SingleTypeUse, 2> tpUse;
+	SmallVector<mlir::Type, 2> tpUse;
 
 	TRY(singleTp, singleTypeUse());
 	tpUse.emplace_back(std::move(*singleTp));
@@ -589,51 +632,50 @@ Expected<SingleTypeUse> Parser::functionTypeUse()
 		tpUse.emplace_back(std::move(*singleTp));
 	}
 
-	return FunctionTypeUse::functionType(std::move(tpUse), pos);
+	return mlir::rlc::FunctionUseType::get(ctx, tpUse);
 }
 
 /**
  * singleTypeUse : "(" functionType ")" | identifier["["int64"]"]
  */
-Expected<SingleTypeUse> Parser::singleTypeUse()
+Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 {
-	auto location = getCurrentSourcePos();
 	if (accept<Token::LPar>())
 	{
 		TRY(fType, functionTypeUse());
 		EXPECT(Token::RPar);
-		return std::move(*fType);
+		return mlir::rlc::ScalarUseType::get(ctx, *fType, "", 0);
 	}
 
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
 	if (!accept<Token::LSquare>())
-		return SingleTypeUse::scalarType(std::move(nm), location);
+		return mlir::rlc::ScalarUseType::get(ctx, nullptr, lIdent, 0);
 
 	EXPECT(Token::Int64);
 	auto size = lInt64;
 	EXPECT(Token::RSquare);
-	return SingleTypeUse::arrayType(std::move(nm), size, location);
+	return mlir::rlc::ScalarUseType::get(ctx, nullptr, lIdent, size);
 }
 
-Expected<ArgumentDeclaration> Parser::argDeclaration()
+Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
+Parser::argDeclaration()
 {
-	auto location = getCurrentSourcePos();
 	TRY(tp, singleTypeUse());
 	EXPECT(Token::Identifier);
 	auto parName = lIdent;
-	return ArgumentDeclaration(
-			std::move(parName), std::move(*tp), std::move(location));
+	return std::pair{ parName, *tp };
 }
 
 /**
  * functionDefinition : "(" [argDeclaration ("," argDeclaration)*] ")"
  */
-Expected<llvm::SmallVector<ArgumentDeclaration, 3>> Parser::functionArguments()
+Expected<llvm::SmallVector<std::pair<std::string, mlir::rlc::ScalarUseType>, 3>>
+Parser::functionArguments()
 {
 	EXPECT(Token::LPar);
 
-	llvm::SmallVector<ArgumentDeclaration, 3> args;
+	llvm::SmallVector<std::pair<std::string, mlir::rlc::ScalarUseType>, 3> args;
 
 	if (current != Token::RPar)
 	{
@@ -652,41 +694,57 @@ Expected<llvm::SmallVector<ArgumentDeclaration, 3>> Parser::functionArguments()
  * functionDefinition : "fun" identifier "(" [argDeclaration (","
  * argDeclaration)*] ")" ["->" singleTypeUse] ":\n" statementList
  */
-Expected<FunctionDefinition> Parser::functionDefinition()
+Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
 {
 	auto location = getCurrentSourcePos();
+	auto pos = builder.saveInsertionPoint();
 
 	EXPECT(Token::KeywordFun);
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
-
 	TRY(args, functionArguments());
+	llvm::SmallVector<mlir::Type> argTypes;
+	llvm::SmallVector<llvm::StringRef> argName;
+	llvm::SmallVector<mlir::Location> argLocs;
 
-	SingleTypeUse retType = SingleTypeUse::scalarType(
-			builtinTypeToString(BuiltinType::VOID).str(), location);
+	for (auto& arg : *args)
+	{
+		argTypes.push_back(arg.second);
+		argName.push_back(arg.first);
+		argLocs.push_back(location);
+	}
+
+	mlir::Type retType = mlir::rlc::VoidType::get(ctx);
 	if (accept<Token::Arrow>())
 	{
 		TRY(actualRetType, singleTypeUse());
-		retType = std::move(*actualRetType);
+		retType = *actualRetType;
 	}
+
+	auto fun = builder.create<mlir::rlc::FunctionOp>(
+			location,
+			mlir::FunctionType::get(ctx, argTypes, { retType }),
+			builder.getStringAttr(nm),
+			builder.getStringAttr(nm),
+			builder.getStrArrayAttr(argName));
+
+	builder.createBlock(&fun.getBody(), {}, argTypes, { argLocs });
 
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 
 	TRY(body, statementList());
-	return FunctionDefinition(
-			std::move(nm),
-			std::move(*body),
-			std::move(retType),
-			std::move(*args),
-			location);
+
+	emitYieldIfNeeded(location);
+	builder.restoreInsertionPoint(pos);
+	return fun;
 }
 
 /**
  * actionDeclaration : "act" identifier "(" [argDeclaration (","
  * argDeclaration)*] ")"
  */
-Expected<ActionDeclaration> Parser::actionDeclaration()
+Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
 {
 	auto location = getCurrentSourcePos();
 
@@ -695,35 +753,54 @@ Expected<ActionDeclaration> Parser::actionDeclaration()
 	auto nm = lIdent;
 
 	TRY(args, functionArguments());
+	llvm::SmallVector<mlir::Type> argTypes;
+	llvm::SmallVector<llvm::StringRef> argName;
 
-	SingleTypeUse retType = SingleTypeUse::scalarType(
-			builtinTypeToString(BuiltinType::VOID).str(), location);
-	return ActionDeclaration(std::move(nm), std::move(*args), location);
+	for (auto& arg : *args)
+	{
+		argTypes.push_back(arg.second);
+		argName.push_back(arg.first);
+	}
+
+	auto retType = mlir::rlc::ScalarUseType::get(ctx, nullptr, "Void", 0);
+	return builder.create<mlir::rlc::ActionFunction>(
+			location,
+			mlir::FunctionType::get(ctx, argTypes, { retType }),
+			builder.getStringAttr(nm),
+			builder.getStringAttr(nm),
+			builder.getStrArrayAttr(argName));
 }
 
 /**
  * actionDefinition : actionDeclaration ":\n" statementList
  */
-Expected<ActionDefinition> Parser::actionDefinition()
+Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 {
 	TRY(decl, actionDeclaration());
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 
+	auto pos = builder.saveInsertionPoint();
+	builder.createBlock(&decl->getBody());
 	TRY(body, statementList());
-	return ActionDefinition(std::move(*decl), std::move(*body));
+	builder.restoreInsertionPoint(pos);
+	return decl;
 }
 
-Expected<System> Parser::system()
+Expected<mlir::ModuleOp> Parser::system()
 {
 	auto location = getCurrentSourcePos();
-	System s("anonymous system", location);
+	std::string name = "unknown";
 	if (accept<Token::KeywordSystem>())
 	{
 		EXPECT(Token::Identifier);
-		s.setName(lIdent);
+		name = lIdent;
 		EXPECT(Token::Newline);
 	}
+
+	auto module = mlir::ModuleOp::create(location, llvm::StringRef(name));
+	builder.setInsertionPointToStart(
+			&*module.getBodyRegion().getBlocks().begin());
 
 	while (current != Token::End)
 	{
@@ -734,21 +811,18 @@ Expected<System> Parser::system()
 		if (current == Token::KeywordAction)
 		{
 			TRY(f, actionDefinition());
-			s.addAction(std::move(*f));
 			continue;
 		}
 
 		if (current == Token::KeywordFun)
 		{
 			TRY(f, functionDefinition());
-			s.addFunction(std::move(*f));
 			continue;
 		}
 
 		if (current == Token::KeywordEntity)
 		{
 			TRY(f, entityDeclaration());
-			s.addEntity(std::move(*f));
 			continue;
 		}
 		auto location = getCurrentSourcePos();
@@ -757,5 +831,5 @@ Expected<System> Parser::system()
 				RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
 				location);
 	}
-	return s;
+	return module;
 }

@@ -6,12 +6,7 @@
 #include "mlir/InitAllDialects.h"
 #include "mlir/Tools/mlir-translate/MlirTranslateMain.h"
 #include "mlir/Tools/mlir-translate/Translation.h"
-#include "rlc/ast/BuiltinEntities.hpp"
-#include "rlc/ast/BuiltinFunctions.hpp"
-#include "rlc/ast/SymbolTable.hpp"
-#include "rlc/ast/System.hpp"
-#include "rlc/ast/Type.hpp"
-#include "rlc/lowerer/Lowerer.hpp"
+#include "rlc/dialect/Dialect.h"
 #include "rlc/parser/Parser.hpp"
 #include "rlc/utils/IRange.hpp"
 
@@ -24,26 +19,15 @@ static ExitOnError exitOnErr;
 static mlir::OwningOpRef<mlir::ModuleOp> rlcToMlir(
 		llvm::SourceMgr& sourceMgr, mlir::MLIRContext* context)
 {
-	TypeDB db;
-	Lowerer lowerer(*context, db);
 	mlir::DialectRegistry Registry;
-	Registry.insert<mlir::LLVM::LLVMDialect>();
-	lowerer.getContext().appendDialectRegistry(Registry);
-	lowerer.getContext().loadAllAvailableDialects();
+	Registry.insert<mlir::LLVM::LLVMDialect, mlir::rlc::RLCDialect>();
+	context->appendDialectRegistry(Registry);
+	context->loadAllAvailableDialects();
 
-	for (auto i : irange(sourceMgr.getNumBuffers()))
-	{
-		Parser parser(
-				sourceMgr.getMemoryBuffer(i + 1)->getBuffer().data(), "random_name");
+	Parser parser(
+			context, sourceMgr.getMemoryBuffer(1)->getBuffer().data(), "random_name");
 
-		auto ast = exitOnErr(parser.system());
-		rlc::addBuilints(ast);
-		rlc::addBuilintsEntities(ast);
-		exitOnErr(ast.typeCheck(SymbolTable(), db));
-
-		exitOnErr(lowerer.lowerSystem(ast));
-	}
-	return lowerer.getModule(0);
+	return exitOnErr(parser.system());
 }
 
 namespace mlir

@@ -64,6 +64,30 @@ def RLC_ArrayType : RLC_Type<"Array", "array", [DeclareTypeInterfaceMethods<SubE
   let assemblyFormat = "`<` $underlying `:` $size`>` ";
 }
 
+def RLC_TypeUse : RLC_Type<"ScalarUse", "type_use"> {
+  let summary = "RLC builtin bool type";
+  let description = [{
+    Implementation agnostic bool type.
+  }];
+	let parameters = (ins OptionalParameter<"Type">:$underlying, StringRefParameter<>:$read_type, "int64_t":$size);
+  let assemblyFormat = "$underlying $read_type $size ";
+}
+
+def RLC_Unknown : RLC_Type<"Unknown", "unknown"> {
+  let summary = "RLC builtin bool type";
+  let description = [{
+    Implementation agnostic bool type.
+  }];
+}
+
+def RLC_FunctionTypeUse : RLC_Type<"FunctionUse", "type_use", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+  let summary = "RLC builtin bool type";
+  let description = [{
+    Implementation agnostic bool type.
+  }];
+	let parameters = (ins ArrayRefParameter<"Type">:$subTypes);
+  let assemblyFormat = "`(` $subTypes `)`";
+}
 
 
 

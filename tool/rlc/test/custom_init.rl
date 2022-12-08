@@ -1,7 +1,7 @@
 ent Example:
 	Int f1
 
-fun init(Example e):
+fun _init(Example e):
 	e.f1 = 5	
 
 fun main() -> Int:

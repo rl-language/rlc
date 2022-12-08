@@ -1,4 +1,5 @@
 include "Types.td"
+include "Interfaces.td"
 include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -10,9 +11,11 @@ include "mlir/Interfaces/ViewLikeInterface.td"
 class RLC_Dialect<string mnemonic, list<Trait> traits = []> :
     Op<RLC_Dialect, mnemonic, traits>;
 
-def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType]>;
+def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType, RLC_Unknown]>;
 
-def RLC_ExpressionStatement : RLC_Dialect<"exp"> {
+def AnyFunctionType : AnyTypeOf<[RLC_Unknown, FunctionType]>;
+
+def RLC_ExpressionStatement : RLC_Dialect<"exp", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "expression.";
 
   let description = [{
@@ -28,7 +31,7 @@ def RLC_ExpressionStatement : RLC_Dialect<"exp"> {
   }];
 }
 
-def RLC_IfStatement : RLC_Dialect<"if"> {
+def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "expression.";
 
   let description = [{
@@ -46,7 +49,7 @@ def RLC_IfStatement : RLC_Dialect<"if"> {
   }];
 }
 
-def RLC_WhileStatement : RLC_Dialect<"while"> {
+def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "while.";
 
   let description = [{
@@ -63,7 +66,7 @@ def RLC_WhileStatement : RLC_Dialect<"while"> {
   }];
 }
 
-def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator]> {
+def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "return.";
 
   let description = [{
@@ -82,7 +85,7 @@ def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator]> {
 
 }
 
-def RLC_Yield : RLC_Dialect<"yield", [Terminator]> {
+def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "ends statements";
 
   let arguments = (ins Variadic<AnyType>:$arguments);
@@ -104,7 +107,7 @@ def RLC_Yield : RLC_Dialect<"yield", [Terminator]> {
 }
 
 
-def RLC_StatementList : RLC_Dialect<"list", [SymbolTable]> {
+def RLC_StatementList : RLC_Dialect<"list", [SymbolTable, DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 
   let description = [{
@@ -120,7 +123,23 @@ def RLC_StatementList : RLC_Dialect<"list", [SymbolTable]> {
   }];
 }
 
-def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol]> {
+def RLC_Reference : RLC_Dialect<"ref"> {
+  let summary = "statement list.";
+
+  let arguments = (ins FlatSymbolRefAttr:$referred);
+  let description = [{
+	expression.
+  }];
+
+  let results = (outs AnyType:$result);
+
+
+  let assemblyFormat = [{
+	$referred `:` type($result) attr-dict 
+  }];
+}
+
+def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 
   let arguments = (ins StrAttr:$sym_name);
@@ -135,42 +154,63 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol]> {
   );
 
   let assemblyFormat = [{
-	$sym_name `=` $body attr-dict `:` type($result)
+	$sym_name `:` type($result) $body  attr-dict 
   }];
 }
 
-def RLC_FlatFunctionOp : RLC_Dialect<"flat_fun", [IsolatedFromAbove, Symbol, FunctionOpInterface, CallableOpInterface, AutomaticAllocationScope]> {
-  let summary = "function.";
 
-  let arguments = (ins StrAttr:$unmangledName, SymbolNameAttr:$sym_name, TypeAttrOf<FunctionType>:$function_type);
+class RLC_FunctionBase<string mnemonic> :
+RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, TypeCheckable]> {
+
+  let arguments = (ins StrAttr:$unmangledName, SymbolNameAttr:$sym_name,  StrArrayAttr:$argNames);
   let description = [{
 	expression.
   }];
+
+  let results = (outs FunctionType:$result);
+
 
   let regions = (region
   AnyRegion:$body
   );
 
-  let assemblyFormat = [{
-	$unmangledName $function_type $body attr-dict $sym_name
-  }];
+   let builders = [
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames), [{
+			std::string s;
+			llvm::raw_string_ostream os(s);
+			os << name;
+			type.print(os);
+			os.flush();
+            build($_builder, $_state, type, name ,s, argNames);
+    }]>];
 
+  let assemblyFormat = [{
+	$unmangledName $argNames type($result) $sym_name $body attr-dict 
+  }];
     let extraClassDeclaration = [{
         Region *getCallableRegion() {
             return isDeclaration() ? nullptr : &getBody();
         }
 
+		mlir::FunctionType getFunctionType() {
+			return getType();
+		}
+	
+		mlir::Region::BlockListType& getBlocks() {
+			return getRegion().getBlocks();
+		}	
+
         ArrayRef<Type> getCallableResults() {
-            return getFunctionType().getResults();
+            return getType().getResults();
 		}
 
         ArrayRef<Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
+            return getType().getInputs();
         }
 
         /// Returns the result types of this function.
         ArrayRef<Type> getResultTypes() {
-            return getFunctionType().getResults();
+            return getType().getResults();
         }
 
 		bool isInternal() {
@@ -180,62 +220,74 @@ def RLC_FlatFunctionOp : RLC_Dialect<"flat_fun", [IsolatedFromAbove, Symbol, Fun
         bool isDeclaration() {
             return getBody().empty();
         }
+	
+		mlir::LogicalResult addToSymbolTable(mlir::rlc::SymbolTable<mlir::Value>& table) {
+			for (const auto& [name, argument] : llvm::zip(getArgNames(), llvm::make_range(this->args_begin(), this->args_end()))) {
+				table.add(name.cast<mlir::StringAttr>().str(), argument);
+			}
+			return mlir::success();
+		}
+
+		mlir::LogicalResult typeCheck(
+				mlir::IRRewriter& rew,
+				mlir::rlc::SymbolTable<mlir::Value>& table,
+				mlir::TypeConverter& conv)
+		{
+			llvm::SmallVector<mlir::Operation*, 4>  ops;
+			for (auto& operation :getOps())
+				ops.push_back(&operation);
+
+			for (const auto& [operand, name]: llvm::zip(getBody().front().getArguments(), getArgNames()))
+			{
+				auto converted = conv.convertType(operand.getType());
+				if (not converted){
+					getOperation()->emitRemark("in of argument of function");
+				}
+				operand.setType(converted);
+				table.add(name.cast<mlir::StringAttr>(), operand);
+			}
+
+
+			for (auto* operation : ops)
+				if (mlir::rlc::typeCheck(*operation, rew, table, conv)
+							.failed())
+					return mlir::failure();
+
+			return mlir::success();
+		}
+
+		Block::args_iterator args_begin() {
+			return getRegion().front().args_begin();
+		}
+
+		Block::args_iterator args_end() {
+			return getRegion().front().args_end();
+		}
 
     }];
 }
 
-def RLC_FunctionOp : RLC_Dialect<"fun", [IsolatedFromAbove, Symbol, FunctionOpInterface, CallableOpInterface, AutomaticAllocationScope, SymbolTable]> {
+def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
   let summary = "function.";
+}
 
-  let arguments = (ins StrAttr:$unmangledName, SymbolNameAttr:$sym_name, TypeAttrOf<FunctionType>:$function_type);
-  let description = [{
-	expression.
-  }];
+def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
+  let summary = "function.";
+}
 
-  let regions = (region
-  AnyRegion:$body
-  );
-
-  let assemblyFormat = [{
-	$unmangledName $function_type $body attr-dict  $sym_name
-  }];
-    let extraClassDeclaration = [{
-        Region *getCallableRegion() {
-            return isDeclaration() ? nullptr : &getBody();
-        }
-
-        ArrayRef<Type> getCallableResults() {
-            return getFunctionType().getResults();
-		}
-
-        ArrayRef<Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
-        }
-
-        /// Returns the result types of this function.
-        ArrayRef<Type> getResultTypes() {
-            return getFunctionType().getResults();
-        }
-
-		bool isInternal() {
-			return getName().startswith("_");
-		}
-
-        bool isDeclaration() {
-            return getBody().empty();
-        }
-
-    }];
+def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
+  let summary = "function.";
 }
 
 def RLC_CallOp : RLC_Dialect<"call",
     [CallOpInterface,
-    DeclareOpInterfaceMethods<SymbolUserOpInterface>
+    DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+	DeclareOpInterfaceMethods<TypeCheckable>
     ]>
 {
     let summary = "Call operation.";
 
-    let arguments = (ins AnyType:$callee, Variadic<AnyType>:$args);
+    let arguments = (ins AnyFunctionType:$callee, Variadic<AnyType>:$args);
     let results = (outs Variadic<AnyType>);
 
     let assemblyFormat = [{
@@ -246,7 +298,7 @@ def RLC_CallOp : RLC_Dialect<"call",
         OpBuilder<(ins "Value":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
 			auto calleeType = callee.getType();
 			auto functionType = calleeType.cast<FunctionType>();
-			if (functionType.getResults().size() != 0 and functionType.getResults().front() == VoidType::get($_builder.getContext()))
+			if (functionType.getResults().size() == 0 or functionType.getResults().front() == VoidType::get($_builder.getContext()))
 				build($_builder, $_state, mlir::TypeRange(), callee, args);
 			else
 				build($_builder, $_state, functionType.getResults().front(), callee, args);
@@ -258,7 +310,9 @@ def RLC_CallOp : RLC_Dialect<"call",
         // CallOpInterface
         //===------------------------------------------------------------------===//
 
-        mlir::FunctionType getCalleeType();
+		mlir::FunctionType getCalleeType() {
+			return getCallee().getType().cast<mlir::FunctionType>();
+		}
 
         /// Get the argument operands to the called function.
         operand_range getArgOperands() {
@@ -281,31 +335,7 @@ def RLC_CallOp : RLC_Dialect<"call",
 }
 
 
-def RLC_Reference : RLC_Dialect<"Reference"> {
-  let summary = "statement list.";
-
-  let arguments = (ins FlatSymbolRefAttr:$name);
-  let description = [{
-	expression.
-  }];
-  let results = (outs AnyType:$result);
-
-  let assemblyFormat = [{
-	$name attr-dict `->` type($result)
-  }];
-
-   let builders = [
-        OpBuilder<(ins "FunctionOp":$function), [{
-            build($_builder, $_state, function.getFunctionType(), mlir::FlatSymbolRefAttr::get(function.getSymNameAttr()));
-
-    }]>];
-
-  let assemblyFormat = [{
-	$name attr-dict `:` type($result)
-  }];
-}
-
-def RLC_ActionStatement : RLC_Dialect<"action"> {
+def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 
   let arguments = (ins StrAttr:$name, StrArrayAttr:$declared_names);
@@ -330,7 +360,7 @@ def RLC_ActionStatement : RLC_Dialect<"action"> {
 }
 
 
-def RLC_Constant : RLC_Dialect<"constant"> {
+def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -356,7 +386,8 @@ def RLC_Constant : RLC_Dialect<"constant"> {
 }
 
 
-def RLC_MemberAccess : RLC_Dialect<"member_access"> {
+
+def RLC_MemberAccess : RLC_Dialect<"member_access", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -379,7 +410,7 @@ def RLC_MemberAccess : RLC_Dialect<"member_access"> {
   }];
 }
 
-def RLC_ArrayAccess : RLC_Dialect<"array_access"> {
+def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -408,20 +439,75 @@ def RLC_ConstructOp : RLC_Dialect<"construct"> {
 	expression.
   }];
 
-  let arguments = (ins FlatSymbolRefAttr:$initializer);
+  let arguments = (ins FunctionType:$initializer);
   let results = (outs AnyType:$result);
 
   let builders = [
         OpBuilder<(ins "FunctionOp":$init), [{
-            build($_builder, $_state, init.getArgumentTypes().front(), init.getSymName());
+            build($_builder, $_state, init.getArgumentTypes().front(), init);
     }]>];
 
   let assemblyFormat = [{
-		$initializer type($result) attr-dict
+		$initializer `:` type($initializer) type($result) attr-dict
   }];
 }
 
-def RLC_AddOp : RLC_Dialect<"add"> {
+class RLC_InternalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
+
+    let extraClassDeclaration = [{
+	
+	mlir::LogicalResult typeCheck(
+			mlir::IRRewriter &rewriter,
+			mlir::rlc::SymbolTable<mlir::Value> &table,
+			mlir::TypeConverter &conv)
+	{
+		llvm::SmallVector<mlir::Type> acceptable;
+		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
+		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
+		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
+		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable);
+	}
+	
+	}];
+}
+
+class RLC_RelationalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
+
+    let extraClassDeclaration = [{
+	
+	mlir::LogicalResult typeCheck(
+			mlir::IRRewriter &rewriter,
+			mlir::rlc::SymbolTable<mlir::Value> &table,
+			mlir::TypeConverter &conv)
+	{
+		llvm::SmallVector<mlir::Type> acceptable;
+		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
+		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
+		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
+		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable, mlir::rlc::BoolType::get(this->getContext()));
+	}
+	
+	}];
+}
+
+class RLC_BoolExp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
+
+    let extraClassDeclaration = [{
+	
+	mlir::LogicalResult typeCheck(
+			mlir::IRRewriter &rewriter,
+			mlir::rlc::SymbolTable<mlir::Value> &table,
+			mlir::TypeConverter &conv)
+	{
+		llvm::SmallVector<mlir::Type> acceptable;
+		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
+		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable, mlir::rlc::BoolType::get(this->getContext()));
+	}
+	
+	}];
+}
+
+def RLC_AddOp : RLC_InternalOp<"add"> {
   let summary = "constant.";
 
   let description = [{
@@ -441,7 +527,7 @@ def RLC_AddOp : RLC_Dialect<"add"> {
   }];
 }
 
-def RLC_MultOp : RLC_Dialect<"mul"> {
+def RLC_MultOp : RLC_InternalOp<"mul"> {
   let summary = "constant.";
 
   let description = [{
@@ -461,7 +547,7 @@ def RLC_MultOp : RLC_Dialect<"mul"> {
   }];
 }
 
-def RLC_DivOp : RLC_Dialect<"div"> {
+def RLC_DivOp : RLC_InternalOp<"div"> {
   let summary = "constant.";
 
   let description = [{
@@ -481,7 +567,7 @@ def RLC_DivOp : RLC_Dialect<"div"> {
   }];
 }
 
-def RLC_CastOp : RLC_Dialect<"cast"> {
+def RLC_CastOp : RLC_Dialect<"cast", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -501,7 +587,7 @@ def RLC_CastOp : RLC_Dialect<"cast"> {
   }];
 }
 
-def RLC_MinusOp : RLC_Dialect<"minus"> {
+def RLC_MinusOp : RLC_InternalOp<"minus"> {
   let summary = "constant.";
 
   let description = [{
@@ -521,7 +607,7 @@ def RLC_MinusOp : RLC_Dialect<"minus"> {
   }];
 }
 
-def RLC_ReminderOp : RLC_Dialect<"reminder"> {
+def RLC_ReminderOp : RLC_InternalOp<"reminder"> {
   let summary = "constant.";
 
   let description = [{
@@ -542,7 +628,7 @@ def RLC_ReminderOp : RLC_Dialect<"reminder"> {
 }
 
 
-def RLC_InitOp : RLC_Dialect<"init"> {
+def RLC_InitOp : RLC_Dialect<"init", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -557,7 +643,7 @@ def RLC_InitOp : RLC_Dialect<"init"> {
 
 }
 
-def RLC_AssignOp : RLC_Dialect<"assign"> {
+def RLC_AssignOp : RLC_InternalOp<"assign"> {
   let summary = "constant.";
 
   let description = [{
@@ -577,7 +663,7 @@ def RLC_AssignOp : RLC_Dialect<"assign"> {
   }];
 }
 
-def RLC_NotOp : RLC_Dialect<"not"> {
+def RLC_NotOp : RLC_BoolExp<"not"> {
   let summary = "constant.";
 
   let description = [{
@@ -598,7 +684,7 @@ def RLC_NotOp : RLC_Dialect<"not"> {
 }
 
 
-def RLC_SubOp : RLC_Dialect<"sub"> {
+def RLC_SubOp : RLC_InternalOp<"sub"> {
   let summary = "constant.";
 
   let description = [{
@@ -618,7 +704,7 @@ def RLC_SubOp : RLC_Dialect<"sub"> {
   }];
 }
 
-def RLC_OrOp : RLC_Dialect<"or"> {
+def RLC_OrOp : RLC_BoolExp<"or"> {
   let summary = "constant.";
 
   let description = [{
@@ -638,7 +724,7 @@ def RLC_OrOp : RLC_Dialect<"or"> {
   }];
 }
 
-def RLC_AndOp : RLC_Dialect<"and"> {
+def RLC_AndOp : RLC_BoolExp<"and"> {
   let summary = "constant.";
 
   let description = [{
@@ -658,7 +744,7 @@ def RLC_AndOp : RLC_Dialect<"and"> {
   }];
 }
 
-def RLC_GreaterOp : RLC_Dialect<"greater"> {
+def RLC_GreaterOp : RLC_RelationalOp<"greater"> {
   let summary = "constant.";
 
   let description = [{
@@ -678,7 +764,7 @@ def RLC_GreaterOp : RLC_Dialect<"greater"> {
   }];
 }
 
-def RLC_LessOp : RLC_Dialect<"less"> {
+def RLC_LessOp : RLC_RelationalOp<"less"> {
   let summary = "constant.";
 
   let description = [{
@@ -698,7 +784,7 @@ def RLC_LessOp : RLC_Dialect<"less"> {
   }];
 }
 
-def RLC_GreaterEqualOp : RLC_Dialect<"greater_equal"> {
+def RLC_GreaterEqualOp : RLC_RelationalOp<"greater_equal"> {
   let summary = "constant.";
 
   let description = [{
@@ -718,7 +804,7 @@ def RLC_GreaterEqualOp : RLC_Dialect<"greater_equal"> {
   }];
 }
 
-def RLC_LessEqualOp : RLC_Dialect<"less_equal"> {
+def RLC_LessEqualOp : RLC_RelationalOp<"less_equal"> {
   let summary = "constant.";
 
   let description = [{
@@ -738,7 +824,7 @@ def RLC_LessEqualOp : RLC_Dialect<"less_equal"> {
   }];
 }
 
-def RLC_EqualOp : RLC_Dialect<"equal"> {
+def RLC_EqualOp : RLC_RelationalOp<"equal"> {
   let summary = "constant.";
 
   let description = [{
@@ -758,7 +844,7 @@ def RLC_EqualOp : RLC_Dialect<"equal"> {
   }];
 }
 
-def RLC_NotEqualOp : RLC_Dialect<"not_equal"> {
+def RLC_NotEqualOp : RLC_RelationalOp<"not_equal"> {
   let summary = "constant.";
 
   let description = [{
@@ -778,7 +864,7 @@ def RLC_NotEqualOp : RLC_Dialect<"not_equal"> {
   }];
 }
 
-def RLC_Branch : RLC_Dialect<"br", [Terminator]> {
+def RLC_Branch : RLC_Dialect<"br", [Terminator] > {
   let summary = "constant.";
 
   let description = [{
@@ -826,3 +912,71 @@ def RLC_SelectBranch : RLC_Dialect<"switch", [Terminator]> {
 	$cond type($cond) $nexts attr-dict
   }];
 }
+
+def RLC_UnresolvedReference : RLC_Dialect<"unresolved_ref", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "statement list.";
+
+  let arguments = (ins StrAttr:$name);
+  let description = [{
+	expression.
+  }];
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$name `:` type($result) attr-dict
+  }];
+
+  let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name), [{
+            build($_builder, $_state, UnknownType::get($_builder.getContext()), name);
+    }]>];
+
+  let assemblyFormat = [{
+	$name attr-dict `:` type($result)
+  }];
+}
+
+def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value, StrAttr:$member_name);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$value `:` type($value) `,` $member_name`:` type($result) attr-dict 
+  }];
+}
+
+def RLC_EntityDeclaration : RLC_Dialect<"entity_decl"> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins StrAttr:$name, TypeArrayAttr:$memberTypes, StrArrayAttr:$memberNames);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$name `(` $memberTypes `:` $memberNames `)` type($result) attr-dict 
+  }];
+}
+
+def RLC_UnresConstructOp : RLC_Dialect<"unresolved_construct", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+		type($result) attr-dict
+  }];
+}
+

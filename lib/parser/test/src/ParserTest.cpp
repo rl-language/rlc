@@ -1,10 +1,9 @@
 #include "gtest/gtest.h"
 #include <bits/stdint-intn.h>
 
-#include "rlc/ast/Call.hpp"
-#include "rlc/ast/Reference.hpp"
-#include "rlc/ast/Statement.hpp"
-#include "rlc/parser/Lexer.hpp"
+#include "rlc/dialect/Dialect.h"
+#include "rlc/dialect/Operations.hpp"
+#include "rlc/dialect/Types.hpp"
 #include "rlc/parser/Parser.hpp"
 #include "rlc/utils/ScopeGuard.hpp"
 
@@ -12,217 +11,280 @@ using namespace rlc;
 
 TEST(ParserTest, testScalarConstantExpressions)
 {
-	Parser p("3", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "3", "fileName");
 
 	auto exp = p.primaryExpression();
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isA<ScalarConstant>());
-	EXPECT_EQ(3, exp->get<ScalarConstant>().get<int64_t>());
+	EXPECT_NE(exp->getDefiningOp<mlir::rlc::Constant>(), nullptr);
+	EXPECT_EQ(
+			3,
+			exp->getDefiningOp<mlir::rlc::Constant>()
+					.getValueAttr()
+					.cast<mlir::IntegerAttr>()
+					.getValue());
 }
 
 TEST(ParserTest, testScalarBoolExpressions)
 {
-	Parser p("true", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "true", "fileName");
 
 	auto exp = p.primaryExpression();
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isA<ScalarConstant>());
-	EXPECT_EQ(true, exp->get<ScalarConstant>().get<bool>());
+	EXPECT_NE(exp->getDefiningOp<mlir::rlc::Constant>(), nullptr);
+	EXPECT_EQ(
+			true,
+			exp->getDefiningOp<mlir::rlc::Constant>()
+					.getValue()
+					.cast<mlir::BoolAttr>()
+					.getValue());
 }
 
 TEST(ParserTest, testScalarDoubleExpressions)
 {
-	Parser p("3.14", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "3.14", "fileName");
 
 	auto exp = p.primaryExpression();
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isA<ScalarConstant>());
-	EXPECT_EQ(3.14, exp->get<ScalarConstant>().get<double>());
+	EXPECT_NE(exp->getDefiningOp<mlir::rlc::Constant>(), nullptr);
+	exp->getDefiningOp<mlir::rlc::Constant>()
+			.getValueAttr()
+			.cast<mlir::FloatAttr>()
+			.getValue();
 }
 
 TEST(ParserTest, testExpression)
 {
-	Parser p("3.14", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "3.14", "fileName");
 
 	auto exp = p.expression();
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isA<ScalarConstant>());
-	EXPECT_EQ(3.14, exp->get<ScalarConstant>().get<double>());
+	EXPECT_TRUE(exp->getDefiningOp<mlir::rlc::Constant>());
+	exp->getDefiningOp<mlir::rlc::Constant>()
+			.getValueAttr()
+			.cast<mlir::FloatAttr>()
+			.getValue();
 }
 
 TEST(ParserTest, testAdditiveExpression)
 {
-	Parser p("3.14 + 2", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "3.14 + 2", "fileName");
 
 	auto exp = p.expression();
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isA<Call>());
-	EXPECT_EQ(exp->getCall().argsCount(), 2);
+	EXPECT_NE(exp->getDefiningOp<mlir::rlc::AddOp>(), nullptr);
 }
 
 TEST(ParserTest, testAssigmentExpression)
 {
-	Parser p("3.14 = 2", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "3.14 = 2", "fileName");
 
 	auto exp = p.expression();
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isA<Call>());
-	EXPECT_EQ(exp->getCall().argsCount(), 2);
-	EXPECT_EQ(
-			exp->getCall().getFunctionExpression().get<Reference>().getName(),
-			"assign");
+	EXPECT_NE(exp->getDefiningOp<mlir::rlc::AssignOp>(), nullptr);
 }
 
 TEST(ParserTest, testEntityDeclaration)
 {
-	Parser p("ent something:\n\tdouble a\n\tbool b\nsomethingelse", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(
+			&context,
+			"ent something:\n\tdouble a\n\tbool b\nsomethingelse",
+			"fileName");
 
 	auto ent = p.entityDeclaration();
 	if (!ent)
 		FAIL();
 
-	EXPECT_EQ(ent->getEntity().getName(), "something");
-	EXPECT_EQ(ent->getEntity().fieldsCount(), 2);
-	EXPECT_EQ(ent->getEntity()[0].getName(), "a");
-	EXPECT_EQ(ent->getEntity()[1].getName(), "b");
-	EXPECT_EQ(ent->getEntity()[1].getTypeUse().getName(), "bool");
+	EXPECT_EQ(ent->getName(), "something");
+	EXPECT_EQ(ent->getMemberNames().size(), 2);
+	EXPECT_EQ(ent->getMemberNames()[0].cast<mlir::StringAttr>().getValue(), "a");
+	EXPECT_EQ(ent->getMemberNames()[1].cast<mlir::StringAttr>().getValue(), "b");
 }
 
 TEST(ParserTest, declarationTest)
 {
-	Parser p("let a = 5\n", "fileName");
-	auto s = p.statement();
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "let a = 5\n", "fileName");
+	auto s = p.declarationStatement();
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->isDeclarationStatement());
-	auto& dcl = s->get<DeclarationStatement>();
-	EXPECT_EQ(dcl.getName(), "a");
-	EXPECT_TRUE(dcl.getExpression().isA<ScalarConstant>());
+	EXPECT_EQ(s->getName(), "a");
 }
 
 TEST(ParserTest, ifElseTest)
 {
-	Parser p("if 1:\n\tcall()\nelse:\n\tbody()\nsomething()", "fileName");
-	auto s = p.statement();
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(
+			&context, "if 1:\n\tcall()\nelse:\n\tbody()\nsomething()", "fileName");
+	auto s = p.ifStatement();
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->isIfStat());
-	auto& ifS = s->get<IfStatement>();
-	EXPECT_TRUE(ifS.hasFalseBranch());
-	EXPECT_TRUE(ifS.getTrueBranch().isStatmentList());
-	EXPECT_TRUE(ifS.getFalseBranch().isStatmentList());
+	EXPECT_TRUE(s->getTrueBranch().getBlocks().size() == 1);
+	EXPECT_TRUE(s->getElseBranch().getBlocks().size() == 1);
 }
 
 TEST(ParserTest, whileStatement)
 {
-	Parser p("while 1:\n\ta = call()\nsomething()", "fileName");
-	auto s = p.statement();
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "while 1:\n\ta = call()\nsomething()", "fileName");
+	auto s = p.whileStatement();
 	if (!s)
 		FAIL();
-
-	EXPECT_TRUE(s->isWhileStat());
-	auto& ifS = s->get<WhileStatement>();
-	EXPECT_TRUE(ifS.getBody().isStatmentList());
 }
 
 TEST(ParserTest, singleTypeTest)
 {
-	Parser p("int", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	Parser p(&context, "int", "fileName");
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->isScalar());
-	EXPECT_EQ(s->getName(), "int");
+	EXPECT_EQ(s->getSize(), 0);
+	EXPECT_EQ(s->getReadType(), "int");
 }
 
 TEST(ParserTest, arrayTypeTest)
 {
-	Parser p("int[10]", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "int[10]", "fileName");
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->isArray());
-	EXPECT_EQ(s->getName(), "int");
-	EXPECT_EQ(s->getDimension(), 10);
+	EXPECT_EQ(s->getSize(), 10);
+	EXPECT_EQ(s->getReadType(), "int");
 }
 
 TEST(ParserTest, functionTypeTest)
 {
-	Parser p("(int[10])", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "(int[10])", "fileName");
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->isFunctionType());
-	const auto& r = s->getFunctionType().getReturnType();
-	EXPECT_TRUE(r.isArray());
-	EXPECT_EQ(r.getName(), "int");
-	EXPECT_EQ(r.getDimension(), 10);
+	EXPECT_TRUE(s->getUnderlying().isa<mlir::rlc::FunctionUseType>());
+	auto r = s->getUnderlying()
+							 .cast<mlir::rlc::FunctionUseType>()
+							 .getSubTypes()[0]
+							 .cast<mlir::rlc::ScalarUseType>();
+	EXPECT_EQ(r.getReadType(), "int");
+	EXPECT_EQ(r.getSize(), 10);
 }
 
 TEST(ParserTest, complexFunctionTypeTest)
 {
-	Parser p("(int[10] -> int)", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "(int[10] -> int)", "fileName");
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->isFunctionType());
-	EXPECT_EQ(s->getFunctionType().argCount(), 1);
-	const auto& r = s->getFunctionType().getArgType(0);
-	EXPECT_TRUE(r.isArray());
-	EXPECT_EQ(r.getName(), "int");
-	EXPECT_EQ(r.getDimension(), 10);
+	EXPECT_TRUE(s->getUnderlying().isa<mlir::rlc::FunctionUseType>());
+	auto r = s->getUnderlying()
+							 .cast<mlir::rlc::FunctionUseType>()
+							 .getSubTypes()[0]
+							 .cast<mlir::rlc::ScalarUseType>();
+	EXPECT_EQ(r.getReadType(), "int");
+	EXPECT_EQ(r.getSize(), 10);
+	auto r2 = s->getUnderlying()
+								.cast<mlir::rlc::FunctionUseType>()
+								.getSubTypes()[1]
+								.cast<mlir::rlc::ScalarUseType>();
+	EXPECT_EQ(r2.getReadType(), "int");
+	EXPECT_EQ(r2.getSize(), 0);
 }
 
 TEST(ParserTest, functionDefinition)
 {
-	Parser p("fun a()->void:\n\tb()\nc()", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "fun a()->void:\n\tb()\nc()", "fileName");
 	auto s = p.functionDefinition();
 	if (!s)
 		FAIL();
 
 	EXPECT_EQ(s->getName(), "a");
-	EXPECT_EQ(s->argumentsCount(), 0);
-	EXPECT_EQ(s->getTypeUse().getName(), "void");
+	EXPECT_EQ(s->getArgNames().size(), 0);
 }
 
 TEST(ParserTest, zeroDefinition)
 {
-	Parser p("0", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "0", "fileName");
 	auto s = p.primaryExpression();
 	if (!s)
 		FAIL();
 
-	auto& constant = s->get<ScalarConstant>();
-	EXPECT_TRUE(constant.isA<int64_t>());
-	EXPECT_EQ(constant.get<int64_t>(), 0);
+	EXPECT_NE(s->getDefiningOp<mlir::rlc::Constant>(), nullptr);
+	EXPECT_EQ(
+			0,
+			s->getDefiningOp<mlir::rlc::Constant>()
+					.getValueAttr()
+					.cast<mlir::IntegerAttr>()
+					.getValue());
 }
 
 TEST(ParserTest, voidDeclaration)
 {
-	Parser p("fun function() -> void:\n\treturn\n", "fileName");
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::rlc::RLCDialect>();
+	context.loadAllAvailableDialects();
+	Parser p(&context, "fun function() -> void:\n\treturn\n", "fileName");
 	auto s = p.functionDefinition();
 	if (!s)
 		FAIL();
 
 	EXPECT_EQ(s->getName(), "function");
-	EXPECT_EQ(s->getDeclaration().getName(), "function");
-	EXPECT_EQ(s->getDeclaration().getTypeUse().getName(), "void");
 }

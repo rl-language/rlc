@@ -21,7 +21,7 @@ TEST(DialectTest, structTest)
 	auto integer = mlir::rlc::IntegerType::get(&ctx);
 	auto floattype = mlir::rlc::FloatType::get(&ctx);
 	auto entity = mlir::rlc::EntityType::getNewIdentified(
-			&ctx, "peppino", { integer, floattype });
+			&ctx, "peppino", { integer, floattype }, { "asdint", "asdfloat" });
 	EXPECT_EQ(entity.getMnemonic(), "entity");
 	EXPECT_EQ(entity.getName(), "peppino");
 }

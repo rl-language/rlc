@@ -3,7 +3,7 @@
 void rlc::EmitMainPass::runOnOperation()
 {
 	auto realMain =
-			getOperation().lookupSymbol<mlir::LLVM::LLVMFuncOp>("rlc_main<>Int");
+			getOperation().lookupSymbol<mlir::LLVM::LLVMFuncOp>("main() -> !rlc.int");
 
 	mlir::OpBuilder builder(realMain);
 

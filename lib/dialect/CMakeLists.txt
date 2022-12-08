@@ -1,4 +1,4 @@
-rlcAddLibrary(dialect SHARED src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp)
+rlcAddLibrary(dialect SHARED src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp)
 target_link_libraries(dialect PUBLIC MLIRSupport MLIRDialect MLIRLLVMDialect MLIRLLVMIRTransforms MLIRControlFlowDialect)
 
 set(tblgen ${LLVM_BINARY_DIR}/bin/mlir-tblgen)
@@ -30,5 +30,14 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/dialect/Operat
 add_custom_target(OperationsInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/Operations.inc)
 add_custom_target(OperationsIncludeInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/dialect/Operations.inc)
 
-add_dependencies(dialect DialectInc DialectIncludeInc TypesInc TypesIncludeInc OperationsInc OperationsIncludeInc)
+#interfaces
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/Interfaces.inc DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/Interfaces.td
+	COMMAND ${tblgen} --gen-op-interface-defs -I ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src/Interfaces.td -o ${CMAKE_CURRENT_BINARY_DIR}/src/Interfaces.inc -I ${CMAKE_CURRENT_SOURCE_DIR}/src)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/dialect/Interfaces.inc DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/Interfaces.td
+	COMMAND ${tblgen} --gen-op-interface-decls -I ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src/Interfaces.td -o ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/dialect/Interfaces.inc -I ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+add_custom_target(InterfacesInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/Interfaces.inc)
+add_custom_target(InterfacesIncludeInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/dialect/Interfaces.inc)
+
+add_dependencies(dialect DialectInc DialectIncludeInc TypesInc TypesIncludeInc OperationsInc OperationsIncludeInc InterfacesInc InterfacesIncludeInc)
 

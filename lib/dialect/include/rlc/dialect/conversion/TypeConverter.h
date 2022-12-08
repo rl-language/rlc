@@ -75,8 +75,6 @@ namespace mlir::rlc
 	{
 		converter.addConversion(boolToBuiltinBool);
 		converter.addConversion(floatToBuiltinFloat);
-		/*converter.addConversion(acceptInt);*/
-		/*converter.addConversion(acceptFloat);*/
 		converter.addConversion(intToBuiltinInt);
 		converter.addConversion([&](mlir::rlc::ArrayType type) -> Type {
 			auto newInner = converter.convertType(type.getUnderlying())
@@ -119,11 +117,6 @@ namespace mlir::rlc
 					mlir::LLVM::LLVMStructType::getNewIdentified(
 							type.getContext(), type.getName(), fields));
 		});
-		/*converter.addConversion(acceptLLVMFunctionType);*/
-		/*converter.addConversion(acceptPtrType);*/
-		/*converter.addConversion(acceptStrctType);*/
-		/*converter.addConversion(acceptVoidType);*/
-		/*converter.addConversion(acceptLLVMArrayType);*/
 		converter.addConversion(voidToVoid);
 	}
 }	 // namespace mlir::rlc

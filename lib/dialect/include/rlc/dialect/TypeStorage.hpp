@@ -39,7 +39,8 @@ namespace mlir::rlc
 		/// from this function.
 		mlir::LogicalResult mutate(
 				mlir::StorageUniquer::StorageAllocator &,
-				llvm::ArrayRef<mlir::Type> body)
+				llvm::ArrayRef<mlir::Type> body,
+				llvm::ArrayRef<std::string> fieldNames)
 		{
 			if (containedTypes.hasValue() and body == *containedTypes)
 				return mlir::success();
@@ -53,6 +54,9 @@ namespace mlir::rlc
 			// Change the body successfully.
 			for (auto type : body)
 				containedTypes->push_back(type);
+			this->fieldNames.clear();
+			for (const auto &field : fieldNames)
+				this->fieldNames.push_back(field);
 			return mlir::success();
 		}
 
@@ -63,6 +67,8 @@ namespace mlir::rlc
 			return containedTypes.hasValue();
 		}
 
+		llvm::ArrayRef<std::string> getFieldNames() const { return fieldNames; }
+
 		llvm::ArrayRef<mlir::Type> getBody() const
 		{
 			return containedTypes.getValue();
@@ -71,6 +77,7 @@ namespace mlir::rlc
 		private:
 		llvm::StringRef name;
 		llvm::Optional<llvm::SmallVector<mlir::Type, 2>> containedTypes;
+		llvm::SmallVector<std::string, 2> fieldNames;
 	};
 
 }	 // namespace mlir::rlc
