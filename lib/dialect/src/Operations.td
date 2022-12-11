@@ -207,8 +207,12 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
             return isDeclaration() ? nullptr : &getBody();
         }
 
+		mlir::FunctionType getType() {
+			return getResult().getType().cast<mlir::FunctionType>();
+		}
+
 		mlir::FunctionType getFunctionType() {
-			return getType();
+			return getResult().getType().cast<mlir::FunctionType>();
 		}
 	
 		mlir::Region::BlockListType& getBlocks() {
@@ -292,11 +296,17 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
+  let results = (outs FunctionType:$result, Variadic<FunctionType>:$actions);
+  let assemblyFormat = [{
+	$unmangledName $argNames type($result) type($actions) $sym_name $body attr-dict 
+  }];
+
 }
 
 def RLC_ArrayCallOp : RLC_Dialect<"array_call",
     [CallOpInterface,
     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+	DeclareOpInterfaceMethods<TypeCheckable>
     ]>
 {
     let summary = "Invoke operation on each element of array .";
@@ -328,9 +338,11 @@ def RLC_ArrayCallOp : RLC_Dialect<"array_call",
         // CallOpInterface
         //===------------------------------------------------------------------===//
 
+
 		mlir::FunctionType getCalleeType() {
 			return getCallee().getType().cast<mlir::FunctionType>();
 		}
+
 
         /// Get the argument operands to the called function.
         operand_range getArgOperands() {
@@ -748,7 +760,7 @@ def RLC_AssignOp : RLC_InternalOp<"assign"> {
     }]>];
 
   let assemblyFormat = [{
-	$rhs `:` type($rhs) `,` $lhs `:` type($lhs) `->` type($result) attr-dict
+	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs) `->` type($result) attr-dict
   }];
 }
 

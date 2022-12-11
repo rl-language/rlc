@@ -394,7 +394,6 @@ class ArrayConstructRewriter
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		op.getOperation()->getParentOp()->dump();
 		int64_t size = op.getType().cast<mlir::rlc::ArrayType>().getSize();
 		rewriter.setInsertionPoint(op);
 		mlir::Value result = nullptr;
@@ -432,7 +431,6 @@ class ArrayConstructRewriter
 		rewriter.create<mlir::rlc::AssignOp>(op.getLoc(), index, added);
 
 		rewriter.create<mlir::rlc::Yield>(op.getLoc());
-		whileStm.getOperation()->getParentOp()->dump();
 
 		return mlir::success();
 	}
@@ -462,10 +460,10 @@ class ArrayCallRewriter
 		{
 			rewriter.eraseOp(op);
 		}
-		rewriter.setInsertionPointAfter(result.getDefiningOp());
 		auto index = rewriter.create<mlir::rlc::DeclarationStatement>(
 				op.getLoc(), mlir::rlc::IntegerType::get(op.getContext()), "dc");
-		rewriter.createBlock(&index.getBody());
+		auto* block = rewriter.createBlock(&index.getBody());
+		rewriter.setInsertionPoint(block, block->begin());
 		auto zero = rewriter.create<mlir::rlc::Constant>(
 				op.getLoc(), static_cast<int64_t>(0));
 
@@ -473,12 +471,14 @@ class ArrayCallRewriter
 
 		rewriter.setInsertionPointAfter(index);
 		auto whileStm = rewriter.create<mlir::rlc::WhileStatement>(op.getLoc());
-		rewriter.createBlock(&whileStm.getCondition());
+		auto* wCond = rewriter.createBlock(&whileStm.getCondition());
+		rewriter.setInsertionPoint(wCond, wCond->begin());
 		auto max = rewriter.create<mlir::rlc::Constant>(op.getLoc(), size);
 		auto cond = rewriter.create<mlir::rlc::LessOp>(op.getLoc(), index, max);
 		rewriter.create<mlir::rlc::Yield>(op.getLoc(), mlir::ValueRange({ cond }));
 
-		rewriter.createBlock(&whileStm.getBody());
+		auto* wBody = rewriter.createBlock(&whileStm.getBody());
+		rewriter.setInsertionPoint(wBody, wBody->begin());
 		llvm::SmallVector<mlir::Value> realArgs;
 		for (auto arg : adaptor.getArgs())
 		{
@@ -1287,6 +1287,7 @@ static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
 
 			newResumeIndex++;
 			rewriter.setInsertionPoint(casted);
+
 			auto newResumeIndexValue =
 					rewriter.create<mlir::rlc::Constant>(casted.getLoc(), newResumeIndex);
 			rewriter.create<mlir::rlc::AssignOp>(
@@ -1308,6 +1309,36 @@ static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
 	if (fun.getOps<mlir::rlc::ActionStatement>().empty())
 		return mlir::success();
 
+	mlir::IRRewriter builder(fun.getContext());
+	for (auto op : fun.getOps<mlir::rlc::ActionStatement>())
+	{
+		for (const auto& [res, name] :
+				 llvm::zip(op.getResults(), op.getDeclaredNames()))
+		{
+			llvm::SmallVector<mlir::OpOperand*, 4> uses;
+			for (auto& use : res.getUses())
+			{
+				uses.push_back(&use);
+			}
+			for (auto* use : uses)
+			{
+				rewriter.setInsertionPoint(use->getOwner());
+				auto frame = fun.getBlocks().front().getArgument(0);
+				auto entityType = frame.getType().cast<mlir::rlc::EntityType>();
+
+				size_t fieldIndex = std::distance(
+						entityType.getFieldNames().begin(),
+						llvm::find(
+								entityType.getFieldNames(),
+								name.cast<mlir::StringAttr>().str()));
+				auto ref = rewriter.create<mlir::rlc::MemberAccess>(
+						op.getLoc(), frame, fieldIndex);
+
+				use->set(ref);
+			}
+		}
+	}
+
 	mlir::Block& entry = *fun.getBlocks().begin();
 	auto* everythingElse = rewriter.splitBlock(&entry, entry.begin());
 
@@ -1324,7 +1355,209 @@ static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
 	return mlir::success();
 }
 
+static void replaceAllAccessesWithIndirectOnes(
+		mlir::rlc::ActionFunction action, mlir::rlc::ModuleBuilder& builder)
+{
+	mlir::IRRewriter rewriter(action.getContext());
+
+	auto argument = action.getBlocks().front().addArgument(
+			builder.typeOfAction(action), action.getLoc());
+
+	rewriter.setInsertionPointToStart(&action.getBlocks().front());
+
+	for (const auto& arg : llvm::enumerate(
+					 llvm::drop_end(action.getBlocks().front().getArguments())))
+	{
+		llvm::SmallVector<mlir::OpOperand*, 4> operands;
+		for (auto& operand : arg.value().getUses())
+		{
+			operands.push_back(&operand);
+		}
+		for (auto& use : operands)
+		{
+			rewriter.setInsertionPoint(use->getOwner());
+			auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
+					use->getOwner()->getLoc(), argument, arg.index() + 1);
+			use->set(refToMember);
+		}
+	}
+
+	while (action.getBlocks().front().getNumArguments() != 1)
+		action.getBlocks().front().eraseArgument(static_cast<size_t>(0));
+}
+
+static void replaceAllDeclarationsWithIndirectOnes(
+		mlir::rlc::ActionFunction action, mlir::rlc::ModuleBuilder& builder)
+{
+	mlir::IRRewriter rewriter(action.getContext());
+
+	auto refToEntity = action.getBlocks().front().getArgument(0);
+	auto type = refToEntity.getType().cast<mlir::rlc::EntityType>();
+
+	llvm::SmallVector<mlir::rlc::DeclarationStatement, 4> decls;
+	action.walk([&](mlir::rlc::DeclarationStatement statement) {
+		decls.push_back(statement);
+	});
+
+	for (auto decl : decls)
+	{
+		size_t memberIndex = std::distance(
+				type.getFieldNames().begin(),
+				llvm::find(type.getFieldNames(), decl.getSymName()));
+
+		llvm::SmallVector<mlir::OpOperand*, 4> uses;
+		for (auto& operand : decl.getResult().getUses())
+			uses.push_back(&operand);
+		for (auto* operand : uses)
+		{
+			rewriter.setInsertionPoint(operand->getOwner());
+
+			auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
+					decl.getLoc(), refToEntity, memberIndex);
+
+			operand->set(refToMember.getResult());
+		}
+
+		rewriter.setInsertionPointAfter(decl);
+		auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
+				decl.getLoc(), refToEntity, memberIndex);
+		assert(decl.getType() != nullptr);
+		rewriter.create<mlir::rlc::CallOp>(
+				decl.getLoc(),
+				builder.getAssignFunctionOf(decl.getType()),
+				mlir::ValueRange({ refToMember, decl }));
+	}
+}
+
+static void emitActionWrapperCalls(
+		mlir::rlc::ActionFunction action, mlir::rlc::ModuleBuilder& builder)
+{
+	mlir::IRRewriter rewriter(action.getContext());
+
+	rewriter.setInsertionPoint(action);
+	auto f = rewriter.create<mlir::rlc::FunctionOp>(
+			action.getLoc(),
+			action.getUnmangledName(),
+			action.getType().cast<mlir::FunctionType>(),
+			action.getArgNames());
+
+	llvm::SmallVector<mlir::Location, 2> locs;
+	for (size_t i = 0; i < f.getFunctionType().getInputs().size(); i++)
+		locs.push_back(action.getLoc());
+
+	rewriter.createBlock(
+			&f.getRegion(),
+			f.getRegion().begin(),
+			f.getFunctionType().getInputs(),
+			locs);
+
+	action.getOperation()->getResult(0).replaceAllUsesWith(f);
+
+	auto entityType = builder.typeOfAction(action).cast<mlir::rlc::EntityType>();
+	auto frame = rewriter.create<mlir::rlc::ConstructOp>(
+			action.getLoc(), entityType, builder.getInitFunctionOf(entityType));
+
+	auto ptrToIndex =
+			rewriter.create<mlir::rlc::MemberAccess>(action.getLoc(), frame, 0);
+
+	auto constantZero =
+			rewriter.create<mlir::rlc::Constant>(action.getLoc(), int64_t(0));
+
+	rewriter.create<mlir::rlc::AssignOp>(
+			action.getLoc(), ptrToIndex, constantZero);
+
+	for (const auto& argument : llvm::enumerate(action.getArgNames()))
+	{
+		auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
+				action.getLoc(), frame, argument.index() + 1);
+
+		rewriter.create<mlir::rlc::AssignOp>(
+				action.getLoc(),
+				addressOfArgInFrame,
+				f.getBlocks().front().getArgument(argument.index()));
+	}
+
+	rewriter.create<mlir::rlc::CallOp>(
+			f.getLoc(),
+			mlir::TypeRange(),
+			action.getResult(),
+			mlir::Value({ frame }));
+
+	rewriter.create<mlir::rlc::Yield>(f.getLoc(), mlir::Value({ frame }));
+
+	for (auto& subAction :
+			 llvm::enumerate(builder.actionStatementsOfAction(action)))
+	{
+		rewriter.setInsertionPoint(action);
+		auto subAct = mlir::cast<mlir::rlc::ActionStatement>(*subAction.value());
+		auto type = action.getActions()[subAction.index()]
+										.getType()
+										.cast<mlir::FunctionType>();
+		auto subF = rewriter.create<mlir::rlc::FunctionOp>(
+				action.getLoc(), subAct.getName(), type, subAct.getDeclaredNames());
+
+		action.getActions()[subAction.index()].replaceAllUsesWith(subF);
+
+		llvm::SmallVector<mlir::Location, 2> locs;
+		for (size_t i = 0; i < type.getInputs().size(); i++)
+			locs.push_back(action.getLoc());
+
+		rewriter.createBlock(
+				&subF.getBody(), subF.getBody().begin(), type.getInputs(), locs);
+
+		for (auto arg : llvm::enumerate(subAct.getDeclaredNames()))
+		{
+			size_t fieldIndex = std::distance(
+					entityType.getFieldNames().begin(),
+					llvm::find(
+							entityType.getFieldNames(),
+							arg.value().cast<mlir::StringAttr>().str()));
+
+			auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
+					action.getLoc(), subF.getBlocks().front().getArgument(0), fieldIndex);
+
+			rewriter.create<mlir::rlc::AssignOp>(
+					action.getLoc(),
+					addressOfArgInFrame,
+					subF.getBlocks().front().getArgument(arg.index() + 1));
+
+			rewriter.create<mlir::rlc::CallOp>(
+					subF.getLoc(),
+					mlir::TypeRange(),
+					action.getResult(),
+					mlir::Value({ subF.getBlocks().front().getArgument(0) }));
+		}
+		rewriter.create<mlir::rlc::Yield>(subF.getLoc());
+	}
+}
+
 void rlc::RLCLowerActions::runOnOperation()
+{
+	mlir::rlc::ModuleBuilder builder(getOperation());
+	llvm::SmallVector<mlir::rlc::ActionFunction, 4> acts(
+			getOperation().getOps<mlir::rlc::ActionFunction>());
+	mlir::IRRewriter rewriter(getOperation().getContext());
+
+	for (auto action : acts)
+	{
+		replaceAllAccessesWithIndirectOnes(action, builder);
+		replaceAllDeclarationsWithIndirectOnes(action, builder);
+		emitActionWrapperCalls(action, builder);
+
+		rewriter.setInsertionPoint(action);
+		auto actionType = builder.typeOfAction(action);
+		auto loweredToFun = rewriter.create<mlir::rlc::FunctionOp>(
+				action.getLoc(),
+				(action.getUnmangledName() + "_impl").str(),
+				mlir::FunctionType::get(action.getContext(), { actionType }, {}),
+				rewriter.getStrArrayAttr({ "frame" }));
+		loweredToFun.getBody().takeBody(action.getBody());
+		action.getResult().replaceAllUsesWith(loweredToFun);
+		rewriter.eraseOp(action);
+	}
+}
+
+void rlc::RLCActionsStatementsToCoro::runOnOperation()
 {
 	for (auto f : getOperation().getOps<mlir::rlc::FlatFunctionOp>())
 	{

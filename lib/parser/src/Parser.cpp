@@ -199,7 +199,7 @@ Expected<mlir::Value> Parser::unaryExpression()
 	if (accept<Token::ExMark>())
 	{
 		TRY(exp, unaryExpression());
-		builder.create<mlir::rlc::NotOp>(location, unkType(), *exp);
+		return builder.create<mlir::rlc::NotOp>(location, unkType(), *exp);
 	}
 
 	return postFixExpression();
@@ -777,12 +777,18 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
 Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 {
 	TRY(decl, actionDeclaration());
+	auto location = getCurrentSourcePos();
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 
 	auto pos = builder.saveInsertionPoint();
-	builder.createBlock(&decl->getBody());
+	llvm::SmallVector<mlir::Location> locs;
+	for (size_t i = 0; i < decl->getFunctionType().getInputs().size(); i++)
+		locs.push_back(decl->getLoc());
+	builder.createBlock(
+			&decl->getBody(), {}, decl->getFunctionType().getInputs(), locs);
 	TRY(body, statementList());
+	emitYieldIfNeeded(location);
 	builder.restoreInsertionPoint(pos);
 	return decl;
 }

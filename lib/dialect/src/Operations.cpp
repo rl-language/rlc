@@ -114,8 +114,9 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 		mlir::TypeConverter &conv)
 {
 	bool usedByCall = llvm::any_of(
-			getResult().getUsers(), [](const mlir::OpOperand &operand) -> bool {
-				return mlir::isa<mlir::rlc::CallOp>(*operand.getOwner());
+			getResult().getUsers(), [&](const mlir::OpOperand &operand) -> bool {
+				auto call = mlir::dyn_cast<mlir::rlc::CallOp>(*operand.getOwner());
+				return call and call.getCallee() == getResult();
 			});
 	if (usedByCall)
 	{
@@ -200,6 +201,19 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 		if (mlir::rlc::typeCheck(*op, rewriter, innerTable, conv).failed())
 			return mlir::failure();
 
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
+		mlir::IRRewriter &rewriter,
+		mlir::rlc::SymbolTable<mlir::Value> &table,
+		mlir::TypeConverter &conv)
+{
+	assert(
+			(getNumResults() == 0 or
+			 not getResult(0).getType().isa<mlir::rlc::UnknownType>()) and
+			"unuspported, array calls should be only emitted with a correct type "
+			"already");
 	return mlir::success();
 }
 

@@ -44,6 +44,25 @@ namespace rlc
 		return std::make_unique<RLCToLLVMLoweringPass>();
 	}
 
+	struct RLCActionsStatementsToCoro: public mlir::PassWrapper<
+																				 RLCActionsStatementsToCoro,
+																				 mlir::OperationPass<mlir::ModuleOp>>
+	{
+		public:
+		MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(RLCActionsStatementsToCoro)
+
+		void getDependentDialects(mlir::DialectRegistry &registry) const override
+		{
+			registry.insert<mlir::rlc::RLCDialect>();
+		}
+		void runOnOperation() final;
+	};
+
+	inline std::unique_ptr<mlir::Pass> createActionStatementsToCoro()
+	{
+		return std::make_unique<RLCActionsStatementsToCoro>();
+	}
+
 	struct RLCToCfLoweringPass: public mlir::PassWrapper<
 																	RLCToCfLoweringPass,
 																	mlir::OperationPass<mlir::ModuleOp>>
