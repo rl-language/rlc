@@ -339,6 +339,17 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 {
 	llvm::SmallVector<mlir::Type> deducedTypes;
 
+	for (auto &operand : getPrecondition().front().getArguments())
+	{
+		auto converted = conv.convertType(operand.getType());
+		if (not converted)
+		{
+			getOperation()->emitRemark("in of argument of action statement");
+			return mlir::failure();
+		}
+		operand.setType(converted);
+	}
+
 	for (auto result : getResultTypes())
 	{
 		auto deduced = conv.convertType(result);
@@ -347,8 +358,28 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		deducedTypes.push_back(deduced);
 	}
 
-	auto newDecl = rewriter.replaceOpWithNewOp<mlir::rlc::ActionStatement>(
-			*this, deducedTypes, getName(), getDeclaredNames());
+	llvm::SmallVector<mlir::Operation *, 4> ToCheck;
+	for (auto &ops : getPrecondition().getOps())
+	{
+		ToCheck.push_back(&ops);
+	}
+
+	mlir::rlc::SymbolTable inner(&table);
+	for (auto [name, res] :
+			 llvm::zip(getDeclaredNames(), getPrecondition().getArguments()))
+		inner.add(name.cast<mlir::StringAttr>(), res);
+
+	for (auto *op : ToCheck)
+	{
+		if (mlir::rlc::typeCheck(*op, rewriter, inner, conv).failed())
+			return mlir::failure();
+	}
+
+	rewriter.setInsertionPoint(*this);
+	auto newDecl = rewriter.create<mlir::rlc::ActionStatement>(
+			getLoc(), deducedTypes, getName(), getDeclaredNames());
+	newDecl.getPrecondition().takeBody(getPrecondition());
+	rewriter.replaceOp(getOperation(), newDecl.getResults());
 
 	for (auto [name, res] :
 			 llvm::zip(newDecl.getDeclaredNames(), newDecl.getResults()))

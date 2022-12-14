@@ -425,12 +425,32 @@ llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
 }
 
 /**
+ * prerequsitites: "req"" expression [Indent (expression* \n) Deindent ] \n
+ */
+llvm::Expected<bool> Parser::requirementList()
+{
+	auto location = getCurrentSourcePos();
+	llvm::SmallVector<mlir::Value, 4> values;
+
+	while (accept<Token::KeywordReq>())
+	{
+		TRY(rest, expression());
+		values.push_back(*rest);
+		EXPECT(Token::Newline);
+	}
+
+	builder.create<mlir::rlc::Yield>(location, values);
+	return true;
+}
+
+/**
  * actionStatement : actionDeclaration '\n'
  */
 llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 {
 	TRY(action, actionDeclaration());
 	EXPECT(Token::Newline);
+	auto pos = builder.saveInsertionPoint();
 
 	llvm::SmallVector<std::string, 3> argNames;
 	for (auto name : action->getArgNames())
@@ -441,8 +461,17 @@ llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 			action->getArgumentTypes(),
 			action->getUnmangledName(),
 			argNames);
+
+	llvm::SmallVector<mlir::Location> locs;
+	for (size_t i = 0; i < action->getArgumentTypes().size(); i++)
+		locs.push_back(op->getLoc());
+
+	builder.createBlock(
+			&op.getPrecondition(), {}, action->getArgumentTypes(), locs);
+	TRY(list, requirementList());
 	action->erase();
 
+	builder.restoreInsertionPoint(pos);
 	return op;
 }
 
@@ -728,11 +757,17 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
 			builder.getStringAttr(nm),
 			builder.getStrArrayAttr(argName));
 
-	builder.createBlock(&fun.getBody(), {}, argTypes, { argLocs });
-
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 
+	llvm::SmallVector<mlir::Location> locs;
+	for (size_t i = 0; i < fun.getArgumentTypes().size(); i++)
+		locs.push_back(fun->getLoc());
+
+	builder.createBlock(&fun.getPrecondition(), {}, fun.getArgumentTypes(), locs);
+	TRY(list, requirementList());
+
+	builder.createBlock(&fun.getBody(), {}, argTypes, { argLocs });
 	TRY(body, statementList());
 
 	emitYieldIfNeeded(location);
@@ -785,8 +820,14 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 	llvm::SmallVector<mlir::Location> locs;
 	for (size_t i = 0; i < decl->getFunctionType().getInputs().size(); i++)
 		locs.push_back(decl->getLoc());
+
 	builder.createBlock(
+			&decl->getPrecondition(), {}, decl->getFunctionType().getInputs(), locs);
+	TRY(list, requirementList());
+
+	auto block = builder.createBlock(
 			&decl->getBody(), {}, decl->getFunctionType().getInputs(), locs);
+	builder.setInsertionPoint(block, block->begin());
 	TRY(body, statementList());
 	emitYieldIfNeeded(location);
 	builder.restoreInsertionPoint(pos);

@@ -33,6 +33,7 @@ namespace rlc
 		KeywordIn,
 		KeywordLet,
 		KeywordFun,
+		KeywordReq,
 		Indent,
 		Deindent,
 		Newline,

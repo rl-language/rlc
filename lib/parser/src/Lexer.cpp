@@ -142,6 +142,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Arrow";
 		case Token::KeywordFun:
 			return "KeywordFun";
+		case Token::KeywordReq:
+			return "KeywordReq";
 	}
 	return "";
 }
@@ -340,6 +342,9 @@ Token Lexer::eatIdent()
 
 	if (name == "fun")
 		return Token::KeywordFun;
+
+	if (name == "req")
+		return Token::KeywordReq;
 
 	lIdent = name;
 	return Token::Identifier;

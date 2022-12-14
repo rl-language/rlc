@@ -43,6 +43,11 @@ act play():
 	let b : Board
 	while !full(b):
 		act mark(Int x, Int y)
+		req x < 3
+		req x >= 0
+		req y < 3
+		req y >= 0
+		req b.get(x, y) == 0
 		b.set(x, y, int(b.playerTurn) + 1)
 
 		if !b.three_in_a_line_player(int(b.playerTurn) + 1):

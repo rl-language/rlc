@@ -77,6 +77,7 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 
 		decls.try_emplace(type.getName(), entity);
 	}
+
 	return mlir::success();
 }
 
@@ -164,6 +165,7 @@ static mlir::LogicalResult deduceFunctionTypes(mlir::ModuleOp op)
 				deducedType.cast<mlir::FunctionType>(),
 				fun.getArgNames());
 		newF.getBody().takeBody(fun.getBody());
+		newF.getPrecondition().takeBody(fun.getPrecondition());
 		rewriter.eraseOp(fun);
 	}
 
@@ -511,6 +513,7 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 				fun.getSymName(),
 				fun.getArgNames());
 		newAction.getBody().takeBody(fun.getBody());
+		newAction.getPrecondition().takeBody(fun.getPrecondition());
 		rewriter.eraseOp(fun);
 
 		llvm::SmallVector<mlir::Type, 4> memberTypes;

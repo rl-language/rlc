@@ -14,7 +14,9 @@ mlir::Value mlir::rlc::findOverload(
 		if (not candidate.getType().isa<mlir::FunctionType>())
 			continue;
 		if (candidate.getType().cast<mlir::FunctionType>().getInputs() == arguments)
+		{
 			matching.push_back(candidate);
+		}
 	}
 
 	assert(matching.size() <= 1);
@@ -185,20 +187,19 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 				action.getUnmangledName(), action.getOperation()->getOpResult(0));
 
 		size_t actionIndex = 0;
-		action.walk(
-				[&](mlir::rlc::ActionStatement statement, const mlir::WalkStage&) {
-					// before we type checked we do not know what the generated sub
-					// actions of a actions are, so the list is empty.
-					if (not action.getActions().empty())
-					{
-						values.add(statement.getName(), action.getActions()[actionIndex]);
-					}
-					actionDeclToActionNames[action.getResult()].push_back(
-							statement.getName().str());
-					actionDeclToActionStatements[action.getResult()].push_back(
-							statement.getOperation());
-					actionIndex++;
-				});
+		action.walk([&](mlir::rlc::ActionStatement statement) {
+			// before we type checked we do not know what the generated sub
+			// actions of a actions are, so the list is empty.
+			if (not action.getActions().empty())
+			{
+				values.add(statement.getName(), action.getActions()[actionIndex]);
+			}
+			actionDeclToActionNames[action.getResult()].push_back(
+					statement.getName().str());
+			actionDeclToActionStatements[action.getResult()].push_back(
+					statement.getOperation());
+			actionIndex++;
+		});
 	}
 }
 

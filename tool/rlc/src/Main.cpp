@@ -321,13 +321,22 @@ int main(int argc, char *argv[])
 		if (not hidePosition)
 			flags.enableDebugInfo(true);
 		ast->print(OS, flags);
+		if (mlir::verify(ast).failed())
+			return -1;
 		return 0;
 	}
 
 	mlir::PassManager typeChecker(&context);
 	typeChecker.addPass(rlc::createRLCTypeCheck());
 	if (typeChecker.run(ast).failed())
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast.print(OS, flags);
+
 		return -1;
+	}
 
 	if (dumpAST)
 	{

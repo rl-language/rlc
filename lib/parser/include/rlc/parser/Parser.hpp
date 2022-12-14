@@ -49,6 +49,7 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ActionStatement> actionStatement();
 		llvm::Expected<mlir::rlc::DeclarationStatement> declarationStatement();
 		llvm::Expected<bool> statementList();
+		llvm::Expected<bool> requirementList();
 		llvm::Expected<mlir::rlc::WhileStatement> whileStatement();
 		llvm::Expected<mlir::rlc::ReturnStatement> returnStatement();
 

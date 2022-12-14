@@ -186,7 +186,7 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
 
 
   let regions = (region
-  AnyRegion:$body
+  AnyRegion:$body, AnyRegion:$precondition
   );
 
    let builders = [
@@ -200,7 +200,7 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
     }]>];
 
   let assemblyFormat = [{
-	$unmangledName $argNames type($result) $sym_name $body attr-dict 
+	$unmangledName $argNames type($result) $sym_name $precondition $body attr-dict 
   }];
     let extraClassDeclaration = [{
         Region *getCallableRegion() {
@@ -216,7 +216,7 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
 		}
 	
 		mlir::Region::BlockListType& getBlocks() {
-			return getRegion().getBlocks();
+			return getBody().getBlocks();
 		}	
 
         ArrayRef<Type> getCallableResults() {
@@ -252,35 +252,41 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
 				mlir::rlc::SymbolTable<mlir::Value>& table,
 				mlir::TypeConverter& conv)
 		{
-			llvm::SmallVector<mlir::Operation*, 4>  ops;
-			for (auto& operation :getOps())
-				ops.push_back(&operation);
 
-			for (const auto& [operand, name]: llvm::zip(getBody().front().getArguments(), getArgNames()))
-			{
-				auto converted = conv.convertType(operand.getType());
-				if (not converted){
-					getOperation()->emitRemark("in of argument of function");
+			for (auto* region : {&getBody(), &getPrecondition()}) {
+
+				mlir::rlc::SymbolTable<mlir::Value> inner(&table);
+				if (region->empty())
+					continue;
+
+				llvm::SmallVector<mlir::Operation*, 4>  ops;
+				for (auto& operation : region->getOps())
+					ops.push_back(&operation);
+
+				for (const auto& [operand, name]: llvm::zip(region->front().getArguments(), getArgNames()))
+				{
+					auto converted = conv.convertType(operand.getType());
+					if (not converted){
+						getOperation()->emitRemark("in of argument of function");
+					}
+					operand.setType(converted);
+					inner.add(name.cast<mlir::StringAttr>(), operand);
 				}
-				operand.setType(converted);
-				table.add(name.cast<mlir::StringAttr>(), operand);
-			}
-
-
-			for (auto* operation : ops)
-				if (mlir::rlc::typeCheck(*operation, rew, table, conv)
+				for (auto* operation : ops)
+					if (mlir::rlc::typeCheck(*operation, rew, inner, conv)
 							.failed())
-					return mlir::failure();
+						return mlir::failure();
+			}
 
 			return mlir::success();
 		}
 
 		Block::args_iterator args_begin() {
-			return getRegion().front().args_begin();
+			return getBody().front().args_begin();
 		}
 
 		Block::args_iterator args_end() {
-			return getRegion().front().args_end();
+			return getBody().front().args_end();
 		}
 
     }];
@@ -298,7 +304,7 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
   let results = (outs FunctionType:$result, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
-	$unmangledName $argNames type($result) type($actions) $sym_name $body attr-dict 
+	$unmangledName $argNames type($result) type($actions) $sym_name $precondition $body attr-dict 
   }];
 
 }
@@ -438,9 +444,10 @@ def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeC
             build($_builder, $_state, results, nameAttr, $_builder.getArrayAttr(attrs));
     }]>];
 
+  let regions = (region AnyRegion:$precondition);
 
   let assemblyFormat = [{
-	$name `{` $declared_names`}` attr-dict `->` type($results)
+	$name `{` $declared_names`}` attr-dict `->` type($results) $precondition
   }];
 }
 
