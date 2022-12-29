@@ -21,13 +21,16 @@ fun full(Board b) -> Bool:
 
 	return true
 
+fun three_in_a_line_player_row(Board b, Int player_id, Int row) -> Bool:
+	return b.get(0, row) == b.get(1, row) and b.get(0, row) == b.get(2, row) and b.get(0, row) == player_id
+
 fun three_in_a_line_player(Board b, Int player_id) -> Bool:
 	let x = 0
 	while x < 3:
 		if b.get(x, 0) == b.get(x, 1) and b.get(x, 0) == b.get(x, 2) and b.get(x, 0) == player_id:
 			return true
 
-		if b.get(0, x) == b.get(0, x) and b.get(0, x) == b.get(0, x) and b.get(0, x) == player_id:
+		if three_in_a_line_player_row(b, player_id, x):
 			return true
 		x = x + 1
 
@@ -50,7 +53,7 @@ act play():
 		req b.get(x, y) == 0
 		b.set(x, y, int(b.playerTurn) + 1)
 
-		if !b.three_in_a_line_player(int(b.playerTurn) + 1):
+		if b.three_in_a_line_player(int(b.playerTurn) + 1):
 			return
 
 		b.playerTurn = !b.playerTurn

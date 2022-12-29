@@ -2,8 +2,16 @@
 
 void rlc::EmitMainPass::runOnOperation()
 {
+	auto mangeledMainName = mlir::rlc::mangledName(
+			"main",
+			mlir::FunctionType::get(
+					&getContext(),
+					mlir::TypeRange(),
+					mlir::TypeRange({ mlir::rlc::IntegerType::get(&getContext()) })));
 	auto realMain =
-			getOperation().lookupSymbol<mlir::LLVM::LLVMFuncOp>("main() -> !rlc.int");
+			getOperation().lookupSymbol<mlir::LLVM::LLVMFuncOp>(mangeledMainName);
+	if (realMain == nullptr)
+		return;
 
 	mlir::OpBuilder builder(realMain);
 

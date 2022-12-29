@@ -227,3 +227,70 @@ void RLCDialect::printType(
 		return;
 	}
 }
+
+static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
+{
+	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
+	{
+		OS << "int64_t";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
+	{
+		OS << "double";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::BoolType>())
+	{
+		OS << "int8_t";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::VoidType>())
+	{
+		OS << "void";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::EntityType>())
+	{
+		OS << maybeType.getName();
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
+	{
+		typeToMangled(OS, maybeType.getUnderlying());
+		OS << "_";
+		OS << maybeType.getSize();
+		return;
+	}
+
+	if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
+	{
+		assert(maybeType.getResults().size() <= 1);
+		if (not maybeType.getResults().empty())
+		{
+			typeToMangled(OS, maybeType.getResult(0));
+			OS << "_";
+		}
+		for (auto input : maybeType.getInputs())
+		{
+			typeToMangled(OS, input);
+			OS << "_";
+		}
+		return;
+	}
+
+	assert(false && "unrechable");
+}
+
+std::string mlir::rlc::mangledName(
+		llvm::StringRef functionName, mlir::FunctionType type)
+{
+	std::string s;
+	llvm::raw_string_ostream OS(s);
+
+	OS << functionName;
+	typeToMangled(OS, type);
+	OS.flush();
+
+	return s;
+}

@@ -10,7 +10,7 @@ namespace mlir::rlc
 	inline llvm::Optional<mlir::Type> boolToBuiltinBool(mlir::rlc::BoolType type)
 	{
 		return mlir::LLVM::LLVMPointerType::get(
-				mlir::IntegerType::get(type.getContext(), 1));
+				mlir::IntegerType::get(type.getContext(), 8));
 	}
 
 	inline llvm::Optional<mlir::Type> floatToBuiltinFloat(

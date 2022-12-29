@@ -256,7 +256,9 @@ static mlir::Value makeFCMP(
 		mlir::Location position)
 {
 	mlir::Type boolT = builder.getI1Type();
-	return builder.create<mlir::LLVM::FCmpOp>(position, boolT, predicate, l, r);
+	auto res =
+			builder.create<mlir::LLVM::FCmpOp>(position, boolT, predicate, l, r);
+	return builder.create<mlir::LLVM::ZExtOp>(position, builder.getI8Type(), res);
 }
 
 static mlir::Value makeICMP(
@@ -267,7 +269,9 @@ static mlir::Value makeICMP(
 		mlir::Location position)
 {
 	mlir::Type boolT = builder.getI1Type();
-	return builder.create<mlir::LLVM::ICmpOp>(position, boolT, predicate, l, r);
+	auto res =
+			builder.create<mlir::LLVM::ICmpOp>(position, boolT, predicate, l, r);
+	return builder.create<mlir::LLVM::ZExtOp>(position, builder.getI8Type(), res);
 }
 
 template<typename Op, typename... Args>
@@ -612,8 +616,17 @@ class CbrRewriter: public mlir::OpConversionPattern<mlir::rlc::CondBranch>
 	{
 		auto loaded =
 				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getCond());
+		auto boolType = mlir::IntegerType::get(op.getContext(), 8);
+		auto zero = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), boolType, rewriter.getZeroAttr(boolType));
+		auto res = rewriter.create<mlir::LLVM::ICmpOp>(
+				op.getLoc(),
+				rewriter.getI1Type(),
+				mlir::LLVM::ICmpPredicate::ne,
+				loaded,
+				zero);
 		rewriter.replaceOpWithNewOp<mlir::LLVM::CondBrOp>(
-				op, loaded, op.getTrueBranch(), op.getFalseBranch());
+				op, res, op.getTrueBranch(), op.getFalseBranch());
 
 		return mlir::LogicalResult::success();
 	}
@@ -1015,8 +1028,10 @@ static mlir::Value makeFNEQ(
 		mlir::Value r,
 		mlir::Location position)
 {
-	return builder.create<mlir::LLVM::FCmpOp>(
+	auto res = builder.create<mlir::LLVM::FCmpOp>(
 			position, builder.getI1Type(), mlir::LLVM::FCmpPredicate::one, l, r);
+
+	return builder.create<mlir::LLVM::ZExtOp>(position, builder.getI8Type(), res);
 }
 
 static mlir::Value makeFEQ(
@@ -1025,8 +1040,9 @@ static mlir::Value makeFEQ(
 		mlir::Value r,
 		mlir::Location position)
 {
-	return builder.create<mlir::LLVM::FCmpOp>(
+	auto res = builder.create<mlir::LLVM::FCmpOp>(
 			position, builder.getI1Type(), mlir::LLVM::FCmpPredicate::oeq, l, r);
+	return builder.create<mlir::LLVM::ZExtOp>(position, builder.getI8Type(), res);
 }
 
 static mlir::Value makeIEQ(
@@ -1035,8 +1051,9 @@ static mlir::Value makeIEQ(
 		mlir::Value r,
 		mlir::Location position)
 {
-	return builder.create<mlir::LLVM::ICmpOp>(
+	auto res = builder.create<mlir::LLVM::ICmpOp>(
 			position, builder.getI1Type(), mlir::LLVM::ICmpPredicate::eq, l, r);
+	return builder.create<mlir::LLVM::ZExtOp>(position, builder.getI8Type(), res);
 }
 
 static mlir::Value makeINEQ(
@@ -1045,8 +1062,9 @@ static mlir::Value makeINEQ(
 		mlir::Value r,
 		mlir::Location position)
 {
-	return builder.create<mlir::LLVM::ICmpOp>(
+	auto res = builder.create<mlir::LLVM::ICmpOp>(
 			position, builder.getI1Type(), mlir::LLVM::ICmpPredicate::ne, l, r);
+	return builder.create<mlir::LLVM::ZExtOp>(position, builder.getI8Type(), res);
 }
 
 static mlir::Value lowerNEqual(
@@ -1109,8 +1127,16 @@ static mlir::Value lowerToIntCast(
 			return builder.create<mlir::LLVM::FPToSIOp>(
 					lhs.getLoc(), builder.getI64Type(), lhs);
 
+		auto isZero = makeINEQ(
+				builder,
+				lhs,
+				builder.create<mlir::LLVM::ConstantOp>(
+						op.getLoc(),
+						builder.getI8Type(),
+						builder.getZeroAttr(builder.getI8Type())),
+				op.getLoc());
 		return builder.create<mlir::LLVM::ZExtOp>(
-				lhs.getLoc(), builder.getI64Type(), lhs);
+				lhs.getLoc(), builder.getI64Type(), isZero);
 	}
 
 	if (isRLCFloat(op.getResult().getType()))
@@ -1119,8 +1145,16 @@ static mlir::Value lowerToIntCast(
 			return builder.create<mlir::LLVM::SIToFPOp>(
 					lhs.getLoc(), builder.getF64Type(), lhs);
 
+		auto isZero = makeINEQ(
+				builder,
+				lhs,
+				builder.create<mlir::LLVM::ConstantOp>(
+						op.getLoc(),
+						builder.getI8Type(),
+						builder.getZeroAttr(builder.getI8Type())),
+				op.getLoc());
 		return builder.create<mlir::LLVM::UIToFPOp>(
-				lhs.getLoc(), builder.getF64Type(), lhs);
+				lhs.getLoc(), builder.getF64Type(), isZero);
 	}
 	return toBool(builder, lhs);
 }
@@ -1439,14 +1473,14 @@ static void emitPreconditionCheckerWrapper(
 	mlir::IRRewriter rewriter(action.getContext());
 	rewriter.setInsertionPoint(action);
 
+	auto ftype = mlir::FunctionType::get(
+			action.getContext(),
+			action.getFunctionType().getInputs(),
+			{ mlir::rlc::BoolType::get(action.getContext()) });
 	auto validityFunction = rewriter.create<mlir::rlc::FlatFunctionOp>(
 			action.getLoc(),
-			mlir::FunctionType::get(
-					action.getContext(),
-					action.getFunctionType().getInputs(),
-					{ mlir::rlc::BoolType::get(action.getContext()) }),
 			("can_" + action.getUnmangledName()).str(),
-			("can_" + action.getSymName()).str(),
+			ftype,
 			action.getArgNamesAttr());
 	rewriter.cloneRegionBefore(
 			action.getPrecondition(),
@@ -1490,7 +1524,7 @@ static void emitPreconditionCheckerWrapper(
 
 	auto validityFunction = rewriter.create<mlir::rlc::FlatFunctionOp>(
 			action.getLoc(),
-			("can_" + action.getName()).str(),
+			("can_" + action.getUnmangledName()).str(),
 			mlir::FunctionType::get(
 					action.getContext(),
 					actionType.getInputs(),
@@ -1605,13 +1639,12 @@ static void emitActionWrapperCalls(
 					action.getLoc(),
 					addressOfArgInFrame,
 					subF.getBlocks().front().getArgument(arg.index() + 1));
-
-			rewriter.create<mlir::rlc::CallOp>(
-					subF.getLoc(),
-					mlir::TypeRange(),
-					action.getResult(),
-					mlir::Value({ subF.getBlocks().front().getArgument(0) }));
 		}
+		rewriter.create<mlir::rlc::CallOp>(
+				subF.getLoc(),
+				mlir::TypeRange(),
+				action.getResult(),
+				mlir::Value({ subF.getBlocks().front().getArgument(0) }));
 		rewriter.create<mlir::rlc::Yield>(subF.getLoc());
 	}
 }

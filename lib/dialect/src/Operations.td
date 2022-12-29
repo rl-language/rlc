@@ -191,12 +191,7 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
 
    let builders = [
         OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames), [{
-			std::string s;
-			llvm::raw_string_ostream os(s);
-			os << name;
-			type.print(os);
-			os.flush();
-            build($_builder, $_state, type, name ,s, argNames);
+			build($_builder, $_state, type, name ,mangledName(name, type), argNames);
     }]>];
 
   let assemblyFormat = [{

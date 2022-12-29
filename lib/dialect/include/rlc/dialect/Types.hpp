@@ -10,6 +10,8 @@
 
 namespace mlir::rlc
 {
+	std::string mangledName(
+			llvm::StringRef functionName, mlir::FunctionType type);
 	class StructTypeStorage;
 
 	class EntityType: public Type::TypeBase<

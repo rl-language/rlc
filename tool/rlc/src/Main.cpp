@@ -30,11 +30,13 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "rlc/conversions/RLCToPython.hpp"
 #include "rlc/dialect/Conversion.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/EmitMain.hpp"
 #include "rlc/dialect/TypeCheck.hpp"
 #include "rlc/parser/Parser.hpp"
+#include "rlc/python/Interfaces.hpp"
 #include "rlc/utils/Error.hpp"
 
 using namespace rlc;
@@ -73,6 +75,12 @@ static cl::opt<std::string> clangPath(
 		cl::init("clang"),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpPythonWrapper(
+		"python",
+		cl::desc("dumps the ast of python and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpRLC(
 		"rlc",
 		cl::desc("dumps the ast and exits"),
@@ -94,6 +102,12 @@ static cl::opt<bool> hidePosition(
 static cl::opt<bool> dumpMLIR(
 		"mlir",
 		cl::desc("dumps the mlir and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> shared(
+		"shared",
+		cl::desc("compile as shared lib"),
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
@@ -338,14 +352,22 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	if (dumpAST)
+	if (dumpPythonWrapper)
 	{
+		mlir::PassManager manager(&context);
+		manager.addPass(rlc::createRLCToPython());
+		auto res = manager.run(ast);
+
 		mlir::OpPrintingFlags flags;
 		if (not hidePosition)
 			flags.enableDebugInfo(true);
-		ast.print(OS, flags);
-		if (mlir::verify(ast).failed())
+		if (mlir::verify(ast).failed() or res.failed())
+		{
+			ast.print(OS, flags);
 			return -1;
+		}
+
+		mlir::rlc::python::serializePython(OS, *ast.getOperation()).failed();
 		return 0;
 	}
 
@@ -367,10 +389,7 @@ int main(int argc, char *argv[])
 	manager.addPass(rlc::createRLCToCfLoweringPass());
 	manager.addPass(rlc::createActionStatementsToCoro());
 	manager.addPass(rlc::createRLCToLLVMLoweringPass());
-	if (ast.lookupSymbol("main() -> !rlc.int") != nullptr)
-	{
-		manager.addPass(createEmitMainPass());
-	}
+	manager.addPass(createEmitMainPass());
 	if (manager.run(ast).failed())
 		return -1;
 
@@ -422,7 +441,12 @@ int main(int argc, char *argv[])
 	std::string Errors;
 	auto res = llvm::sys::ExecuteAndWait(
 			realPath,
-			{ "clang", library.getFilename(), "-o", outputFile, "-lm" },
+			{ "clang",
+				library.getFilename(),
+				"-o",
+				outputFile,
+				"-lm",
+				shared ? "--shared" : "" },
 			llvm::None,
 			{},
 			0,
