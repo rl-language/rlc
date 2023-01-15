@@ -75,6 +75,12 @@ static cl::opt<std::string> clangPath(
 		cl::init("clang"),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpPythonAST(
+		"python-ast",
+		cl::desc("dumps the ast of python-ast and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpPythonWrapper(
 		"python",
 		cl::desc("dumps the ast of python and exits"),
@@ -352,7 +358,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	if (dumpPythonWrapper)
+	if (dumpPythonWrapper or dumpPythonAST)
 	{
 		mlir::PassManager manager(&context);
 		manager.addPass(rlc::createRLCToPython());
@@ -361,14 +367,15 @@ int main(int argc, char *argv[])
 		mlir::OpPrintingFlags flags;
 		if (not hidePosition)
 			flags.enableDebugInfo(true);
-		if (mlir::verify(ast).failed() or res.failed())
+		auto verified = mlir::verify(ast);
+		if (verified.failed() or res.failed() or dumpPythonAST)
 		{
 			ast.print(OS, flags);
-			return -1;
+			return verified.failed() or res.failed();
 		}
 
-		mlir::rlc::python::serializePython(OS, *ast.getOperation()).failed();
-		return 0;
+		return mlir::rlc::python::serializePythonModule(OS, *ast.getOperation())
+				.failed();
 	}
 
 	if (dumpRLC)

@@ -12,6 +12,36 @@ void mlir::rlc::python::RLCPython::registerOperations()
 			>();
 }
 
+static void emitFunctionSignature(
+		llvm::raw_ostream& OS,
+		mlir::rlc::python::SerializationContext& context,
+		llvm::StringRef name,
+		mlir::FunctionType functionType,
+		mlir::ArrayAttr args,
+		mlir::TypeRange resultTypes)
+{
+	OS.indent(context.getIndent() * 4);
+	OS << "def " << name << "(";
+	const auto* typeIter = functionType.getInputs().begin();
+	for (const auto* iter = args.begin(); iter != args.end(); iter++)
+	{
+		OS << (*iter).cast<mlir::StringAttr>().getValue();
+		OS << ": ";
+		mlir::rlc::writeTypeName(OS, *typeIter);
+		if (iter + 1 != args.end())
+			OS << ", ";
+		typeIter++;
+	}
+	OS << ")";
+	if (not resultTypes.empty())
+	{
+		OS << " -> ";
+		mlir::rlc::writeTypeName(OS, resultTypes.front());
+	}
+	OS << ":\n";
+	context.indent();
+}
+
 mlir::LogicalResult mlir::rlc::python::PythonFun::emit(
 		llvm::raw_ostream& OS, SerializationContext& context)
 {
@@ -22,33 +52,31 @@ mlir::LogicalResult mlir::rlc::python::PythonFun::emit(
 		context.registerValue(operand, name.cast<mlir::StringAttr>().str());
 	}
 
-	OS << "def " << getSymName() << "(";
-	const auto* typeIter = getFunctionType().getInputs().begin();
-	for (const auto* iter = getArgs().begin(); iter != getArgs().end(); iter++)
-	{
-		OS << iter->cast<mlir::StringAttr>().getValue();
-		OS << ": ";
-		writeTypeName(OS, *typeIter);
-		if (iter + 1 != getArgs().end())
-			OS << ", ";
-		typeIter++;
-	}
-	OS << ")";
-	if (not getResultTypes().empty())
-	{
-		OS << " -> ";
-		writeTypeName(OS, getResultTypes().front());
-	}
-	OS << ":\n";
 	OS.indent(context.getIndent() * 4);
-	context.indent();
+	OS << "@overload\n";
+	emitFunctionSignature(
+			OS,
+			context,
+			getOverloadName(),
+			getFunctionType(),
+			getArgs(),
+			getResultTypes());
+	OS.indent(context.getIndent() * 4);
+	OS << "pass\n\n";
+	context.deindent();
+
+	emitFunctionSignature(
+			OS,
+			context,
+			getSymName(),
+			getFunctionType(),
+			getArgs(),
+			getResultTypes());
 	auto res = mlir::rlc::python::serializePython(OS, *getOperation(), context);
 	context.deindent();
 	if (res.failed())
 		return res;
 
-	OS << "overloads[\"" << getOverloadName() << "\"].append(" << getSymName()
-		 << ")\n";
 	OS << "\n";
 
 	return mlir::success();
@@ -67,11 +95,31 @@ mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
 	for (const auto& [type, name] :
 			 llvm::zip(type.getSubTypes(), getFieldNames()))
 	{
-		OS << "(" << name << ", ";
-		writeTypeName(OS, type);
+		OS << "(\"_" << name.cast<mlir::StringAttr>().str() << "\", ";
+		writeTypeName(OS, type, true);
 		OS << "), ";
 	}
 	OS << "]\n\n";
+
+	for (const auto& [type, name] :
+			 llvm::zip(type.getSubTypes(), getFieldNames()))
+	{
+		OS.indent((context.getIndent() + 1) * 4);
+		OS << "@property\n";
+		OS.indent((context.getIndent() + 1) * 4);
+		OS << "def " << name.cast<mlir::StringAttr>().str() << "(self) -> "
+			 << typeToString(pythonCTypesToBuiltin(type), true) << ":\n";
+		OS.indent((context.getIndent() + 2) * 4);
+		OS << "return self._" << name.cast<mlir::StringAttr>().str();
+		if (type.isa<mlir::rlc::python::CTypesFloatType>() or
+				type.isa<mlir::rlc::python::CTypesIntType>())
+		{
+			OS << ".value";
+		}
+		OS << "\n\n";
+	}
+
+	OS << "\n\n";
 
 	return mlir::success();
 }
@@ -117,11 +165,14 @@ mlir::LogicalResult mlir::rlc::python::CTypesLoad::emit(
 		llvm::raw_ostream& OS, SerializationContext& context)
 {
 	OS << "from ctypes import *\n";
+	OS << "from typing import overload\n";
+	OS << "import builtins\n";
 	OS << "from collections import defaultdict\n\n";
 	OS << "lib = CDLL(\"" << getLibName() << "\")\n";
 	context.registerValue(getResult(), "lib");
 
-	OS << "overloads = defaultdict(list)\n";
+	OS << "actions = defaultdict(list)\n";
+	OS << "args_info = {}\n";
 
 	return mlir::success();
 }
@@ -129,7 +180,46 @@ mlir::LogicalResult mlir::rlc::python::CTypesLoad::emit(
 mlir::LogicalResult mlir::rlc::python::PythonCast::emit(
 		llvm::raw_ostream& OS, SerializationContext& context)
 {
-	assert(false);
+	OS.indent(context.getIndent() * 4);
+	OS << context.registerValue(getResult()) << " = ";
+
+	writeTypeName(OS, getResult().getType());
+
+	OS << "(" << context.nameOf(getLhs()) << ")\n";
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::python::PythonArgumentConstraint::emit(
+		llvm::raw_ostream& OS, SerializationContext& context)
+{
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::python::PythonActionInfo::emit(
+		llvm::raw_ostream& OS, SerializationContext& context)
+{
+	OS.indent(context.getIndent() * 4);
+	auto f = getAction().getDefiningOp<mlir::rlc::python::PythonFun>();
+	OS << "actions[\"" << f.getOverloadName() << "\"].append("
+		 << context.nameOf(getAction()) << ")\n";
+
+	OS << "args_info[" << context.nameOf(getAction()) << "] = [";
+	for (auto& arg : getBody().getArguments())
+	{
+		assert(std::distance(arg.getUses().begin(), arg.getUses().end()) <= 1);
+		for (auto& use : arg.getUses())
+		{
+			auto argConstraint =
+					mlir::cast<mlir::rlc::python::PythonArgumentConstraint>(
+							use.getOwner());
+			OS << "(" << argConstraint.getMin() << ", " << argConstraint.getMax()
+				 << ")";
+			OS << ", ";
+		}
+	}
+	OS << "]\n\n";
+
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::python::PythonCall::emit(

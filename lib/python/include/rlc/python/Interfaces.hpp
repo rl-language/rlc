@@ -51,11 +51,16 @@ namespace mlir::rlc::python
 			mlir::Operation& op,
 			SerializationContext& context);
 
-	inline ::mlir::LogicalResult serializePython(
+	::mlir::LogicalResult serializePythonModule(
+			llvm::raw_ostream& OS,
+			mlir::Operation& op,
+			SerializationContext& context);
+
+	inline ::mlir::LogicalResult serializePythonModule(
 			llvm::raw_ostream& OS, mlir::Operation& op)
 	{
 		SerializationContext context;
-		return serializePython(OS, op, context);
+		return serializePythonModule(OS, op, context);
 	}
 
 }	 // namespace mlir::rlc::python

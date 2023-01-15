@@ -16,7 +16,7 @@ def RLC_CDLLType : RLC_PythonType<"CDLL", "cdll"> {
   }];
 }
 
-def RLC_PythonNone : RLC_PythonType<"PythonNone", "python_none"> {
+def RLC_PythonNone : RLC_PythonType<"None", "none"> {
   let summary = "RLC builtin integer type";
   let description = [{
     Implementation agnostic integer type.
@@ -59,7 +59,7 @@ def RLC_CTypesInt : RLC_PythonType<"CTypesInt", "ctypes_int"> {
   }];
 }
 
-def RLC_PythonBool : RLC_PythonType<"PythonBool", "pyton_bool"> {
+def RLC_PythonBool : RLC_PythonType<"Bool", "bool"> {
   let summary = "RLC builtin integer type";
   let description = [{
     Implementation agnostic integer type.
@@ -67,7 +67,7 @@ def RLC_PythonBool : RLC_PythonType<"PythonBool", "pyton_bool"> {
 
 }
 
-def RLC_PythonFloat : RLC_PythonType<"PythonFloat", "pyton_float"> {
+def RLC_PythonFloat : RLC_PythonType<"Float", "float"> {
   let summary = "RLC builtin integer type";
   let description = [{
     Implementation agnostic integer type.
@@ -75,7 +75,7 @@ def RLC_PythonFloat : RLC_PythonType<"PythonFloat", "pyton_float"> {
 
 }
 
-def RLC_PythonInt : RLC_PythonType<"PythonInt", "pyton_int"> {
+def RLC_PythonInt : RLC_PythonType<"Int", "int"> {
   let summary = "RLC builtin integer type";
   let description = [{
     Implementation agnostic integer type.

@@ -10,67 +10,45 @@
 
 namespace mlir::rlc
 {
-	inline void writeBuiltinTypeName(llvm::raw_ostream& OS, mlir::Type t)
+	inline void writeTypeName(
+			llvm::raw_ostream& OS, mlir::Type t, bool ctypesSyntax = false)
 	{
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonIntType>())
-		{
-			OS << "int";
-			return;
-		}
-
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonFloatType>())
-		{
-			OS << "float";
-			return;
-		}
-
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonBoolType>())
-		{
-			OS << "bool";
-			return;
-		}
-
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonNoneType>())
-		{
-			OS << "None";
-			return;
-		}
-
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CArrayType>())
-		{
-			OS << " list ";
-			return;
-		}
-
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypeStructType>())
-		{
-			OS << maybeType.getName();
-			return;
-		}
-
-		assert(false && "unrechable");
-	}
-	inline void writeTypeName(llvm::raw_ostream& OS, mlir::Type t)
-	{
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonIntType>())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypesIntType>())
 		{
 			OS << "c_longlong";
 			return;
 		}
 
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonFloatType>())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypesFloatType>())
 		{
 			OS << "c_double";
 			return;
 		}
 
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonBoolType>())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypesBoolType>())
 		{
 			OS << "c_bool";
 			return;
 		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::IntType>())
+		{
+			OS << "builtins.int";
+			return;
+		}
 
-		if (auto maybeType = t.dyn_cast<mlir::rlc::python::PythonNoneType>())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::FloatType>())
+		{
+			OS << "builtins.float";
+			return;
+		}
+
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::BoolType>())
+		{
+			OS << "builtins.bool";
+			return;
+		}
+
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::NoneType>())
 		{
 			OS << "None";
 			return;
@@ -78,8 +56,14 @@ namespace mlir::rlc
 
 		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CArrayType>())
 		{
-			writeTypeName(OS, maybeType.getSubType());
-			OS << " * " << maybeType.getSize();
+			if (ctypesSyntax)
+			{
+				writeTypeName(OS, maybeType.getSubType(), ctypesSyntax);
+				OS << " * ";
+				OS << maybeType.getSize();
+			}
+			else
+				OS << " list ";
 			return;
 		}
 
@@ -92,22 +76,43 @@ namespace mlir::rlc
 		assert(false && "unrechable");
 	}
 
-	inline std::string typeToString(mlir::Type t)
+	inline std::string typeToString(mlir::Type t, bool ctypesSyntax = false)
 	{
 		std::string toReturn;
 		llvm::raw_string_ostream OS(toReturn);
-		writeTypeName(OS, t);
+		writeTypeName(OS, t, ctypesSyntax);
 		OS.flush();
 		return toReturn;
 	}
 
-	inline std::string builtinTypeToString(mlir::Type t)
+	inline bool isBuiltinType(mlir::Type t)
 	{
-		std::string toReturn;
-		llvm::raw_string_ostream OS(toReturn);
-		writeBuiltinTypeName(OS, t);
-		OS.flush();
-		return toReturn;
+		return t.isa<mlir::rlc::python::BoolType>() or
+					 t.isa<mlir::rlc::python::IntType>() or
+					 t.isa<mlir::rlc::python::FloatType>();
+	}
+
+	inline mlir::Type pythonCTypesToBuiltin(mlir::Type t)
+	{
+		if (t.isa<mlir::rlc::python::CTypesBoolType>())
+			return mlir::rlc::python::BoolType::get(t.getContext());
+		if (t.isa<mlir::rlc::python::CTypesFloatType>())
+			return mlir::rlc::python::FloatType::get(t.getContext());
+		if (t.isa<mlir::rlc::python::CTypesIntType>())
+			return mlir::rlc::python::IntType::get(t.getContext());
+
+		return t;
+	}
+
+	inline mlir::Type pythonBuiltinToCTypes(mlir::Type t)
+	{
+		if (t.isa<mlir::rlc::python::BoolType>())
+			return mlir::rlc::python::CTypesBoolType::get(t.getContext());
+		if (t.isa<mlir::rlc::python::FloatType>())
+			return mlir::rlc::python::CTypesFloatType::get(t.getContext());
+		if (t.isa<mlir::rlc::python::IntType>())
+			return mlir::rlc::python::CTypesIntType::get(t.getContext());
+		return t;
 	}
 
 }	 // namespace mlir::rlc

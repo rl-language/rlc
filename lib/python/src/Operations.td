@@ -57,6 +57,27 @@ def RLC_PythonReturn : RLC_PythonOp<"return", [DeclareOpInterfaceMethods<EmitPyt
   }];
 }
 
+def RLC_PythonArgumentConstraint : RLC_PythonOp<"argument_constraint", [DeclareOpInterfaceMethods<EmitPython>]> {
+  let arguments = (ins AnyType:$argument, SI64Attr:$min, SI64Attr:$max);
+
+  let assemblyFormat = [{
+	$argument type($argument) $min $max attr-dict 
+  }];
+}
+
+def RLC_PythonActionInfo : RLC_PythonOp<"action_info", [DeclareOpInterfaceMethods<EmitPython>, NoTerminator]> {
+  let arguments = (ins AnyType:$action);
+
+  let regions = (region
+  AnyRegion:$body 
+  );
+
+
+  let assemblyFormat = [{
+	$action type($action) $body attr-dict 
+  }];
+}
+
 def RLC_PythonCast : RLC_PythonOp<"cast", [DeclareOpInterfaceMethods<EmitPython>]> {
   let arguments = (ins AnyType:$lhs);
   let results = (outs AnyType:$result);

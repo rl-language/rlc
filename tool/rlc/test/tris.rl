@@ -51,6 +51,7 @@ act play():
 		req y < 3
 		req y >= 0
 		req b.get(x, y) == 0
+
 		b.set(x, y, int(b.playerTurn) + 1)
 
 		if b.three_in_a_line_player(int(b.playerTurn) + 1):
