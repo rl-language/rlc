@@ -57,7 +57,7 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
 		auto type = mlir::rlc::EntityType::getIdentified(
-				action.getContext(), (action.getName() + "Entity").str());
+				action.getContext(), (action.getUnmangledName() + "Entity").str());
 
 		auto entity = rewriter.create<mlir::rlc::EntityDeclaration>(
 				action.getLoc(),
@@ -154,7 +154,7 @@ static mlir::LogicalResult deduceFunctionTypes(mlir::ModuleOp op)
 				builder.getConverter().convertType(fun.getFunctionType());
 		if (deducedType == nullptr)
 		{
-			fun.emitRemark("in function declaration " + fun.getName());
+			fun.emitRemark("in function declaration " + fun.getUnmangledName());
 			return mlir::failure();
 		}
 		assert(deducedType.isa<mlir::FunctionType>());
@@ -510,7 +510,6 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 				actionType,
 				generatedFunctions,
 				fun.getUnmangledName(),
-				fun.getSymName(),
 				fun.getArgNames());
 		newAction.getBody().takeBody(fun.getBody());
 		newAction.getPrecondition().takeBody(fun.getPrecondition());

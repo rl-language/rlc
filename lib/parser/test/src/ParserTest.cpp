@@ -253,7 +253,7 @@ TEST(ParserTest, functionDefinition)
 	if (!s)
 		FAIL();
 
-	EXPECT_EQ(s->getName(), "a");
+	EXPECT_EQ(s->getUnmangledName(), "a");
 	EXPECT_EQ(s->getArgNames().size(), 0);
 }
 
@@ -286,5 +286,5 @@ TEST(ParserTest, voidDeclaration)
 	if (!s)
 		FAIL();
 
-	EXPECT_EQ(s->getName(), "function");
+	EXPECT_EQ(s->getUnmangledName(), "function");
 }

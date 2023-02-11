@@ -866,7 +866,7 @@ class FunctionRewriter
 				realTypes.front().cast<mlir::LLVM::LLVMPointerType>().getElementType();
 		rewriter.setInsertionPoint(op);
 		auto newF = rewriter.create<mlir::LLVM::LLVMFuncOp>(
-				op.getLoc(), op.getSymName(), fType, linkage);
+				op.getLoc(), op.getMangledName(), fType, linkage);
 		rewriter.cloneRegionBefore(
 				op.getBody(), newF.getBody(), newF.getBody().begin());
 		rewriter.eraseOp(op);
@@ -937,7 +937,7 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 		{
 			rewriter.setInsertionPoint(use->getOwner());
 			auto ref = rewriter.create<mlir::rlc::Reference>(
-					use->getOwner()->getLoc(), f.getFunctionType(), f.getSymName());
+					use->getOwner()->getLoc(), f.getFunctionType(), f.getMangledName());
 			use->set(ref);
 		}
 	}
@@ -947,13 +947,10 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 			return res;
 
 		rewriter.setInsertionPoint(f);
-		auto name = f.getName().str();
-		f.setName("dc");
 		auto newF = rewriter.create<mlir::rlc::FlatFunctionOp>(
 				op.getLoc(),
 				f.getFunctionType(),
 				f.getUnmangledName(),
-				rewriter.getStringAttr(name),
 				f.getArgNamesAttr());
 
 		rewriter.cloneRegionBefore(

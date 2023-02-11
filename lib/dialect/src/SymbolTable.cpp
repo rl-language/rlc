@@ -180,7 +180,7 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
-		auto type = types.getOne((action.getName() + "Entity").str());
+		auto type = types.getOne((action.getUnmangledName() + "Entity").str());
 		actionToActionType[action.getResult()] = type;
 		actionTypeToAction[type] = action.getResult();
 		values.add(

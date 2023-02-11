@@ -5,10 +5,28 @@
 #include "rlc/python/Operations.hpp"
 #include "rlc/python/Types.hpp"
 
+class PythonTypeAliasASMInterface: public mlir::OpAsmDialectInterface
+{
+	public:
+	using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
+
+	AliasResult getAlias(mlir::Type type, llvm::raw_ostream& OS) const final
+	{
+		if (auto casted = type.dyn_cast<mlir::rlc::python::CTypeStructType>())
+		{
+			OS << casted.getName();
+			return AliasResult::FinalAlias;
+		}
+
+		return AliasResult::NoAlias;
+	}
+};
+
 void mlir::rlc::python::RLCPython::initialize()
 {
 	registerTypes();
 	registerOperations();
+	addInterfaces<PythonTypeAliasASMInterface>();
 }
 
 namespace mlir::rlc::python

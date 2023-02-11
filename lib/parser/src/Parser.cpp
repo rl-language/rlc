@@ -754,7 +754,6 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),
 			builder.getStringAttr(nm),
-			builder.getStringAttr(nm),
 			builder.getStrArrayAttr(argName));
 
 	EXPECT(Token::Colons);
@@ -801,7 +800,6 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
 	return builder.create<mlir::rlc::ActionFunction>(
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),
-			builder.getStringAttr(nm),
 			builder.getStringAttr(nm),
 			builder.getStrArrayAttr(argName));
 }

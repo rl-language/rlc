@@ -242,7 +242,7 @@ class FunctionToPyFunction
 				rewriter,
 				getTypeConverter(),
 				op.getUnmangledName(),
-				op.getSymName(),
+				op.getMangledName(),
 				op.getArgNames(),
 				op.getFunctionType());
 		rewriter.eraseOp(op);
@@ -345,7 +345,7 @@ class ActionDeclToTNothing
 				rewriter,
 				getTypeConverter(),
 				op.getUnmangledName(),
-				mlir::rlc::mangledName(op.getSymName(), op.getFunctionType()),
+				mlir::rlc::mangledName(op.getMangledName(), op.getFunctionType()),
 				op.getArgNames(),
 				op.getFunctionType());
 

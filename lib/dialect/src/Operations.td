@@ -175,9 +175,9 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMe
 
 
 class RLC_FunctionBase<string mnemonic> :
-RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, TypeCheckable]> {
+RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable]> {
 
-  let arguments = (ins StrAttr:$unmangledName, SymbolNameAttr:$sym_name,  StrArrayAttr:$argNames);
+  let arguments = (ins StrAttr:$unmangledName, StrArrayAttr:$argNames);
   let description = [{
 	expression.
   }];
@@ -191,16 +191,20 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
 
    let builders = [
         OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames), [{
-			build($_builder, $_state, type, name ,mangledName(name, type), argNames);
+			build($_builder, $_state, type, name ,argNames);
     }]>];
 
   let assemblyFormat = [{
-	$unmangledName $argNames type($result) $sym_name $precondition $body attr-dict 
+	$unmangledName $argNames type($result) $precondition $body attr-dict 
   }];
-    let extraClassDeclaration = [{
+    code extraBaseClassDeclaration = [{
         Region *getCallableRegion() {
             return isDeclaration() ? nullptr : &getBody();
         }
+
+		std::string getMangledName() {
+			return rlc::mangledName(getUnmangledName(), getType());
+		}
 
 		mlir::FunctionType getType() {
 			return getResult().getType().cast<mlir::FunctionType>();
@@ -228,7 +232,7 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
         }
 
 		bool isInternal() {
-			return getName().startswith("_");
+			return getUnmangledName().startswith("_");
 		}
 
         bool isDeclaration() {
@@ -289,18 +293,37 @@ RLC_Dialect<mnemonic, [Symbol, CallableOpInterface, AutomaticAllocationScope, Ty
 
 def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
   let summary = "function.";
+    let extraClassDeclaration = extraBaseClassDeclaration;
 }
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
+    let extraClassDeclaration = extraBaseClassDeclaration;
 }
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
   let results = (outs FunctionType:$result, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
-	$unmangledName $argNames type($result) type($actions) $sym_name $precondition $body attr-dict 
+	$unmangledName $argNames type($result) type($actions) $precondition $body attr-dict 
   }];
+    let extraClassDeclaration = extraBaseClassDeclaration # [{
+
+		size_t getSubActionsSize() {
+			return getActions().size();
+		}
+
+		mlir::FunctionType getSubActionType(size_t index) {
+			return getActions().getTypes()[index].cast<mlir::FunctionType>();
+		}
+
+		mlir::FunctionType getMainActionType() {
+			return getResult().getType().cast<mlir::FunctionType>();
+		}
+		mlir::rlc::EntityType getEntityType() {
+			return getMainActionType().getResult(0).cast<mlir::rlc::EntityType>();
+		}
+	}];
 
 }
 
