@@ -43,21 +43,21 @@ fun three_in_a_line_player(Board b, Int player_id) -> Bool:
 	return false
 
 act play():
-	let b : Board
-	while !full(b):
+	let board : Board
+	while !full(board):
 		act mark(Int x, Int y)
 		req x < 3
 		req x >= 0
 		req y < 3
 		req y >= 0
-		req b.get(x, y) == 0
+		req board.get(x, y) == 0
 
-		b.set(x, y, int(b.playerTurn) + 1)
+		board.set(x, y, int(board.playerTurn) + 1)
 
-		if b.three_in_a_line_player(int(b.playerTurn) + 1):
+		if board.three_in_a_line_player(int(board.playerTurn) + 1):
 			return
 
-		b.playerTurn = !b.playerTurn
+		board.playerTurn = !board.playerTurn
 
 fun main() -> Int:
 	let game = play()
@@ -66,4 +66,4 @@ fun main() -> Int:
 	game.mark(1, 1)
 	game.mark(2, 0)
 	game.mark(2, 2)
-	return int(game.b.three_in_a_line_player(1)) - 1
+	return int(game.board.three_in_a_line_player(1)) - 1
