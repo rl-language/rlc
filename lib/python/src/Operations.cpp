@@ -79,6 +79,19 @@ mlir::LogicalResult mlir::rlc::python::PythonFun::emit(
 
 	OS << "\n";
 
+	OS << "signatures[" << getSymName() << "] = [";
+	if (getFunctionType().getNumResults() != 0)
+		writeTypeName(OS, getFunctionType().getResult(0));
+	else
+		OS << "None";
+	OS << ", ";
+	for (mlir::Type type : getFunctionType().getInputs())
+	{
+		writeTypeName(OS, type);
+		OS << ", ";
+	}
+	OS << "]\n";
+
 	return mlir::success();
 }
 
@@ -166,13 +179,16 @@ mlir::LogicalResult mlir::rlc::python::CTypesLoad::emit(
 {
 	OS << "from ctypes import *\n";
 	OS << "from typing import overload\n";
+	OS << "from pathlib import Path\n";
 	OS << "import builtins\n";
 	OS << "from collections import defaultdict\n\n";
-	OS << "lib = CDLL(\"" << getLibName() << "\")\n";
+	OS << "lib = CDLL(Path(__file__).resolve().parent / \"" << getLibName()
+		 << "\")\n";
 	context.registerValue(getResult(), "lib");
 
 	OS << "actions = defaultdict(list)\n";
 	OS << "args_info = {}\n";
+	OS << "signatures = {}\n";
 
 	return mlir::success();
 }
@@ -207,15 +223,20 @@ mlir::LogicalResult mlir::rlc::python::PythonActionInfo::emit(
 	for (auto& arg : getBody().getArguments())
 	{
 		assert(std::distance(arg.getUses().begin(), arg.getUses().end()) <= 1);
-		for (auto& use : arg.getUses())
+		if (not arg.getUses().empty())
 		{
+			auto& Use = *arg.getUses().begin();
 			auto argConstraint =
 					mlir::cast<mlir::rlc::python::PythonArgumentConstraint>(
-							use.getOwner());
+							Use.getOwner());
 			OS << "(" << argConstraint.getMin() << ", " << argConstraint.getMax()
 				 << ")";
-			OS << ", ";
 		}
+		else
+		{
+			OS << "None";
+		}
+		OS << ", ";
 	}
 	OS << "]\n\n";
 

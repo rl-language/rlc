@@ -250,6 +250,19 @@ class FunctionToPyFunction
 	}
 };
 
+static mlir::rlc::EntityType getActionTypeOfActionStatement(
+		mlir::rlc::ActionStatement action)
+{
+	auto* currentOp = action.getOperation()->getParentOp();
+	assert(currentOp != nullptr);
+	while (not mlir::dyn_cast<mlir::rlc::ActionFunction>(currentOp))
+	{
+		currentOp = currentOp->getParentOp();
+		assert(currentOp != nullptr);
+	}
+	return mlir::cast<mlir::rlc::ActionFunction>(currentOp).getEntityType();
+}
+
 static void emitActionContraints(
 		mlir::rlc::ActionStatement action,
 		mlir::Value emittedPythonFunction,
@@ -259,20 +272,28 @@ static void emitActionContraints(
 	auto created = rewriter.create<mlir::rlc::python::PythonActionInfo>(
 			action->getLoc(), emittedPythonFunction);
 
+	mlir::rlc::EntityType ActionType = getActionTypeOfActionStatement(action);
+
 	llvm::SmallVector<mlir::Location, 2> locs;
+	llvm::SmallVector<mlir::Type, 2> types;
+
+	locs.push_back(action.getLoc());
+	types.push_back(ActionType);
+
 	for (size_t i = 0; i < action.getResultTypes().size(); i++)
 		locs.push_back(action.getLoc());
 
+	for (auto type : action.getResultTypes())
+		types.push_back(type);
+
 	auto* block = rewriter.createBlock(
-			&created.getBody(),
-			created.getBody().begin(),
-			action.getResultTypes(),
-			locs);
+			&created.getBody(), created.getBody().begin(), types, locs);
 
 	rewriter.setInsertionPoint(block, block->begin());
 
 	for (const auto& [pythonArg, rlcArg] : llvm::zip(
-					 block->getArguments(), action.getPrecondition().getArguments()))
+					 block->getArguments().drop_front(),
+					 action.getPrecondition().getArguments()))
 	{
 		const auto& argInfo = analysis.getBoundsOf(rlcArg);
 		rewriter.create<mlir::rlc::python::PythonArgumentConstraint>(
@@ -292,13 +313,13 @@ static void emitActionContraints(
 			action->getLoc(), emittedPythonFunction);
 
 	llvm::SmallVector<mlir::Location, 2> locs;
-	for (size_t i = 0; i < action.getFunctionType().getNumResults(); i++)
+	for (size_t i = 0; i < action.getFunctionType().getNumInputs(); i++)
 		locs.push_back(action.getLoc());
 
 	auto* block = rewriter.createBlock(
 			&created.getBody(),
 			created.getBody().begin(),
-			action.getFunctionType().getResults(),
+			action.getFunctionType().getInputs(),
 			locs);
 
 	rewriter.setInsertionPoint(block, block->begin());
@@ -345,7 +366,7 @@ class ActionDeclToTNothing
 				rewriter,
 				getTypeConverter(),
 				op.getUnmangledName(),
-				mlir::rlc::mangledName(op.getMangledName(), op.getFunctionType()),
+				op.getMangledName(),
 				op.getArgNames(),
 				op.getFunctionType());
 
@@ -414,7 +435,7 @@ void rlc::RLCToPython::runOnOperation()
 	auto lib = builder.create<mlir::rlc::python::CTypesLoad>(
 			getOperation().getLoc(),
 			mlir::rlc::python::CDLLType::get(&getContext()),
-			"./lib.so");
+			"lib.so");
 	mlir::ConversionTarget target(getContext());
 
 	mlir::TypeConverter ctypesConverter;
