@@ -9,8 +9,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: fetch-llvm
+      run: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 15 all && sudo apt-get install libmlir-15-dev mlir-15-tools
+    - name: showllvm
+      run: ls /lib/cmake/
     - name: collect-dependencies
-      run: git submodule update --recursive --init 
-    - name: build 
+      run: git submodule update --recursive --init
+    - name: build
       run: mkdir build && cd build && cmake ../ && make all -j4 && make test
 
