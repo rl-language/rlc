@@ -186,6 +186,8 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 		values.add(
 				action.getUnmangledName(), action.getOperation()->getOpResult(0));
 
+		values.add("is_done", action.getIsDoneFunction());
+
 		size_t actionIndex = 0;
 		action.walk([&](mlir::rlc::ActionStatement statement) {
 			// before we type checked we do not know what the generated sub

@@ -10,9 +10,9 @@ fun set(Board b, Int x, Int y, Int val):
 
 fun full(Board b) -> Bool:
 	let x = 0
-	let y = 0
 
 	while x < 3:
+		let y = 0
 		while y < 3:
 			if b.get(x, y) == 0:
 				return false
@@ -62,8 +62,18 @@ act play():
 fun main() -> Int:
 	let game = play()
 	game.mark(0, 0)
+	if game.board.full():
+		return 1
 	game.mark(1, 0)
+	if game.board.full():
+		return 2
 	game.mark(1, 1)
+	if game.board.full():
+		return 3
 	game.mark(2, 0)
+	if game.board.full():
+		return 4
 	game.mark(2, 2)
+	if game.board.full():
+		return 5
 	return int(game.board.three_in_a_line_player(1)) - 1

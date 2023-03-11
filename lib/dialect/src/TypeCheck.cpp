@@ -508,6 +508,11 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 		auto newAction = rewriter.create<mlir::rlc::ActionFunction>(
 				fun.getLoc(),
 				actionType,
+				mlir::FunctionType::get(
+						rewriter.getContext(),
+						mlir::TypeRange({ builder.typeOfAction(fun) }),
+						mlir::TypeRange(
+								{ mlir::rlc::BoolType::get(rewriter.getContext()) })),
 				generatedFunctions,
 				fun.getUnmangledName(),
 				fun.getArgNames());

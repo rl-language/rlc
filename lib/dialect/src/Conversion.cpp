@@ -1296,13 +1296,31 @@ static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
 		mlir::IRRewriter& rewriter,
 		mlir::Value resumeIndex)
 {
+	llvm::SmallVector<mlir::Operation*> ops;
+	for (auto& operation : fun.getBody().getOps())
+		ops.push_back(&operation);
+
+	for (auto* operation : ops)
+	{
+		if (not mlir::isa<mlir::rlc::ReturnStatement>(operation) and
+				not mlir::isa<mlir::rlc::Yield>(operation))
+			continue;
+
+		rewriter.setInsertionPoint(operation);
+		auto newResumeIndexValue = rewriter.create<mlir::rlc::Constant>(
+				fun.getLoc(), static_cast<int64_t>(-1));
+
+		rewriter.create<mlir::rlc::AssignOp>(
+				fun.getLoc(), resumeIndex, newResumeIndexValue);
+	}
+
 	llvm::SmallVector<mlir::Block*, 4> resumePoints;
 	llvm::SmallVector<mlir::Block*, 4> blocksToAnalyze;
 
 	for (auto& block : fun.getBlocks())
 		blocksToAnalyze.push_back(&block);
 
-	int64_t newResumeIndex = 0;
+	int64_t newResumeIndex = 1;
 	while (not blocksToAnalyze.empty())
 	{
 		auto& block = blocksToAnalyze.back();
@@ -1317,11 +1335,11 @@ static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
 			resumePoints.push_back(rewriter.splitBlock(block, std::next(iter)));
 			blocksToAnalyze.push_back(resumePoints.back());
 
-			newResumeIndex++;
 			rewriter.setInsertionPoint(casted);
 
 			auto newResumeIndexValue =
 					rewriter.create<mlir::rlc::Constant>(casted.getLoc(), newResumeIndex);
+			newResumeIndex++;
 			rewriter.create<mlir::rlc::AssignOp>(
 					casted.getLoc(), resumeIndex, newResumeIndexValue);
 			rewriter.create<mlir::rlc::Yield>(casted.getLoc());
@@ -1659,6 +1677,32 @@ void rlc::RLCLowerActions::runOnOperation()
 		replaceAllAccessesWithIndirectOnes(action, builder);
 		replaceAllDeclarationsWithIndirectOnes(action, builder);
 		emitActionWrapperCalls(action, builder);
+
+		rewriter.setInsertionPoint(action);
+		auto isDoneFunction = rewriter.create<mlir::rlc::FunctionOp>(
+				action.getLoc(),
+				"is_done",
+				action.getIsDoneFunctionType(),
+				rewriter.getStrArrayAttr({ "frame" }));
+
+		auto* block = rewriter.createBlock(
+				&isDoneFunction.getBody(),
+				isDoneFunction.getBody().begin(),
+				action.getEntityType(),
+				{ action.getLoc() });
+		rewriter.setInsertionPoint(block, block->begin());
+		auto index = rewriter.create<mlir::rlc::MemberAccess>(
+				action.getLoc(), block->getArgument(0), 0);
+		auto constant = rewriter.create<mlir::rlc::Constant>(
+				action.getLoc(), static_cast<int64_t>(-1));
+		auto toReturn =
+				rewriter.create<mlir::rlc::EqualOp>(action.getLoc(), index, constant);
+		auto retStatement = rewriter.create<mlir::rlc::ReturnStatement>(
+				action.getLoc(), isDoneFunction.getFunctionType().getResult(0));
+		rewriter.createBlock(&retStatement.getBody());
+		rewriter.create<mlir::rlc::Yield>(
+				action.getLoc(), mlir::ValueRange({ toReturn }));
+		action.getIsDoneFunction().replaceAllUsesWith(isDoneFunction);
 
 		rewriter.setInsertionPoint(action);
 		auto actionType = builder.typeOfAction(action);

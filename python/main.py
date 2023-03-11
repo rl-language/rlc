@@ -1,5 +1,6 @@
 import argparse
 from loader import Simulation, compile
+from solvers import find_end
 
 
 def main():
@@ -34,15 +35,20 @@ def main():
 
     args = parser.parse_args()
 
-
-    sim = Simulation(args.wrapper[0]) if len(args.wrapper) == 1 else compile(args.source, args.rlc)
+    sim = (
+        Simulation(args.wrapper[0])
+        if len(args.wrapper) == 1
+        else compile(args.source, args.rlc)
+    )
 
     if args.show_actions is not None:
         sim.dump()
         return
 
     state = sim.start(["play"])
-    state.execute(args.action)
+    state.execute(*args.action)
+    state.dump()
+    find_end(sim, state)
 
 
 if __name__ == "__main__":

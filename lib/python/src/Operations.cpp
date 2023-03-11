@@ -79,6 +79,8 @@ mlir::LogicalResult mlir::rlc::python::PythonFun::emit(
 
 	OS << "\n";
 
+	OS << "wrappers[\"" << getOverloadName() << "\"].append(" << getName()
+		 << ")\n";
 	OS << "signatures[" << getSymName() << "] = [";
 	if (getFunctionType().getNumResults() != 0)
 		writeTypeName(OS, getFunctionType().getResult(0));
@@ -124,11 +126,6 @@ mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
 			 << typeToString(pythonCTypesToBuiltin(type), true) << ":\n";
 		OS.indent((context.getIndent() + 2) * 4);
 		OS << "return self._" << name.cast<mlir::StringAttr>().str();
-		if (type.isa<mlir::rlc::python::CTypesFloatType>() or
-				type.isa<mlir::rlc::python::CTypesIntType>())
-		{
-			OS << ".value";
-		}
 		OS << "\n\n";
 	}
 
@@ -187,6 +184,7 @@ mlir::LogicalResult mlir::rlc::python::CTypesLoad::emit(
 	context.registerValue(getResult(), "lib");
 
 	OS << "actions = defaultdict(list)\n";
+	OS << "wrappers = defaultdict(list)\n";
 	OS << "args_info = {}\n";
 	OS << "signatures = {}\n";
 

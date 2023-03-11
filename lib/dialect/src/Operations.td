@@ -303,9 +303,9 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
-  let results = (outs FunctionType:$result, Variadic<FunctionType>:$actions);
+  let results = (outs FunctionType:$result, FunctionType:$is_done_function, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
-	$unmangledName $argNames type($result) type($actions) $precondition $body attr-dict 
+	$unmangledName $argNames type($result) type($actions) type($is_done_function) $precondition $body attr-dict 
   }];
     let extraClassDeclaration = extraBaseClassDeclaration # [{
 
@@ -315,6 +315,10 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
 
 		mlir::FunctionType getSubActionType(size_t index) {
 			return getActions().getTypes()[index].cast<mlir::FunctionType>();
+		}
+
+		mlir::FunctionType getIsDoneFunctionType() {
+			return getIsDoneFunction().getType().cast<mlir::FunctionType>();
 		}
 
 		mlir::FunctionType getMainActionType() {

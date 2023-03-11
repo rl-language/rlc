@@ -3,6 +3,34 @@ import inspect
 from collections import defaultdict
 from tempfile import TemporaryDirectory
 from subprocess import run
+from ctypes import Structure, Array
+
+
+def dump(generated_struct, indendation=0):
+    if isinstance(generated_struct, Structure):
+        print()
+        for field_name, field_type in generated_struct._fields_:
+            print((" " * indendation) + field_name[1:] + ": ", end="")
+            dump(getattr(generated_struct, field_name), indendation + 1)
+            print()
+        return
+
+    if (
+        isinstance(generated_struct, bool)
+        or isinstance(generated_struct, int)
+        or isinstance(generated_struct, float)
+    ):
+        print(generated_struct, end="")
+        return
+
+    if isinstance(generated_struct, Array):
+        for i in range(len(generated_struct)):
+            dump(generated_struct[i], indendation + 1)
+            print(", ", end="")
+        return
+
+    print(generated_struct)
+    assert False
 
 
 def import_file(name, file_path):
@@ -82,10 +110,11 @@ class Argument:
 
 
 class Action:
-    def __init__(self, action, name: str, module):
+    def __init__(self, action, precondition, name: str, module):
         self.action = action
         self.name = name
         self.module = module
+        self.precondition = precondition
 
         arg_info = self.module.module.args_info[self.action]
         self.args = [Argument(self, i) for i in range(len(arg_info))]
@@ -126,6 +155,12 @@ class Action:
         for arg in self.args:
             arg.dump()
 
+    def can_run(self, state, *args) -> bool:
+        return self.precondition(state.state, *args)
+
+    def run(self, state, *args):
+        return self.action(state.state, *args)
+
     def invoke(self, *args):
         casted_args = [
             formal_arg.parse(string_arg)
@@ -141,11 +176,23 @@ class State:
         self.simulation = simulation
         self.state = state
 
-    def execute(self, arguments):
+    def execute(self, *arguments):
         return self.simulation.execute([arguments[0], self.state, *arguments[1:]])
 
+    def is_done(self) -> bool:
+        return self.state.resume_index == -1
+
     def dump(self):
-        print(self.state)
+        dump(self.state)
+
+    @property
+    def actions(self) -> [Action]:
+        return [
+            action
+            for action in self.simulation.actions
+            if len(action.arg_types) != 0 and action.arg_types[0] == type(self.state)
+        ]
+
 
 class Simulation:
     def __init__(self, wrapper: str):
@@ -155,7 +202,15 @@ class Simulation:
         self.actions = []
         for action_name in self.action_names:
             for overload in self.module.actions[action_name]:
-                self.actions.append(Action(overload, action_name, self))
+                precodition = [
+                    action
+                    for action in self.module.wrappers["can_" + action_name]
+                    if self.module.signatures[action][1:]
+                    == self.module.signatures[overload][1:]
+                ]
+                assert len(precodition) <= 1
+                print(action_name, len(precodition))
+                self.actions.append(Action(overload, precodition[0] if len(precodition) == 1 else lambda *x : True, action_name, self))
 
         self.action_to_simulation_init = {}
         self.entity_type_to_simulation_init = {}
@@ -181,6 +236,9 @@ class Simulation:
             ] = self.entity_type_to_simulation_init[entity_type]
             self.names_to_overloads[action.name].append(action)
 
+    def get_actions(self) -> [Action]:
+        return self.actions
+
     @property
     def action_names(self) -> [str]:
         return [name for name in self.module.actions.keys()]
@@ -193,7 +251,7 @@ class Simulation:
             for overload in self.get_overloads_of_action(name):
                 overload.dump()
 
-    def execute(self, arguments, include_simulations_init = False):
+    def execute(self, arguments, include_simulations_init=False):
         assert len(arguments) != 0
         action_name = arguments[0]
         args = arguments[1:]
@@ -203,12 +261,16 @@ class Simulation:
             print("No known action named {}".format(action_name))
             return
 
-        overload = self.resolve_overload(action_name, len(args), include_simulations_init)
+        overload = self.resolve_overload(
+            action_name, len(args), include_simulations_init
+        )
 
         if overload is None:
             print(
-                "No known action named {} with {} arguments".format( action_name, len(args)
-            ))
+                "No known action named {} with {} arguments".format(
+                    action_name, len(args)
+                )
+            )
             return
 
         return overload.invoke(*args)
@@ -216,7 +278,9 @@ class Simulation:
     def start(self, args) -> State:
         return State(self, self.execute(args, True))
 
-    def resolve_overload(self, overload_name, args_count, include_simulations_init=False):
+    def resolve_overload(
+        self, overload_name, args_count, include_simulations_init=False
+    ):
         for overload in self.get_overloads_of_action(overload_name):
             if not include_simulations_init and overload.is_simulation_init():
                 continue
@@ -225,8 +289,25 @@ class Simulation:
                 return overload
         return None
 
+
 def compile(source, rlc_compiler="rlc"):
     with TemporaryDirectory() as tmp_dir:
-        assert(run([rlc_compiler, source, "--python", "-o", "{}/wrapper.py".format(tmp_dir)]).returncode == 0)
-        assert(run([rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]).returncode == 0)
+        assert (
+            run(
+                [
+                    rlc_compiler,
+                    source,
+                    "--python",
+                    "-o",
+                    "{}/wrapper.py".format(tmp_dir),
+                ]
+            ).returncode
+            == 0
+        )
+        assert (
+            run(
+                [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]
+            ).returncode
+            == 0
+        )
         return Simulation(tmp_dir + "/wrapper.py")

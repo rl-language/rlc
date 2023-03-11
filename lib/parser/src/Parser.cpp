@@ -800,6 +800,8 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
 	return builder.create<mlir::rlc::ActionFunction>(
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),
+			mlir::rlc::UnknownType::get(builder.getContext()),
+			mlir::TypeRange(),
 			builder.getStringAttr(nm),
 			builder.getStrArrayAttr(argName));
 }
