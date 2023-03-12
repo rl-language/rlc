@@ -5,7 +5,7 @@ from solvers import find_end
 
 def main():
     parser = argparse.ArgumentParser(
-        "run_sym", description="runs a action of the simulation"
+        "run", description="runs a action of the simulation"
     )
     parser.add_argument(
         "--wrapper",
@@ -31,7 +31,6 @@ def main():
         help="path to .rl source file",
     )
     parser.add_argument("--show-actions", "-a", action=argparse.BooleanOptionalAction)
-    parser.add_argument("action", nargs="*")
 
     args = parser.parse_args()
 
@@ -46,7 +45,6 @@ def main():
         return
 
     state = sim.start(["play"])
-    state.execute(*args.action)
     state.dump()
     find_end(sim, state)
 

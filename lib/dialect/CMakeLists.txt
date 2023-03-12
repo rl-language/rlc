@@ -40,7 +40,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}
 add_custom_target(${dialectName}InterfacesInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/Interfaces.inc)
 add_custom_target(${dialectName}InterfacesIncludeInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Interfaces.inc)
 
-add_dependencies(dialect ${dialectName}DialectInc ${dialectName}DialectIncludeInc ${dialectName}TypesInc ${dialectName}TypesIncludeInc ${dialectName}OperationsInc ${dialectName}OperationsIncludeInc ${dialectName}InterfacesInc ${dialectName}InterfacesIncludeInc)
+add_dependencies(${dialectName} ${dialectName}DialectInc ${dialectName}DialectIncludeInc ${dialectName}TypesInc ${dialectName}TypesIncludeInc ${dialectName}OperationsInc ${dialectName}OperationsIncludeInc ${dialectName}InterfacesInc ${dialectName}InterfacesIncludeInc)
 endmacro(add_rlc_dialect)
 
 add_rlc_dialect(dialect)
