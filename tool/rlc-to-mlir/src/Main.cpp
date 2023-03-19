@@ -35,7 +35,9 @@ namespace mlir
 	void registerFromRLCTranslation()
 	{
 		mlir::TranslateToMLIRRegistration fromRLC(
-				"import-rlc", [](llvm::SourceMgr& sourceMgr, MLIRContext* context) {
+				"import-rlc",
+				"parse a rlc file",
+				[](llvm::SourceMgr& sourceMgr, MLIRContext* context) {
 					return ::rlcToMlir(sourceMgr, context);
 				});
 	}

@@ -139,7 +139,7 @@ static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 
 static mlir::LogicalResult deduceFunctionTypes(mlir::ModuleOp op)
 {
-	mlir::rlc::ModuleBuilder builder(op);
+	mlir::rlc::RLCTypeConverter converter(op);
 	mlir::IRRewriter rewriter(op.getContext());
 
 	llvm::SmallVector<mlir::rlc::FunctionOp, 4> funs;
@@ -151,7 +151,7 @@ static mlir::LogicalResult deduceFunctionTypes(mlir::ModuleOp op)
 		rewriter.setInsertionPoint(fun);
 
 		auto deducedType =
-				builder.getConverter().convertType(fun.getFunctionType());
+				converter.getConverter().convertType(fun.getFunctionType());
 		if (deducedType == nullptr)
 		{
 			fun.emitRemark("in function declaration " + fun.getUnmangledName());
@@ -297,7 +297,7 @@ static mlir::LogicalResult emitBuiltinCasts(mlir::ModuleOp op)
 
 static mlir::LogicalResult declareImplicitAssign(mlir::ModuleOp op)
 {
-	mlir::rlc::ModuleBuilder builder(op);
+	auto table = mlir::rlc::makeValueTable(op);
 
 	mlir::IRRewriter rewriter(op.getContext());
 
@@ -307,9 +307,7 @@ static mlir::LogicalResult declareImplicitAssign(mlir::ModuleOp op)
 	{
 		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
 		if (auto overloads = mlir::rlc::findOverloads(
-						builder.getSymbolTable(),
-						"_assign",
-						{ entity.getType(), entity.getType() });
+						table, "_assign", { entity.getType(), entity.getType() });
 				not overloads.empty())
 		{
 			continue;
@@ -327,7 +325,7 @@ static mlir::LogicalResult declareImplicitAssign(mlir::ModuleOp op)
 				rewriter.getStrArrayAttr({ "arg0", "arg1" }));
 
 		funs.emplace_back(fun);
-		builder.getSymbolTable().add("_assign", fun);
+		table.add("_assign", fun);
 	}
 
 	return mlir::success();
@@ -383,7 +381,7 @@ static mlir::LogicalResult emitImplicitAssigments(mlir::ModuleOp op)
 
 static mlir::LogicalResult declareImplicitInits(mlir::ModuleOp op)
 {
-	mlir::rlc::ModuleBuilder builder(op);
+	auto table = mlir::rlc::makeValueTable(op);
 
 	mlir::IRRewriter rewriter(op.getContext());
 
@@ -391,8 +389,8 @@ static mlir::LogicalResult declareImplicitInits(mlir::ModuleOp op)
 
 	for (auto entity : op.getOps<mlir::rlc::EntityDeclaration>())
 	{
-		if (auto overloads = mlir::rlc::findOverloads(
-						builder.getSymbolTable(), "_init", { entity.getType() });
+		if (auto overloads =
+						mlir::rlc::findOverloads(table, "_init", { entity.getType() });
 				not overloads.empty())
 		{
 			continue;
@@ -407,7 +405,7 @@ static mlir::LogicalResult declareImplicitInits(mlir::ModuleOp op)
 				op.getLoc(), "_init", fType, rewriter.getStrArrayAttr({ "arg0" }));
 
 		funs.emplace_back(fun);
-		builder.getSymbolTable().add("_init", fun);
+		table.add("_init", fun);
 	}
 
 	return mlir::success();

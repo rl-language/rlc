@@ -97,7 +97,7 @@ static void registerConversions(
 					mlir::emitError(
 							mlir::UnknownLoc::get(use.getContext()),
 							"type " + use.getReadType() + " not found");
-					return llvm::None;
+					return std::nullopt;
 				}
 
 				if (use.getSize() != 0)
@@ -161,11 +161,15 @@ static void registerConversions(
 			[&](mlir::rlc::EntityType t) -> mlir::Type { return t; });
 }
 
-mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
-		: op(op), values(makeValueTable(op)), types(makeTypeTable(op)), converter()
+mlir::rlc::RLCTypeConverter::RLCTypeConverter(mlir::ModuleOp op)
+		: types(makeTypeTable(op))
 {
 	registerConversions(converter, types);
+}
 
+mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
+		: op(op), values(makeValueTable(op)), converter(op)
+{
 	for (auto fun : values.get("_init"))
 	{
 		typeToInitFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
@@ -180,7 +184,8 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
-		auto type = types.getOne((action.getUnmangledName() + "Entity").str());
+		auto type = converter.getTypes().getOne(
+				(action.getUnmangledName() + "Entity").str());
 		actionToActionType[action.getResult()] = type;
 		actionTypeToAction[type] = action.getResult();
 		values.add(

@@ -872,7 +872,7 @@ class FunctionRewriter
 		rewriter.eraseOp(op);
 		auto convered =
 				rewriter.convertRegionTypes(&newF.getRegion(), *typeConverter);
-		assert(convered.hasValue());
+		assert(mlir::succeeded(convered));
 		return mlir::success();
 	}
 };

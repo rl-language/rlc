@@ -303,7 +303,7 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
-  let results = (outs FunctionType:$result, FunctionType:$is_done_function, Variadic<FunctionType>:$actions);
+  let results = (outs FunctionType:$result, AnyFunctionType:$is_done_function, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
 	$unmangledName $argNames type($result) type($actions) type($is_done_function) $precondition $body attr-dict 
   }];

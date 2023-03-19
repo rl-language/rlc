@@ -141,14 +141,11 @@ static void initLLVM()
 	initializeCore(Registry);
 
 	initializeScalarOpts(Registry);
-	initializeObjCARCOpts(Registry);
 	initializeVectorization(Registry);
 	initializeIPO(Registry);
 	initializeAnalysis(Registry);
 	initializeTransformUtils(Registry);
 	initializeInstCombine(Registry);
-	initializeAggressiveInstCombine(Registry);
-	initializeInstrumentation(Registry);
 	initializeTarget(Registry);
 	// For codegen passes, only passes that do IR to IR transformation are
 	// supported.
@@ -454,7 +451,7 @@ int main(int argc, char *argv[])
 				outputFile,
 				"-lm",
 				shared ? "--shared" : "" },
-			llvm::None,
+			std::nullopt,
 			{},
 			0,
 			0,

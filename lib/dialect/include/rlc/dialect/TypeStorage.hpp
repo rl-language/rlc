@@ -42,12 +42,12 @@ namespace mlir::rlc
 				llvm::ArrayRef<mlir::Type> body,
 				llvm::ArrayRef<std::string> fieldNames)
 		{
-			if (containedTypes.hasValue() and body == *containedTypes)
+			if (containedTypes.has_value() and body == *containedTypes)
 				return mlir::success();
 
 			// If the contained type has been initialized already, and the call tries
 			// to change it, reject the change.
-			if (containedTypes.hasValue())
+			if (containedTypes.has_value())
 				return mlir::failure();
 
 			containedTypes = llvm::SmallVector<mlir::Type, 2>();
@@ -64,15 +64,12 @@ namespace mlir::rlc
 
 		[[nodiscard]] bool isInitialized() const
 		{
-			return containedTypes.hasValue();
+			return containedTypes.has_value();
 		}
 
 		llvm::ArrayRef<std::string> getFieldNames() const { return fieldNames; }
 
-		llvm::ArrayRef<mlir::Type> getBody() const
-		{
-			return containedTypes.getValue();
-		}
+		llvm::ArrayRef<mlir::Type> getBody() const { return *containedTypes; }
 
 		private:
 		llvm::StringRef name;

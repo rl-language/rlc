@@ -25,33 +25,6 @@ void mlir::rlc::RLCDialect::registerTypes()
 
 using namespace mlir::rlc;
 
-void mlir::rlc::FunctionUseType::walkImmediateSubElements(
-		llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
-		llvm::function_ref<void(mlir::Type)> walkTypesFn) const
-{
-	for (auto type : getSubTypes())
-		walkTypesFn(type);
-}
-
-mlir::Type mlir::rlc::FunctionUseType::replaceImmediateSubElements(
-		ArrayRef<Attribute> replAttrs, ArrayRef<Type> replTypes) const
-{
-	return get(getContext(), replTypes);
-}
-
-void mlir::rlc::ArrayType::walkImmediateSubElements(
-		llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
-		llvm::function_ref<void(mlir::Type)> walkTypesFn) const
-{
-	walkTypesFn(getUnderlying());
-}
-
-mlir::Type mlir::rlc::ArrayType::replaceImmediateSubElements(
-		ArrayRef<Attribute> replAttrs, ArrayRef<Type> replTypes) const
-{
-	return get(getContext(), replTypes.front(), this->getSize());
-}
-
 EntityType EntityType::getIdentified(MLIRContext *context, StringRef name)
 {
 	return Base::get(context, name);
@@ -203,7 +176,7 @@ mlir::Type EntityType::print(mlir::AsmPrinter &p) const
 	::llvm::StringRef mnemonic;
 	::mlir::Type genType;
 	auto parseResult = generatedTypeParser(parser, &mnemonic, genType);
-	if (parseResult.hasValue())
+	if (parseResult.has_value())
 		return genType;
 
 	if (mnemonic == EntityType::getMnemonic())

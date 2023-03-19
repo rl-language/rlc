@@ -67,13 +67,26 @@ namespace mlir::rlc
 	llvm::SmallVector<mlir::Value, 2> findOverloads(
 			ValueTable& table, llvm::StringRef name, mlir::TypeRange arguments);
 
+	class RLCTypeConverter
+	{
+		public:
+		RLCTypeConverter(mlir::ModuleOp op);
+		mlir::TypeConverter& getConverter() { return converter; }
+		const TypeTable& getTypes() const { return types; }
+		TypeTable& getTypes() { return types; }
+
+		private:
+		TypeTable types;
+		mlir::TypeConverter converter;
+	};
+
 	class ModuleBuilder
 	{
 		public:
 		ModuleBuilder(mlir::ModuleOp op);
 
 		ValueTable& getSymbolTable() { return values; }
-		mlir::TypeConverter& getConverter() { return converter; }
+		mlir::TypeConverter& getConverter() { return converter.getConverter(); }
 
 		mlir::Value getAssignFunctionOf(mlir::Type type)
 		{
@@ -104,8 +117,7 @@ namespace mlir::rlc
 		private:
 		mlir::ModuleOp op;
 		ValueTable values;
-		TypeTable types;
-		mlir::TypeConverter converter;
+		RLCTypeConverter converter;
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToInitFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToAssignFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> actionTypeToAction;

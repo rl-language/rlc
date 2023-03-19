@@ -24,7 +24,7 @@ mkdir rlc-infrastructure
 cd rlc-infrastructure
 
 # INSTALL LLVM
-git clone git@github.com:llvm/llvm-project.git --depth=1 -b release/15.x
+git clone git@github.com:llvm/llvm-project.git --depth=1 -b release/16.x
 mkdir llvm-install-debug
 mkdir llvm-debug
 mkdir llvm-install-release
