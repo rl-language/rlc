@@ -61,9 +61,11 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../rlc-install-debug/ ../r
 ninja all
 ninja test
 ninja install
+cd ..
 
 # RUN 
-python python/main.py --source ./tool/rlc/test/tris.rl
+cd rlc
+python python/solve.py --source ./tool/rlc/test/tris.rl
 echo "ALL DONE!"
 
 
