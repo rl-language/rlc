@@ -48,6 +48,11 @@ namespace mlir::rlc
 
 		void add(llvm::StringRef name, T value) { values[name].push_back(value); }
 
+		const llvm::StringMap<llvm::SmallVector<T, 2>>& allDirectValues()
+		{
+			return values;
+		}
+
 		private:
 		SymbolTable* parent;
 		llvm::StringMap<llvm::SmallVector<T, 2>> values;
@@ -100,6 +105,12 @@ namespace mlir::rlc
 			return typeToInitFunction[type];
 		}
 
+		llvm::ArrayRef<mlir::Value> getNonInitOrAssignFunctionOf(mlir::Type type)
+		{
+			assert(typeToInitFunction.count(type) != 0);
+			return typeToFunctions[type];
+		}
+
 		bool isEntityOfAction(mlir::Type type)
 		{
 			return actionTypeToAction.count(type) != 0;
@@ -114,6 +125,16 @@ namespace mlir::rlc
 			return actionDeclToActionNames[val];
 		}
 
+		mlir::Operation* actionFunctionValueToActionStatement(mlir::Value val)
+		{
+			return actionFunctionResultToActionStement[val];
+		}
+
+		llvm::ArrayRef<mlir::Value> getActionsOrZeroArityFunctions()
+		{
+			return actionsAndZeroParametersFunctions;
+		}
+
 		private:
 		mlir::ModuleOp op;
 		ValueTable values;
@@ -122,6 +143,11 @@ namespace mlir::rlc
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToAssignFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> actionTypeToAction;
 		llvm::DenseMap<mlir::Value, mlir::Type> actionToActionType;
+		std::vector<mlir::Value> actionsAndZeroParametersFunctions;
+		llvm::DenseMap<mlir::Value, mlir::Operation*>
+				actionFunctionResultToActionStement;
+		llvm::DenseMap<mlir::Type, llvm::SmallVector<mlir::Value, 4>>
+				typeToFunctions;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<mlir::Operation*, 4>>
 				actionDeclToActionStatements;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<std::string, 4>>

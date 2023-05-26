@@ -170,7 +170,7 @@ mlir::rlc::RLCTypeConverter::RLCTypeConverter(mlir::ModuleOp op)
 mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 		: op(op), values(makeValueTable(op)), converter(op)
 {
-	for (auto fun : values.get("_init"))
+	for (auto fun : values.get("init"))
 	{
 		typeToInitFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
 													 .getArgumentTypes()[0]] = fun;
@@ -180,6 +180,19 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 	{
 		typeToAssignFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
 														 .getArgumentTypes()[0]] = fun;
+	}
+	for (auto fun : op.getOps<mlir::rlc::FunctionOp>())
+	{
+		if (fun.getArgumentTypes().empty())
+		{
+			actionsAndZeroParametersFunctions.push_back(fun);
+			continue;
+		}
+
+		if (fun.getUnmangledName() == "init" or fun.getUnmangledName() == "_assign")
+			continue;
+
+		typeToFunctions[fun.getArgumentTypes().front()].push_back(fun);
 	}
 
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
@@ -192,6 +205,8 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 				action.getUnmangledName(), action.getOperation()->getOpResult(0));
 
 		values.add("is_done", action.getIsDoneFunction());
+		typeToFunctions[type].push_back(action.getIsDoneFunction());
+		actionsAndZeroParametersFunctions.push_back(action.getResult());
 
 		size_t actionIndex = 0;
 		action.walk([&](mlir::rlc::ActionStatement statement) {
@@ -200,11 +215,15 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 			if (not action.getActions().empty())
 			{
 				values.add(statement.getName(), action.getActions()[actionIndex]);
+				typeToFunctions[type].push_back(action.getActions()[actionIndex]);
+				actionFunctionResultToActionStement[action.getActions()[actionIndex]] =
+						statement;
 			}
 			actionDeclToActionNames[action.getResult()].push_back(
 					statement.getName().str());
 			actionDeclToActionStatements[action.getResult()].push_back(
 					statement.getOperation());
+
 			actionIndex++;
 		});
 	}

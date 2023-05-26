@@ -307,7 +307,7 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 		deducedType = array.getUnderlying();
 	}
 
-	auto candidate = findOverload(*getOperation(), table, "_init", deducedType);
+	auto candidate = findOverload(*getOperation(), table, "init", deducedType);
 	if (candidate == nullptr)
 	{
 		emitRemark("in construction expression");

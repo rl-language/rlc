@@ -1,5 +1,5 @@
 let CMAKE_TYPE = 0
-let BUILD_DIRECTORY = "build"
+let BUILD_DIRECTORY = "../rlc-debug"
 let CPPCOMPILER = "g++" 
 let CCOMPILER = "gcc"
 let BUILD_TYPE = "Debug"
@@ -14,10 +14,11 @@ let PLOTTER = "./plot.py"
 
 let g:ale_enabled = 0
 
-let DBGLLVM_LOC = "/home/massimo/Documents/llvm-project/install-debug/lib/cmake/llvm"
-let RELLLVM_LOC = "/home/massimo/Documents/llvm-project/install-release/lib/cmake/llvm"
+let DBGLLVM_LOC = "/home/massimo/Documents/example_rlc/rlc-infrastructure/llvm-install-debug/lib/cmake/llvm/"
+let RELLLVM_LOC = "/home/massimo/Documents/example_rlc/rlc-infrastructure/llvm-install-release/lib/cmake/llvm/"
+let s:path = expand('<sfile>:p:h')
 
-let g:ycm_clangd_binary_path = exepath("/home/massimo/llvm_install/bin/clangd")
+let g:ycm_clangd_binary_path = exepath("/home/massimo/Documents/example_rlc/rlc-infrastructure/llvm-install-release")
 
 
 let g:ctrlp_custom_ignore = '\v[\/](docs|release|build|gli|glbinding|benchmark|googletest|boostGraph|glfw|glm)|(\.(swp|ico|git|svn|lock))$'
@@ -26,9 +27,9 @@ function! s:updateCmake()
 
 	call AQAppend(":lcd " . g:BUILD_DIRECTORY)
 	let l:t = AQAppend(s:getBuildCommand())
-	call AQAppend(":lcd ../")
+	call AQAppend(":lcd " . s:path)
 	call AQAppendOpen(0, l:t)
-	call AQAppendCond("!cp " . g:BUILD_DIRECTORY . "/compile_commands.json ./", 1, l:t)
+	call AQAppendCond("!cp " . g:BUILD_DIRECTORY . "/compile_commands.json " . s:path, 1, l:t)
 endfunction
 
 function! s:setType(val, cmakeBuildBir, cCompiler, cppCompiler, buildType, extra, generator)
@@ -44,7 +45,7 @@ function! s:setType(val, cmakeBuildBir, cCompiler, cppCompiler, buildType, extra
 endfunction
 
 function! s:getBuildCommand()
-	let s:command =  "!cmake -DCMAKE_BUILD_TYPE=" . g:BUILD_TYPE .  " -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install" . " -DCMAKE_C_COMPILER=" . g:CCOMPILER . " -DCMAKE_CXX_COMPILER=" . g:CPPCOMPILER . " -G " . g:GENERATOR . " -DCMAKE_EXE_LINKER_FLAGS='-fuse-ld=" . g:LINKER ."' " . g:EXTRA_CONFIG . " -S ../"
+	let s:command =  "!cmake -DCMAKE_BUILD_TYPE=" . g:BUILD_TYPE .  " -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=./install" . " -DCMAKE_C_COMPILER=" . g:CCOMPILER . " -DCMAKE_CXX_COMPILER=" . g:CPPCOMPILER . " -G " . g:GENERATOR . " -DCMAKE_EXE_LINKER_FLAGS='-fuse-ld=" . g:LINKER ."' " . g:EXTRA_CONFIG . " -S " . s:path
 	return s:command
 endfunction
 
@@ -143,12 +144,12 @@ endfunction
 
 let EXTRA_CONFIG = s:getFlags('--coverage', "-DLLVM_DIR=".g:DBGLLVM_LOC)
 
-command! -nargs=0 CMDEBUG call s:setType(0, "build", "gcc", "g++", "Debug", s:getFlags('--coverage ', "-DLLVM_DIR=".g:DBGLLVM_LOC . " -DMLIR_DIR=".g:DBGLLVM_LOC . "/../mlir"), "Ninja")
-command! -nargs=0 CMRELEASE call s:setType(1, "release", "clang", "clang++", "Release", s:getFlags('', "-DLLVM_DIR=".g:RELLLVM_LOC . " -DMLIR_DIR=".g:RELLLVM_LOC . "/../mlir"), "Ninja")
-command! -nargs=0 CMASAN call s:setType(2, "build", "clang", "clang++", "Debug", s:getFlags(' -fsanitize=address -fno-omit-frame-pointer',"-DLLVM_DIR=".g:DBGLLVM_LOC ), "Ninja")
-command! -nargs=0 CMFUZZER call s:setType(5, "build", "clang", "clang++", "Debug", s:getFlags('', "-DBUILD_FUZZER=ON"), "Ninja")
-command! -nargs=0 CMTSAN call s:setType(3, "build", "clang", "clang++", "Debug", s:getFlags('-fsanitize=thread -O1', "-DLLVM_DIR=".g:DBGLLVM_LOC), "Ninja")
-command! -nargs=0 CMMSAN call s:setType(4, "build", "clang", "clang++", "Debug", s:getFlags('-fsanitize=memory -fPIE -fno-omit-frame-pointer -fsanitize-blacklist=../msan_ignores.txt', "-DLLVM_DIR=".g:DBGLLVM_LOC), "Ninja")
+command! -nargs=0 CMDEBUG call s:setType(0, "../rlc-debug", "gcc", "g++", "Debug", s:getFlags('--coverage ', "-DLLVM_DIR=".g:DBGLLVM_LOC . " -DMLIR_DIR=".g:DBGLLVM_LOC . "/../mlir"), "Ninja")
+command! -nargs=0 CMRELEASE call s:setType(1, "../rlc-release", "clang", "clang++", "Release", s:getFlags('', "-DLLVM_DIR=".g:RELLLVM_LOC . " -DMLIR_DIR=".g:RELLLVM_LOC . "/../mlir"), "Ninja")
+command! -nargs=0 CMASAN call s:setType(2, "../rlc-debug", "clang", "clang++", "Debug", s:getFlags(' -fsanitize=address -fno-omit-frame-pointer',"-DLLVM_DIR=".g:DBGLLVM_LOC ), "Ninja")
+command! -nargs=0 CMFUZZER call s:setType(5, "../rlc-debug", "clang", "clang++", "Debug", s:getFlags('', "-DBUILD_FUZZER=ON"), "Ninja")
+command! -nargs=0 CMTSAN call s:setType(3, "../rlc-debug", "clang", "clang++", "Debug", s:getFlags('-fsanitize=thread -O1', "-DLLVM_DIR=".g:DBGLLVM_LOC), "Ninja")
+command! -nargs=0 CMMSAN call s:setType(4, "../rlc-debug", "clang", "clang++", "Debug", s:getFlags('-fsanitize=memory -fPIE -fno-omit-frame-pointer -fsanitize-blacklist=../msan_ignores.txt', "-DLLVM_DIR=".g:DBGLLVM_LOC), "Ninja")
 
 command! -nargs=0 REBUILD call s:Rebuild()
 command! -nargs=0 TALL call s:RunTest(g:TARGET . "Test", "lib/".g:TARGET . "/test/" . g:TEST, "")

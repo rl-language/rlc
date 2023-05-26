@@ -30,6 +30,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "rlc/conversions/RLCToC.hpp"
 #include "rlc/conversions/RLCToPython.hpp"
 #include "rlc/dialect/Conversion.hpp"
 #include "rlc/dialect/Dialect.h"
@@ -78,6 +79,18 @@ static cl::opt<std::string> clangPath(
 static cl::opt<bool> dumpPythonAST(
 		"python-ast",
 		cl::desc("dumps the ast of python-ast and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> dumpGodotWrapper(
+		"godot",
+		cl::desc("dumps the godot wrapper and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> dumpCWrapper(
+		"header",
+		cl::desc("dumps the c wrapper and exits"),
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
@@ -354,6 +367,17 @@ int main(int argc, char *argv[])
 
 		return -1;
 	}
+	if (dumpCWrapper)
+	{
+		rlc::rlcToCHeader(ast, OS);
+		return 0;
+	}
+
+	if (dumpGodotWrapper)
+	{
+		rlc::rlcToGodot(ast, OS);
+		return 0;
+	}
 
 	if (dumpPythonWrapper or dumpPythonAST)
 	{
@@ -393,7 +417,8 @@ int main(int argc, char *argv[])
 	manager.addPass(rlc::createRLCToCfLoweringPass());
 	manager.addPass(rlc::createActionStatementsToCoro());
 	manager.addPass(rlc::createRLCToLLVMLoweringPass());
-	manager.addPass(createEmitMainPass());
+	if (not compileOnly)
+		manager.addPass(createEmitMainPass());
 	if (manager.run(ast).failed())
 		return -1;
 
