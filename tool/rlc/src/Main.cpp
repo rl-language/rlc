@@ -106,12 +106,6 @@ static cl::opt<bool> dumpRLC(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
-static cl::opt<bool> dumpAST(
-		"ast",
-		cl::desc("dumps the ast and exits"),
-		cl::init(false),
-		cl::cat(astDumperCategory));
-
 static cl::opt<bool> hidePosition(
 		"hide-position",
 		cl::desc("does not print source file position in ast"),
@@ -446,10 +440,11 @@ int main(int argc, char *argv[])
 	}
 
 	error_code errorCompile;
+	std::string realOut = outputFile;
+	if (realOut != "-")
+		realOut = compileOnly ? outputFile : outputFile + ".o";
 	llvm::ToolOutputFile library(
-			compileOnly ? outputFile : outputFile + ".o",
-			errorCompile,
-			llvm::sys::fs::OpenFlags::OF_None);
+			realOut, errorCompile, llvm::sys::fs::OpenFlags::OF_None);
 
 	if (errorCompile)
 	{

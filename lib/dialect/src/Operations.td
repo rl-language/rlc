@@ -13,6 +13,10 @@ class RLC_Dialect<string mnemonic, list<Trait> traits = []> :
 
 def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType, RLC_Unknown]>;
 
+def RLCIntegerOrUnkownType : AnyTypeOf<[RLC_IntegerType, RLC_Unknown]>;
+def RLCArrayOrUnkownType : AnyTypeOf<[RLC_ArrayType, RLC_Unknown]>;
+def RLCBoolOrUnkownType : AnyTypeOf<[RLC_BoolType, RLC_Unknown]>;
+
 def AnyFunctionType : AnyTypeOf<[RLC_Unknown, FunctionType]>;
 
 def RLC_ExpressionStatement : RLC_Dialect<"exp", [DeclareOpInterfaceMethods<TypeCheckable>]> {
@@ -531,7 +535,7 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
 	expression.
   }];
 
-  let arguments = (ins RLC_ArrayType:$value, RLC_IntegerType:$member_index);
+  let arguments = (ins RLCArrayOrUnkownType:$value, RLCIntegerOrUnkownType:$member_index);
   let results = (outs AnyType:$result);
 
   let builders = [
@@ -800,8 +804,8 @@ def RLC_NotOp : RLC_BoolExp<"not"> {
 	expression.
   }];
 
-  let arguments = (ins RLC_BoolType:$lhs);
-  let results = (outs RLC_BoolType:$result);
+  let arguments = (ins RLCBoolOrUnkownType:$lhs);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs), [{
@@ -841,8 +845,8 @@ def RLC_OrOp : RLC_BoolExp<"or"> {
 	expression.
   }];
 
-  let arguments = (ins RLC_BoolType:$lhs, RLC_BoolType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let arguments = (ins RLCBoolOrUnkownType:$lhs, RLCBoolOrUnkownType:$rhs);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -861,8 +865,8 @@ def RLC_AndOp : RLC_BoolExp<"and"> {
 	expression.
   }];
 
-  let arguments = (ins RLC_BoolType:$lhs, RLC_BoolType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let arguments = (ins RLCBoolOrUnkownType:$lhs, RLCBoolOrUnkownType:$rhs);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -882,7 +886,7 @@ def RLC_GreaterOp : RLC_RelationalOp<"greater"> {
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -902,7 +906,7 @@ def RLC_LessOp : RLC_RelationalOp<"less"> {
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -922,7 +926,7 @@ def RLC_GreaterEqualOp : RLC_RelationalOp<"greater_equal"> {
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -942,7 +946,7 @@ def RLC_LessEqualOp : RLC_RelationalOp<"less_equal"> {
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -962,7 +966,7 @@ def RLC_EqualOp : RLC_RelationalOp<"equal"> {
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -982,7 +986,7 @@ def RLC_NotEqualOp : RLC_RelationalOp<"not_equal"> {
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
-  let results = (outs RLC_BoolType:$result);
+  let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -1016,7 +1020,7 @@ def RLC_CondBranch : RLC_Dialect<"crb", [Terminator]> {
 	expression.
   }];
 
-  let arguments = (ins RLC_BoolType:$cond);
+  let arguments = (ins RLCBoolOrUnkownType:$cond);
 
   let successors = (successor AnySuccessor:$true_branch, AnySuccessor:$false_branch);
 

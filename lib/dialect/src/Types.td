@@ -55,7 +55,7 @@ def RLC_BoolType : RLC_Type<"Bool", "bool"> {
 
 
 def RLC_ArrayType : RLC_Type<"Array", "array", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
-  let summary = "RLC ref type";
+  let summary = "RLC array type";
   let description = [{
     Entity type.
   }];
