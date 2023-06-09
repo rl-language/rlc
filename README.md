@@ -1,5 +1,7 @@
 # RLC
 
+![RLC Logo](./imgs/RLC_logo.png)
+
 The RuleBook Compiler (RLC) is a MLIR-based compiler for a domain specific language aimed at simplifying the complexity of developing multiagent simulations at all stages of development.
 
 Given a RuleBook file that describes a simulation, it will be able to produce:
@@ -86,13 +88,50 @@ Extra dependecies used by the setup script:
 * virtualenv
 * lld
 
+
 ### Installation for developers
 
-We provide a setup script that will download and compile LLVM as well as RLC. As long as the dependencies written before are met you should just be able to download the setup.sh script and run. Installing and building llvm will take ~150 gibabytes of hard drive space and will require a long ammount of time.
+We provide a setup script that will download and compile LLVM as well as RLC. As long as the dependencies written before are met you should just be able to download the setup.sh script and run it. Installing and building llvm will take ~150 gibabytes of hard drive space and will require a large ammount of time and RAM.
+
+Hard drive space can be reclaimed by deleating LLVM build directory after it has been fully built.
+
 
 ```
 chmod +x setup.sh
 ./setup.sh
 ```
 
-If that script terminates successfully, you are fully set up to start working on RLC.
+If that script terminates successfully and prints "ALL DONE", you are fully set up to start working on RLC.
+
+#### What do if run out of space or memory
+You can edit the setup script so that the LLVM debug build is skipped and RLC cmake invocation uses the release LLVM build (notice, you have to replace both the LLVM and MLIR cmake arguments). That will make figuring out bugs in your code harder.
+
+### environment.sh
+If you are using the default installation script (setup.sh) we provide a .sh file that configures your environment variable so that you can use python and rlc without installing anything in your actuall machine.
+When you open a shell to start working on RLC run the following command.
+
+If you use some editor such as code or clion, start it from that shell.
+
+```
+source environment.sh
+```
+
+To check if everything works correctly run the following command.
+```
+python python/solve.py --source ./tool/rlc/test/tris.rl
+```
+If it does not crashes, then you are good to go.
+
+If you use some whacky shell of your own or you did not followed the default setup, you are on your own.
+
+
+
+### How to contruibute for developers
+Do not push directly onto branches of this repo. Instead:
+* fork this project. Make sure it is still private
+* add me @drblallo to the developers for your fork
+* push your branches to your fork
+* open a pull request for the branch relevant to your project
+
+The intent of this workflow is so that reviewrs can use the review feature of github pull requests to have persistent comment threads.
+
