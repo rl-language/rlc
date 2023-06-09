@@ -2,6 +2,7 @@ ent Board:
 	Int[9] slots
 	Bool playerTurn
 
+
 fun get(Board b, Int x, Int y) -> Int:
 	return b.slots[x + (y*3)]
 
@@ -42,6 +43,12 @@ fun three_in_a_line_player(Board b, Int player_id) -> Bool:
 
 	return false
 
+fun current_player(Board board) -> Int:
+	return int(board.playerTurn) + 1
+
+fun next_turn(Board board):
+	board.playerTurn = !board.playerTurn
+
 act play():
 	let board : Board
 	while !full(board):
@@ -52,12 +59,12 @@ act play():
 		req y >= 0
 		req board.get(x, y) == 0
 
-		board.set(x, y, int(board.playerTurn) + 1)
+		board.set(x, y, board.current_player())
 
-		if board.three_in_a_line_player(int(board.playerTurn) + 1):
+		if board.three_in_a_line_player(board.current_player()):
 			return
 
-		board.playerTurn = !board.playerTurn
+		board.next_turn()
 
 fun main() -> Int:
 	let game = play()

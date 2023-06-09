@@ -4,7 +4,14 @@ add_test(NAME dump_unchecked_ast_${file_name} COMMAND rlc::rlc ${CMAKE_CURRENT_S
 add_test(NAME dump_ast_${file_name} COMMAND rlc::rlc ${CMAKE_CURRENT_SOURCE_DIR}/${file_name} --rlc)
 add_test(NAME execute_${file_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.compiled)
 set_tests_properties(execute_${file_name} PROPERTIES DEPENDS compile_${file_name})
+set_tests_properties(dump_unchecked_ast_${file_name} PROPERTIES DEPENDS compile_${file_name})
+set_tests_properties(dump_ast_${file_name} PROPERTIES DEPENDS compile_${file_name})
 endmacro()
+
+
+find_package(Python COMPONENTS Interpreter REQUIRED)
+add_test(NAME python_tris COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/python/solve.py --source ${CMAKE_CURRENT_SOURCE_DIR}/tris.rl)
+
 
 file(GLOB files "*.rl")
 foreach(file ${files})

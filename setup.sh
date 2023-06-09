@@ -54,10 +54,9 @@ cd rlc
 git submodule init 
 git submodule update --recursive  
 cd ..
-mkdir rlc-install-debug
 mkdir rlc-debug
 cd rlc-debug
-cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../rlc-install-debug/ ../rlc -DCMAKE_EXPORT_COMPILE_COMMANDS=True -G Ninja -DMLIR_DIR=../llvm-install-debug/lib/cmake/mlir -DLLVM_DIR=../llvm-install-debug/lib/cmake/llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DBUILD_SHARED_LIBS=ON
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=./install/ ../rlc -DCMAKE_EXPORT_COMPILE_COMMANDS=True -G Ninja -DMLIR_DIR=../llvm-install-debug/lib/cmake/mlir -DLLVM_DIR=../llvm-install-debug/lib/cmake/llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DBUILD_SHARED_LIBS=ON
 ninja all
 ninja test
 ninja install

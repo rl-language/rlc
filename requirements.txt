@@ -1,3 +1,4 @@
 vulture
 pytest
 pylint
+torch

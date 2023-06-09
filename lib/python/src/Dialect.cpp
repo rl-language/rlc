@@ -81,8 +81,12 @@ namespace mlir::rlc::python
 		}
 	}
 
-	mlir::LogicalResult serializePython(
-			llvm::raw_ostream& OS, mlir::Operation& op, SerializationContext& context)
+	template<typename Filter>
+	mlir::LogicalResult serializeAllChidlrenIf(
+			llvm::raw_ostream& OS,
+			mlir::Operation& op,
+			SerializationContext& context,
+			Filter&& filter)
 	{
 		for (auto& region : op.getRegions())
 		{
@@ -91,6 +95,8 @@ namespace mlir::rlc::python
 				for (auto& subOp : block.getOperations())
 				{
 					assert(subOp.hasTrait<mlir::rlc::python::EmitPython::Trait>());
+					if (not filter(subOp))
+						continue;
 					if (mlir::cast<mlir::rlc::python::EmitPython>(subOp)
 									.emit(OS, context)
 									.failed())
@@ -98,6 +104,28 @@ namespace mlir::rlc::python
 				}
 			}
 		}
+
+		return mlir::success();
+	}
+
+	mlir::LogicalResult serializePython(
+			llvm::raw_ostream& OS, mlir::Operation& op, SerializationContext& context)
+	{
+		if (serializeAllChidlrenIf(OS, op, context, [](const mlir::Operation& Op) {
+					return mlir::isa<mlir::rlc::python::CTypesLoad>(Op);
+				}).failed())
+
+			return mlir::failure();
+		if (serializeAllChidlrenIf(OS, op, context, [](const mlir::Operation& Op) {
+					return mlir::isa<mlir::rlc::python::CTypeStructDecl>(Op);
+				}).failed())
+			return mlir::failure();
+
+		if (serializeAllChidlrenIf(OS, op, context, [](const mlir::Operation& Op) {
+					return not mlir::isa<mlir::rlc::python::CTypeStructDecl>(Op) and
+								 not mlir::isa<mlir::rlc::python::CTypesLoad>(Op);
+				}).failed())
+			return mlir::failure();
 
 		return mlir::success();
 	}
