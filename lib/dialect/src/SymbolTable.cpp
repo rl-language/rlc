@@ -24,6 +24,7 @@ mlir::Value mlir::rlc::findOverload(
 		return matching.front();
 
 	errorEmitter.emitError("could not find matching function " + name);
+	assert(false);
 	for (auto candidate : table.get(name))
 	{
 		if (not candidate.getType().isa<mlir::FunctionType>())
@@ -170,13 +171,14 @@ mlir::rlc::RLCTypeConverter::RLCTypeConverter(mlir::ModuleOp op)
 mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 		: op(op), values(makeValueTable(op)), converter(op)
 {
-	for (auto fun : values.get("init"))
+	for (auto fun :
+			 values.get(mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>()))
 	{
 		typeToInitFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
 													 .getArgumentTypes()[0]] = fun;
 	}
 
-	for (auto fun : values.get("_assign"))
+	for (auto fun : values.get(builtinOperatorName<mlir::rlc::AssignOp>()))
 	{
 		typeToAssignFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
 														 .getArgumentTypes()[0]] = fun;
@@ -189,7 +191,9 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 			continue;
 		}
 
-		if (fun.getUnmangledName() == "init" or fun.getUnmangledName() == "_assign")
+		if (fun.getUnmangledName() ==
+						mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>() or
+				fun.getUnmangledName() == builtinOperatorName<mlir::rlc::AssignOp>())
 			continue;
 
 		typeToFunctions[fun.getArgumentTypes().front()].push_back(fun);

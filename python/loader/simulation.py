@@ -179,6 +179,9 @@ class State:
     def execute(self, *arguments):
         return self.simulation.execute([arguments[0], self.state, *arguments[1:]])
 
+    def copy(self):
+        return State(self.simulation, self.state.copy())
+
     def is_done(self) -> bool:
         return self.state.resume_index == -1
 

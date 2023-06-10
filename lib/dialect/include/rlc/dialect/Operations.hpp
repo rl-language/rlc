@@ -60,10 +60,23 @@ namespace mlir::rlc
 			mlir::IRRewriter& rewriter,
 			mlir::rlc::ValueTable& table,
 			mlir::TypeConverter& typeConverter);
-}
+}	 // namespace mlir::rlc
 
 #define GET_OP_CLASSES
 #include "rlc/dialect/Operations.inc"
+
+namespace mlir::rlc
+{
+
+	template<typename T>
+	inline std::string builtinOperatorName()
+	{
+		return T::getOperationName()
+				.drop_front(mlir::rlc::RLCDialect::getDialectNamespace().size() + 1)
+				.str();
+	}
+
+}	 // namespace mlir::rlc
 
 namespace mlir::rlc::detail
 {
@@ -97,7 +110,8 @@ namespace mlir::rlc::detail
 			mlir::TypeRange accetableTypes,
 			mlir::Type resType)
 	{
-		std::string opName = ("_" + op.getOperationName().drop_front(4)).str();
+		std::string opName = builtinOperatorName<Op>();
+
 		mlir::SmallVector<mlir::Type, 4> operandTypes;
 		mlir::SmallVector<mlir::Value, 4> operandValues;
 

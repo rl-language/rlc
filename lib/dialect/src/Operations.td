@@ -601,6 +601,7 @@ class RLC_InternalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
 		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable);
 	}
+
 	
 	}];
 }
@@ -620,6 +621,8 @@ class RLC_RelationalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]>
 		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable, mlir::rlc::BoolType::get(this->getContext()));
 	}
+
+
 	
 	}];
 }
@@ -637,11 +640,12 @@ class RLC_BoolExp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
 		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
 		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable, mlir::rlc::BoolType::get(this->getContext()));
 	}
+
 	
 	}];
 }
 
-def RLC_AddOp : RLC_InternalOp<"add"> {
+def RLC_AddOp : RLC_InternalOp<"_add"> {
   let summary = "constant.";
 
   let description = [{
@@ -661,7 +665,7 @@ def RLC_AddOp : RLC_InternalOp<"add"> {
   }];
 }
 
-def RLC_MultOp : RLC_InternalOp<"mul"> {
+def RLC_MultOp : RLC_InternalOp<"_mul"> {
   let summary = "constant.";
 
   let description = [{
@@ -681,7 +685,7 @@ def RLC_MultOp : RLC_InternalOp<"mul"> {
   }];
 }
 
-def RLC_DivOp : RLC_InternalOp<"div"> {
+def RLC_DivOp : RLC_InternalOp<"_div"> {
   let summary = "constant.";
 
   let description = [{
@@ -721,7 +725,7 @@ def RLC_CastOp : RLC_Dialect<"cast", [DeclareOpInterfaceMethods<TypeCheckable>]>
   }];
 }
 
-def RLC_MinusOp : RLC_InternalOp<"minus"> {
+def RLC_MinusOp : RLC_InternalOp<"_minus"> {
   let summary = "constant.";
 
   let description = [{
@@ -741,7 +745,7 @@ def RLC_MinusOp : RLC_InternalOp<"minus"> {
   }];
 }
 
-def RLC_ReminderOp : RLC_InternalOp<"reminder"> {
+def RLC_ReminderOp : RLC_InternalOp<"_reminder"> {
   let summary = "constant.";
 
   let description = [{
@@ -775,6 +779,11 @@ def RLC_InitOp : RLC_Dialect<"init", [DeclareOpInterfaceMethods<TypeCheckable>]>
 	$lhs `:` type($lhs) attr-dict
   }];
 
+    let extraClassDeclaration = [{
+	
+	
+	}];
+
 }
 
 def RLC_AssignOp : RLC_InternalOp<"assign"> {
@@ -797,7 +806,7 @@ def RLC_AssignOp : RLC_InternalOp<"assign"> {
   }];
 }
 
-def RLC_NotOp : RLC_BoolExp<"not"> {
+def RLC_NotOp : RLC_BoolExp<"_not"> {
   let summary = "constant.";
 
   let description = [{
@@ -818,7 +827,7 @@ def RLC_NotOp : RLC_BoolExp<"not"> {
 }
 
 
-def RLC_SubOp : RLC_InternalOp<"sub"> {
+def RLC_SubOp : RLC_InternalOp<"_sub"> {
   let summary = "constant.";
 
   let description = [{
@@ -838,7 +847,7 @@ def RLC_SubOp : RLC_InternalOp<"sub"> {
   }];
 }
 
-def RLC_OrOp : RLC_BoolExp<"or"> {
+def RLC_OrOp : RLC_BoolExp<"_or"> {
   let summary = "constant.";
 
   let description = [{
@@ -858,7 +867,7 @@ def RLC_OrOp : RLC_BoolExp<"or"> {
   }];
 }
 
-def RLC_AndOp : RLC_BoolExp<"and"> {
+def RLC_AndOp : RLC_BoolExp<"_and"> {
   let summary = "constant.";
 
   let description = [{
@@ -878,7 +887,7 @@ def RLC_AndOp : RLC_BoolExp<"and"> {
   }];
 }
 
-def RLC_GreaterOp : RLC_RelationalOp<"greater"> {
+def RLC_GreaterOp : RLC_RelationalOp<"_greater"> {
   let summary = "constant.";
 
   let description = [{
@@ -898,7 +907,7 @@ def RLC_GreaterOp : RLC_RelationalOp<"greater"> {
   }];
 }
 
-def RLC_LessOp : RLC_RelationalOp<"less"> {
+def RLC_LessOp : RLC_RelationalOp<"_less"> {
   let summary = "constant.";
 
   let description = [{
@@ -918,7 +927,7 @@ def RLC_LessOp : RLC_RelationalOp<"less"> {
   }];
 }
 
-def RLC_GreaterEqualOp : RLC_RelationalOp<"greater_equal"> {
+def RLC_GreaterEqualOp : RLC_RelationalOp<"_greater_equal"> {
   let summary = "constant.";
 
   let description = [{
@@ -938,7 +947,7 @@ def RLC_GreaterEqualOp : RLC_RelationalOp<"greater_equal"> {
   }];
 }
 
-def RLC_LessEqualOp : RLC_RelationalOp<"less_equal"> {
+def RLC_LessEqualOp : RLC_RelationalOp<"_less_equal"> {
   let summary = "constant.";
 
   let description = [{
@@ -958,7 +967,7 @@ def RLC_LessEqualOp : RLC_RelationalOp<"less_equal"> {
   }];
 }
 
-def RLC_EqualOp : RLC_RelationalOp<"equal"> {
+def RLC_EqualOp : RLC_RelationalOp<"_equal"> {
   let summary = "constant.";
 
   let description = [{
@@ -978,7 +987,7 @@ def RLC_EqualOp : RLC_RelationalOp<"equal"> {
   }];
 }
 
-def RLC_NotEqualOp : RLC_RelationalOp<"not_equal"> {
+def RLC_NotEqualOp : RLC_RelationalOp<"_not_equal"> {
   let summary = "constant.";
 
   let description = [{

@@ -73,11 +73,12 @@ namespace mlir::rlc::python
 				OS << ":\n";
 				OS.indent(4 * 3);
 				emitCallToOverload(OS, candidate);
-				OS.indent(4 * 2);
-				OS << "assert False, \"no correct overload to invoke "
-					 << overload.first() << "\"";
-				OS << "\n\n";
+				OS << "\n";
 			}
+			OS.indent(4 * 2);
+			OS << "assert False, \"no correct overload to invoke " << overload.first()
+				 << "\"";
+			OS << "\n\n";
 		}
 	}
 

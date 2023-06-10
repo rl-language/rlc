@@ -116,6 +116,18 @@ mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
 	}
 	OS << "]\n\n";
 
+	OS.indent((context.getIndent() + 1) * 4);
+	OS << "def __init__(self):\n";
+	OS.indent((context.getIndent() + 2) * 4);
+	OS << "functions.init(self)\n";
+	OS << "\n";
+
+	OS.indent((context.getIndent() + 1) * 4);
+	OS << "def copy(self):\n";
+	OS.indent((context.getIndent() + 2) * 4);
+	OS << "return functions.assign(" << type.getName() << "(), self)\n";
+	OS << "\n";
+
 	for (const auto& [type, name] :
 			 llvm::zip(type.getSubTypes(), getFieldNames()))
 	{
