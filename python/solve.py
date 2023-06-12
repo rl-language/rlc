@@ -1,6 +1,7 @@
 import argparse
 from loader import Simulation, compile
 from solvers import find_end
+from shutil import which
 
 
 def main():
@@ -33,6 +34,7 @@ def main():
     parser.add_argument("--show-actions", "-a", action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
+    assert which(args.rlc) is not None, "could not find executable {}, use --rlc <path_to_rlc> to configure it".format(args.rlc)
 
     sim = (
         Simulation(args.wrapper[0])

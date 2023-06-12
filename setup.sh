@@ -68,7 +68,7 @@ cd ..
 
 # RUN 
 cd rlc
-python python/solve.py --source ./tool/rlc/test/tris.rl
+python python/solve.py --source ./tool/rlc/test/tris.rl --rlc ../rlc-debug/install/bin/rlc
 echo "ALL DONE!"
 
 

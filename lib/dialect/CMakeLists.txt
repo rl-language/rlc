@@ -1,4 +1,4 @@
-rlcAddLibrary(dialect SHARED src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp)
+rlcAddLibrary(dialect src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp)
 target_link_libraries(dialect PUBLIC MLIRSupport MLIRDialect MLIRLLVMDialect MLIRLLVMIRTransforms MLIRControlFlowDialect)
 
 set(tblgen ${LLVM_BINARY_DIR}/bin/mlir-tblgen)

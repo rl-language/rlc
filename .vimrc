@@ -144,8 +144,8 @@ endfunction
 
 let EXTRA_CONFIG = s:getFlags('--coverage', "-DLLVM_DIR=".g:DBGLLVM_LOC)
 
-command! -nargs=0 CMDEBUG call s:setType(0, "../rlc-debug", "gcc", "g++", "Debug", s:getFlags('--coverage ', "-DLLVM_DIR=".g:DBGLLVM_LOC . " -DMLIR_DIR=".g:DBGLLVM_LOC . "/../mlir"), "Ninja")
-command! -nargs=0 CMRELEASE call s:setType(1, "../rlc-release", "clang", "clang++", "Release", s:getFlags('', "-DLLVM_DIR=".g:RELLLVM_LOC . " -DMLIR_DIR=".g:RELLLVM_LOC . "/../mlir"), "Ninja")
+command! -nargs=0 CMDEBUG call s:setType(0, "../rlc-debug", "gcc", "g++", "Debug", s:getFlags('--coverage ', "-DBUILD_SHARED_LIBS=ON -DLLVM_DIR=".g:DBGLLVM_LOC . " -DMLIR_DIR=".g:DBGLLVM_LOC . "/../mlir"), "Ninja")
+command! -nargs=0 CMRELEASE call s:setType(1, "../rlc-release", "clang", "clang++", "Release", s:getFlags('', "-DBUILD_SHARED_LIBS=OFF -DLLVM_DIR=".g:RELLLVM_LOC . " -DMLIR_DIR=".g:RELLLVM_LOC . "/../mlir"), "Ninja")
 command! -nargs=0 CMASAN call s:setType(2, "../rlc-debug", "clang", "clang++", "Debug", s:getFlags(' -fsanitize=address -fno-omit-frame-pointer',"-DLLVM_DIR=".g:DBGLLVM_LOC ), "Ninja")
 command! -nargs=0 CMFUZZER call s:setType(5, "../rlc-debug", "clang", "clang++", "Debug", s:getFlags('', "-DBUILD_FUZZER=ON"), "Ninja")
 command! -nargs=0 CMTSAN call s:setType(3, "../rlc-debug", "clang", "clang++", "Debug", s:getFlags('-fsanitize=thread -O1', "-DLLVM_DIR=".g:DBGLLVM_LOC), "Ninja")
