@@ -26,15 +26,6 @@ cd rlc-infrastructure
 # INSTALL LLVM
 git clone git@github.com:llvm/llvm-project.git --depth=1 -b release/16.x
 
-# LLVM DEBUG
-mkdir llvm-install-debug
-mkdir llvm-debug
-cd llvm-debug
-cmake -DLLVM_INSTALL_UTILS=True -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../llvm-install-debug/ -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;mlir;" -DLLVM_USE_LINKER=lld ../llvm-project/llvm -DCMAKE_EXPORT_COMPILE_COMMANDS=True -G Ninja -DBUILD_SHARED_LIBS=ON
-ninja all
-ninja install
-cd ../
-
 # LLVM RELEASE
 mkdir llvm-install-release
 mkdir llvm-release
@@ -62,7 +53,7 @@ git submodule update --recursive
 cd ..
 mkdir rlc-debug
 cd rlc-debug
-cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=./install/ ../rlc -DCMAKE_EXPORT_COMPILE_COMMANDS=True -G Ninja -DMLIR_DIR=../llvm-install-debug/lib/cmake/mlir -DLLVM_DIR=../llvm-install-debug/lib/cmake/llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DBUILD_SHARED_LIBS=ON
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=./install/ ../rlc -DCMAKE_EXPORT_COMPILE_COMMANDS=True -G Ninja -DMLIR_DIR=../llvm-install-release/lib/cmake/mlir -DLLVM_DIR=../llvm-install-release/lib/cmake/llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DBUILD_SHARED_LIBS=OFF
 ninja all
 ninja test
 ninja install
