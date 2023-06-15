@@ -1,6 +1,7 @@
 from loader import Simulation, State, Action
 from itertools import product
 
+
 def execute_action(simulation: Simulation, state: State) -> bool:
     for action in state.actions:
         min_max = [argument.get_min_max() for argument in action.args[1:]]
@@ -14,6 +15,7 @@ def execute_action(simulation: Simulation, state: State) -> bool:
             return True
 
         return False
+
 
 def find_end(simulation: Simulation, state: State):
     while not state.is_done():

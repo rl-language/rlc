@@ -171,6 +171,7 @@ class Action:
 
         return self.action(*casted_args)
 
+
 class State:
     def __init__(self, simulation, state):
         self.simulation = simulation
@@ -213,7 +214,14 @@ class Simulation:
                 ]
                 assert len(precodition) <= 1
                 print(action_name, len(precodition))
-                self.actions.append(Action(overload, precodition[0] if len(precodition) == 1 else lambda *x : True, action_name, self))
+                self.actions.append(
+                    Action(
+                        overload,
+                        precodition[0] if len(precodition) == 1 else lambda *x: True,
+                        action_name,
+                        self,
+                    )
+                )
 
         self.action_to_simulation_init = {}
         self.entity_type_to_simulation_init = {}

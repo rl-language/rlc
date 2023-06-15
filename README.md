@@ -91,20 +91,31 @@ Extra dependecies used by the setup script:
 
 ### Installation for developers
 
-We provide a setup script that will download and compile LLVM as well as RLC. As long as the dependencies written before are met you should just be able to download the setup.sh script and run it. Installing and building llvm will take ~150 gibabytes of hard drive space and will require a large ammount of time and RAM.
+We provide a setup script that download the rlc repository and a setupscrit that will download and compile LLVM as well as RLC. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gibabytes of hard drive space and will require a large ammount of time and RAM.
 
 Hard drive space can be reclaimed by deleating LLVM build directory after it has been fully built.
 
-
+Download the setup.sh file in the root of the repository and then run:
 ```
 chmod +x setup.sh
-./setup.sh
+source ./setup.sh # clones RLC repo and initialize virtualenvs and submodules
+python rlc/build.py # clones LLVM, builds it and builds RLC
 ```
 
-If that script terminates successfully and prints "ALL DONE", you are fully set up to start working on RLC.
+If that script terminates successfully, you are fully set up to start working on RLC.
 
 #### What do if run out of space or memory
-You can edit the setup script so that the LLVM debug build is skipped and RLC cmake invocation uses the release LLVM build (notice, you have to replace both the LLVM and MLIR cmake arguments). That will make figuring out bugs in your code harder.
+Instead of the previous command python, you can run. This will only build the release LLVM version and save a great deal of space.
+```
+python rlc/build.py --no-debug-llvm
+```
+
+#### Using a custom LLVM
+```
+python rlc/build.py --llvm-dir <PATH-TO-LLVM-INSTALL> [--rlc-shared]
+```
+
+You need to use the flag --rlc-shared if you have built a shared LLVM.
 
 ### environment.sh
 If you are using the default installation script (setup.sh) we provide a .sh file that configures your environment variable so that you can use python and rlc without installing anything in your actuall machine.
@@ -123,7 +134,6 @@ python python/solve.py --source ./tool/rlc/test/tris.rl
 If it does not crashes, then you are good to go.
 
 If you use some whacky shell of your own or you did not followed the default setup, you are on your own.
-
 
 
 ### How to contruibute for developers
