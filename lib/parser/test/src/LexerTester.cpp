@@ -104,3 +104,11 @@ TEST(LexerTest, twoCharSymbolsTest)
 	EXPECT_EQ(lexer.next(), Token::Comma);
 	EXPECT_EQ(lexer.next(), Token::LAng);
 }
+
+TEST(LexerTest, typeTest)
+{
+	Lexer lexer("==,type");
+	EXPECT_EQ(lexer.next(), Token::EqualEqual);
+	EXPECT_EQ(lexer.next(), Token::Comma);
+	EXPECT_EQ(lexer.next(), Token::KeywordType);
+}

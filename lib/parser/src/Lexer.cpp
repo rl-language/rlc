@@ -78,6 +78,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordFalse";
 		case Token::KeywordIn:
 			return "KeywordIn";
+		case Token::KeywordType:
+			return "KeywordType";
 		case Token::Indent:
 			return "Indent";
 		case Token::Deindent:
@@ -345,6 +347,9 @@ Token Lexer::eatIdent()
 
 	if (name == "req")
 		return Token::KeywordReq;
+
+	if (name == "type")
+		return Token::KeywordType;
 
 	lIdent = name;
 	return Token::Identifier;
