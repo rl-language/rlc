@@ -31,7 +31,7 @@ def main():
         nargs="?",
         help="path to .rl source file",
     )
-    parser.add_argument("--show-actions", "-a", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--show-actions", "-a", action='store_true', default=False)
 
     args = parser.parse_args()
     assert (
