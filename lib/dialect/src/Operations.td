@@ -1123,3 +1123,75 @@ def RLC_UnresConstructOp : RLC_Dialect<"unresolved_construct", [DeclareOpInterfa
   }];
 }
 
+def RLC_BuiltinRuntineTypeGlobal : RLC_Dialect<"builtin_runtime_type_global"> {
+
+  let summary = "Rapresents a builtin type runtime information";
+
+  let arguments = (ins StrAttr:$name);
+
+  let results = (outs RLC_TypeType:$result);
+
+  let assemblyFormat = [{
+	$name type($result) attr-dict 
+  }];
+
+  let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name), [{
+            build($_builder, $_state, TypeType::get($_builder.getContext()), name);
+    }]>];
+}
+
+def RLC_ArrayRuntimeTypeGlobal : RLC_Dialect<"array_runtime_type_global"> {
+
+  let summary = "Rapresents a array type runtime information";
+
+  let arguments = (ins RLC_TypeType:$underlying, I64Attr:$size);
+
+  let results = (outs RLC_TypeType:$result);
+
+  let assemblyFormat = [{
+	$underlying type($underlying) `,` $size type($result) attr-dict 
+  }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$underlying, "size_t":$size), [{
+            build($_builder, $_state, TypeType::get($_builder.getContext()), underlying, size);
+    }]>];
+}
+
+
+def RLC_FunctionRuntimeTypeGlobal : RLC_Dialect<"function_runtime_type_global"> {
+
+  let summary = "Rapresents a function type runtime information";
+
+  let arguments = (ins RLC_TypeType:$output, Variadic<RLC_TypeType>:$inputs);
+
+  let results = (outs RLC_TypeType:$result);
+
+  let assemblyFormat = [{
+	`(` $inputs type($inputs) `->` $output type($output) `)` type($result) attr-dict 
+  }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$output, CArg<"mlir::ValueRange", "{}">:$inputs), [{
+            build($_builder, $_state, TypeType::get($_builder.getContext()), output, inputs);
+    }]>];
+}
+
+def RLC_EntityRuntimeTypeGlobal : RLC_Dialect<"entity_runtime_type_global"> {
+
+  let summary = "Rapresents a entity type runtime information";
+
+  let arguments = (ins StrAttr:$name, Variadic<RLC_TypeType>:$fields, StrArrayAttr:$field_names);
+
+  let results = (outs RLC_TypeType:$result);
+
+  let assemblyFormat = [{
+	$name `(` $fields type($fields) `,` $field_names `)` type($result) attr-dict 
+  }];
+
+  let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name, CArg<"mlir::ValueRange", "{}">:$fields, CArg<"mlir::ArrayAttr", "{}">:$fieldNames), [{
+            build($_builder, $_state, TypeType::get($_builder.getContext()), name, fields, fieldNames);
+    }]>];
+}

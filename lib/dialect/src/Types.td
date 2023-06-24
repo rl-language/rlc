@@ -90,4 +90,10 @@ def RLC_FunctionTypeUse : RLC_Type<"FunctionUse", "type_use", [DeclareTypeInterf
 }
 
 
+def RLC_TypeType : RLC_Type<"Type", "type"> {
+  let summary = "RLC type of type";
+  let description = [{
+	rapresents the informations kmown at run time of a compile time type.
+  }];
+}
 
