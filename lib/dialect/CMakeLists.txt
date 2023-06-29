@@ -1,4 +1,4 @@
-rlcAddLibrary(dialect src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp)
+rlcAddLibrary(dialect src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp src/LowerActionPass.cpp src/LowerArrayCalls.cpp src/LowerToCf.cpp src/ActionStatementsToCoro.cpp)
 target_link_libraries(dialect PUBLIC MLIRSupport MLIRDialect MLIRLLVMDialect MLIRLLVMIRTransforms MLIRControlFlowDialect)
 
 set(tblgen ${LLVM_BINARY_DIR}/bin/mlir-tblgen)
@@ -36,11 +36,16 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/Interfaces.inc DEPENDS
 	COMMAND ${tblgen} --gen-op-interface-defs -I ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src/Interfaces.td -o ${CMAKE_CURRENT_BINARY_DIR}/src/Interfaces.inc -I ${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Interfaces.inc DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/Interfaces.td
 	COMMAND ${tblgen} --gen-op-interface-decls -I ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src/Interfaces.td -o ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Interfaces.inc -I ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
 add_custom_target(${dialectName}InterfacesInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/Interfaces.inc)
 add_custom_target(${dialectName}InterfacesIncludeInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Interfaces.inc)
 
-add_dependencies(${dialectName} ${dialectName}DialectInc ${dialectName}DialectIncludeInc ${dialectName}TypesInc ${dialectName}TypesIncludeInc ${dialectName}OperationsInc ${dialectName}OperationsIncludeInc ${dialectName}InterfacesInc ${dialectName}InterfacesIncludeInc)
+#interfaces
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Passes.inc DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/Passes.td
+	COMMAND ${tblgen} --gen-pass-decls -I ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src/Passes.td -o ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Passes.inc -I ${CMAKE_CURRENT_SOURCE_DIR}/src -name ${dialectName})
+
+add_custom_target(${dialectName}PassesIncludeInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Passes.inc)
+
+add_dependencies(${dialectName} ${dialectName}PassesIncludeInc ${dialectName}DialectInc ${dialectName}DialectIncludeInc ${dialectName}TypesInc ${dialectName}TypesIncludeInc ${dialectName}OperationsInc ${dialectName}OperationsIncludeInc ${dialectName}InterfacesInc ${dialectName}InterfacesIncludeInc)
 endmacro(add_rlc_dialect)
 
 add_rlc_dialect(dialect)

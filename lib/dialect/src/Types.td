@@ -67,10 +67,10 @@ def RLC_ArrayType : RLC_Type<"Array", "array", [DeclareTypeInterfaceMethods<SubE
 def RLC_TypeUse : RLC_Type<"ScalarUse", "type_use"> {
   let summary = "RLC builtin bool type";
   let description = [{
-    Implementation agnostic bool type.
+    type that rappresents a not yet type checked type use.
   }];
 	let parameters = (ins OptionalParameter<"Type">:$underlying, StringRefParameter<>:$read_type, "int64_t":$size);
-  let assemblyFormat = "$underlying $read_type $size ";
+  let assemblyFormat = "`<`  $read_type $size (`:` $underlying^ )?`>`";
 }
 
 def RLC_Unknown : RLC_Type<"Unknown", "unknown"> {
@@ -80,7 +80,7 @@ def RLC_Unknown : RLC_Type<"Unknown", "unknown"> {
   }];
 }
 
-def RLC_FunctionTypeUse : RLC_Type<"FunctionUse", "type_use", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+def RLC_FunctionTypeUse : RLC_Type<"FunctionUse", "function", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
   let summary = "RLC builtin bool type";
   let description = [{
     Implementation agnostic bool type.

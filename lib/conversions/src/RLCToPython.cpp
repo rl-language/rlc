@@ -1,9 +1,12 @@
-#include "rlc/conversions/RLCToPython.hpp"
-
+#include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "rlc/dialect/ActionArgumentAnalysis.hpp"
+#include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Types.hpp"
+#include "rlc/python/Dialect.h"
 #include "rlc/python/Operations.hpp"
+#include "rlc/python/Passes.hpp"
 #include "rlc/python/Types.hpp"
 
 static void registerBuiltinConversions(
@@ -427,33 +430,50 @@ class ActionDeclToTNothing
 	}
 };
 
-void rlc::RLCToPython::runOnOperation()
+namespace mlir::python
 {
-	mlir::OpBuilder builder(&getContext());
-	mlir::rlc::ModuleBuilder rlcBuilder(getOperation());
-	builder.setInsertionPoint(&getOperation().getBodyRegion().front().front());
-	auto lib = builder.create<mlir::rlc::python::CTypesLoad>(
-			getOperation().getLoc(),
-			mlir::rlc::python::CDLLType::get(&getContext()),
-			"lib.so");
-	mlir::ConversionTarget target(getContext());
+#define GEN_PASS_DEF_RLCTOPYTHONPASS
+#include "rlc/python/Passes.inc"
+	struct RLCToPythonPass: impl::RLCToPythonPassBase<RLCToPythonPass>
+	{
+		using RLCToPythonPassBase<RLCToPythonPass>::RLCToPythonPassBase;
+		void getDependentDialects(mlir::DialectRegistry& registry) const override
+		{
+			registry.insert<mlir::rlc::RLCDialect>();
+			registry.insert<mlir::rlc::python::RLCPython>();
+		}
 
-	mlir::TypeConverter ctypesConverter;
-	registerCTypesConversions(ctypesConverter);
+		void runOnOperation() override
+		{
+			mlir::OpBuilder builder(&getContext());
+			mlir::rlc::ModuleBuilder rlcBuilder(getOperation());
+			builder.setInsertionPoint(
+					&getOperation().getBodyRegion().front().front());
+			auto lib = builder.create<mlir::rlc::python::CTypesLoad>(
+					getOperation().getLoc(),
+					mlir::rlc::python::CDLLType::get(&getContext()),
+					"lib.so");
+			mlir::ConversionTarget target(getContext());
 
-	mlir::TypeConverter converter;
-	registerBuiltinConversions(converter, ctypesConverter);
+			mlir::TypeConverter ctypesConverter;
+			registerCTypesConversions(ctypesConverter);
 
-	target.addLegalDialect<mlir::rlc::python::RLCPython>();
-	target.addIllegalDialect<mlir::rlc::RLCDialect>();
+			mlir::TypeConverter converter;
+			registerBuiltinConversions(converter, ctypesConverter);
 
-	mlir::RewritePatternSet patterns(&getContext());
-	patterns.add<EntityDeclarationToClassDecl>(ctypesConverter, &getContext());
-	patterns.add<ActionDeclToTNothing>(
-			&lib, &rlcBuilder, converter, &getContext());
-	patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
+			target.addLegalDialect<mlir::rlc::python::RLCPython>();
+			target.addIllegalDialect<mlir::rlc::RLCDialect>();
 
-	if (failed(
-					applyPartialConversion(getOperation(), target, std::move(patterns))))
-		signalPassFailure();
-}
+			mlir::RewritePatternSet patterns(&getContext());
+			patterns.add<EntityDeclarationToClassDecl>(
+					ctypesConverter, &getContext());
+			patterns.add<ActionDeclToTNothing>(
+					&lib, &rlcBuilder, converter, &getContext());
+			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
+
+			if (failed(applyPartialConversion(
+							getOperation(), target, std::move(patterns))))
+				signalPassFailure();
+		}
+	};
+}	 // namespace mlir::python

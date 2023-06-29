@@ -56,7 +56,15 @@ rlcInstall(${target})
 
 if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test)
 	add_subdirectory(test)
+	if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/filecheck)
+		file(GLOB files "${CMAKE_CURRENT_SOURCE_DIR}/test/filecheck/*.ll")
+		foreach(file ${files})
+			get_filename_component(file_name ${file} NAME)
+			add_test(NAME ${target}_${file_name}_test COMMAND bash -c "$<TARGET_FILE:rlc-opt> `cat ${file} | head -n 1 | cut -c9-` ${file} | FileCheck ${file}")
+		endforeach()
+	endif()
 endif()
+
 
 if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/benchmark)
 	add_subdirectory(benchmark)

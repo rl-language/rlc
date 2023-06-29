@@ -1,7 +1,6 @@
-#include "rlc/dialect/TypeCheck.hpp"
-
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/Pass/Pass.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
@@ -561,89 +560,99 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
-void rlc::RLCTypeCheck::runOnOperation()
+namespace mlir::rlc
 {
-	if (emitBuiltinAssignments(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+#define GEN_PASS_DEF_TYPECHECKPASS
+#include "rlc/dialect/Passes.inc"
 
-	if (emitBuiltinInits(getOperation()).failed())
+	struct TypeCheckPass: impl::TypeCheckPassBase<TypeCheckPass>
 	{
-		signalPassFailure();
-		return;
-	}
+		using impl::TypeCheckPassBase<TypeCheckPass>::TypeCheckPassBase;
+		void runOnOperation() override
+		{
+			if (emitBuiltinAssignments(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (emitBuiltinCasts(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (emitBuiltinInits(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (declareEntities(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (emitBuiltinCasts(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (declareActionEntities(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (declareEntities(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (deduceFunctionTypes(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (declareActionEntities(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (declareImplicitInits(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (deduceFunctionTypes(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (declareImplicitAssign(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (declareImplicitInits(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (deduceEntitiesBodies(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (declareImplicitAssign(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (typeCheckActions(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (deduceEntitiesBodies(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (deduceActionTypes(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (typeCheckActions(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (emitImplicitAssigments(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (deduceActionTypes(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (emitImplicitInit(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
+			if (emitImplicitAssigments(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
 
-	if (deduceOperationTypes(getOperation()).failed())
-	{
-		signalPassFailure();
-		return;
-	}
-}
+			if (emitImplicitInit(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
+
+			if (deduceOperationTypes(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
+		}
+	};
+}	 // namespace mlir::rlc

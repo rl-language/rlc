@@ -1105,7 +1105,7 @@ def RLC_EntityDeclaration : RLC_Dialect<"entity_decl"> {
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-	$name `(` $memberTypes `:` $memberNames `)` type($result) attr-dict 
+	$name $memberTypes $memberNames type($result) attr-dict 
   }];
 }
 

@@ -31,13 +31,11 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "rlc/conversions/RLCToC.hpp"
-#include "rlc/conversions/RLCToPython.hpp"
-#include "rlc/dialect/Conversion.hpp"
 #include "rlc/dialect/Dialect.h"
-#include "rlc/dialect/EmitMain.hpp"
-#include "rlc/dialect/TypeCheck.hpp"
+#include "rlc/dialect/Passes.hpp"
 #include "rlc/parser/Parser.hpp"
 #include "rlc/python/Interfaces.hpp"
+#include "rlc/python/Passes.hpp"
 #include "rlc/utils/Error.hpp"
 
 using namespace rlc;
@@ -351,7 +349,7 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::PassManager typeChecker(&context);
-	typeChecker.addPass(rlc::createRLCTypeCheck());
+	typeChecker.addPass(mlir::rlc::createTypeCheckPass());
 	if (typeChecker.run(ast).failed())
 	{
 		mlir::OpPrintingFlags flags;
@@ -376,7 +374,7 @@ int main(int argc, char *argv[])
 	if (dumpPythonWrapper or dumpPythonAST)
 	{
 		mlir::PassManager manager(&context);
-		manager.addPass(rlc::createRLCToPython());
+		manager.addPass(mlir::python::createRLCToPythonPass());
 		auto res = manager.run(ast);
 
 		mlir::OpPrintingFlags flags;
@@ -406,13 +404,13 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::PassManager manager(&context);
-	manager.addPass(rlc::createRLCLowerArrayCalls());
-	manager.addPass(rlc::createRLCLowerActions());
-	manager.addPass(rlc::createRLCToCfLoweringPass());
-	manager.addPass(rlc::createActionStatementsToCoro());
-	manager.addPass(rlc::createRLCToLLVMLoweringPass());
+	manager.addPass(mlir::rlc::createLowerArrayCallsPass());
+	manager.addPass(mlir::rlc::createLowerActionPass());
+	manager.addPass(mlir::rlc::createLowerToCfPass());
+	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
+	manager.addPass(mlir::rlc::createLowerToLLVMPass());
 	if (not compileOnly)
-		manager.addPass(createEmitMainPass());
+		manager.addPass(mlir::rlc::createEmitMainPass());
 	if (manager.run(ast).failed())
 		return -1;
 
