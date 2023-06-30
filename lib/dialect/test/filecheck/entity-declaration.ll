@@ -1,5 +1,5 @@
 // COM: -rlc-type-check 
-// CHECK-LABEL: !Asd = !rlc<Asd{rsd: !rlc.int, tasd: !rlc.int, }>
+// CHECK-LABEL: !Asd = !rlc.entity<Asd {rsd: !rlc.int, tasd: !rlc.int, }>
 
 // CHECK-LABEL: module @unknown 
 module @unknown {

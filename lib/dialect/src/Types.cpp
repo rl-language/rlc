@@ -102,6 +102,9 @@ llvm::ArrayRef<std::string> EntityType::getFieldNames() const
 
 mlir::Type EntityType::parse(mlir::AsmParser &parser)
 {
+	if (parser.parseLess())
+		return mlir::Type();
+
 	std::string name;
 	auto res = parser.parseKeywordOrString(&name);
 	if (res.failed())
@@ -117,7 +120,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 
 	llvm::SmallVector<std::string, 2> names;
 	llvm::SmallVector<mlir::Type, 2> inners;
-	while (parser.parseRBrace().failed())
+	while (parser.parseOptionalRBrace().failed())
 	{
 		names.emplace_back();
 		if (parser.parseKeywordOrString(&names.back()).failed() or
@@ -137,6 +140,15 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 			return {};
 		}
 
+		res = parser.parseComma();
+		if (res.failed())
+		{
+			parser.emitError(
+					parser.getCurrentLocation(),
+					"expected comma after field declaration");
+			return {};
+		}
+
 		inners.push_back(elem);
 	}
 	if (toReturn.setBody(inners, names).failed())
@@ -146,17 +158,22 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 				"failed to set Entity sub types, it was already defined");
 		return {};
 	}
+
+	if (parser.parseGreater())
+		return Type();
 	return toReturn;
 }
 
 mlir::Type EntityType::print(mlir::AsmPrinter &p) const
 {
+	p << getMnemonic();
+	p << "<";
 	p.printKeywordOrString(getName());
 	if (not isInitialized())
 	{
 		return *this;
 	}
-	p << "{";
+	p << " {";
 	for (const auto &[type, name] : llvm::zip(getBody(), getFieldNames()))
 	{
 		p << name;
@@ -165,7 +182,7 @@ mlir::Type EntityType::print(mlir::AsmPrinter &p) const
 		p << ", ";
 	}
 
-	p << "}";
+	p << "}>";
 	return *this;
 }
 
