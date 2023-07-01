@@ -5,11 +5,21 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/TypeSupport.h"
 #include "mlir/IR/Types.h"
+
+namespace mlir::rlc
+{
+	template<typename T>
+	class SymbolTable;
+}
+
 #define GET_TYPEDEF_CLASSES
 #include "rlc/dialect/Types.inc"
 
 namespace mlir::rlc
 {
+	template<typename T>
+	class SymbolTable;
+
 	std::string mangledName(
 			llvm::StringRef functionName, mlir::FunctionType type);
 	struct StructTypeStorage;

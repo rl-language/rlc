@@ -119,7 +119,8 @@ mlir::Type Parser::unkType() { return mlir::rlc::UnknownType::get(ctx); }
 /**
  * postFixExpression :
  *			((postFixExpression)*
- *					("["expression"]"
+ *					"is" type
+ *					|("["expression"]"
  *					|"("argumentExpressionList ")" |
  *					. identifier ["(" argumentExpressionList")"]))
  *			| primaryExpression
@@ -132,6 +133,13 @@ Expected<mlir::Value> Parser::postFixExpression()
 	while (true)
 	{
 		auto location = getCurrentSourcePos();
+		if (accept<Token::KeywordIs>())
+		{
+			TRY(type, singleTypeUse());
+			exp = builder.create<mlir::rlc::UncheckedIsOp>(location, exp, *type)
+								.getResult();
+			continue;
+		}
 		if (accept<Token::LPar>())
 		{
 			TRY(args, argumentExpressionList());
@@ -720,10 +728,10 @@ Parser::functionArguments()
 }
 
 /**
- * functionDefinition : "fun" identifier "(" [argDeclaration (","
- * argDeclaration)*] ")" ["->" singleTypeUse] ":\n" statementList
+ * functionDeclaration : "fun" identifier "(" [argDeclaration (","
+ * argDeclaration)*] ")" ["->" singleTypeUse]
  */
-Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
+Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration()
 {
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
@@ -756,17 +764,29 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
 			builder.getStringAttr(nm),
 			builder.getStrArrayAttr(argName));
 
+	builder.restoreInsertionPoint(pos);
+	return FunctionDeclarationResult{ fun, argLocs };
+}
+
+/**
+ * functionDefinition : functionDeclaration ":\n" statementList
+ */
+Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
+{
+	TRY(result, functionDeclaration());
+	auto fun = result->op;
+	auto location = getCurrentSourcePos();
+	auto pos = builder.saveInsertionPoint();
+
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 
-	llvm::SmallVector<mlir::Location> locs;
-	for (size_t i = 0; i < fun.getArgumentTypes().size(); i++)
-		locs.push_back(fun->getLoc());
-
-	builder.createBlock(&fun.getPrecondition(), {}, fun.getArgumentTypes(), locs);
+	builder.createBlock(
+			&fun.getPrecondition(), {}, fun.getArgumentTypes(), result->argLocs);
 	TRY(list, requirementList());
 
-	builder.createBlock(&fun.getBody(), {}, argTypes, { argLocs });
+	builder.createBlock(
+			&fun.getBody(), {}, fun.getArgumentTypes(), result->argLocs);
 	TRY(body, statementList());
 
 	emitYieldIfNeeded(location);
@@ -834,6 +854,40 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 	return decl;
 }
 
+/**
+ * traitDefinition: trait "<" ident ">:\n" indent (functionDeclaration "\n")*
+ * deindent
+ */
+Expected<mlir::rlc::UncheckedTraitDefinition> Parser::traitDefinition()
+{
+	auto location = getCurrentSourcePos();
+	auto pos = builder.saveInsertionPoint();
+	EXPECT(Token::KeywordTrait);
+	EXPECT(Token::LAng);
+	EXPECT(Token::Identifier);
+	auto templateParameter = lIdent;
+	EXPECT(Token::RAng);
+	EXPECT(Token::Identifier);
+	auto traitName = lIdent;
+	auto trait = builder.create<mlir::rlc::UncheckedTraitDefinition>(
+			location, traitName, templateParameter);
+	builder.createBlock(&trait.getBody());
+	builder.setInsertionPoint(
+			&trait.getBody().front(), trait.getBody().front().begin());
+
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+	EXPECT(Token::Indent);
+	while (not accept<Token::Deindent>())
+	{
+		TRY(fun, functionDeclaration());
+		EXPECT(Token::Newline);
+	}
+
+	builder.restoreInsertionPoint(pos);
+	return trait;
+}
+
 Expected<mlir::ModuleOp> Parser::system()
 {
 	auto location = getCurrentSourcePos();
@@ -870,6 +924,12 @@ Expected<mlir::ModuleOp> Parser::system()
 		if (current == Token::KeywordEntity)
 		{
 			TRY(f, entityDeclaration());
+			continue;
+		}
+
+		if (current == Token::KeywordTrait)
+		{
+			TRY(f, traitDefinition());
 			continue;
 		}
 		auto location = getCurrentSourcePos();

@@ -16,6 +16,8 @@ namespace rlc
 		End,
 		Begin,
 		KeywordSystem,
+		KeywordTrait,
+		KeywordIs,
 		KeywordAnd,
 		KeywordOr,
 		KeywordRule,

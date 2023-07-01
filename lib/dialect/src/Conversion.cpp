@@ -86,6 +86,22 @@ class MemberAccessRewriter
 	}
 };
 
+class TraitDeclarationEraser
+		: public mlir::OpConversionPattern<mlir::rlc::TraitDefinition>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::TraitDefinition>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::TraitDefinition op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class ArrayAccessRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::ArrayAccess>
 {
@@ -812,6 +828,7 @@ namespace mlir::rlc
 
 			mlir::RewritePatternSet patterns(&getContext());
 			patterns.add<FunctionRewriter>(converter, &getContext())
+					.add<TraitDeclarationEraser>(converter, &getContext())
 					.add<CallRewriter>(converter, &getContext())
 					.add<ConstantRewriter>(converter, &getContext())
 					.add<CbrRewriter>(converter, &getContext())

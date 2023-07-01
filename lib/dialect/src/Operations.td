@@ -35,6 +35,38 @@ def RLC_ExpressionStatement : RLC_Dialect<"exp", [DeclareOpInterfaceMethods<Type
   }];
 }
 
+def RLC_UncheckedTraitDefinition : RLC_Dialect<"unckecked_trait", [DeclareOpInterfaceMethods<TypeCheckable>, NoRegionArguments, NoTerminator, HasOnlyGraphRegion]> {
+  let summary = "trait declaration";
+
+  let description = [{
+	rappresentation of a trait before the typechecking	
+  }];
+
+  let arguments = (ins StrAttr:$name, StrAttr:$template_parameter);
+
+  let regions = (region
+	SizedRegion<1>:$body
+  );
+
+  let assemblyFormat = [{
+	$name `<` $template_parameter `>` $body attr-dict
+  }];
+
+  let extraClassDeclaration = [{
+	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
+		return mlir::rlc::TemplateParameterType::get(getContext(), getName(), nullptr);
+	  }
+  }];
+}
+
+def RLC_TraitDefinition : RLC_Dialect<"trait"> {
+  let arguments = (ins TypeAttrOf<RLC_TraitMetaType>:$meta_type);
+
+  let assemblyFormat = [{
+	$meta_type attr-dict
+  }];
+}
+
 def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "expression.";
 
@@ -143,6 +175,27 @@ def RLC_Reference : RLC_Dialect<"ref"> {
   }];
 }
 
+def RLC_UncheckedIsOp : RLC_Dialect<"UncheckedIsOp", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "implement is operator";
+
+  let description = [{
+	implements is operator.
+  }];
+
+  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait);
+
+  let results = (outs RLC_BoolType:$result);
+
+  let assemblyFormat = [{
+	$expression $type_or_trait type($expression) `->` type($result) attr-dict 
+  }];
+
+   let builders = [
+        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type), [{
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type);
+    }]>];
+}
+
 def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
   let summary = "statement list.";
 
@@ -199,7 +252,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
     }]>];
 
   let assemblyFormat = [{
-	$unmangledName $argNames type($result) $precondition $body attr-dict 
+	$unmangledName type($result) $argNames $precondition $body attr-dict 
   }];
     code extraBaseClassDeclaration = [{
         Region *getCallableRegion() {
@@ -253,7 +306,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 		mlir::LogicalResult typeCheck(
 				mlir::IRRewriter& rew,
 				mlir::rlc::SymbolTable<mlir::Value>& table,
-				mlir::TypeConverter& conv)
+				mlir::rlc::RLCTypeConverter& conv)
 		{
 
 			for (auto* region : {&getBody(), &getPrecondition()}) {
@@ -302,14 +355,18 @@ def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
-    let extraClassDeclaration = extraBaseClassDeclaration;
+  let extraClassDeclaration = extraBaseClassDeclaration # [{
+	mlir::LogicalResult typeCheckFunctionDeclaration(
+		mlir::IRRewriter& rewriter,
+		mlir::rlc::RLCTypeConverter& converter);
+  }];
 }
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
   let results = (outs FunctionType:$result, AnyFunctionType:$is_done_function, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
-	$unmangledName $argNames type($result) type($actions) type($is_done_function) $precondition $body attr-dict 
+	$unmangledName type($result) type($actions) type($is_done_function) $argNames $precondition $body attr-dict 
   }];
     let extraClassDeclaration = extraBaseClassDeclaration # [{
 
@@ -593,7 +650,7 @@ class RLC_InternalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
 	mlir::LogicalResult typeCheck(
 			mlir::IRRewriter &rewriter,
 			mlir::rlc::SymbolTable<mlir::Value> &table,
-			mlir::TypeConverter &conv)
+			mlir::rlc::RLCTypeConverter &conv)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
 		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
@@ -613,7 +670,7 @@ class RLC_RelationalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]>
 	mlir::LogicalResult typeCheck(
 			mlir::IRRewriter &rewriter,
 			mlir::rlc::SymbolTable<mlir::Value> &table,
-			mlir::TypeConverter &conv)
+			mlir::rlc::RLCTypeConverter &conv)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
 		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
@@ -634,7 +691,7 @@ class RLC_BoolExp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
 	mlir::LogicalResult typeCheck(
 			mlir::IRRewriter &rewriter,
 			mlir::rlc::SymbolTable<mlir::Value> &table,
-			mlir::TypeConverter &conv)
+			mlir::rlc::RLCTypeConverter &conv)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
 		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));

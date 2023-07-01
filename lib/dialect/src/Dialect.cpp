@@ -16,6 +16,11 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 			OS << casted.getName();
 			return AliasResult::FinalAlias;
 		}
+		if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
+		{
+			OS << "trait_" << casted.getName();
+			return AliasResult::FinalAlias;
+		}
 
 		return AliasResult::NoAlias;
 	}

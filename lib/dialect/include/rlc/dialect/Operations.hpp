@@ -46,7 +46,7 @@ namespace mlir::rlc::detail
 			Op op,
 			mlir::IRRewriter& rewriter,
 			mlir::rlc::SymbolTable<mlir::Value>& table,
-			mlir::TypeConverter& conv,
+			mlir::rlc::RLCTypeConverter& conv,
 			mlir::TypeRange accetableTypes,
 			mlir::Type res = nullptr);
 
@@ -59,7 +59,7 @@ namespace mlir::rlc
 			mlir::Operation& op,
 			mlir::IRRewriter& rewriter,
 			mlir::rlc::ValueTable& table,
-			mlir::TypeConverter& typeConverter);
+			mlir::rlc::RLCTypeConverter& typeConverter);
 }	 // namespace mlir::rlc
 
 #define GET_OP_CLASSES
@@ -106,7 +106,7 @@ namespace mlir::rlc::detail
 			Op op,
 			mlir::IRRewriter& rewriter,
 			mlir::rlc::SymbolTable<mlir::Value>& table,
-			mlir::TypeConverter& conv,
+			mlir::rlc::RLCTypeConverter& conv,
 			mlir::TypeRange accetableTypes,
 			mlir::Type resType)
 	{

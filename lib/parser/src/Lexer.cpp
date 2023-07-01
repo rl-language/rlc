@@ -46,6 +46,10 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Begin";
 		case Token::KeywordSystem:
 			return "KeywordSystem";
+		case Token::KeywordTrait:
+			return "KeywordTrait";
+		case Token::KeywordIs:
+			return "KeywordIs";
 		case Token::KeywordAnd:
 			return "KeywordAnd";
 		case Token::KeywordOr:
@@ -306,6 +310,9 @@ Token Lexer::eatIdent()
 	if (name == "rul")
 		return Token::KeywordRule;
 
+	if (name == "is")
+		return Token::KeywordIs;
+
 	if (name == "act")
 		return Token::KeywordAction;
 
@@ -320,6 +327,9 @@ Token Lexer::eatIdent()
 
 	if (name == "system")
 		return Token::KeywordSystem;
+
+	if (name == "trait")
+		return Token::KeywordTrait;
 
 	if (name == "while")
 		return Token::KeywordWhile;

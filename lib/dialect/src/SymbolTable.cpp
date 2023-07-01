@@ -70,6 +70,10 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	for (auto entityDecl : mod.getOps<mlir::rlc::EntityDeclaration>())
 		table.add(entityDecl.getName(), entityDecl.getType());
 
+	for (auto traitDefinition : mod.getOps<mlir::rlc::TraitDefinition>())
+		table.add(
+				traitDefinition.getMetaType().getName(), traitDefinition.getMetaType());
+
 	return table;
 }
 
@@ -164,6 +168,13 @@ static void registerConversions(
 
 mlir::rlc::RLCTypeConverter::RLCTypeConverter(mlir::ModuleOp op)
 		: types(makeTypeTable(op))
+{
+	registerConversions(converter, types);
+}
+
+mlir::rlc::RLCTypeConverter::RLCTypeConverter(
+		mlir::rlc::RLCTypeConverter* parentScopeConverter)
+		: types(&parentScopeConverter->types)
 {
 	registerConversions(converter, types);
 }

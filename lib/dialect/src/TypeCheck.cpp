@@ -147,25 +147,8 @@ static mlir::LogicalResult deduceFunctionTypes(mlir::ModuleOp op)
 
 	for (auto fun : funs)
 	{
-		rewriter.setInsertionPoint(fun);
-
-		auto deducedType =
-				converter.getConverter().convertType(fun.getFunctionType());
-		if (deducedType == nullptr)
-		{
-			fun.emitRemark("in function declaration " + fun.getUnmangledName());
+		if (fun.typeCheckFunctionDeclaration(rewriter, converter).failed())
 			return mlir::failure();
-		}
-		assert(deducedType.isa<mlir::FunctionType>());
-
-		auto newF = rewriter.create<mlir::rlc::FunctionOp>(
-				fun.getLoc(),
-				fun.getUnmangledName(),
-				deducedType.cast<mlir::FunctionType>(),
-				fun.getArgNames());
-		newF.getBody().takeBody(fun.getBody());
-		newF.getPrecondition().takeBody(fun.getPrecondition());
-		rewriter.eraseOp(fun);
 	}
 
 	return mlir::success();
@@ -479,6 +462,24 @@ static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 	return mlir::success();
 }
 
+static mlir::LogicalResult deduceTraitTypes(mlir::ModuleOp op)
+{
+	mlir::rlc::ModuleBuilder builder(op);
+	mlir::IRRewriter rewriter(op.getContext());
+
+	llvm::SmallVector<mlir::rlc::UncheckedTraitDefinition, 4> funs(
+			op.getOps<mlir::rlc::UncheckedTraitDefinition>());
+	for (auto fun : funs)
+	{
+		mlir::rlc::SymbolTable newTable(&builder.getSymbolTable());
+		if (mlir::rlc::typeCheck(
+						*fun.getOperation(), rewriter, newTable, builder.getConverter())
+						.failed())
+			return mlir::failure();
+	}
+	return mlir::success();
+}
+
 static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 {
 	mlir::rlc::ModuleBuilder builder(op);
@@ -595,6 +596,12 @@ namespace mlir::rlc
 			}
 
 			if (declareActionEntities(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
+
+			if (deduceTraitTypes(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;

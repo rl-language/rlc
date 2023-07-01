@@ -9,7 +9,9 @@
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/Parser/Parser.h"
 #include "rlc/dialect/Dialect.h"
+#include "rlc/dialect/SymbolTable.h"
 #include "rlc/dialect/TypeStorage.hpp"
+#include "rlc/utils/IRange.hpp"
 
 #define GET_TYPEDEF_CLASSES
 #include "Types.inc"
@@ -92,6 +94,7 @@ mlir::Type EntityType::replaceImmediateSubElements(
 {
 	// TODO: It's not clear how we support replacing sub-elements of mutable
 	// types.
+	llvm_unreachable("not implemented");
 	return nullptr;
 }
 
@@ -283,4 +286,63 @@ std::string mlir::rlc::mangledName(
 	OS.flush();
 
 	return s;
+}
+
+static mlir::FunctionType replaceTemplateParameter(
+		mlir::FunctionType original,
+		mlir::rlc::TemplateParameterType toReplace,
+		mlir::Type replacement)
+{
+	return original
+			.replaceSubElements(
+					[toReplace, replacement](mlir::Type t) -> std::optional<mlir::Type> {
+						if (auto Casted = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+						{
+							if (Casted == toReplace)
+								return replacement;
+						}
+
+						return std::nullopt;
+					})
+			.cast<mlir::FunctionType>();
+}
+
+static mlir::LogicalResult sameSignatureMethodExists(
+		ValueTable &table,
+		llvm::StringRef functionName,
+		mlir::FunctionType functionType)
+{
+	auto overloads = findOverloads(table, functionName, functionType.getInputs());
+
+	for (auto &overload : overloads)
+	{
+		if (overload.getType().cast<mlir::FunctionType>().getResults() ==
+				functionType.getResults())
+			return mlir::success();
+	}
+	return mlir::failure();
+}
+
+mlir::LogicalResult
+mlir::rlc::TraitMetaType::typeRespectsTraitFunctionDeclaration(
+		mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table, size_t index)
+{
+	auto methodType =
+			getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
+	auto instantiated =
+			replaceTemplateParameter(methodType, getTemplateParameterType(), type);
+
+	llvm::StringRef methodName = getRequestedFunctionNames()[index];
+	return sameSignatureMethodExists(table, methodName, instantiated);
+}
+
+mlir::LogicalResult mlir::rlc::TraitMetaType::typeRespectsTrait(
+		mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table)
+{
+	for (size_t i : ::rlc::irange(getRequestedFunctionTypes().size()))
+	{
+		if (typeRespectsTraitFunctionDeclaration(type, table, i).failed())
+			return mlir::failure();
+	}
+	return mlir::success();
 }

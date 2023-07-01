@@ -36,7 +36,7 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 mlir::LogicalResult mlir::rlc::ExpressionStatement::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &converter)
+		mlir::rlc::RLCTypeConverter &converter)
 {
 	for (auto *op : ops(getBody()))
 		if (mlir::rlc::typeCheck(*op, rewriter, table, converter).failed())
@@ -48,7 +48,7 @@ mlir::LogicalResult mlir::rlc::ExpressionStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	for (auto *child : ops(getBody()))
 	{
@@ -71,7 +71,7 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	rewriter.replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());
@@ -81,7 +81,7 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 mlir::LogicalResult mlir::rlc::Yield::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	return mlir::success();
 }
@@ -89,7 +89,7 @@ mlir::LogicalResult mlir::rlc::Yield::typeCheck(
 mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	for (auto *op : ops(getBody()))
 	{
@@ -111,7 +111,7 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	bool usedByCall = llvm::any_of(
 			getResult().getUsers(), [&](const mlir::OpOperand &operand) -> bool {
@@ -152,15 +152,44 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 mlir::LogicalResult mlir::rlc::Constant::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
+		mlir::IRRewriter &rewriter,
+		mlir::rlc::SymbolTable<mlir::Value> &table,
+		mlir::rlc::RLCTypeConverter &conv)
+{
+	auto deducedType = conv.convertType(getTypeOrTrait());
+	if (deducedType == nullptr)
+	{
+		emitRemark("In Is expression");
+		return mlir::failure();
+	}
+
+	bool evalsToTrue = true;
+	if (auto casted = deducedType.dyn_cast<mlir::rlc::TraitMetaType>())
+	{
+		evalsToTrue =
+				casted.typeRespectsTrait(getExpression().getType(), table).succeeded();
+	}
+	else
+	{
+		evalsToTrue = deducedType == getExpression().getType();
+	}
+
+	rewriter.setInsertionPoint(getOperation());
+	rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(*this, evalsToTrue);
+
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::StatementList::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	mlir::rlc::SymbolTable innerTable(&table);
 
@@ -171,10 +200,41 @@ mlir::LogicalResult mlir::rlc::StatementList::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
+		mlir::IRRewriter &rewriter,
+		mlir::rlc::SymbolTable<mlir::Value> &table,
+		mlir::rlc::RLCTypeConverter &conv)
+{
+	mlir::rlc::RLCTypeConverter templateConverter(&conv);
+	templateConverter.registerType(
+			getTemplateParameter(), getTemplateParameterType());
+
+	llvm::SmallVector<mlir::rlc::FunctionOp, 4> Ops(
+			getBody().getOps<mlir::rlc::FunctionOp>());
+	for (auto op : Ops)
+		if (op.typeCheckFunctionDeclaration(rewriter, templateConverter).failed())
+			return mlir::failure();
+
+	llvm::SmallVector<mlir::StringAttr> names;
+	llvm::SmallVector<mlir::FunctionType> types;
+
+	for (auto op : getBody().getOps<mlir::rlc::FunctionOp>())
+	{
+		names.push_back(op.getUnmangledNameAttr());
+		types.push_back(op.getFunctionType());
+	}
+
+	auto type = mlir::rlc::TraitMetaType::get(
+			getContext(), getName(), getTemplateParameter(), types, names);
+	rewriter.setInsertionPointAfter(*this);
+	rewriter.replaceOpWithNewOp<mlir::rlc::TraitDefinition>(*this, type);
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	for (auto *op : ops(getCondition()))
 		if (mlir::rlc::typeCheck(*op, rewriter, table, conv).failed())
@@ -207,7 +267,7 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	assert(
 			(getNumResults() == 0 or
@@ -220,7 +280,7 @@ mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
 mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	auto callee = getCallee().getDefiningOp<mlir::rlc::UnresolvedReference>();
 	mlir::Value toCall = getCallee();
@@ -261,7 +321,7 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	for (auto *op : ops(getCondition()))
 		if (mlir::rlc::typeCheck(*op, rewriter, table, conv).failed())
@@ -289,7 +349,7 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	auto deducedType = conv.convertType(getType());
 	if (deducedType == nullptr)
@@ -331,7 +391,7 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 mlir::LogicalResult mlir::rlc::CastOp::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	return mlir::success();
 }
@@ -339,7 +399,7 @@ mlir::LogicalResult mlir::rlc::CastOp::typeCheck(
 mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	llvm::SmallVector<mlir::Type> deducedTypes;
 
@@ -394,7 +454,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	llvm::SmallVector<mlir::Type> acceptable;
 	acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
@@ -412,7 +472,7 @@ mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
 mlir::LogicalResult mlir::rlc::MemberAccess::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	rewriter.replaceOpWithNewOp<mlir::rlc::MemberAccess>(
 			*this, getValue(), getMemberIndex());
@@ -422,7 +482,7 @@ mlir::LogicalResult mlir::rlc::MemberAccess::typeCheck(
 mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::TypeConverter &conv)
+		mlir::rlc::RLCTypeConverter &conv)
 {
 	auto structType = getValue().getType().dyn_cast<mlir::rlc::EntityType>();
 	if (structType == nullptr)
@@ -451,7 +511,7 @@ mlir::LogicalResult mlir::rlc::typeCheck(
 		mlir::Operation &op,
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::ValueTable &table,
-		mlir::TypeConverter &typeConverter)
+		mlir::rlc::RLCTypeConverter &typeConverter)
 {
 	if (not op.hasTrait<mlir::rlc::TypeCheckable::Trait>())
 	{
@@ -466,4 +526,27 @@ mlir::LogicalResult mlir::rlc::typeCheck(
 		return mlir::failure();
 
 	return mlir::LogicalResult::success();
+}
+
+mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
+		mlir::IRRewriter &rewriter, mlir::rlc::RLCTypeConverter &converter)
+{
+	rewriter.setInsertionPoint(*this);
+	auto deducedType = converter.convertType(getFunctionType());
+	if (deducedType == nullptr)
+	{
+		emitRemark("in function declaration " + getUnmangledName());
+		return mlir::failure();
+	}
+	assert(deducedType.isa<mlir::FunctionType>());
+
+	auto newF = rewriter.create<mlir::rlc::FunctionOp>(
+			getLoc(),
+			getUnmangledName(),
+			deducedType.cast<mlir::FunctionType>(),
+			getArgNames());
+	newF.getBody().takeBody(getBody());
+	newF.getPrecondition().takeBody(getPrecondition());
+	rewriter.eraseOp(*this);
+	return mlir::success();
 }

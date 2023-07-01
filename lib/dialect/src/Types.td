@@ -97,3 +97,33 @@ def RLC_TypeType : RLC_Type<"Type", "type"> {
   }];
 }
 
+def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+  let summary = "RLC type rappresenting a trait type";
+  let description = [{
+	 rapresents a trait meta type
+  }];
+  let parameters = (ins StringRefParameter<>:$name, StringRefParameter<>:$template_parameter, ArrayRefParameter<"FunctionType">:$requested_function_types, ArrayRefParameter<"mlir::StringAttr">:$requested_function_names);
+
+  let assemblyFormat = "`<`  $name  `<` $template_parameter `>` `[`$requested_function_types `]` `[` $requested_function_names `]` `>`";
+
+  let extraClassDeclaration = [{
+	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
+		return mlir::rlc::TemplateParameterType::get(getContext(), getName(), nullptr);
+	  }
+
+	mlir::LogicalResult typeRespectsTrait(mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table);
+	private:
+	mlir::LogicalResult typeRespectsTraitFunctionDeclaration(mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table, size_t FuctionDeclarationIndex);
+	public:
+  }];
+}
+
+def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+  let summary = "RLC type rappresenting a template paremeter";
+  let description = [{
+	 rapresents template parameter
+  }];
+  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::rlc::TraitMetaType">:$trait);
+  let assemblyFormat = "`<`  $name (`:` $trait^ )?`>`";
+}
+

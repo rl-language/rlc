@@ -14,7 +14,7 @@ def TypeCheckable : RLC_Interface<"TypeCheckable"> {
         InterfaceMethod<
             "executes type check.",
             "mlir::LogicalResult", "typeCheck",
-            (ins "mlir::IRRewriter&":$rewriter, "rlc::ValueTable&":$table, "mlir::TypeConverter&":$converter)
+            (ins "mlir::IRRewriter&":$rewriter, "rlc::ValueTable&":$table, "mlir::rlc::RLCTypeConverter&":$converter)
         >,
 
 ];

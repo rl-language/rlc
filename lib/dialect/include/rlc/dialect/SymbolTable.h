@@ -75,10 +75,20 @@ namespace mlir::rlc
 	class RLCTypeConverter
 	{
 		public:
-		RLCTypeConverter(mlir::ModuleOp op);
+		explicit RLCTypeConverter(mlir::ModuleOp op);
+		explicit RLCTypeConverter(RLCTypeConverter* parentScopeConverter);
 		mlir::TypeConverter& getConverter() { return converter; }
 		const TypeTable& getTypes() const { return types; }
 		TypeTable& getTypes() { return types; }
+		void registerType(llvm::StringRef name, mlir::Type type)
+		{
+			types.add(name, type);
+		}
+
+		mlir::Type convertType(mlir::Type type)
+		{
+			return converter.convertType(type);
+		}
 
 		private:
 		TypeTable types;
@@ -91,7 +101,7 @@ namespace mlir::rlc
 		ModuleBuilder(mlir::ModuleOp op);
 
 		ValueTable& getSymbolTable() { return values; }
-		mlir::TypeConverter& getConverter() { return converter.getConverter(); }
+		mlir::rlc::RLCTypeConverter& getConverter() { return converter; }
 
 		mlir::Value getAssignFunctionOf(mlir::Type type)
 		{

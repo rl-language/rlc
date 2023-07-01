@@ -13,6 +13,12 @@ namespace rlc
 	class Parser
 	{
 		public:
+		struct FunctionDeclarationResult
+		{
+			mlir::rlc::FunctionOp op;
+			llvm::SmallVector<mlir::Location> argLocs;
+		};
+
 		Parser(mlir::MLIRContext* ctx, std::string source, std::string sourceName)
 				: ctx(ctx),
 					builder(ctx),
@@ -62,8 +68,10 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ScalarUseType> singleTypeUse();
 		llvm::Expected<mlir::rlc::FunctionUseType> functionTypeUse();
 		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition();
+		llvm::Expected<FunctionDeclarationResult> functionDeclaration();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDeclaration();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
+		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();
 
 		llvm::Expected<mlir::ModuleOp> system();
 
