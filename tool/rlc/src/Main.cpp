@@ -350,6 +350,8 @@ int main(int argc, char *argv[])
 
 	mlir::PassManager typeChecker(&context);
 	typeChecker.addPass(mlir::rlc::createTypeCheckPass());
+	typeChecker.addPass(mlir::rlc::createInstantiateTemplatesPass());
+	typeChecker.addPass(mlir::rlc::createLowerIsOperationsPass());
 	if (typeChecker.run(ast).failed())
 	{
 		mlir::OpPrintingFlags flags;

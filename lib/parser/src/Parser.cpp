@@ -728,15 +728,56 @@ Parser::functionArguments()
 }
 
 /**
- * functionDeclaration : "fun" identifier "(" [argDeclaration (","
- * argDeclaration)*] ")" ["->" singleTypeUse]
+ * templateArguments: "<" ident ident ("," ident ident?)* ">"
  */
-Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration()
+Expected<llvm::SmallVector<mlir::rlc::UncheckedTemplateParameterType, 2>>
+Parser::templateArguments()
+{
+	llvm::SmallVector<mlir::rlc::UncheckedTemplateParameterType, 2> toReturn;
+	EXPECT(Token::LAng);
+
+	do
+	{
+		EXPECT(Token::Identifier);
+		auto first = lIdent;
+		if (accept<Token::Identifier>())
+		{
+			auto second = lIdent;
+			toReturn.push_back(mlir::rlc::UncheckedTemplateParameterType::get(
+					builder.getContext(), second, builder.getStringAttr(first)));
+		}
+		else
+		{
+			toReturn.push_back(mlir::rlc::UncheckedTemplateParameterType::get(
+					builder.getContext(), first, builder.getStringAttr("")));
+		}
+
+	} while (accept<Token::Comma>());
+
+	EXPECT(Token::RAng);
+	return toReturn;
+}
+
+/**
+ * functionDeclaration : "fun" templateArguments identifier "(" [argDeclaration
+ * ("," argDeclaration)*] ")" ["->" singleTypeUse]
+ */
+Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
+		bool templateFunction)
 {
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
 
 	EXPECT(Token::KeywordFun);
+
+	llvm::SmallVector<mlir::Type, 2> templateParameters;
+	if (templateFunction and current == Token::LAng)
+	{
+		TRY(parameters, templateArguments());
+		for (auto type : std::move(*parameters))
+			templateParameters.push_back(type);
+	}
+
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
 	TRY(args, functionArguments());
@@ -762,7 +803,8 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration()
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),
 			builder.getStringAttr(nm),
-			builder.getStrArrayAttr(argName));
+			builder.getStrArrayAttr(argName),
+			builder.getTypeArrayAttr(templateParameters));
 
 	builder.restoreInsertionPoint(pos);
 	return FunctionDeclarationResult{ fun, argLocs };

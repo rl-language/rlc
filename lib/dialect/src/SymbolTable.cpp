@@ -2,52 +2,6 @@
 
 #include "rlc/dialect/Operations.hpp"
 
-mlir::Value mlir::rlc::findOverload(
-		mlir::Operation& errorEmitter,
-		ValueTable& table,
-		llvm::StringRef name,
-		mlir::TypeRange arguments)
-{
-	llvm::SmallVector<mlir::Value> matching;
-	for (auto candidate : table.get(name))
-	{
-		if (not candidate.getType().isa<mlir::FunctionType>())
-			continue;
-		if (candidate.getType().cast<mlir::FunctionType>().getInputs() == arguments)
-		{
-			matching.push_back(candidate);
-		}
-	}
-
-	assert(matching.size() <= 1);
-	if (not matching.empty())
-		return matching.front();
-
-	errorEmitter.emitError("could not find matching function " + name);
-	assert(false);
-	for (auto candidate : table.get(name))
-	{
-		if (not candidate.getType().isa<mlir::FunctionType>())
-			continue;
-		candidate.getDefiningOp()->emitRemark("candidate");
-	}
-	return nullptr;
-}
-
-llvm::SmallVector<mlir::Value, 2> mlir::rlc::findOverloads(
-		ValueTable& table, llvm::StringRef name, mlir::TypeRange arguments)
-{
-	llvm::SmallVector<mlir::Value> matching;
-	for (auto candidate : table.get(name))
-	{
-		if (not candidate.getType().isa<mlir::FunctionType>())
-			continue;
-		if (candidate.getType().cast<mlir::FunctionType>().getInputs() == arguments)
-			matching.push_back(candidate);
-	}
-	return matching;
-}
-
 mlir::rlc::ValueTable mlir::rlc::makeValueTable(mlir::ModuleOp op)
 {
 	mlir::rlc::ValueTable table;
@@ -164,6 +118,29 @@ static void registerConversions(
 	});
 	converter.addConversion(
 			[&](mlir::rlc::EntityType t) -> mlir::Type { return t; });
+	converter.addConversion(
+			[&](mlir::rlc::UncheckedTemplateParameterType t)
+					-> std::optional<mlir::Type> {
+				if (t.getTrait() == "")
+					return mlir::rlc::TemplateParameterType::get(
+							t.getContext(), t.getName(), nullptr);
+
+				if (auto maybeType = types.getOne(t.getTrait()))
+				{
+					if (auto trait = maybeType.dyn_cast<mlir::rlc::TraitMetaType>())
+						return mlir::rlc::TemplateParameterType::get(
+								t.getContext(), t.getName(), trait);
+
+					mlir::emitError(
+							mlir::UnknownLoc::get(t.getContext()),
+							t.getTrait().str() + " is not a trait");
+					return std::nullopt;
+				}
+				mlir::emitError(
+						mlir::UnknownLoc::get(t.getContext()),
+						"trait" + t.getTrait().str() + " not found");
+				return std::nullopt;
+			});
 }
 
 mlir::rlc::RLCTypeConverter::RLCTypeConverter(mlir::ModuleOp op)

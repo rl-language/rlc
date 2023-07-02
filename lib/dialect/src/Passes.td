@@ -35,3 +35,13 @@ def EmitMainPass: Pass<"rlc-emit-main", "mlir::ModuleOp"> {
   let summary = "emit rlc main pass";
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def LowerIsOperationsPass : Pass<"rlc-lower-is-operations", "mlir::ModuleOp"> {
+  let summary = "lower is op operations";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def InstantiateTemplatesPass : Pass<"rlc-instantiate-templates", "mlir::ModuleOp"> {
+  let summary = "instantiate templates";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

@@ -169,19 +169,9 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 		return mlir::failure();
 	}
 
-	bool evalsToTrue = true;
-	if (auto casted = deducedType.dyn_cast<mlir::rlc::TraitMetaType>())
-	{
-		evalsToTrue =
-				casted.typeRespectsTrait(getExpression().getType(), table).succeeded();
-	}
-	else
-	{
-		evalsToTrue = deducedType == getExpression().getType();
-	}
-
 	rewriter.setInsertionPoint(getOperation());
-	rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(*this, evalsToTrue);
+	rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
+			*this, getExpression().getType(), deducedType);
 
 	return mlir::success();
 }
@@ -227,7 +217,8 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 	auto type = mlir::rlc::TraitMetaType::get(
 			getContext(), getName(), getTemplateParameter(), types, names);
 	rewriter.setInsertionPointAfter(*this);
-	rewriter.replaceOpWithNewOp<mlir::rlc::TraitDefinition>(*this, type);
+	rewriter.create<mlir::rlc::TraitDefinition>(getLoc(), type);
+	rewriter.eraseOp(*this);
 	return mlir::success();
 }
 
@@ -286,8 +277,10 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 	mlir::Value toCall = getCallee();
 	if (callee != nullptr)
 	{
-		auto candidate = mlir::rlc::findOverload(
-				*getOperation(), table, callee.getName(), getArgs().getType());
+		mlir::rlc::OverloadResolver resolver(table, *this);
+		rewriter.setInsertionPoint(getOperation());
+		auto candidate = resolver.instantiateOverload(
+				rewriter, getLoc(), callee.getName(), getArgs().getType());
 		if (candidate == nullptr)
 		{
 			emitRemark("while calling");
@@ -367,11 +360,9 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 		deducedType = array.getUnderlying();
 	}
 
-	auto candidate = findOverload(
-			*getOperation(),
-			table,
-			mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
-			deducedType);
+	OverloadResolver resolver(table, getOperation());
+	auto candidate = resolver.findOverload(
+			mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), deducedType);
 	if (candidate == nullptr)
 	{
 		emitRemark("in construction expression");
@@ -532,7 +523,27 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 		mlir::IRRewriter &rewriter, mlir::rlc::RLCTypeConverter &converter)
 {
 	rewriter.setInsertionPoint(*this);
-	auto deducedType = converter.convertType(getFunctionType());
+	auto scopedConverter = mlir::rlc::RLCTypeConverter(&converter);
+	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
+	for (auto parameter : getTemplateParameters())
+	{
+		auto unchecked = parameter.cast<mlir::TypeAttr>()
+												 .getValue()
+												 .cast<mlir::rlc::UncheckedTemplateParameterType>();
+
+		auto checkedParameterType = converter.convertType(unchecked);
+		if (not checkedParameterType)
+		{
+			emitRemark("in function definition");
+			return mlir::failure();
+		}
+		checkedTemplateParameters.push_back(checkedParameterType);
+		auto actualType =
+				checkedParameterType.cast<mlir::rlc::TemplateParameterType>();
+		scopedConverter.registerType(actualType.getName(), actualType);
+	}
+
+	auto deducedType = scopedConverter.convertType(getFunctionType());
 	if (deducedType == nullptr)
 	{
 		emitRemark("in function declaration " + getUnmangledName());
@@ -544,7 +555,8 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 			getLoc(),
 			getUnmangledName(),
 			deducedType.cast<mlir::FunctionType>(),
-			getArgNames());
+			getArgNames(),
+			checkedTemplateParameters);
 	newF.getBody().takeBody(getBody());
 	newF.getPrecondition().takeBody(getPrecondition());
 	rewriter.eraseOp(*this);

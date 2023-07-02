@@ -63,15 +63,6 @@ namespace mlir::rlc
 	ValueTable makeValueTable(mlir::ModuleOp);
 	TypeTable makeTypeTable(mlir::ModuleOp);
 
-	mlir::Value findOverload(
-			mlir::Operation& errorEmitter,
-			ValueTable& table,
-			llvm::StringRef name,
-			mlir::TypeRange arguments);
-
-	llvm::SmallVector<mlir::Value, 2> findOverloads(
-			ValueTable& table, llvm::StringRef name, mlir::TypeRange arguments);
-
 	class RLCTypeConverter
 	{
 		public:

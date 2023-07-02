@@ -9,6 +9,7 @@
 #include "mlir/IR/StorageUniquerSupport.h"
 #include "mlir/Parser/Parser.h"
 #include "rlc/dialect/Dialect.h"
+#include "rlc/dialect/OverloadResolver.hpp"
 #include "rlc/dialect/SymbolTable.h"
 #include "rlc/dialect/TypeStorage.hpp"
 #include "rlc/utils/IRange.hpp"
@@ -312,7 +313,9 @@ static mlir::LogicalResult sameSignatureMethodExists(
 		llvm::StringRef functionName,
 		mlir::FunctionType functionType)
 {
-	auto overloads = findOverloads(table, functionName, functionType.getInputs());
+	auto resolver = OverloadResolver(table);
+	auto overloads =
+			resolver.findOverloads(functionName, functionType.getInputs());
 
 	for (auto &overload : overloads)
 	{

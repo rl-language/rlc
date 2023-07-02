@@ -54,7 +54,7 @@ def RLC_UncheckedTraitDefinition : RLC_Dialect<"unckecked_trait", [DeclareOpInte
 
   let extraClassDeclaration = [{
 	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
-		return mlir::rlc::TemplateParameterType::get(getContext(), getName(), nullptr);
+		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr);
 	  }
   }];
 }
@@ -62,9 +62,19 @@ def RLC_UncheckedTraitDefinition : RLC_Dialect<"unckecked_trait", [DeclareOpInte
 def RLC_TraitDefinition : RLC_Dialect<"trait"> {
   let arguments = (ins TypeAttrOf<RLC_TraitMetaType>:$meta_type);
 
+  let results = (outs Variadic<FunctionType>:$result);
+
   let assemblyFormat = [{
-	$meta_type attr-dict
+	$meta_type `:` type($result) attr-dict
   }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::rlc::TraitMetaType":$metaType), [{
+			llvm::SmallVector<mlir::Type, 3> types;
+			for (auto& type : metaType.getRequestedFunctionTypes())
+				types.push_back(type);
+			build($_builder, $_state, types, metaType);
+  }]>];
 }
 
 def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable>]> {
@@ -192,6 +202,27 @@ def RLC_UncheckedIsOp : RLC_Dialect<"UncheckedIsOp", [DeclareOpInterfaceMethods<
 
    let builders = [
         OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type), [{
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type);
+    }]>];
+}
+
+def RLC_IsOp : RLC_Dialect<"IsOp"> {
+  let summary = "implement is operator";
+
+  let description = [{
+	implements is operator.
+  }];
+
+  let arguments = (ins TypeAttrOf<AnyType>:$expression, TypeAttrOf<AnyType>:$type_or_trait);
+
+  let results = (outs RLC_BoolType:$result);
+
+  let assemblyFormat = [{
+	$expression $type_or_trait `->` type($result) attr-dict 
+  }];
+
+   let builders = [
+        OpBuilder<(ins "mlir::Type":$expression, "mlir::Type":$type), [{
 			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type);
     }]>];
 }
@@ -355,10 +386,20 @@ def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
+  let arguments = (ins StrAttr:$unmangledName, StrArrayAttr:$argNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let extraClassDeclaration = extraBaseClassDeclaration # [{
 	mlir::LogicalResult typeCheckFunctionDeclaration(
 		mlir::IRRewriter& rewriter,
 		mlir::rlc::RLCTypeConverter& converter);
+  }];
+
+   let builders = [
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
+			build($_builder, $_state, type, name ,argNames, $_builder.getTypeArrayAttr(templateParameters));
+    }]>];
+
+  let assemblyFormat = [{
+	$unmangledName ( $template_parameters^ )? type($result) $argNames $precondition $body attr-dict 
   }];
 }
 
@@ -1251,4 +1292,15 @@ def RLC_EntityRuntimeTypeGlobal : RLC_Dialect<"entity_runtime_type_global"> {
         OpBuilder<(ins "llvm::StringRef":$name, CArg<"mlir::ValueRange", "{}">:$fields, CArg<"mlir::ArrayAttr", "{}">:$fieldNames), [{
             build($_builder, $_state, TypeType::get($_builder.getContext()), name, fields, fieldNames);
     }]>];
+}
+
+def RLC_TemplateInstantiationOp : RLC_Dialect<"template_instantiation"> {
+
+  let arguments = (ins FunctionType:$inputTemplate);
+
+  let results = (outs FunctionType:$result);
+
+  let assemblyFormat = [{
+	$inputTemplate type($inputTemplate) `->` type($result) attr-dict 
+  }];
 }

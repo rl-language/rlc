@@ -160,13 +160,40 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 
 	mlir::IRRewriter rewriter(op.getContext());
 
+	llvm::DenseMap<mlir::rlc::TraitMetaType, mlir::rlc::TraitDefinition> traits;
+
+	for (auto trait : op.getOps<mlir::rlc::TraitDefinition>())
+	{
+		auto result = traits.try_emplace(trait.getMetaType(), trait);
+		assert(result.second);
+	}
+
 	llvm::SmallVector<mlir::rlc::FunctionOp, 4> funs(
 			op.getOps<mlir::rlc::FunctionOp>());
 	for (auto fun : funs)
 	{
 		mlir::rlc::SymbolTable newTable(&builder.getSymbolTable());
+		mlir::rlc::RLCTypeConverter scopedConverter(&builder.getConverter());
+		for (auto templateParameter : fun.getTemplateParameters())
+		{
+			auto casted = templateParameter.cast<mlir::TypeAttr>()
+												.getValue()
+												.cast<mlir::rlc::TemplateParameterType>();
+			scopedConverter.registerType(casted.getName(), casted);
+
+			auto trait = casted.getTrait();
+			if (not trait)
+				continue;
+
+			auto traitDecl = traits[trait];
+			for (auto [name, value] :
+					 llvm::zip(trait.getRequestedFunctionNames(), traitDecl.getResults()))
+			{
+				newTable.add(name, value);
+			}
+		}
 		if (mlir::rlc::typeCheck(
-						*fun.getOperation(), rewriter, newTable, builder.getConverter())
+						*fun.getOperation(), rewriter, newTable, scopedConverter)
 						.failed())
 			return mlir::failure();
 	}
@@ -288,8 +315,8 @@ static mlir::LogicalResult declareImplicitAssign(mlir::ModuleOp op)
 	for (auto entity : op.getOps<mlir::rlc::EntityDeclaration>())
 	{
 		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
-		if (auto overloads = mlir::rlc::findOverloads(
-						table,
+		mlir::rlc::OverloadResolver resolver(table);
+		if (auto overloads = resolver.findOverloads(
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 						{ entity.getType(), entity.getType() });
 				not overloads.empty())
@@ -374,8 +401,8 @@ static mlir::LogicalResult declareImplicitInits(mlir::ModuleOp op)
 
 	for (auto entity : op.getOps<mlir::rlc::EntityDeclaration>())
 	{
-		if (auto overloads = mlir::rlc::findOverloads(
-						table,
+		mlir::rlc::OverloadResolver resolver(table);
+		if (auto overloads = resolver.findOverloads(
 						mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 						{ entity.getType() });
 				not overloads.empty())

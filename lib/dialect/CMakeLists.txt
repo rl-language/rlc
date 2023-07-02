@@ -1,4 +1,4 @@
-rlcAddLibrary(dialect src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp src/LowerActionPass.cpp src/LowerArrayCalls.cpp src/LowerToCf.cpp src/ActionStatementsToCoro.cpp)
+rlcAddLibrary(dialect src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp src/LowerActionPass.cpp src/LowerArrayCalls.cpp src/LowerToCf.cpp src/ActionStatementsToCoro.cpp src/OverloadResolver.cpp src/LowerIsOperationsPass.cpp src/InstantiateTemplatesPass.cpp)
 target_link_libraries(dialect PUBLIC rlc::utils MLIRSupport MLIRDialect MLIRLLVMDialect MLIRLLVMIRTransforms MLIRControlFlowDialect)
 
 set(tblgen ${LLVM_BINARY_DIR}/bin/mlir-tblgen)

@@ -108,7 +108,7 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait", [DeclareTypeInterfaceMeth
 
   let extraClassDeclaration = [{
 	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
-		return mlir::rlc::TemplateParameterType::get(getContext(), getName(), nullptr);
+		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr);
 	  }
 
 	mlir::LogicalResult typeRespectsTrait(mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table);
@@ -117,6 +117,16 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait", [DeclareTypeInterfaceMeth
 	public:
   }];
 }
+
+def RLC_UncheckedTemplateParameterType : RLC_Type<"UncheckedTemplateParameter", "unchecked_template_parameter", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+  let summary = "RLC type rappresenting a template paremeter before typechecking";
+  let description = [{
+	 rapresents template parameter before typecheckng
+  }];
+  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::StringAttr", "\"\"">:$trait);
+  let assemblyFormat = "`<`  $name (`:` $trait^ )?`>`";
+}
+
 
 def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
   let summary = "RLC type rappresenting a template paremeter";

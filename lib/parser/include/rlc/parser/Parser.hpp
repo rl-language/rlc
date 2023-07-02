@@ -68,7 +68,11 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ScalarUseType> singleTypeUse();
 		llvm::Expected<mlir::rlc::FunctionUseType> functionTypeUse();
 		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition();
-		llvm::Expected<FunctionDeclarationResult> functionDeclaration();
+		llvm::Expected<
+				llvm::SmallVector<mlir::rlc::UncheckedTemplateParameterType, 2>>
+		templateArguments();
+		llvm::Expected<FunctionDeclarationResult> functionDeclaration(
+				bool templateFunction = true);
 		llvm::Expected<mlir::rlc::ActionFunction> actionDeclaration();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();

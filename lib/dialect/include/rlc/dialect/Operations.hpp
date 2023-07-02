@@ -11,6 +11,7 @@
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "rlc/dialect/Interfaces.hpp"
+#include "rlc/dialect/OverloadResolver.hpp"
 #include "rlc/dialect/Types.hpp"
 
 namespace mlir::rlc::detail
@@ -143,8 +144,10 @@ namespace mlir::rlc::detail
 				operand = operand.cast<mlir::rlc::ArrayType>().getUnderlying();
 		}
 
-		auto overload = mlir::rlc::findOverload(
-				*op.getOperation(), table, opName, lookUpUperandTypes);
+		mlir::rlc::OverloadResolver resolver(table, op);
+		rewriter.setInsertionPoint(op);
+		auto overload = resolver.instantiateOverload(
+				rewriter, op.getLoc(), opName, lookUpUperandTypes);
 		if (overload == nullptr)
 			return mlir::failure();
 
