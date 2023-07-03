@@ -157,6 +157,14 @@ mlir::LogicalResult mlir::rlc::Constant::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::ValueUpcastOp::typeCheck(
+		mlir::IRRewriter &rewriter,
+		mlir::rlc::SymbolTable<mlir::Value> &table,
+		mlir::rlc::RLCTypeConverter &conv)
+{
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
@@ -171,7 +179,7 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 
 	rewriter.setInsertionPoint(getOperation());
 	rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
-			*this, getExpression().getType(), deducedType);
+			*this, getExpression(), deducedType);
 
 	return mlir::success();
 }
@@ -222,6 +230,31 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 	return mlir::success();
 }
 
+static void promoteArgumentOfIsOp(
+		mlir::IRRewriter &rewriter,
+		mlir::rlc::SymbolTable<mlir::Value> &table,
+		mlir::rlc::IfStatement op)
+{
+	rewriter.setInsertionPointToStart(&op.getTrueBranch().front());
+	auto isOp = op.getCondition()
+									.front()
+									.getTerminator()
+									->getOperand(0)
+									.getDefiningOp<mlir::rlc::IsOp>();
+	if (not isOp)
+		return;
+
+	if (auto trait = isOp.getTypeOrTrait().isa<mlir::rlc::TraitMetaType>())
+		return;
+
+	if (auto name = table.lookUpValue(isOp.getExpression()); not name.empty())
+	{
+		auto upcastedValue = rewriter.create<mlir::rlc::ValueUpcastOp>(
+				isOp.getLoc(), isOp.getTypeOrTrait(), isOp.getExpression());
+		table.add(name, upcastedValue);
+	}
+}
+
 mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 		mlir::IRRewriter &rewriter,
 		mlir::rlc::SymbolTable<mlir::Value> &table,
@@ -243,6 +276,7 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 	}
 
 	mlir::rlc::SymbolTable innerTable(&table);
+	promoteArgumentOfIsOp(rewriter, innerTable, *this);
 	for (auto *op : ops(getTrueBranch()))
 		if (mlir::rlc::typeCheck(*op, rewriter, innerTable, conv).failed())
 			return mlir::failure();

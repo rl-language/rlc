@@ -152,15 +152,15 @@ namespace mlir::rlc
 			llvm::SmallVector<mlir::rlc::FunctionOp> templates;
 			for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
 			{
-				if (llvm::any_of(
-								op.getResult().getType().getInputs(), [](mlir::Type t) {
-									return t.isa<mlir::rlc::TemplateParameterType>();
-								}))
+				if (isTemplateType(op.getType()).succeeded())
 					templates.push_back(op);
 			}
 
 			for (auto op : templates)
+			{
+				op.getOperation()->dropAllUses();
 				op.erase();
+			}
 		}
 	};
 }	 // namespace mlir::rlc

@@ -349,3 +349,16 @@ mlir::LogicalResult mlir::rlc::TraitMetaType::typeRespectsTrait(
 	}
 	return mlir::success();
 }
+
+mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
+{
+	if (auto casted = type.dyn_cast<mlir::rlc::TemplateParameterType>())
+		return mlir::success();
+
+	if (auto casted = type.dyn_cast<mlir::FunctionType>())
+		return mlir::success(llvm::any_of(casted.getInputs(), [](mlir::Type t) {
+			return isTemplateType(t).succeeded();
+		}));
+
+	return mlir::failure();
+}

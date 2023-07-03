@@ -86,6 +86,29 @@ class MemberAccessRewriter
 	}
 };
 
+class ValueUpcastEraser
+		: public mlir::OpConversionPattern<mlir::rlc::ValueUpcastOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::ValueUpcastOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::ValueUpcastOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		if (op.getInput().getType() != op.getResult().getType())
+		{
+			op.emitError("internal error somehow a template upcast did not had the "
+									 "same input and output type at lowering time");
+			return mlir::failure();
+		}
+		op.replaceAllUsesWith(op.getInput());
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class TraitDeclarationEraser
 		: public mlir::OpConversionPattern<mlir::rlc::TraitDefinition>
 {
@@ -829,6 +852,7 @@ namespace mlir::rlc
 			mlir::RewritePatternSet patterns(&getContext());
 			patterns.add<FunctionRewriter>(converter, &getContext())
 					.add<TraitDeclarationEraser>(converter, &getContext())
+					.add<ValueUpcastEraser>(converter, &getContext())
 					.add<CallRewriter>(converter, &getContext())
 					.add<ConstantRewriter>(converter, &getContext())
 					.add<CbrRewriter>(converter, &getContext())

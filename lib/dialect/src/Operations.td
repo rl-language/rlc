@@ -213,16 +213,16 @@ def RLC_IsOp : RLC_Dialect<"IsOp"> {
 	implements is operator.
   }];
 
-  let arguments = (ins TypeAttrOf<AnyType>:$expression, TypeAttrOf<AnyType>:$type_or_trait);
+  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait);
 
   let results = (outs RLC_BoolType:$result);
 
   let assemblyFormat = [{
-	$expression $type_or_trait `->` type($result) attr-dict 
+	$expression  $type_or_trait  `:` type($expression) `->` type($result) attr-dict 
   }];
 
    let builders = [
-        OpBuilder<(ins "mlir::Type":$expression, "mlir::Type":$type), [{
+        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type), [{
 			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type);
     }]>];
 }
@@ -1302,5 +1302,16 @@ def RLC_TemplateInstantiationOp : RLC_Dialect<"template_instantiation"> {
 
   let assemblyFormat = [{
 	$inputTemplate type($inputTemplate) `->` type($result) attr-dict 
+  }];
+}
+
+def RLC_ValueUpcastOp : RLC_Dialect<"value_upcast", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+
+  let arguments = (ins AnyType:$input);
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$input type($input) `->` type($result) attr-dict 
   }];
 }

@@ -90,5 +90,7 @@ namespace mlir::rlc
 
 		Type print(AsmPrinter &p) const;
 	};
+
+	mlir::LogicalResult isTemplateType(mlir::Type type);
 }	 // namespace mlir::rlc
 	 //

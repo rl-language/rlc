@@ -46,16 +46,33 @@ namespace mlir::rlc
 			return iter->second;
 		}
 
-		void add(llvm::StringRef name, T value) { values[name].push_back(value); }
+		void add(llvm::StringRef name, T value)
+		{
+			values[name].push_back(value);
+			reverseValues[value.getAsOpaquePointer()] = name.str();
+		}
 
 		const llvm::StringMap<llvm::SmallVector<T, 2>>& allDirectValues()
 		{
 			return values;
 		}
 
+		[[nodiscard]] llvm::StringRef lookUpValue(T value) const
+		{
+			if (auto iter = reverseValues.find(value.getAsOpaquePointer());
+					iter != reverseValues.end())
+				return iter->second;
+
+			if (parent == nullptr)
+				return "";
+
+			return parent->lookUpValue(value);
+		}
+
 		private:
 		SymbolTable* parent;
 		llvm::StringMap<llvm::SmallVector<T, 2>> values;
+		std::map<const void*, std::string> reverseValues;
 	};
 	using ValueTable = SymbolTable<mlir::Value>;
 	using TypeTable = SymbolTable<mlir::Type>;

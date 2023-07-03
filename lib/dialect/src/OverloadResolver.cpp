@@ -110,7 +110,7 @@ mlir::Value mlir::rlc::OverloadResolver::instantiateOverload(
 
 	auto instantiated = deduceTemplateCallSiteType(
 			arguments, overload.getType().cast<mlir::FunctionType>());
-	if (instantiated == overload.getType())
+	if (isTemplateType(overload.getType()).failed())
 		return overload;
 
 	return rewriter.create<mlir::rlc::TemplateInstantiationOp>(

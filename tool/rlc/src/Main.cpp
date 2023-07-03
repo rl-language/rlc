@@ -62,6 +62,12 @@ static cl::opt<bool> dumpUncheckedAST(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpCheckedAST(
+		"type-checked",
+		cl::desc("dumps the type checked ast before template expansion and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> compileOnly(
 		"compile",
 		cl::desc("compile but do not link"),
@@ -350,9 +356,31 @@ int main(int argc, char *argv[])
 
 	mlir::PassManager typeChecker(&context);
 	typeChecker.addPass(mlir::rlc::createTypeCheckPass());
-	typeChecker.addPass(mlir::rlc::createInstantiateTemplatesPass());
-	typeChecker.addPass(mlir::rlc::createLowerIsOperationsPass());
 	if (typeChecker.run(ast).failed())
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast.print(OS, flags);
+
+		return -1;
+	}
+
+	if (dumpCheckedAST)
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast->print(OS, flags);
+		if (mlir::verify(ast).failed())
+			return -1;
+		return 0;
+	}
+
+	mlir::PassManager templateInstantiator(&context);
+	templateInstantiator.addPass(mlir::rlc::createInstantiateTemplatesPass());
+	templateInstantiator.addPass(mlir::rlc::createLowerIsOperationsPass());
+	if (templateInstantiator.run(ast).failed())
 	{
 		mlir::OpPrintingFlags flags;
 		if (not hidePosition)
