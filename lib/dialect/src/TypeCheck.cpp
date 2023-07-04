@@ -172,16 +172,8 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 												.cast<mlir::rlc::TemplateParameterType>();
 			builder.getConverter().registerType(casted.getName(), casted);
 
-			auto trait = casted.getTrait();
-			if (not trait)
-				continue;
-
-			auto traitDecl = builder.getTraitDefinition(trait);
-			for (auto [name, value] :
-					 llvm::zip(trait.getRequestedFunctionNames(), traitDecl.getResults()))
-			{
-				builder.getSymbolTable().add(name, value);
-			}
+			if (auto trait = casted.getTrait())
+				builder.addTraitToAviableOverloads(trait);
 		}
 		if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
 			return mlir::failure();

@@ -57,6 +57,13 @@ namespace mlir::rlc
 				mlir::rlc::ValueTable& symbolTable,
 				mlir::rlc::TemplateInstantiationOp op)
 		{
+			if (isTemplateType(op.getInputTemplate().getType()).failed())
+			{
+				auto input = op.getInputTemplate();
+				op.replaceAllUsesWith(input);
+				op.erase();
+				return input;
+			}
 			if (auto trait =
 							op.getInputTemplate().getDefiningOp<mlir::rlc::TraitDefinition>())
 			{
@@ -90,6 +97,7 @@ namespace mlir::rlc
 
 			auto* clone = rewriter.clone(*op.getInputTemplate().getDefiningOp());
 			replacer.recursivelyReplaceElementsIn(clone, true, true, true);
+			lowerIsOperations(clone, symbolTable);
 
 			auto resolvedFunction =
 					mlir::cast<mlir::rlc::FunctionOp>(clone).getResult();

@@ -1,6 +1,7 @@
 #include "rlc/dialect/Operations.hpp"
 
 #include "rlc/dialect/Dialect.h"
+#include "rlc/utils/IRange.hpp"
 #define GET_OP_CLASSES
 #include "./Operations.inc"
 
@@ -163,7 +164,7 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 	}
 
 	rewriter.setInsertionPoint(getOperation());
-	rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
+	auto replaced = rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
 			*this, getExpression(), deducedType);
 
 	return mlir::success();
@@ -214,11 +215,10 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 }
 
 static void promoteArgumentOfIsOp(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::IfStatement op)
+		mlir::rlc::ModuleBuilder &builder, mlir::rlc::IfStatement op)
 {
-	rewriter.setInsertionPointToStart(&op.getTrueBranch().front());
+	auto &rewriter = builder.getRewriter();
+	auto &table = builder.getSymbolTable();
 	auto isOp = op.getCondition()
 									.front()
 									.getTerminator()
@@ -227,15 +227,41 @@ static void promoteArgumentOfIsOp(
 	if (not isOp)
 		return;
 
-	if (auto trait = isOp.getTypeOrTrait().isa<mlir::rlc::TraitMetaType>())
+	rewriter.setInsertionPointToStart(&op.getTrueBranch().front());
+	if (auto trait = isOp.getTypeOrTrait().dyn_cast<mlir::rlc::TraitMetaType>())
+	{
+		for (size_t index : ::rlc::irange(trait.getRequestedFunctionTypes().size()))
+		{
+			auto methodType =
+					trait.getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
+			auto instantiated = replaceTemplateParameter(
+					methodType,
+					trait.getTemplateParameterType(),
+					isOp.getExpression().getType());
+			auto upcastedValue = rewriter.create<mlir::rlc::TemplateInstantiationOp>(
+					isOp.getLoc(),
+					instantiated,
+					builder.getTraitDefinition(trait).getResults()[index]);
+
+			llvm::StringRef methodName = trait.getRequestedFunctionNames()[index];
+			table.add(methodName, upcastedValue);
+		}
+		return;
+	}
+
+	auto name = table.lookUpValue(isOp.getExpression());
+	if (name.empty())
 		return;
 
-	if (auto name = table.lookUpValue(isOp.getExpression()); not name.empty())
-	{
-		auto upcastedValue = rewriter.create<mlir::rlc::ValueUpcastOp>(
-				isOp.getLoc(), isOp.getTypeOrTrait(), isOp.getExpression());
-		table.add(name, upcastedValue);
-	}
+	auto upcastedValue = rewriter.create<mlir::rlc::ValueUpcastOp>(
+			isOp.getLoc(), isOp.getTypeOrTrait(), isOp.getExpression());
+	table.add(name, upcastedValue);
+}
+
+mlir::LogicalResult mlir::rlc::TemplateInstantiationOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
@@ -259,7 +285,7 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 
 	{
 		auto _ = builder.addSymbolTable();
-		promoteArgumentOfIsOp(rewriter, builder.getSymbolTable(), *this);
+		promoteArgumentOfIsOp(builder, *this);
 		for (auto *op : ops(getTrueBranch()))
 			if (mlir::rlc::typeCheck(*op, builder).failed())
 				return mlir::failure();

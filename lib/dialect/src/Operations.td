@@ -1285,7 +1285,7 @@ def RLC_EntityRuntimeTypeGlobal : RLC_Dialect<"entity_runtime_type_global"> {
     }]>];
 }
 
-def RLC_TemplateInstantiationOp : RLC_Dialect<"template_instantiation"> {
+def RLC_TemplateInstantiationOp : RLC_Dialect<"template_instantiation", [DeclareOpInterfaceMethods<TypeCheckable>]> {
 
   let arguments = (ins FunctionType:$inputTemplate);
 

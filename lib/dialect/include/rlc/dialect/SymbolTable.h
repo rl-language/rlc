@@ -14,6 +14,7 @@ namespace mlir::rlc
 	class TraitDefinition;
 	class ActionFunction;
 	class TraitMetaType;
+	class TraitMetaType;
 
 	template<typename T>
 	class SymbolTable
@@ -197,6 +198,8 @@ namespace mlir::rlc
 
 		mlir::rlc::TraitDefinition getTraitDefinition(
 				mlir::rlc::TraitMetaType type);
+
+		void addTraitToAviableOverloads(mlir::rlc::TraitMetaType trait);
 
 		private:
 		mlir::ModuleOp op;

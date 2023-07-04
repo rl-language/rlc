@@ -72,6 +72,8 @@ namespace mlir::rlc
 				.str();
 	}
 
+	void lowerIsOperations(mlir::Operation* op, mlir::rlc::ValueTable table);
+
 }	 // namespace mlir::rlc
 
 namespace mlir::rlc::detail

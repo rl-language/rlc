@@ -92,5 +92,10 @@ namespace mlir::rlc
 	};
 
 	mlir::LogicalResult isTemplateType(mlir::Type type);
+
+	mlir::FunctionType replaceTemplateParameter(
+			mlir::FunctionType original,
+			mlir::rlc::TemplateParameterType toReplace,
+			mlir::Type replacement);
 }	 // namespace mlir::rlc
 	 //

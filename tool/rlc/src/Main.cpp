@@ -378,8 +378,8 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::PassManager templateInstantiator(&context);
-	templateInstantiator.addPass(mlir::rlc::createInstantiateTemplatesPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerIsOperationsPass());
+	templateInstantiator.addPass(mlir::rlc::createInstantiateTemplatesPass());
 	if (templateInstantiator.run(ast).failed())
 	{
 		mlir::OpPrintingFlags flags;

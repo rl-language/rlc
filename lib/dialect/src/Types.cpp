@@ -289,7 +289,7 @@ std::string mlir::rlc::mangledName(
 	return s;
 }
 
-static mlir::FunctionType replaceTemplateParameter(
+mlir::FunctionType mlir::rlc::replaceTemplateParameter(
 		mlir::FunctionType original,
 		mlir::rlc::TemplateParameterType toReplace,
 		mlir::Type replacement)

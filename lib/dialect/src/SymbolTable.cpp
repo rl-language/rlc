@@ -254,3 +254,14 @@ mlir::rlc::ModuleBuilder::actionStatementsOfAction(
 {
 	return actionDeclToActionStatements[val.getResult()];
 }
+
+void mlir::rlc::ModuleBuilder::addTraitToAviableOverloads(
+		mlir::rlc::TraitMetaType trait)
+{
+	auto traitDecl = getTraitDefinition(trait);
+	for (auto [name, value] :
+			 llvm::zip(trait.getRequestedFunctionNames(), traitDecl.getResults()))
+	{
+		getSymbolTable().add(name, value);
+	}
+}

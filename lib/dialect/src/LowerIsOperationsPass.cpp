@@ -32,6 +32,44 @@ namespace mlir::rlc
 		op.erase();
 	}
 
+	void lowerIsOperations(mlir::Operation* op, mlir::rlc::ValueTable table)
+	{
+		llvm::SmallVector<mlir::rlc::IsOp, 4> toReplace;
+		op->walk([&](mlir::rlc::IsOp op) { toReplace.push_back(op); });
+
+		mlir::IRRewriter rewriter(op->getContext());
+		for (auto op : toReplace)
+		{
+			if (isTemplateType(op.getTypeOrTrait()).succeeded() or
+					isTemplateType(op.getExpression().getType()).succeeded())
+				continue;
+
+			bool evalsToTrue = true;
+			if (auto casted =
+							op.getTypeOrTrait().dyn_cast<mlir::rlc::TraitMetaType>())
+			{
+				evalsToTrue =
+						casted.typeRespectsTrait(op.getExpression().getType(), table)
+								.succeeded();
+			}
+			else
+			{
+				evalsToTrue = op.getExpression().getType() == op.getTypeOrTrait();
+			}
+
+			rewriter.setInsertionPoint(op);
+			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, evalsToTrue);
+		}
+
+		llvm::SmallVector<mlir::rlc::IfStatement, 4> ifs;
+		op->walk([&](mlir::rlc::IfStatement op) { ifs.push_back(op); });
+
+		// walk the statements backward so the innermost ones get deleated first
+		// and you do not delate them twice
+		for (auto ifOp : llvm::reverse(ifs))
+			eraseIfStatementIfConstant(ifOp);
+	}
+
 	struct LowerIsOperationsPass
 			: impl::LowerIsOperationsPassBase<LowerIsOperationsPass>
 	{
@@ -40,40 +78,8 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			llvm::SmallVector<mlir::rlc::IsOp, 4> toReplace;
-			getOperation().walk([&](mlir::rlc::IsOp op) { toReplace.push_back(op); });
-
 			mlir::rlc::ModuleBuilder builder(getOperation());
-			mlir::IRRewriter rewriter(getOperation().getContext());
-			for (auto op : toReplace)
-			{
-				bool evalsToTrue = true;
-				if (auto casted =
-								op.getTypeOrTrait().dyn_cast<mlir::rlc::TraitMetaType>())
-				{
-					evalsToTrue =
-							casted
-									.typeRespectsTrait(
-											op.getExpression().getType(), builder.getSymbolTable())
-									.succeeded();
-				}
-				else
-				{
-					evalsToTrue = op.getExpression().getType() == op.getTypeOrTrait();
-				}
-
-				rewriter.setInsertionPoint(op);
-				rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, evalsToTrue);
-			}
-
-			llvm::SmallVector<mlir::rlc::IfStatement, 4> ifs;
-			getOperation().walk(
-					[&](mlir::rlc::IfStatement op) { ifs.push_back(op); });
-
-			// walk the statements backward so the innermost ones get deleated first
-			// and you do not delate them twice
-			for (auto ifOp : llvm::reverse(ifs))
-				eraseIfStatementIfConstant(ifOp);
+			lowerIsOperations(getOperation(), builder.getSymbolTable());
 		}
 	};
 }	 // namespace mlir::rlc
