@@ -335,14 +335,11 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 		}
 
 		mlir::LogicalResult typeCheck(
-				mlir::IRRewriter& rew,
-				mlir::rlc::SymbolTable<mlir::Value>& table,
-				mlir::rlc::RLCTypeConverter& conv)
+				mlir::rlc::ModuleBuilder& builder)
 		{
 
 			for (auto* region : {&getBody(), &getPrecondition()}) {
-
-				mlir::rlc::SymbolTable<mlir::Value> inner(&table);
+				auto _  = builder.addSymbolTable();
 				if (region->empty())
 					continue;
 
@@ -352,15 +349,15 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 
 				for (const auto& [operand, name]: llvm::zip(region->front().getArguments(), getArgNames()))
 				{
-					auto converted = conv.convertType(operand.getType());
+					auto converted = builder.getConverter().convertType(operand.getType());
 					if (not converted){
 						getOperation()->emitRemark("in of argument of function");
 					}
 					operand.setType(converted);
-					inner.add(name.cast<mlir::StringAttr>(), operand);
+					builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), operand);
 				}
 				for (auto* operation : ops)
-					if (mlir::rlc::typeCheck(*operation, rew, inner, conv)
+					if (mlir::rlc::typeCheck(*operation, builder)
 							.failed())
 						return mlir::failure();
 			}
@@ -689,15 +686,13 @@ class RLC_InternalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
     let extraClassDeclaration = [{
 	
 	mlir::LogicalResult typeCheck(
-			mlir::IRRewriter &rewriter,
-			mlir::rlc::SymbolTable<mlir::Value> &table,
-			mlir::rlc::RLCTypeConverter &conv)
+			mlir::rlc::ModuleBuilder& builder)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
 		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
 		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
 		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
-		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable);
+		return mlir::rlc::detail::typeCheckInteralOp(*this, builder, acceptable);
 	}
 
 	
@@ -709,15 +704,13 @@ class RLC_RelationalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]>
     let extraClassDeclaration = [{
 	
 	mlir::LogicalResult typeCheck(
-			mlir::IRRewriter &rewriter,
-			mlir::rlc::SymbolTable<mlir::Value> &table,
-			mlir::rlc::RLCTypeConverter &conv)
+			mlir::rlc::ModuleBuilder& builder)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
 		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
 		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
 		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
-		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable, mlir::rlc::BoolType::get(this->getContext()));
+		return mlir::rlc::detail::typeCheckInteralOp(*this, builder, acceptable, mlir::rlc::BoolType::get(this->getContext()));
 	}
 
 
@@ -730,13 +723,11 @@ class RLC_BoolExp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
     let extraClassDeclaration = [{
 	
 	mlir::LogicalResult typeCheck(
-			mlir::IRRewriter &rewriter,
-			mlir::rlc::SymbolTable<mlir::Value> &table,
-			mlir::rlc::RLCTypeConverter &conv)
+			mlir::rlc::ModuleBuilder& builder)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
 		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
-		return mlir::rlc::detail::typeCheckInteralOp(*this, rewriter, table, conv, acceptable, mlir::rlc::BoolType::get(this->getContext()));
+		return mlir::rlc::detail::typeCheckInteralOp(*this, builder, acceptable, mlir::rlc::BoolType::get(this->getContext()));
 	}
 
 	

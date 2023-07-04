@@ -2,12 +2,16 @@
 
 #include "rlc/dialect/Operations.hpp"
 
+static void makeValueTable(mlir::ModuleOp op, mlir::rlc::ValueTable& table)
+{
+	for (auto fun : op.getOps<mlir::rlc::FunctionOp>())
+		table.add(fun.getUnmangledName(), fun);
+}
+
 mlir::rlc::ValueTable mlir::rlc::makeValueTable(mlir::ModuleOp op)
 {
 	mlir::rlc::ValueTable table;
-
-	for (auto fun : op.getOps<mlir::rlc::FunctionOp>())
-		table.add(fun.getUnmangledName(), fun);
+	::makeValueTable(op, table);
 
 	return table;
 }
@@ -157,16 +161,26 @@ mlir::rlc::RLCTypeConverter::RLCTypeConverter(
 }
 
 mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
-		: op(op), values(makeValueTable(op)), converter(op)
+		: op(op), rewriter(op.getContext())
 {
-	for (auto fun :
-			 values.get(mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>()))
+	values.emplace_back(std::make_unique<ValueTable>());
+	converter.emplace_back(std::make_unique<RLCTypeConverter>(op));
+	::makeValueTable(op, getSymbolTable());
+	for (auto trait : op.getOps<mlir::rlc::TraitDefinition>())
+	{
+		auto result = traits.try_emplace(trait.getMetaType(), trait);
+		assert(result.second);
+	}
+
+	for (auto fun : getSymbolTable().get(
+					 mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>()))
 	{
 		typeToInitFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
 													 .getArgumentTypes()[0]] = fun;
 	}
 
-	for (auto fun : values.get(builtinOperatorName<mlir::rlc::AssignOp>()))
+	for (auto fun :
+			 getSymbolTable().get(builtinOperatorName<mlir::rlc::AssignOp>()))
 	{
 		typeToAssignFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
 														 .getArgumentTypes()[0]] = fun;
@@ -189,14 +203,14 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
-		auto type = converter.getTypes().getOne(
+		auto type = getConverter().getTypes().getOne(
 				(action.getUnmangledName() + "Entity").str());
 		actionToActionType[action.getResult()] = type;
 		actionTypeToAction[type] = action.getResult();
-		values.add(
+		getSymbolTable().add(
 				action.getUnmangledName(), action.getOperation()->getOpResult(0));
 
-		values.add("is_done", action.getIsDoneFunction());
+		getSymbolTable().add("is_done", action.getIsDoneFunction());
 		typeToFunctions[type].push_back(action.getIsDoneFunction());
 		actionsAndZeroParametersFunctions.push_back(action.getResult());
 
@@ -206,7 +220,8 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 			// actions of a actions are, so the list is empty.
 			if (not action.getActions().empty())
 			{
-				values.add(statement.getName(), action.getActions()[actionIndex]);
+				getSymbolTable().add(
+						statement.getName(), action.getActions()[actionIndex]);
 				typeToFunctions[type].push_back(action.getActions()[actionIndex]);
 				actionFunctionResultToActionStement[action.getActions()[actionIndex]] =
 						statement;
@@ -219,6 +234,12 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 			actionIndex++;
 		});
 	}
+}
+
+mlir::rlc::TraitDefinition mlir::rlc::ModuleBuilder::getTraitDefinition(
+		mlir::rlc::TraitMetaType type)
+{
+	return traits[type];
 }
 
 mlir::Type mlir::rlc::ModuleBuilder::typeOfAction(mlir::rlc::ActionFunction& f)

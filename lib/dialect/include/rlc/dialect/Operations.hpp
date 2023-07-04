@@ -45,9 +45,7 @@ namespace mlir::rlc::detail
 	template<typename Op>
 	mlir::LogicalResult typeCheckInteralOp(
 			Op op,
-			mlir::IRRewriter& rewriter,
-			mlir::rlc::SymbolTable<mlir::Value>& table,
-			mlir::rlc::RLCTypeConverter& conv,
+			mlir::rlc::ModuleBuilder& builder,
 			mlir::TypeRange accetableTypes,
 			mlir::Type res = nullptr);
 
@@ -57,10 +55,7 @@ namespace mlir::rlc
 {
 
 	mlir::LogicalResult typeCheck(
-			mlir::Operation& op,
-			mlir::IRRewriter& rewriter,
-			mlir::rlc::ValueTable& table,
-			mlir::rlc::RLCTypeConverter& typeConverter);
+			mlir::Operation& op, mlir::rlc::ModuleBuilder& builder);
 }	 // namespace mlir::rlc
 
 #define GET_OP_CLASSES
@@ -105,12 +100,11 @@ namespace mlir::rlc::detail
 	template<typename Op>
 	mlir::LogicalResult typeCheckInteralOp(
 			Op op,
-			mlir::IRRewriter& rewriter,
-			mlir::rlc::SymbolTable<mlir::Value>& table,
-			mlir::rlc::RLCTypeConverter& conv,
+			mlir::rlc::ModuleBuilder& builder,
 			mlir::TypeRange accetableTypes,
 			mlir::Type resType)
 	{
+		auto& rewriter = builder.getRewriter();
 		std::string opName = builtinOperatorName<Op>();
 
 		mlir::SmallVector<mlir::Type, 4> operandTypes;
@@ -144,7 +138,7 @@ namespace mlir::rlc::detail
 				operand = operand.cast<mlir::rlc::ArrayType>().getUnderlying();
 		}
 
-		mlir::rlc::OverloadResolver resolver(table, op);
+		mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), op);
 		rewriter.setInsertionPoint(op);
 		auto overload = resolver.instantiateOverload(
 				rewriter, op.getLoc(), opName, lookUpUperandTypes);

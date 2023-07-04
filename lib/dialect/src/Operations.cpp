@@ -34,25 +34,22 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 }
 
 mlir::LogicalResult mlir::rlc::ExpressionStatement::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &converter)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	for (auto *op : ops(getBody()))
-		if (mlir::rlc::typeCheck(*op, rewriter, table, converter).failed())
+		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
+	auto &rewriter = builder.getRewriter();
 	for (auto *child : ops(getBody()))
 	{
-		if (mlir::rlc::typeCheck(*child, rewriter, table, conv).failed())
+		if (mlir::rlc::typeCheck(*child, builder).failed())
 			return mlir::failure();
 	}
 
@@ -64,36 +61,31 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 	newOne.getBody().takeBody(getBody());
 	rewriter.replaceOp(*this, { newOne });
 
-	table.add(newOne.getSymName(), newOne);
+	builder.getSymbolTable().add(newOne.getSymName(), newOne);
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
-	rewriter.replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::Yield::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
+	auto &rewriter = builder.getRewriter();
 	for (auto *op : ops(getBody()))
 	{
-		if (mlir::rlc::typeCheck(*op, rewriter, table, conv).failed())
+		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 	}
 	rewriter.setInsertionPoint(*this);
@@ -109,9 +101,7 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	bool usedByCall = llvm::any_of(
 			getResult().getUsers(), [&](const mlir::OpOperand &operand) -> bool {
@@ -126,7 +116,7 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 
 		return mlir::success();
 	}
-	auto candidates = table.get(getName());
+	auto candidates = builder.getSymbolTable().get(getName());
 	if (candidates.size() > 2)
 	{
 		emitError("ambigous reference to " + getName());
@@ -145,32 +135,27 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 	}
 
 	replaceAllUsesWith(candidates.front());
-	rewriter.eraseOp(*this);
+	builder.getRewriter().eraseOp(*this);
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::Constant::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::ValueUpcastOp::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
-	auto deducedType = conv.convertType(getTypeOrTrait());
+	auto &rewriter = builder.getRewriter();
+	auto deducedType = builder.getConverter().convertType(getTypeOrTrait());
 	if (deducedType == nullptr)
 	{
 		emitRemark("In Is expression");
@@ -185,32 +170,30 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::StatementList::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
-	mlir::rlc::SymbolTable innerTable(&table);
+	auto _ = builder.addSymbolTable();
 
 	for (auto *op : ops(getBody()))
-		if (mlir::rlc::typeCheck(*op, rewriter, innerTable, conv).failed())
+		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
-	mlir::rlc::RLCTypeConverter templateConverter(&conv);
-	templateConverter.registerType(
+	auto &rewriter = builder.getRewriter();
+	auto _ = builder.addSymbolTable();
+	builder.getConverter().registerType(
 			getTemplateParameter(), getTemplateParameterType());
 
 	llvm::SmallVector<mlir::rlc::FunctionOp, 4> Ops(
 			getBody().getOps<mlir::rlc::FunctionOp>());
 	for (auto op : Ops)
-		if (op.typeCheckFunctionDeclaration(rewriter, templateConverter).failed())
+		if (op.typeCheckFunctionDeclaration(rewriter, builder.getConverter())
+						.failed())
 			return mlir::failure();
 
 	llvm::SmallVector<mlir::StringAttr> names;
@@ -256,12 +239,11 @@ static void promoteArgumentOfIsOp(
 }
 
 mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
+	auto &rewriter = builder.getRewriter();
 	for (auto *op : ops(getCondition()))
-		if (mlir::rlc::typeCheck(*op, rewriter, table, conv).failed())
+		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
 	if (not getCondition()
@@ -275,24 +257,26 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 		return mlir::failure();
 	}
 
-	mlir::rlc::SymbolTable innerTable(&table);
-	promoteArgumentOfIsOp(rewriter, innerTable, *this);
-	for (auto *op : ops(getTrueBranch()))
-		if (mlir::rlc::typeCheck(*op, rewriter, innerTable, conv).failed())
-			return mlir::failure();
+	{
+		auto _ = builder.addSymbolTable();
+		promoteArgumentOfIsOp(rewriter, builder.getSymbolTable(), *this);
+		for (auto *op : ops(getTrueBranch()))
+			if (mlir::rlc::typeCheck(*op, builder).failed())
+				return mlir::failure();
+	}
 
-	mlir::rlc::SymbolTable innerTable2(&table);
-	for (auto *op : ops(getElseBranch()))
-		if (mlir::rlc::typeCheck(*op, rewriter, innerTable, conv).failed())
-			return mlir::failure();
+	{
+		auto _ = builder.addSymbolTable();
+		for (auto *op : ops(getElseBranch()))
+			if (mlir::rlc::typeCheck(*op, builder).failed())
+				return mlir::failure();
+	}
 
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	assert(
 			(getNumResults() == 0 or
@@ -303,15 +287,14 @@ mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
+	auto &rewriter = builder.getRewriter();
 	auto callee = getCallee().getDefiningOp<mlir::rlc::UnresolvedReference>();
 	mlir::Value toCall = getCallee();
 	if (callee != nullptr)
 	{
-		mlir::rlc::OverloadResolver resolver(table, *this);
+		mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), *this);
 		rewriter.setInsertionPoint(getOperation());
 		auto candidate = resolver.instantiateOverload(
 				rewriter, getLoc(), callee.getName(), getArgs().getType());
@@ -346,12 +329,11 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
+	auto &rewriter = builder.getRewriter();
 	for (auto *op : ops(getCondition()))
-		if (mlir::rlc::typeCheck(*op, rewriter, table, conv).failed())
+		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
 	if (not getCondition()
@@ -365,20 +347,19 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 		return mlir::failure();
 	}
 
-	mlir::rlc::SymbolTable innerTable(&table);
+	auto _ = builder.addSymbolTable();
 	for (auto *op : ops(getBody()))
-		if (mlir::rlc::typeCheck(*op, rewriter, innerTable, conv).failed())
+		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
-	auto deducedType = conv.convertType(getType());
+	auto deducedType = builder.getConverter().convertType(getType());
+	auto &rewriter = builder.getRewriter();
 	if (deducedType == nullptr)
 	{
 		emitRemark("in construction expression");
@@ -394,7 +375,7 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 		deducedType = array.getUnderlying();
 	}
 
-	OverloadResolver resolver(table, getOperation());
+	OverloadResolver resolver(builder.getSymbolTable(), getOperation());
 	auto candidate = resolver.findOverload(
 			mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), deducedType);
 	if (candidate == nullptr)
@@ -414,23 +395,20 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::CastOp::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
+	auto &rewriter = builder.getRewriter();
 	llvm::SmallVector<mlir::Type> deducedTypes;
 
 	for (auto &operand : getPrecondition().front().getArguments())
 	{
-		auto converted = conv.convertType(operand.getType());
+		auto converted = builder.getConverter().convertType(operand.getType());
 		if (not converted)
 		{
 			getOperation()->emitRemark("in of argument of action statement");
@@ -441,7 +419,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	for (auto result : getResultTypes())
 	{
-		auto deduced = conv.convertType(result);
+		auto deduced = builder.getConverter().convertType(result);
 		if (deduced == nullptr)
 			return mlir::failure();
 		deducedTypes.push_back(deduced);
@@ -453,15 +431,17 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		ToCheck.push_back(&ops);
 	}
 
-	mlir::rlc::SymbolTable inner(&table);
-	for (auto [name, res] :
-			 llvm::zip(getDeclaredNames(), getPrecondition().getArguments()))
-		inner.add(name.cast<mlir::StringAttr>(), res);
-
-	for (auto *op : ToCheck)
 	{
-		if (mlir::rlc::typeCheck(*op, rewriter, inner, conv).failed())
-			return mlir::failure();
+		auto _ = builder.addSymbolTable();
+		for (auto [name, res] :
+				 llvm::zip(getDeclaredNames(), getPrecondition().getArguments()))
+			builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), res);
+
+		for (auto *op : ToCheck)
+		{
+			if (mlir::rlc::typeCheck(*op, builder).failed())
+				return mlir::failure();
+		}
 	}
 
 	rewriter.setInsertionPoint(*this);
@@ -472,42 +452,31 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	for (auto [name, res] :
 			 llvm::zip(newDecl.getDeclaredNames(), newDecl.getResults()))
-		table.add(name.cast<mlir::StringAttr>(), res);
+		builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), res);
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	llvm::SmallVector<mlir::Type> acceptable;
 	acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
 	acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
 	acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 	return mlir::rlc::detail::typeCheckInteralOp(
-			*this,
-			rewriter,
-			table,
-			conv,
-			acceptable,
-			mlir::rlc::VoidType::get(this->getContext()));
+			*this, builder, acceptable, mlir::rlc::VoidType::get(this->getContext()));
 }
 
 mlir::LogicalResult mlir::rlc::MemberAccess::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
-	rewriter.replaceOpWithNewOp<mlir::rlc::MemberAccess>(
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::MemberAccess>(
 			*this, getValue(), getMemberIndex());
 	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::SymbolTable<mlir::Value> &table,
-		mlir::rlc::RLCTypeConverter &conv)
+		mlir::rlc::ModuleBuilder &builder)
 {
 	auto structType = getValue().getType().dyn_cast<mlir::rlc::EntityType>();
 	if (structType == nullptr)
@@ -521,7 +490,7 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		if (index.value() != getMemberName())
 			continue;
 
-		rewriter.replaceOpWithNewOp<mlir::rlc::MemberAccess>(
+		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::MemberAccess>(
 				*this, getValue(), index.index());
 		return mlir::success();
 	}
@@ -533,10 +502,7 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::typeCheck(
-		mlir::Operation &op,
-		mlir::IRRewriter &rewriter,
-		mlir::rlc::ValueTable &table,
-		mlir::rlc::RLCTypeConverter &typeConverter)
+		mlir::Operation &op, mlir::rlc::ModuleBuilder &builder)
 {
 	if (not op.hasTrait<mlir::rlc::TypeCheckable::Trait>())
 	{
@@ -544,10 +510,8 @@ mlir::LogicalResult mlir::rlc::typeCheck(
 		return mlir::failure();
 	}
 
-	rewriter.setInsertionPoint(&op);
-	if (mlir::cast<mlir::rlc::TypeCheckable>(op)
-					.typeCheck(rewriter, table, typeConverter)
-					.failed())
+	builder.getRewriter().setInsertionPoint(&op);
+	if (mlir::cast<mlir::rlc::TypeCheckable>(op).typeCheck(builder).failed())
 		return mlir::failure();
 
 	return mlir::LogicalResult::success();

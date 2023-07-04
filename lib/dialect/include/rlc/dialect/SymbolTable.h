@@ -11,13 +11,16 @@
 
 namespace mlir::rlc
 {
+	class TraitDefinition;
 	class ActionFunction;
+	class TraitMetaType;
 
 	template<typename T>
 	class SymbolTable
 	{
 		public:
-		SymbolTable(SymbolTable* parent = nullptr): parent(parent) {}
+		explicit SymbolTable(SymbolTable* parent): parent(parent) {}
+		SymbolTable(): parent(nullptr) {}
 
 		T getOne(llvm::StringRef name) const
 		{
@@ -85,6 +88,12 @@ namespace mlir::rlc
 		public:
 		explicit RLCTypeConverter(mlir::ModuleOp op);
 		explicit RLCTypeConverter(RLCTypeConverter* parentScopeConverter);
+		RLCTypeConverter(const RLCTypeConverter&) = delete;
+		RLCTypeConverter(RLCTypeConverter&&) = delete;
+		RLCTypeConverter& operator=(const RLCTypeConverter&) = delete;
+		RLCTypeConverter& operator=(RLCTypeConverter&&) = delete;
+		~RLCTypeConverter() = default;
+
 		mlir::TypeConverter& getConverter() { return converter; }
 		const TypeTable& getTypes() const { return types; }
 		TypeTable& getTypes() { return types; }
@@ -105,11 +114,44 @@ namespace mlir::rlc
 
 	class ModuleBuilder
 	{
+		private:
+		class SymbolTableRAIIDeleater
+		{
+			public:
+			SymbolTableRAIIDeleater(ModuleBuilder* builder): builder(builder)
+			{
+				builder->pushSymbolTable();
+			}
+			~SymbolTableRAIIDeleater() { builder->popSymbolTable(); }
+
+			private:
+			ModuleBuilder* builder;
+		};
+		void pushSymbolTable()
+		{
+			values.emplace_back(std::make_unique<ValueTable>(&getSymbolTable()));
+			converter.emplace_back(
+					std::make_unique<RLCTypeConverter>(&getConverter()));
+		}
+		void popSymbolTable()
+		{
+			assert(not values.empty());
+			values.pop_back();
+			converter.pop_back();
+		}
+
 		public:
+		[[nodiscard]] SymbolTableRAIIDeleater addSymbolTable()
+		{
+			return SymbolTableRAIIDeleater(this);
+		}
+
 		ModuleBuilder(mlir::ModuleOp op);
 
-		ValueTable& getSymbolTable() { return values; }
-		mlir::rlc::RLCTypeConverter& getConverter() { return converter; }
+		mlir::IRRewriter& getRewriter() { return rewriter; }
+
+		ValueTable& getSymbolTable() { return *values.back(); }
+		mlir::rlc::RLCTypeConverter& getConverter() { return *converter.back(); }
 
 		mlir::Value getAssignFunctionOf(mlir::Type type)
 		{
@@ -153,10 +195,14 @@ namespace mlir::rlc
 			return actionsAndZeroParametersFunctions;
 		}
 
+		mlir::rlc::TraitDefinition getTraitDefinition(
+				mlir::rlc::TraitMetaType type);
+
 		private:
 		mlir::ModuleOp op;
-		ValueTable values;
-		RLCTypeConverter converter;
+		mlir::IRRewriter rewriter;
+		std::vector<std::unique_ptr<ValueTable>> values;
+		std::vector<std::unique_ptr<RLCTypeConverter>> converter;
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToInitFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToAssignFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> actionTypeToAction;
@@ -170,5 +216,6 @@ namespace mlir::rlc
 				actionDeclToActionStatements;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<std::string, 4>>
 				actionDeclToActionNames;
+		llvm::DenseMap<mlir::rlc::TraitMetaType, mlir::rlc::TraitDefinition> traits;
 	};
 }	 // namespace mlir::rlc
