@@ -181,121 +181,6 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
-static mlir::LogicalResult emitBuiltinInits(mlir::ModuleOp op)
-{
-	mlir::IRRewriter rewriter(op.getContext());
-	llvm::SmallVector<mlir::Attribute, 3> attr;
-	attr.push_back(rewriter.getI64IntegerAttr(0));
-	attr.push_back(rewriter.getF64FloatAttr(0.0));
-	attr.push_back(rewriter.getBoolAttr(false));
-
-	llvm::SmallVector<mlir::Type, 3> types;
-	types.push_back(mlir::rlc::IntegerType::get(op.getContext()));
-	types.push_back(mlir::rlc::FloatType::get(op.getContext()));
-	types.push_back(mlir::rlc::BoolType::get(op.getContext()));
-
-	for (const auto& [attr, type] : llvm::zip(attr, types))
-	{
-		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
-
-		auto fun = rewriter.create<mlir::rlc::FunctionOp>(
-				op.getLoc(),
-				mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
-				mlir::FunctionType::get(op.getContext(), { type }, {}),
-				rewriter.getStrArrayAttr({ "arg0" }));
-
-		auto* block = rewriter.createBlock(
-				&fun.getBody(), fun.getBody().begin(), { type }, { op.getLoc() });
-
-		auto zero = rewriter.create<mlir::rlc::Constant>(op.getLoc(), type, attr);
-		rewriter.create<mlir::rlc::AssignOp>(
-				op.getLoc(), block->getArgument(0), zero);
-
-		rewriter.create<mlir::rlc::Yield>(op.getLoc());
-	}
-	return mlir::success();
-}
-
-static mlir::LogicalResult declareImplicitInits(mlir::ModuleOp op)
-{
-	auto table = mlir::rlc::makeValueTable(op);
-
-	mlir::IRRewriter rewriter(op.getContext());
-
-	llvm::SmallVector<mlir::rlc::FunctionOp, 4> funs;
-
-	for (auto entity : op.getOps<mlir::rlc::EntityDeclaration>())
-	{
-		mlir::rlc::OverloadResolver resolver(table);
-		if (auto overloads = resolver.findOverloads(
-						mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
-						{ entity.getType() });
-				not overloads.empty())
-		{
-			continue;
-		}
-
-		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
-
-		auto fType =
-				mlir::FunctionType::get(op.getContext(), { entity.getType() }, {});
-
-		auto fun = rewriter.create<mlir::rlc::FunctionOp>(
-				op.getLoc(),
-				mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
-				fType,
-				rewriter.getStrArrayAttr({ "arg0" }));
-
-		funs.emplace_back(fun);
-		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), fun);
-	}
-
-	return mlir::success();
-}
-
-static mlir::LogicalResult emitImplicitInit(mlir::ModuleOp op)
-{
-	mlir::rlc::ModuleBuilder builder(op);
-	mlir::IRRewriter rewriter(op.getContext());
-
-	for (auto op : builder.getSymbolTable().get(
-					 mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>()))
-	{
-		auto fun = op.getDefiningOp<mlir::rlc::FunctionOp>();
-		if (not fun.getBody().empty())
-			continue;
-
-		auto type = fun.getArgumentTypes().front().cast<mlir::rlc::EntityType>();
-		auto* block = rewriter.createBlock(
-				&fun.getBody(), fun.getBody().begin(), { type }, { fun.getLoc() });
-
-		for (auto field : llvm::enumerate(type.getBody()))
-		{
-			auto lhs = rewriter.create<mlir::rlc::MemberAccess>(
-					fun.getLoc(), block->getArgument(0), field.index());
-
-			if (auto type = lhs.getType().dyn_cast<mlir::rlc::ArrayType>();
-					type != nullptr)
-			{
-				rewriter.create<mlir::rlc::ArrayCallOp>(
-						fun.getLoc(),
-						builder.getInitFunctionOf(type.getUnderlying()),
-						mlir::ValueRange({ lhs }));
-			}
-			else
-			{
-				rewriter.create<mlir::rlc::CallOp>(
-						fun.getLoc(),
-						builder.getInitFunctionOf(lhs.getType()),
-						mlir::ValueRange({ lhs }));
-			}
-		}
-
-		rewriter.create<mlir::rlc::Yield>(op.getLoc(), mlir::ValueRange());
-	}
-	return mlir::success();
-}
-
 static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 {
 	mlir::rlc::ModuleBuilder builder(op);
@@ -418,12 +303,6 @@ namespace mlir::rlc
 		using impl::TypeCheckPassBase<TypeCheckPass>::TypeCheckPassBase;
 		void runOnOperation() override
 		{
-			if (emitBuiltinInits(getOperation()).failed())
-			{
-				signalPassFailure();
-				return;
-			}
-
 			if (declareEntities(getOperation()).failed())
 			{
 				signalPassFailure();
@@ -448,12 +327,6 @@ namespace mlir::rlc
 				return;
 			}
 
-			if (declareImplicitInits(getOperation()).failed())
-			{
-				signalPassFailure();
-				return;
-			}
-
 			if (deduceEntitiesBodies(getOperation()).failed())
 			{
 				signalPassFailure();
@@ -467,12 +340,6 @@ namespace mlir::rlc
 			}
 
 			if (deduceActionTypes(getOperation()).failed())
-			{
-				signalPassFailure();
-				return;
-			}
-
-			if (emitImplicitInit(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;

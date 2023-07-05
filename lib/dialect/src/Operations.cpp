@@ -380,7 +380,7 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 	return mlir::success();
 }
 
-mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
+mlir::LogicalResult mlir::rlc::ConstructOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	auto deducedType = builder.getConverter().convertType(getType());
@@ -391,30 +391,7 @@ mlir::LogicalResult mlir::rlc::UnresConstructOp::typeCheck(
 		return mlir::failure();
 	}
 
-	auto realType = deducedType;
-	bool isArray = false;
-	if (auto array = deducedType.dyn_cast<mlir::rlc::ArrayType>();
-			array != nullptr)
-	{
-		isArray = true;
-		deducedType = array.getUnderlying();
-	}
-
-	OverloadResolver resolver(builder.getSymbolTable(), getOperation());
-	auto candidate = resolver.findOverload(
-			mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), deducedType);
-	if (candidate == nullptr)
-	{
-		emitRemark("in construction expression");
-		return mlir::failure();
-	}
-
-	if (isArray)
-		rewriter.replaceOpWithNewOp<mlir::rlc::ArrayConstructOp>(
-				*this, realType, candidate.getDefiningOp<mlir::rlc::FunctionOp>());
-	else
-		rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(
-				*this, realType, candidate.getDefiningOp<mlir::rlc::FunctionOp>());
+	rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(*this, deducedType);
 
 	return mlir::success();
 }

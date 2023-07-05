@@ -633,7 +633,7 @@ Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 	TRY(use, singleTypeUse());
 	EXPECT(Token::Newline);
 
-	auto exp = builder.create<mlir::rlc::UnresConstructOp>(location, *use);
+	auto exp = builder.create<mlir::rlc::ConstructOp>(location, *use);
 	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ exp }));
 
 	builder.restoreInsertionPoint(pos);

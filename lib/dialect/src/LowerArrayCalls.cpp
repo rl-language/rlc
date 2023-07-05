@@ -6,60 +6,6 @@
 
 namespace mlir::rlc
 {
-	class ArrayConstructRewriter
-			: public mlir::OpConversionPattern<mlir::rlc::ArrayConstructOp>
-	{
-		using mlir::OpConversionPattern<
-				mlir::rlc::ArrayConstructOp>::OpConversionPattern;
-
-		mlir::LogicalResult matchAndRewrite(
-				mlir::rlc::ArrayConstructOp op,
-				OpAdaptor adaptor,
-				mlir::ConversionPatternRewriter& rewriter) const final
-		{
-			int64_t size = op.getType().cast<mlir::rlc::ArrayType>().getSize();
-			rewriter.setInsertionPoint(op);
-			mlir::Value result = nullptr;
-
-			result = rewriter.create<mlir::rlc::UninitializedConstruct>(
-					op.getLoc(), op.getType());
-			rewriter.replaceOp(op, result);
-
-			rewriter.setInsertionPointAfter(result.getDefiningOp());
-			auto index = rewriter.create<mlir::rlc::DeclarationStatement>(
-					op.getLoc(), mlir::rlc::IntegerType::get(op.getContext()), "dc");
-			rewriter.createBlock(&index.getBody());
-			auto zero = rewriter.create<mlir::rlc::Constant>(
-					op.getLoc(), static_cast<int64_t>(0));
-
-			rewriter.create<mlir::rlc::Yield>(
-					op.getLoc(), mlir::ValueRange({ zero }));
-
-			rewriter.setInsertionPointAfter(index);
-			auto whileStm = rewriter.create<mlir::rlc::WhileStatement>(op.getLoc());
-			rewriter.createBlock(&whileStm.getCondition());
-			auto max = rewriter.create<mlir::rlc::Constant>(op.getLoc(), size);
-			auto cond = rewriter.create<mlir::rlc::LessOp>(op.getLoc(), index, max);
-			rewriter.create<mlir::rlc::Yield>(
-					op.getLoc(), mlir::ValueRange({ cond }));
-
-			rewriter.createBlock(&whileStm.getBody());
-			auto elem =
-					rewriter.create<mlir::rlc::ArrayAccess>(op.getLoc(), result, index);
-
-			rewriter.create<mlir::rlc::CallOp>(
-					op.getLoc(), op.getInitializer(), mlir::ValueRange({ elem }));
-
-			auto one = rewriter.create<mlir::rlc::Constant>(
-					op.getLoc(), static_cast<int64_t>(1));
-			auto added = rewriter.create<mlir::rlc::AddOp>(op.getLoc(), index, one);
-			rewriter.create<mlir::rlc::BuiltinAssignOp>(op.getLoc(), index, added);
-
-			rewriter.create<mlir::rlc::Yield>(op.getLoc());
-
-			return mlir::success();
-		}
-	};
 
 	class ArrayCallRewriter
 			: public mlir::OpConversionPattern<mlir::rlc::ArrayCallOp>
@@ -147,12 +93,10 @@ namespace mlir::rlc
 			mlir::ConversionTarget target(getContext());
 
 			target.addLegalDialect<mlir::BuiltinDialect, mlir::rlc::RLCDialect>();
-			target
-					.addIllegalOp<mlir::rlc::ArrayCallOp, mlir::rlc::ArrayConstructOp>();
+			target.addIllegalOp<mlir::rlc::ArrayCallOp>();
 
 			mlir::RewritePatternSet patterns(&getContext());
 			patterns.add<ArrayCallRewriter>(&getContext());
-			patterns.add<ArrayConstructRewriter>(&getContext());
 
 			if (failed(applyPartialConversion(
 							getOperation(), target, std::move(patterns))))

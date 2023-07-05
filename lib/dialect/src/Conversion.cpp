@@ -29,13 +29,14 @@ class EntityDeclarationEraser
 	}
 };
 
-class ConstructRewriter
-		: public mlir::OpConversionPattern<mlir::rlc::ConstructOp>
+class ExplicitConstructRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::ExplicitConstructOp>
 {
-	using mlir::OpConversionPattern<mlir::rlc::ConstructOp>::OpConversionPattern;
+	using mlir::OpConversionPattern<
+			mlir::rlc::ExplicitConstructOp>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::ConstructOp op,
+			mlir::rlc::ExplicitConstructOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
@@ -884,7 +885,7 @@ namespace mlir::rlc
 					.add<MemberAccessRewriter>(converter, &getContext())
 					.add<ReferenceRewriter>(converter, &getContext())
 					.add<EntityDeclarationEraser>(converter, &getContext())
-					.add<ConstructRewriter>(converter, &getContext());
+					.add<ExplicitConstructRewriter>(converter, &getContext());
 
 			if (failed(applyPartialConversion(
 							getOperation(), target, std::move(patterns))))

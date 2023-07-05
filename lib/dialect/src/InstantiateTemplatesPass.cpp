@@ -100,6 +100,7 @@ namespace mlir::rlc
 			replacer.recursivelyReplaceElementsIn(clone, true, true, true);
 			lowerIsOperations(clone, symbolTable);
 			lowerAssignOps(builder, clone);
+			lowerConstructOps(builder, clone);
 
 			auto resolvedFunction =
 					mlir::cast<mlir::rlc::FunctionOp>(clone).getResult();

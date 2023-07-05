@@ -192,8 +192,8 @@ namespace mlir::rlc
 
 		auto entityType =
 				builder.typeOfAction(action).cast<mlir::rlc::EntityType>();
-		auto frame = rewriter.create<mlir::rlc::ConstructOp>(
-				action.getLoc(), entityType, builder.getInitFunctionOf(entityType));
+		auto frame =
+				rewriter.create<mlir::rlc::ConstructOp>(action.getLoc(), entityType);
 
 		auto ptrToIndex =
 				rewriter.create<mlir::rlc::MemberAccess>(action.getLoc(), frame, 0);

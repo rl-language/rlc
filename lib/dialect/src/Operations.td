@@ -645,23 +645,7 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
   }];
 }
 
-def RLC_ArrayConstructOp : RLC_Dialect<"array_construct"> {
-  let summary = "constant.";
-
-  let description = [{
-	expression.
-  }];
-
-  let arguments = (ins FunctionType:$initializer);
-  let results = (outs RLC_ArrayType:$result);
-
-
-  let assemblyFormat = [{
-		$initializer `:` type($initializer) type($result) attr-dict
-  }];
-}
-
-def RLC_ConstructOp : RLC_Dialect<"construct"> {
+def RLC_ExplicitConstructOp : RLC_Dialect<"explicit_construct"> {
   let summary = "constant.";
 
   let description = [{
@@ -671,14 +655,29 @@ def RLC_ConstructOp : RLC_Dialect<"construct"> {
   let arguments = (ins FunctionType:$initializer);
   let results = (outs AnyType:$result);
 
+  let assemblyFormat = [{
+		$initializer `:` type($initializer) `->` type($result) attr-dict
+  }];
+
   let builders = [
-        OpBuilder<(ins "FunctionOp":$init), [{
-            build($_builder, $_state, init.getArgumentTypes().front(), init);
+		OpBuilder<(ins "mlir::Value":$initializer), [{
+            build($_builder, $_state, initializer.getType().cast<mlir::FunctionType>().getInput(0), initializer);
     }]>];
+}
+
+def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-		$initializer `:` type($initializer) type($result) attr-dict
+		type($result) attr-dict
   }];
+
 }
 
 class RLC_InternalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
@@ -1236,20 +1235,6 @@ def RLC_EntityDeclaration : RLC_Dialect<"entity_decl"> {
 
   let assemblyFormat = [{
 	$name $memberTypes $memberNames type($result) attr-dict 
-  }];
-}
-
-def RLC_UnresConstructOp : RLC_Dialect<"unresolved_construct", [DeclareOpInterfaceMethods<TypeCheckable>]> {
-  let summary = "constant.";
-
-  let description = [{
-	expression.
-  }];
-
-  let results = (outs AnyType:$result);
-
-  let assemblyFormat = [{
-		type($result) attr-dict
   }];
 }
 
