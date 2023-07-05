@@ -23,7 +23,7 @@ static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
 		auto newResumeIndexValue = rewriter.create<mlir::rlc::Constant>(
 				fun.getLoc(), static_cast<int64_t>(-1));
 
-		rewriter.create<mlir::rlc::AssignOp>(
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
 				fun.getLoc(), resumeIndex, newResumeIndexValue);
 	}
 
@@ -53,7 +53,7 @@ static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
 			auto newResumeIndexValue =
 					rewriter.create<mlir::rlc::Constant>(casted.getLoc(), newResumeIndex);
 			newResumeIndex++;
-			rewriter.create<mlir::rlc::AssignOp>(
+			rewriter.create<mlir::rlc::BuiltinAssignOp>(
 					casted.getLoc(), resumeIndex, newResumeIndexValue);
 			rewriter.create<mlir::rlc::Yield>(casted.getLoc());
 			rewriter.eraseOp(casted);

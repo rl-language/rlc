@@ -316,41 +316,40 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	auto &rewriter = builder.getRewriter();
-	auto callee = getCallee().getDefiningOp<mlir::rlc::UnresolvedReference>();
-	mlir::Value toCall = getCallee();
-	if (callee != nullptr)
+
+	mlir::Operation *newCall = nullptr;
+	auto unresolvedCallee =
+			getCallee().getDefiningOp<mlir::rlc::UnresolvedReference>();
+	if (unresolvedCallee)
 	{
-		mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), *this);
 		rewriter.setInsertionPoint(getOperation());
-		auto candidate = resolver.instantiateOverload(
-				rewriter, getLoc(), callee.getName(), getArgs().getType());
-		if (candidate == nullptr)
-		{
-			emitRemark("while calling");
+		newCall = builder.emitCall(*this, unresolvedCallee.getName(), getArgs());
+		if (newCall == nullptr)
 			return mlir::failure();
+	}
+	else
+	{
+		if (not getCallee().getType().isa<mlir::FunctionType>())
+		{
+			emitError("cannot call non function type");
+			return LogicalResult::failure();
 		}
-		toCall = candidate;
+
+		newCall =
+				rewriter.create<mlir::rlc::CallOp>(getLoc(), getCallee(), getArgs());
 	}
 
-	if (not toCall.getType().isa<mlir::FunctionType>())
+	if (newCall->getNumResults() != 0)
 	{
-		emitError("cannot call non function type");
-		return LogicalResult::failure();
-	}
-
-	auto newOne = rewriter.create<mlir::rlc::CallOp>(getLoc(), toCall, getArgs());
-
-	if (newOne.getNumResults() != 0)
-	{
-		rewriter.replaceOp(*this, newOne.getResults());
-		if (callee)
-			rewriter.eraseOp(callee);
+		rewriter.replaceOp(*this, newCall->getResults());
+		if (unresolvedCallee)
+			rewriter.eraseOp(unresolvedCallee);
 		return mlir::success();
 	}
 
 	rewriter.eraseOp(*this);
-	if (callee)
-		rewriter.eraseOp(callee);
+	if (unresolvedCallee)
+		rewriter.eraseOp(unresolvedCallee);
 	return mlir::success();
 }
 
@@ -491,6 +490,30 @@ mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
 	acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 	return mlir::rlc::detail::typeCheckInteralOp(
 			*this, builder, acceptable, mlir::rlc::VoidType::get(this->getContext()));
+}
+
+mlir::LogicalResult mlir::rlc::ImplicitAssignOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ImplicitAssignOp>(
+			*this, getLhs(), getRhs());
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::BuiltinAssignOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::BuiltinAssignOp>(
+			*this, getLhs(), getRhs());
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::AssignOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::AssignOp>(
+			*this, getLhs(), getRhs());
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::MemberAccess::typeCheck(

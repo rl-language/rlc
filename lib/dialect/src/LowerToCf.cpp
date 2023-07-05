@@ -306,6 +306,7 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 	}
 	for (auto f : ops)
 	{
+		assert(f.verify().succeeded());
 		if (auto res = squashCF(f, rewriter); res.failed())
 			return res;
 

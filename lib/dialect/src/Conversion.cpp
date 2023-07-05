@@ -184,12 +184,14 @@ class InitRewriter: public mlir::OpConversionPattern<mlir::rlc::InitOp>
 	}
 };
 
-class AssignRewriter: public mlir::OpConversionPattern<mlir::rlc::AssignOp>
+class AssignRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::BuiltinAssignOp>
 {
-	using mlir::OpConversionPattern<mlir::rlc::AssignOp>::OpConversionPattern;
+	using mlir::OpConversionPattern<
+			mlir::rlc::BuiltinAssignOp>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::AssignOp op,
+			mlir::rlc::BuiltinAssignOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{

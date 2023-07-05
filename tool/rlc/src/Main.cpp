@@ -104,6 +104,12 @@ static cl::opt<bool> dumpPythonWrapper(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpAfterImplicit(
+		"after-implicit",
+		cl::desc("dumps the ast after implicit function expansions and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpRLC(
 		"rlc",
 		cl::desc("dumps the ast and exits"),
@@ -379,6 +385,7 @@ int main(int argc, char *argv[])
 
 	mlir::PassManager templateInstantiator(&context);
 	templateInstantiator.addPass(mlir::rlc::createLowerIsOperationsPass());
+	templateInstantiator.addPass(mlir::rlc::createLowerAssignPass());
 	templateInstantiator.addPass(mlir::rlc::createInstantiateTemplatesPass());
 	if (templateInstantiator.run(ast).failed())
 	{
@@ -433,16 +440,48 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	mlir::PassManager implictExpansionManager(&context);
+	implictExpansionManager.addPass(mlir::rlc::createLowerArrayCallsPass());
+	implictExpansionManager.addPass(mlir::rlc::createLowerActionPass());
+	implictExpansionManager.addPass(mlir::rlc::createLowerAssignPass());
+	implictExpansionManager.addPass(mlir::rlc::createEmitImplicitAssignPass());
+
+	if (implictExpansionManager.run(ast).failed())
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast.print(OS, flags);
+
+		return -1;
+	}
+
+	if (dumpAfterImplicit)
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast.print(OS, flags);
+		if (mlir::verify(ast).failed())
+			return -1;
+		return 0;
+	}
+
 	mlir::PassManager manager(&context);
-	manager.addPass(mlir::rlc::createLowerArrayCallsPass());
-	manager.addPass(mlir::rlc::createLowerActionPass());
 	manager.addPass(mlir::rlc::createLowerToCfPass());
 	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 	manager.addPass(mlir::rlc::createLowerToLLVMPass());
 	if (not compileOnly)
 		manager.addPass(mlir::rlc::createEmitMainPass());
 	if (manager.run(ast).failed())
+	{
+		mlir::OpPrintingFlags flags;
+		if (not hidePosition)
+			flags.enableDebugInfo(true);
+		ast.print(OS, flags);
+
 		return -1;
+	}
 
 	if (dumpMLIR)
 	{

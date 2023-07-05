@@ -53,7 +53,7 @@ namespace mlir::rlc
 			auto one = rewriter.create<mlir::rlc::Constant>(
 					op.getLoc(), static_cast<int64_t>(1));
 			auto added = rewriter.create<mlir::rlc::AddOp>(op.getLoc(), index, one);
-			rewriter.create<mlir::rlc::AssignOp>(op.getLoc(), index, added);
+			rewriter.create<mlir::rlc::BuiltinAssignOp>(op.getLoc(), index, added);
 
 			rewriter.create<mlir::rlc::Yield>(op.getLoc());
 
@@ -126,7 +126,7 @@ namespace mlir::rlc
 			auto one = rewriter.create<mlir::rlc::Constant>(
 					op.getLoc(), static_cast<int64_t>(1));
 			auto added = rewriter.create<mlir::rlc::AddOp>(op.getLoc(), index, one);
-			rewriter.create<mlir::rlc::AssignOp>(op.getLoc(), index, added);
+			rewriter.create<mlir::rlc::BuiltinAssignOp>(op.getLoc(), index, added);
 
 			rewriter.create<mlir::rlc::Yield>(op.getLoc());
 

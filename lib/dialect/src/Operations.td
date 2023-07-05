@@ -794,6 +794,7 @@ def RLC_DivOp : RLC_InternalOp<"_div"> {
   }];
 }
 
+
 def RLC_CastOp : RLC_Dialect<"cast", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 
@@ -875,7 +876,27 @@ def RLC_InitOp : RLC_Dialect<"init", [DeclareOpInterfaceMethods<TypeCheckable>]>
 
 }
 
-def RLC_AssignOp : RLC_InternalOp<"assign"> {
+def RLC_ImplicitAssignOp : RLC_Dialect<"implicit_assign", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
+            build($_builder, $_state, lhs.getType(), lhs, rhs);
+    }]>];
+
+  let assemblyFormat = [{
+	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs) `->` type($result) attr-dict
+  }];
+}
+
+def RLC_BuiltinAssignOp : RLC_Dialect<"builtin_assign", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -884,6 +905,26 @@ def RLC_AssignOp : RLC_InternalOp<"assign"> {
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
   let results = (outs AnyRLCScalarType:$result);
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
+            build($_builder, $_state, lhs.getType(), lhs, rhs);
+    }]>];
+
+  let assemblyFormat = [{
+	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs) `->` type($result) attr-dict
+  }];
+}
+
+def RLC_AssignOp : RLC_Dialect<"assign", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+  let results = (outs AnyType:$result);
 
   let builders = [
         OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
@@ -932,7 +973,7 @@ def RLC_SubOp : RLC_InternalOp<"_sub"> {
     }]>];
 
   let assemblyFormat = [{
-	$rhs `:` type($rhs) `,` $lhs `:` type($lhs) `->` type($result) attr-dict
+	$lhs `:` type($lhs) `,` $rhs `:` type($rhs) `->` type($result) attr-dict
   }];
 }
 

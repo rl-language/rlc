@@ -154,22 +154,10 @@ namespace mlir::rlc
 		ValueTable& getSymbolTable() { return *values.back(); }
 		mlir::rlc::RLCTypeConverter& getConverter() { return *converter.back(); }
 
-		mlir::Value getAssignFunctionOf(mlir::Type type)
-		{
-			assert(typeToAssignFunction.count(type) != 0);
-			return typeToAssignFunction[type];
-		}
-
 		mlir::Value getInitFunctionOf(mlir::Type type)
 		{
 			assert(typeToInitFunction.count(type) != 0);
 			return typeToInitFunction[type];
-		}
-
-		llvm::ArrayRef<mlir::Value> getNonInitOrAssignFunctionOf(mlir::Type type)
-		{
-			assert(typeToInitFunction.count(type) != 0);
-			return typeToFunctions[type];
 		}
 
 		bool isEntityOfAction(mlir::Type type)
@@ -191,15 +179,21 @@ namespace mlir::rlc
 			return actionFunctionResultToActionStement[val];
 		}
 
-		llvm::ArrayRef<mlir::Value> getActionsOrZeroArityFunctions()
-		{
-			return actionsAndZeroParametersFunctions;
-		}
-
 		mlir::rlc::TraitDefinition getTraitDefinition(
 				mlir::rlc::TraitMetaType type);
 
 		void addTraitToAviableOverloads(mlir::rlc::TraitMetaType trait);
+
+		mlir::Value resolveFunctionCall(
+				mlir::Operation* callSite,
+				llvm::StringRef name,
+				mlir::ValueRange arguments,
+				bool logErrors = true);
+
+		mlir::Operation* emitCall(
+				mlir::Operation* callSite,
+				llvm::StringRef name,
+				mlir::ValueRange arguments);
 
 		private:
 		mlir::ModuleOp op;
@@ -207,14 +201,10 @@ namespace mlir::rlc
 		std::vector<std::unique_ptr<ValueTable>> values;
 		std::vector<std::unique_ptr<RLCTypeConverter>> converter;
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToInitFunction;
-		llvm::DenseMap<mlir::Type, mlir::Value> typeToAssignFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> actionTypeToAction;
 		llvm::DenseMap<mlir::Value, mlir::Type> actionToActionType;
-		std::vector<mlir::Value> actionsAndZeroParametersFunctions;
 		llvm::DenseMap<mlir::Value, mlir::Operation*>
 				actionFunctionResultToActionStement;
-		llvm::DenseMap<mlir::Type, llvm::SmallVector<mlir::Value, 4>>
-				typeToFunctions;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<mlir::Operation*, 4>>
 				actionDeclToActionStatements;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<std::string, 4>>

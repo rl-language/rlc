@@ -44,7 +44,7 @@ namespace mlir::rlc
 	static void replaceAllDeclarationsWithIndirectOnes(
 			mlir::rlc::ActionFunction action, mlir::rlc::ModuleBuilder& builder)
 	{
-		mlir::IRRewriter rewriter(action.getContext());
+		mlir::IRRewriter& rewriter = builder.getRewriter();
 
 		auto refToEntity = action.getBlocks().front().getArgument(0);
 		auto type = refToEntity.getType().cast<mlir::rlc::EntityType>();
@@ -77,10 +77,11 @@ namespace mlir::rlc
 			auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
 					decl.getLoc(), refToEntity, memberIndex);
 			assert(decl.getType() != nullptr);
-			rewriter.create<mlir::rlc::CallOp>(
-					decl.getLoc(),
-					builder.getAssignFunctionOf(decl.getType()),
+			auto* call = builder.emitCall(
+					decl,
+					builtinOperatorName<mlir::rlc::AssignOp>(),
 					mlir::ValueRange({ refToMember, decl }));
+			assert(call != nullptr);
 		}
 	}
 
@@ -200,7 +201,7 @@ namespace mlir::rlc
 		auto constantZero =
 				rewriter.create<mlir::rlc::Constant>(action.getLoc(), int64_t(0));
 
-		rewriter.create<mlir::rlc::AssignOp>(
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
 				action.getLoc(), ptrToIndex, constantZero);
 
 		for (const auto& argument : llvm::enumerate(action.getArgNames()))

@@ -179,26 +179,12 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 													 .getArgumentTypes()[0]] = fun;
 	}
 
-	for (auto fun :
-			 getSymbolTable().get(builtinOperatorName<mlir::rlc::AssignOp>()))
-	{
-		typeToAssignFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
-														 .getArgumentTypes()[0]] = fun;
-	}
 	for (auto fun : op.getOps<mlir::rlc::FunctionOp>())
 	{
-		if (fun.getArgumentTypes().empty())
-		{
-			actionsAndZeroParametersFunctions.push_back(fun);
-			continue;
-		}
-
 		if (fun.getUnmangledName() ==
 						mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>() or
 				fun.getUnmangledName() == builtinOperatorName<mlir::rlc::AssignOp>())
 			continue;
-
-		typeToFunctions[fun.getArgumentTypes().front()].push_back(fun);
 	}
 
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
@@ -211,8 +197,6 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 				action.getUnmangledName(), action.getOperation()->getOpResult(0));
 
 		getSymbolTable().add("is_done", action.getIsDoneFunction());
-		typeToFunctions[type].push_back(action.getIsDoneFunction());
-		actionsAndZeroParametersFunctions.push_back(action.getResult());
 
 		size_t actionIndex = 0;
 		action.walk([&](mlir::rlc::ActionStatement statement) {
@@ -222,7 +206,6 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 			{
 				getSymbolTable().add(
 						statement.getName(), action.getActions()[actionIndex]);
-				typeToFunctions[type].push_back(action.getActions()[actionIndex]);
 				actionFunctionResultToActionStement[action.getActions()[actionIndex]] =
 						statement;
 			}
@@ -264,4 +247,112 @@ void mlir::rlc::ModuleBuilder::addTraitToAviableOverloads(
 	{
 		getSymbolTable().add(name, value);
 	}
+}
+
+static mlir::Operation* emitBuiltinAssign(
+		mlir ::rlc::ModuleBuilder& builder,
+		mlir::Operation* callSite,
+		llvm::StringRef name,
+		mlir::ValueRange arguments)
+{
+	auto argTypes = arguments.getType();
+	if (name != mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>() or
+			arguments.size() != 2)
+		return nullptr;
+
+	if ((argTypes[0].isa<mlir::rlc::FloatType>() or
+			 argTypes[0].isa<mlir::rlc::IntegerType>() or
+			 argTypes[0].isa<mlir::rlc::BoolType>()) and
+			(argTypes[0] == argTypes[1]))
+	{
+		return builder.getRewriter().create<mlir::rlc::BuiltinAssignOp>(
+				callSite->getLoc(), arguments[0], arguments[1]);
+	}
+
+	auto overload = builder.resolveFunctionCall(callSite, name, arguments, false);
+	if (overload)
+		return builder.getRewriter().create<mlir::rlc::CallOp>(
+				callSite->getLoc(), overload, arguments);
+
+	return builder.getRewriter().create<mlir::rlc::ImplicitAssignOp>(
+			callSite->getLoc(), arguments[0], arguments[1]);
+}
+
+static mlir::rlc::CastOp emitCast(
+		mlir::IRRewriter& rewriter,
+		mlir::Operation* callSite,
+		llvm::StringRef name,
+		mlir::ValueRange arguments)
+{
+	auto argTypes = arguments.getType();
+	if (name == "int" and arguments.size() == 1 and
+			(argTypes[0].isa<mlir::rlc::FloatType>() or
+			 argTypes[0].isa<mlir::rlc::BoolType>()))
+	{
+		return rewriter.create<mlir::rlc::CastOp>(
+				callSite->getLoc(),
+				arguments[0],
+				mlir::rlc::IntegerType::get(callSite->getContext()));
+	}
+
+	if (name == "float" and arguments.size() == 1 and
+			(argTypes[0].isa<mlir::rlc::IntegerType>() or
+			 argTypes[0].isa<mlir::rlc::BoolType>()))
+	{
+		return rewriter.create<mlir::rlc::CastOp>(
+				callSite->getLoc(),
+				arguments[0],
+				mlir::rlc::FloatType::get(callSite->getContext()));
+	}
+
+	if (name == "bool" and arguments.size() == 1 and
+			(argTypes[0].isa<mlir::rlc::FloatType>() or
+			 argTypes[0].isa<mlir::rlc::IntegerType>()))
+	{
+		return rewriter.create<mlir::rlc::CastOp>(
+				callSite->getLoc(),
+				arguments[0],
+				mlir::rlc::BoolType::get(callSite->getContext()));
+	}
+	return nullptr;
+}
+
+mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
+		mlir::Operation* callSite, llvm::StringRef name, mlir::ValueRange arguments)
+{
+	if (auto maybeCast = emitCast(rewriter, callSite, name, arguments))
+		return maybeCast;
+
+	if (auto* maybeCast = emitBuiltinAssign(*this, callSite, name, arguments))
+		return maybeCast;
+
+	auto argTypes = arguments.getType();
+	auto overload = resolveFunctionCall(callSite, name, arguments);
+
+	if (overload == nullptr)
+	{
+		callSite->emitRemark("while calling");
+		return nullptr;
+	}
+
+	if (not overload.getType().isa<mlir::FunctionType>())
+	{
+		callSite->emitError("cannot call non function type");
+		return nullptr;
+	}
+
+	return rewriter.create<mlir::rlc::CallOp>(
+			callSite->getLoc(), overload, arguments);
+}
+
+mlir::Value mlir::rlc::ModuleBuilder::resolveFunctionCall(
+		mlir::Operation* callSite,
+		llvm::StringRef name,
+		mlir::ValueRange arguments,
+		bool logErrors)
+{
+	mlir::rlc::OverloadResolver resolver(
+			getSymbolTable(), logErrors ? callSite : nullptr);
+	return resolver.instantiateOverload(
+			rewriter, callSite->getLoc(), name, arguments);
 }

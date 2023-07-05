@@ -53,6 +53,7 @@ namespace mlir::rlc
 		}
 
 		mlir::Value instantiate(
+				mlir::rlc::ModuleBuilder& builder,
 				mlir::IRRewriter& rewriter,
 				mlir::rlc::ValueTable& symbolTable,
 				mlir::rlc::TemplateInstantiationOp op)
@@ -98,6 +99,7 @@ namespace mlir::rlc
 			auto* clone = rewriter.clone(*op.getInputTemplate().getDefiningOp());
 			replacer.recursivelyReplaceElementsIn(clone, true, true, true);
 			lowerIsOperations(clone, symbolTable);
+			lowerAssignOps(builder, clone);
 
 			auto resolvedFunction =
 					mlir::cast<mlir::rlc::FunctionOp>(clone).getResult();
@@ -151,7 +153,7 @@ namespace mlir::rlc
 					{
 						replacedAtLeastOne = true;
 						auto newInstance =
-								instantiate(rewriter, builder.getSymbolTable(), op);
+								instantiate(builder, rewriter, builder.getSymbolTable(), op);
 						alreadyReplaced[mapKey] = newInstance;
 					}
 				}

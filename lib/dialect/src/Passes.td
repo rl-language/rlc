@@ -41,7 +41,17 @@ def LowerIsOperationsPass : Pass<"rlc-lower-is-operations", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def LowerAssignPass : Pass<"rlc-assign-pass", "mlir::ModuleOp"> {
+  let summary = "lower assign operations";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def InstantiateTemplatesPass : Pass<"rlc-instantiate-templates", "mlir::ModuleOp"> {
   let summary = "instantiate templates";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def EmitImplicitAssignPass : Pass<"rlc-emit-implicit-assign-pass", "mlir::ModuleOp"> {
+  let summary = "emit implicit assign pass";
   let dependentDialects = ["rlc::RLCDialect"];
 }

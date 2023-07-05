@@ -76,7 +76,8 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 	{
 		if (not candidate.getType().isa<mlir::FunctionType>())
 			continue;
-		candidate.getDefiningOp()->emitRemark("candidate");
+		if (errorEmitter)
+			candidate.getDefiningOp()->emitRemark("candidate");
 	}
 	return nullptr;
 }
