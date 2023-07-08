@@ -69,8 +69,8 @@ def RLC_TypeUse : RLC_Type<"ScalarUse", "type_use"> {
   let description = [{
     type that rappresents a not yet type checked type use.
   }];
-	let parameters = (ins OptionalParameter<"Type">:$underlying, StringRefParameter<>:$read_type, "int64_t":$size);
-  let assemblyFormat = "`<`  $read_type $size (`:` $underlying^ )?`>`";
+	let parameters = (ins OptionalParameter<"Type">:$underlying, StringRefParameter<>:$read_type, "int64_t":$size, OptionalArrayRefParameter<"Type">:$explicit_template_parameters);
+  let assemblyFormat = "`<`  $read_type (`[` $explicit_template_parameters^ `]`)? $size (`:` $underlying^ )?`>`";
 }
 
 def RLC_Unknown : RLC_Type<"Unknown", "unknown"> {

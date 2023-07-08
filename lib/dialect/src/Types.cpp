@@ -28,22 +28,28 @@ void mlir::rlc::RLCDialect::registerTypes()
 
 using namespace mlir::rlc;
 
-EntityType EntityType::getIdentified(MLIRContext *context, StringRef name)
+EntityType EntityType::getIdentified(
+		MLIRContext *context,
+		StringRef name,
+		ArrayRef<Type> explicitTemplateParameters)
 {
-	return Base::get(context, name);
+	return Base::get(
+			context, StructTypeStorage::KeyTy(name, explicitTemplateParameters));
 }
 
 EntityType EntityType::getNewIdentified(
 		MLIRContext *context,
 		StringRef name,
 		ArrayRef<Type> elements,
-		ArrayRef<std::string> fieldNames)
+		ArrayRef<std::string> fieldNames,
+		ArrayRef<Type> explicitTemplateParameters)
 {
 	std::string stringName = name.str();
 	unsigned counter = 0;
 	do
 	{
-		auto type = EntityType::getIdentified(context, stringName);
+		auto type = EntityType::getIdentified(
+				context, stringName, explicitTemplateParameters);
 		if (type.isInitialized() || failed(type.setBody(elements, fieldNames)))
 		{
 			counter += 1;
@@ -70,8 +76,13 @@ llvm::ArrayRef<mlir::Type> EntityType::getBody() const
 	return getImpl()->getBody();
 }
 
+llvm::ArrayRef<mlir::Type> EntityType::getExplicitTemplateParameters() const
+{
+	return getImpl()->getExplicitTemplateParameters();
+}
+
 mlir::LogicalResult EntityType::verify(
-		function_ref<InFlightDiagnostic()>, StringRef)
+		function_ref<InFlightDiagnostic()>, StructTypeStorage::KeyTy &)
 {
 	return success();
 }
@@ -88,15 +99,20 @@ void EntityType::walkImmediateSubElements(
 {
 	for (Type type : getBody())
 		walkTypesFn(type);
+
+	for (Type type : getExplicitTemplateParameters())
+		walkTypesFn(type);
 }
 
 mlir::Type EntityType::replaceImmediateSubElements(
 		ArrayRef<Attribute> replAttrs, ArrayRef<Type> replTypes) const
 {
-	// TODO: It's not clear how we support replacing sub-elements of mutable
-	// types.
-	llvm_unreachable("not implemented");
-	return nullptr;
+	auto type = EntityType::getIdentified(
+			getContext(), getName(), replTypes.drop_front(getBody().size()));
+	auto result =
+			type.setBody(replTypes.take_front(getBody().size()), getFieldNames());
+	assert(result.succeeded());
+	return type;
 }
 
 llvm::ArrayRef<std::string> EntityType::getFieldNames() const
@@ -118,43 +134,75 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 		return {};
 	}
 
-	auto toReturn = EntityType::getIdentified(parser.getContext(), name);
-	if (parser.parseLBrace().failed())
+	llvm::SmallVector<mlir::Type, 2> templateParameters;
+	if (parser.parseOptionalLess().succeeded())
+	{
+		do
+		{
+			mlir::Type type;
+			if (parser.parseType(type).failed())
+			{
+				parser.emitError(
+						parser.getCurrentLocation(),
+						"failed to parse Entity template parameter");
+				return {};
+			}
+			templateParameters.push_back(type);
+		} while (parser.parseComma().succeeded());
+
+		if (parser.parseGreater().failed())
+		{
+			parser.emitError(
+					parser.getCurrentLocation(),
+					"expected a > while parsing template parameters of entity type");
+			return {};
+		}
+	}
+
+	auto toReturn =
+			EntityType::getIdentified(parser.getContext(), name, templateParameters);
+
+	if (parser.parseOptionalGreater())
 		return toReturn;
 
 	llvm::SmallVector<std::string, 2> names;
 	llvm::SmallVector<mlir::Type, 2> inners;
-	while (parser.parseOptionalRBrace().failed())
+
+	if (parser.parseLBrace().succeeded())
 	{
-		names.emplace_back();
-		if (parser.parseKeywordOrString(&names.back()).failed() or
-				parser.parseColon().failed())
+		while (parser.parseOptionalRBrace().failed())
 		{
-			parser.emitError(
-					parser.getCurrentLocation(), "failed to parse Entity sub type ");
-			return {};
-		}
+			names.emplace_back();
+			if (parser.parseKeywordOrString(&names.back()).failed() or
+					parser.parseColon().failed())
+			{
+				parser.emitError(
+						parser.getCurrentLocation(), "failed to parse Entity sub type ");
+				return {};
+			}
 
-		mlir::Type elem = {};
-		auto res = parser.parseType(elem);
-		if (res.failed())
-		{
-			parser.emitError(
-					parser.getCurrentLocation(), "failed to parse Entity sub type ");
-			return {};
-		}
+			mlir::Type elem = {};
+			auto res = parser.parseType(elem);
+			if (res.failed())
+			{
+				parser.emitError(
+						parser.getCurrentLocation(), "failed to parse Entity sub type ");
+				return {};
+			}
 
-		res = parser.parseComma();
-		if (res.failed())
-		{
-			parser.emitError(
-					parser.getCurrentLocation(),
-					"expected comma after field declaration");
-			return {};
-		}
+			res = parser.parseComma();
+			if (res.failed())
+			{
+				parser.emitError(
+						parser.getCurrentLocation(),
+						"expected comma after field declaration");
+				return {};
+			}
 
-		inners.push_back(elem);
+			inners.push_back(elem);
+		}
 	}
+
 	if (toReturn.setBody(inners, names).failed())
 	{
 		parser.emitError(
@@ -163,7 +211,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 		return {};
 	}
 
-	if (parser.parseGreater())
+	if (parser.parseGreater().failed())
 		return Type();
 	return toReturn;
 }
@@ -173,8 +221,22 @@ mlir::Type EntityType::print(mlir::AsmPrinter &p) const
 	p << getMnemonic();
 	p << "<";
 	p.printKeywordOrString(getName());
+	if (not getExplicitTemplateParameters().empty())
+	{
+		p << "<";
+		size_t counter = 0;
+		for (auto type : getExplicitTemplateParameters())
+		{
+			p.printType(type);
+			if (counter++ != getExplicitTemplateParameters().size())
+				p << ", ";
+		}
+
+		p << ">";
+	}
 	if (not isInitialized())
 	{
+		p << ">";
 		return *this;
 	}
 	p << " {";
@@ -224,6 +286,21 @@ void RLCDialect::printType(
 
 static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 {
+	if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
+	{
+		OS << maybeType.getName();
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+	{
+		OS << maybeType.getName();
+		if (maybeType.getTrait() != nullptr)
+		{
+			OS << ":";
+			typeToMangled(OS, maybeType.getTrait());
+		}
+		return;
+	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
 	{
 		OS << "int64_t";
@@ -247,6 +324,15 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	if (auto maybeType = t.dyn_cast<mlir::rlc::EntityType>())
 	{
 		OS << maybeType.getName();
+		if (not maybeType.getExplicitTemplateParameters().empty())
+		{
+			OS << "T";
+			for (auto type : maybeType.getExplicitTemplateParameters())
+			{
+				typeToMangled(OS, type);
+				OS << "T";
+			}
+		}
 		return;
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
@@ -273,7 +359,19 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 		return;
 	}
 
+	t.dump();
 	assert(false && "unrechable");
+}
+
+std::string mlir::rlc::EntityType::mangledName()
+{
+	std::string s;
+	llvm::raw_string_ostream OS(s);
+
+	typeToMangled(OS, *this);
+	OS.flush();
+
+	return s;
 }
 
 std::string mlir::rlc::mangledName(
@@ -355,10 +453,58 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 	if (auto casted = type.dyn_cast<mlir::rlc::TemplateParameterType>())
 		return mlir::success();
 
-	if (auto casted = type.dyn_cast<mlir::FunctionType>())
-		return mlir::success(llvm::any_of(casted.getInputs(), [](mlir::Type t) {
-			return isTemplateType(t).succeeded();
-		}));
+	if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
+	{
+		for (auto child : casted.getBody())
+			if (isTemplateType(child).succeeded())
+				return mlir::success();
+		for (auto child : casted.getExplicitTemplateParameters())
+			if (isTemplateType(child).succeeded())
+				return mlir::success();
+		return mlir::failure();
+	}
 
+	if (auto casted = type.dyn_cast<mlir::FunctionType>())
+	{
+		for (auto child : casted.getInputs())
+			if (isTemplateType(child).succeeded())
+				return mlir::success();
+
+		for (auto child : casted.getResults())
+			if (isTemplateType(child).succeeded())
+				return mlir::success();
+		return mlir::failure();
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
+	{
+		return isTemplateType(casted.getUnderlying());
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::IntegerType>())
+	{
+		return mlir::failure();
+	}
+	if (auto casted = type.dyn_cast<mlir::rlc::FloatType>())
+	{
+		return mlir::failure();
+	}
+	if (auto casted = type.dyn_cast<mlir::rlc::BoolType>())
+	{
+		return mlir::failure();
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::VoidType>())
+	{
+		return mlir::failure();
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
+	{
+		return mlir::failure();
+	}
+
+	type.dump();
+	llvm_unreachable("unhandled type");
 	return mlir::failure();
 }

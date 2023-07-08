@@ -24,23 +24,109 @@ static mlir::LogicalResult findEntityDecls(
 	return mlir::success();
 }
 
+static void collectEntityUsedTyepNames(
+		mlir::Type type, llvm::SmallVector<llvm::StringRef, 2>& out)
+{
+	if (auto casted = type.dyn_cast<mlir::rlc::ScalarUseType>())
+	{
+		if (casted.getUnderlying() != nullptr)
+		{
+			collectEntityUsedTyepNames(casted.getUnderlying(), out);
+			return;
+		}
+		out.push_back(casted.getReadType());
+		return;
+	}
+	if (auto casted = type.dyn_cast<mlir::rlc::FunctionUseType>())
+	{
+		for (auto arg : casted.getSubTypes())
+			collectEntityUsedTyepNames(arg, out);
+		return;
+	}
+	llvm_unreachable("unrechable");
+}
+
+static mlir::LogicalResult getEntityDeclarationSortedByDependencies(
+		mlir::ModuleOp op, llvm::SmallVector<mlir::rlc::EntityDeclaration, 2>& out)
+{
+	llvm::StringMap<mlir::rlc::EntityDeclaration> nameToEntityDeclaration;
+	if (findEntityDecls(op, nameToEntityDeclaration).failed())
+		return mlir::failure();
+
+	std::map<
+			mlir::rlc::EntityDeclaration,
+			llvm::SmallVector<mlir::rlc::EntityDeclaration, 2>>
+			EntityToUsedEntities;
+
+	for (auto entityDecl : op.getOps<mlir::rlc::EntityDeclaration>())
+	{
+		llvm::SmallVector<mlir::StringRef, 2> names;
+		for (auto subtypes : entityDecl.getMemberTypes())
+			collectEntityUsedTyepNames(
+					subtypes.cast<mlir::TypeAttr>().getValue(), names);
+
+		EntityToUsedEntities[entityDecl];
+		for (auto name : names)
+		{
+			if (auto iter = nameToEntityDeclaration.find(name);
+					iter != nameToEntityDeclaration.end())
+				EntityToUsedEntities[entityDecl].push_back(iter->second);
+		}
+	}
+
+	while (not EntityToUsedEntities.empty())
+	{
+		llvm::SmallVector<mlir::rlc::EntityDeclaration> justEmitted;
+
+		for (auto& entry : EntityToUsedEntities)
+		{
+			llvm::erase_if(entry.second, [&](mlir::rlc::EntityDeclaration decl) {
+				return not EntityToUsedEntities.contains(decl);
+			});
+			if (entry.second.empty())
+			{
+				justEmitted.push_back(entry.first);
+				auto e = entry.first;
+				out.push_back(entry.first);
+			}
+		}
+
+		for (auto& entry : justEmitted)
+			EntityToUsedEntities.erase(entry);
+
+		if (justEmitted.empty() and not EntityToUsedEntities.empty())
+		{
+			EntityToUsedEntities.begin()->second.begin()->emitError(
+					"forbidden mutual dependency in entities");
+		}
+	}
+
+	return mlir::success();
+}
+
 static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 {
 	mlir::IRRewriter rewriter(op.getContext());
-	llvm::StringMap<mlir::rlc::EntityDeclaration> decls;
-	if (findEntityDecls(op, decls).failed())
+	llvm::SmallVector<mlir::rlc::EntityDeclaration, 2> decls;
+	if (getEntityDeclarationSortedByDependencies(op, decls).failed())
 		return mlir::failure();
 
-	rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
-	for (auto& pair : decls)
+	for (auto& decl : decls)
 	{
-		auto decl = pair.second;
-		pair.second = rewriter.replaceOpWithNewOp<mlir::rlc::EntityDeclaration>(
-				decl,
-				mlir::rlc::EntityType::getIdentified(decl.getContext(), decl.getName()),
+		llvm::SmallVector<mlir::Type, 2> templates;
+		for (auto type :
+				 decl.getTemplateParameters().getAsValueRange<mlir::TypeAttr>())
+			templates.push_back(type);
+		rewriter.setInsertionPoint(decl);
+		decl = rewriter.create<mlir::rlc::EntityDeclaration>(
+				decl.getLoc(),
+				mlir::rlc::EntityType::getIdentified(
+						decl.getContext(), decl.getName(), templates),
 				decl.getName(),
 				decl.getMemberTypes(),
-				decl.getMemberNames());
+				decl.getMemberNames(),
+				decl.getTemplateParameters());
+		rewriter.eraseOp(decl);
 	}
 	return mlir::success();
 }
@@ -52,18 +138,19 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 	if (findEntityDecls(op, decls).failed())
 		return mlir::failure();
 
-	rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
+	rewriter.setInsertionPointToEnd(op.getBody());
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
 		auto type = mlir::rlc::EntityType::getIdentified(
-				action.getContext(), (action.getUnmangledName() + "Entity").str());
+				action.getContext(), (action.getUnmangledName() + "Entity").str(), {});
 
 		auto entity = rewriter.create<mlir::rlc::EntityDeclaration>(
 				action.getLoc(),
 				type,
 				rewriter.getStringAttr(type.getName()),
 				rewriter.getTypeArrayAttr({}),
-				rewriter.getStrArrayAttr({}));
+				rewriter.getStrArrayAttr({}),
+				rewriter.getArrayAttr({}));
 
 		if (decls.count(type.getName()) != 0)
 		{
@@ -82,16 +169,15 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 
 static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 {
-	mlir::rlc::ModuleBuilder builder(op);
-	mlir::IRRewriter rewriter(op.getContext());
-	llvm::StringMap<mlir::rlc::EntityDeclaration> decls;
-	if (findEntityDecls(op, decls).failed())
+	llvm::SmallVector<mlir::rlc::EntityDeclaration, 2> decls;
+	if (getEntityDeclarationSortedByDependencies(op, decls).failed())
 		return mlir::failure();
 
-	rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
-	for (auto& pair : decls)
+	for (auto& decl : decls)
 	{
-		auto decl = pair.second;
+		mlir::rlc::ModuleBuilder builder(op);
+		mlir::IRRewriter& rewriter = builder.getRewriter();
+		rewriter.setInsertionPoint(decl);
 
 		// entities of actions are discovered later, because they require to
 		// typecheck the body of the action itself.
@@ -101,11 +187,32 @@ static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 		llvm::SmallVector<std::string> names;
 		llvm::SmallVector<mlir::Type, 2> types;
 
+		llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
+
+		auto scopedConverter = mlir::rlc::RLCTypeConverter(&builder.getConverter());
+		for (auto parameter : decl.getTemplateParameters())
+		{
+			auto unchecked = parameter.cast<mlir::TypeAttr>()
+													 .getValue()
+													 .cast<mlir::rlc::UncheckedTemplateParameterType>();
+
+			auto checkedParameterType = scopedConverter.convertType(unchecked);
+			if (not checkedParameterType)
+			{
+				decl.emitRemark("in entity declaration");
+				return mlir::failure();
+			}
+			checkedTemplateParameters.push_back(checkedParameterType);
+			auto actualType =
+					checkedParameterType.cast<mlir::rlc::TemplateParameterType>();
+			scopedConverter.registerType(actualType.getName(), actualType);
+		}
+
 		for (const auto& [field, name] :
 				 llvm::zip(decl.getMemberTypes(), decl.getMemberNames()))
 		{
-			auto converted = builder.getConverter().convertType(
-					field.cast<mlir::TypeAttr>().getValue());
+			auto converted =
+					scopedConverter.convertType(field.cast<mlir::TypeAttr>().getValue());
 			if (!converted)
 			{
 				decl.emitRemark("in field of entity " + decl.getName());
@@ -115,22 +222,22 @@ static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 			types.push_back(converted);
 			names.push_back(name.cast<mlir::StringAttr>().str());
 		}
+		auto finalType = mlir::rlc::EntityType::getIdentified(
+				decl.getContext(), decl.getName(), checkedTemplateParameters);
 
-		if (decl.getType()
-						.cast<mlir::rlc::EntityType>()
-						.setBody(types, names)
-						.failed())
+		if (finalType.setBody(types, names).failed())
 		{
 			assert(false && "unrechable");
 			return mlir::failure();
 		}
 
-		pair.second = rewriter.replaceOpWithNewOp<mlir::rlc::EntityDeclaration>(
+		decl = rewriter.replaceOpWithNewOp<mlir::rlc::EntityDeclaration>(
 				decl,
-				mlir::rlc::EntityType::getIdentified(decl.getContext(), decl.getName()),
+				finalType,
 				decl.getName(),
 				rewriter.getTypeArrayAttr(types),
-				decl.getMemberNames());
+				decl.getMemberNames(),
+				rewriter.getTypeArrayAttr(checkedTemplateParameters));
 	}
 
 	return mlir::success();
@@ -295,12 +402,14 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 
 namespace mlir::rlc
 {
-#define GEN_PASS_DEF_TYPECHECKPASS
+#define GEN_PASS_DEF_TYPECHECKENTITIESPASS
 #include "rlc/dialect/Passes.inc"
 
-	struct TypeCheckPass: impl::TypeCheckPassBase<TypeCheckPass>
+	struct TypeCheckEntitiesPass
+			: impl::TypeCheckEntitiesPassBase<TypeCheckEntitiesPass>
 	{
-		using impl::TypeCheckPassBase<TypeCheckPass>::TypeCheckPassBase;
+		using impl::TypeCheckEntitiesPassBase<
+				TypeCheckEntitiesPass>::TypeCheckEntitiesPassBase;
 		void runOnOperation() override
 		{
 			if (declareEntities(getOperation()).failed())
@@ -321,13 +430,23 @@ namespace mlir::rlc
 				return;
 			}
 
-			if (deduceFunctionTypes(getOperation()).failed())
+			if (deduceEntitiesBodies(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;
 			}
+		}
+	};
 
-			if (deduceEntitiesBodies(getOperation()).failed())
+#define GEN_PASS_DEF_TYPECHECKPASS
+#include "rlc/dialect/Passes.inc"
+
+	struct TypeCheckPass: impl::TypeCheckPassBase<TypeCheckPass>
+	{
+		using impl::TypeCheckPassBase<TypeCheckPass>::TypeCheckPassBase;
+		void runOnOperation() override
+		{
+			if (deduceFunctionTypes(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;

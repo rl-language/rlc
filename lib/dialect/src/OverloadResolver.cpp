@@ -3,6 +3,79 @@
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Operations.hpp"
 
+mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
+		llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type>& substitutions,
+		mlir::Type calleeArgument,
+		mlir::Type callSiteArgument)
+{
+	// if the called function argument is not a template, you must provide exactly
+	// that argumen of course.
+	if (mlir::rlc::isTemplateType(calleeArgument).failed())
+		return mlir::success(callSiteArgument == calleeArgument);
+
+	if (auto templateParameter =
+					calleeArgument.dyn_cast<mlir::rlc::TemplateParameterType>())
+	{
+		if (templateParameter.getTrait() != nullptr and
+				templateParameter.getTrait()
+						.typeRespectsTrait(callSiteArgument, *symbolTable)
+						.failed())
+			return mlir::failure();
+
+		if (auto iter = substitutions.find(templateParameter);
+				iter != substitutions.end())
+			if (iter->second != callSiteArgument)
+				return mlir::failure();
+
+		substitutions[templateParameter] = callSiteArgument;
+		return mlir::success();
+	}
+
+	if (auto pair =
+					std::pair{ calleeArgument.dyn_cast<mlir::rlc::EntityType>(),
+										 callSiteArgument.dyn_cast<mlir::rlc::EntityType>() };
+			pair.first and pair.second)
+	{
+		for (auto [callee, callsite] :
+				 llvm::zip(pair.first.getBody(), pair.second.getBody()))
+		{
+			if (deduceSubstitutions(substitutions, callee, callsite).failed())
+				return mlir::failure();
+		}
+		return mlir::success();
+	}
+
+	if (auto pair =
+					std::pair{ calleeArgument.dyn_cast<mlir::rlc::ArrayType>(),
+										 callSiteArgument.dyn_cast<mlir::rlc::ArrayType>() };
+			pair.first and pair.second)
+	{
+		return deduceSubstitutions(
+				substitutions, pair.first.getUnderlying(), pair.second.getUnderlying());
+	}
+
+	if (auto pair = std::pair{ calleeArgument.dyn_cast<mlir::FunctionType>(),
+														 callSiteArgument.dyn_cast<mlir::FunctionType>() };
+			pair.first and pair.second)
+	{
+		for (auto [callee, callsite] :
+				 llvm::zip(pair.first.getInputs(), pair.second.getInputs()))
+		{
+			if (deduceSubstitutions(substitutions, callee, callsite).failed())
+				return mlir::failure();
+		}
+		for (auto [callee, callsite] :
+				 llvm::zip(pair.first.getResults(), pair.second.getResults()))
+		{
+			if (deduceSubstitutions(substitutions, callee, callsite).failed())
+				return mlir::failure();
+		}
+		return mlir::success();
+	}
+	llvm_unreachable("unandled type");
+	return mlir::failure();
+}
+
 mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 		mlir::TypeRange callSiteArgumentTypes, mlir::FunctionType possibleCallee)
 {
@@ -10,29 +83,9 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 	for (auto [callSiteArgument, calleeArgument] :
 			 llvm::zip(callSiteArgumentTypes, possibleCallee.getInputs()))
 	{
-		if (not calleeArgument.isa<mlir::rlc::TemplateParameterType>())
-		{
-			if (callSiteArgument != calleeArgument)
-				return nullptr;
-			continue;
-		}
-
-		auto templateParameter =
-				calleeArgument.cast<mlir::rlc::TemplateParameterType>();
-		if (templateParameter.getTrait() != nullptr and
-				templateParameter.getTrait()
-						.typeRespectsTrait(callSiteArgument, *symbolTable)
+		if (deduceSubstitutions(substitutions, calleeArgument, callSiteArgument)
 						.failed())
-		{
 			return nullptr;
-		}
-
-		if (auto iter = substitutions.find(templateParameter);
-				iter != substitutions.end())
-			if (iter->second != callSiteArgument)
-				return nullptr;
-
-		substitutions[templateParameter] = callSiteArgument;
 	}
 
 	if (possibleCallee.getNumResults() == 0)
@@ -41,7 +94,10 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 
 	auto resultType = possibleCallee.getResult(0);
 	if (auto casted = resultType.dyn_cast<mlir::rlc::TemplateParameterType>())
+	{
+		assert(substitutions.find(casted) != substitutions.end());
 		resultType = substitutions[casted];
+	}
 
 	return mlir::FunctionType::get(
 			possibleCallee.getContext(),

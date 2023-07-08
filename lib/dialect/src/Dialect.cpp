@@ -6,6 +6,9 @@
 
 class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 {
+	mutable llvm::DenseMap<mlir::rlc::EntityType, int> counter;
+	mutable int index = 0;
+
 	public:
 	using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
@@ -13,7 +16,13 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 	{
 		if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
 		{
-			OS << casted.getName();
+			OS << casted.mangledName();
+			if (counter.find(casted) == counter.end())
+			{
+				counter[casted] = index;
+			}
+
+			OS << "_" << counter[casted];
 			return AliasResult::FinalAlias;
 		}
 		if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())

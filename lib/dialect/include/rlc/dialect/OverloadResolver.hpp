@@ -4,7 +4,7 @@
 
 namespace mlir::rlc
 {
-
+	class TemplateParameterType;
 	class OverloadResolver
 	{
 		public:
@@ -33,6 +33,12 @@ namespace mlir::rlc
 		mlir::Type deduceTemplateCallSiteType(
 				mlir::TypeRange callSiteArgumentTypes,
 				mlir::FunctionType possibleCallee);
+
+		mlir::LogicalResult deduceSubstitutions(
+				llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type>&
+						substitutions,
+				mlir::Type calleeArgument,
+				mlir::Type callSiteArgument);
 
 		private:
 		ValueTable* symbolTable;

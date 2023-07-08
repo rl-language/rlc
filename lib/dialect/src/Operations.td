@@ -1219,7 +1219,7 @@ def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInte
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-	$value `:` type($value) `,` $member_name`:` type($result) attr-dict 
+	$value `:` type($value)  $member_name `:` type($result) attr-dict 
   }];
 }
 
@@ -1230,11 +1230,11 @@ def RLC_EntityDeclaration : RLC_Dialect<"entity_decl"> {
 	expression.
   }];
 
-  let arguments = (ins StrAttr:$name, TypeArrayAttr:$memberTypes, StrArrayAttr:$memberNames);
+  let arguments = (ins StrAttr:$name, TypeArrayAttr:$memberTypes, StrArrayAttr:$memberNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-	$name $memberTypes $memberNames type($result) attr-dict 
+	$name ( `template_parameters` $template_parameters^ )? $memberTypes $memberNames type($result) attr-dict 
   }];
 }
 

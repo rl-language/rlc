@@ -382,13 +382,21 @@ Parser::entityField()
 }
 
 /**
- * EntityDeclaration : Ent Identifier Colons Newline Indent (entityField
- * Newline)* Deindent
+ * EntityDeclaration : Ent[templateArguments] Identifier Colons Newline Indent
+ * (entityField Newline)* Deindent
  */
 llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 {
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordEntity);
+	SmallVector<mlir::Type, 3> templateParameters;
+	if (current == Token::LAng)
+	{
+		TRY(parameters, templateArguments());
+		for (auto type : std::move(*parameters))
+			templateParameters.push_back(type);
+	}
+
 	EXPECT(Token::Identifier);
 	string name = lIdent;
 	EXPECT(Token::Colons);
@@ -410,7 +418,8 @@ llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 			unkType(),
 			builder.getStringAttr(name),
 			builder.getTypeArrayAttr(fieldTypes),
-			builder.getArrayAttr(fieldNames));
+			builder.getArrayAttr(fieldNames),
+			builder.getTypeArrayAttr(templateParameters));
 }
 
 /**
@@ -673,7 +682,8 @@ Expected<mlir::rlc::FunctionUseType> Parser::functionTypeUse()
 }
 
 /**
- * singleTypeUse : "(" functionType ")" | identifier["["int64"]"]
+ * singleTypeUse : "(" functionType ")" | identifier["<"singleTypeUse (,
+ * singleTypeUse)* ">"]["["int64"]"]
  */
 Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 {
@@ -681,18 +691,31 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 	{
 		TRY(fType, functionTypeUse());
 		EXPECT(Token::RPar);
-		return mlir::rlc::ScalarUseType::get(ctx, *fType, "", 0);
+		return mlir::rlc::ScalarUseType::get(ctx, *fType, "", 0, {});
 	}
 
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
-	if (!accept<Token::LSquare>())
-		return mlir::rlc::ScalarUseType::get(ctx, nullptr, lIdent, 0);
+	int64_t arraySize = 0;
+	llvm::SmallVector<mlir::Type, 2> templateParametersTypes;
+	if (accept<Token::LAng>())
+	{
+		do
+		{
+			TRY(templateParameter, singleTypeUse());
+			templateParametersTypes.push_back(*templateParameter);
+		} while (accept<Token::Comma>());
+		EXPECT(Token::RAng);
+	}
 
-	EXPECT(Token::Int64);
-	auto size = lInt64;
-	EXPECT(Token::RSquare);
-	return mlir::rlc::ScalarUseType::get(ctx, nullptr, lIdent, size);
+	if (accept<Token::LSquare>())
+	{
+		EXPECT(Token::Int64);
+		arraySize = lInt64;
+		EXPECT(Token::RSquare);
+	}
+	return mlir::rlc::ScalarUseType::get(
+			ctx, nullptr, nm, arraySize, templateParametersTypes);
 }
 
 Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
@@ -759,7 +782,8 @@ Parser::templateArguments()
 }
 
 /**
- * functionDeclaration : "fun" templateArguments identifier "(" [argDeclaration
+ * functionDeclaration : "fun" templateArguments identifier "("
+ * [argDeclaration
  * ("," argDeclaration)*] ")" ["->" singleTypeUse]
  */
 Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
@@ -858,7 +882,7 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
 		argName.push_back(arg.first);
 	}
 
-	auto retType = mlir::rlc::ScalarUseType::get(ctx, nullptr, "Void", 0);
+	auto retType = mlir::rlc::ScalarUseType::get(ctx, nullptr, "Void", 0, {});
 	return builder.create<mlir::rlc::ActionFunction>(
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),

@@ -35,6 +35,49 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	return table;
 }
 
+static mlir::Type instantiateStructType(mlir::Type type, mlir::TypeRange values)
+{
+	if (values.empty())
+		return type;
+
+	if (not type.isa<mlir::rlc::EntityType>())
+	{
+		type.dump();
+		for (auto type : values)
+			type.dump();
+		mlir::emitError(
+				mlir::UnknownLoc::get(type.getContext()),
+				"explicit template instantiation on non template entity type");
+		return nullptr;
+	}
+	auto casted = type.cast<mlir::rlc::EntityType>();
+	if (casted.getExplicitTemplateParameters().size() != values.size())
+	{
+		casted.dump();
+		for (auto type : values)
+			type.dump();
+		mlir::emitError(
+				mlir::UnknownLoc::get(type.getContext()),
+				"missmatche explicit template parameters count");
+		return nullptr;
+	}
+
+	for (auto [first, second] :
+			 llvm::zip(casted.getExplicitTemplateParameters(), values))
+	{
+		auto originalType = first;
+		auto replacementType = second;
+		mlir::AttrTypeReplacer replacer;
+		replacer.addReplacement([&](mlir::Type t) -> std::optional<mlir::Type> {
+			if (t == originalType)
+				return replacementType;
+			return std::nullopt;
+		});
+		casted = replacer.replace(casted).cast<mlir::rlc::EntityType>();
+	}
+	return casted;
+}
+
 static void registerConversions(
 		mlir::TypeConverter& converter, mlir::rlc::TypeTable& types)
 {
@@ -54,12 +97,30 @@ static void registerConversions(
 					return convertedUnderlying;
 				}
 
+				llvm::SmallVector<mlir::Type> explicitTemplateParameters;
+				for (auto templateParameter : use.getExplicitTemplateParameters())
+				{
+					auto parameter = converter.convertType(templateParameter);
+					if (not parameter)
+						return std::nullopt;
+					explicitTemplateParameters.push_back(parameter);
+				}
+
 				auto maybeType = types.getOne(use.getReadType());
 				if (maybeType == nullptr)
 				{
 					mlir::emitError(
 							mlir::UnknownLoc::get(use.getContext()),
 							"type " + use.getReadType() + " not found");
+					return std::nullopt;
+				}
+				maybeType =
+						instantiateStructType(maybeType, explicitTemplateParameters);
+				if (maybeType == nullptr)
+				{
+					mlir::emitError(
+							mlir::UnknownLoc::get(use.getContext()),
+							"in type " + use.getReadType());
 					return std::nullopt;
 				}
 

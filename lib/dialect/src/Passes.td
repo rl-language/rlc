@@ -26,8 +26,13 @@ def LowerToLLVMPass : Pass<"rlc-lower-to-llvm", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect", "LLVM::LLVMDialect"];
 }
 
+def TypeCheckEntitiesPass : Pass<"rlc-type-check-entities", "mlir::ModuleOp"> {
+  let summary = "type check rlc entities";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def TypeCheckPass : Pass<"rlc-type-check", "mlir::ModuleOp"> {
-  let summary = "type check rlc";
+  let summary = "type check rlc functions";
   let dependentDialects = ["rlc::RLCDialect"];
 }
 

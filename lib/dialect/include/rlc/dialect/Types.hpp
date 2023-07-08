@@ -42,7 +42,10 @@ namespace mlir::rlc
 		/// _NOT_ rename a struct in case a struct with the same name already exists
 		/// in the context. Instead, it will just return the existing struct,
 		/// similarly to the rest of MLIR type ::get methods.
-		static EntityType getIdentified(MLIRContext *context, StringRef name);
+		static EntityType getIdentified(
+				MLIRContext *context,
+				StringRef name,
+				ArrayRef<Type> explicitTemplateParameters);
 
 		/// Gets a new identified struct with the given body. The body _cannot_ be
 		/// changed later. If a struct with the given name already exists, renames
@@ -52,7 +55,8 @@ namespace mlir::rlc
 				MLIRContext *context,
 				StringRef name,
 				ArrayRef<Type> elements,
-				ArrayRef<std::string> fieldNames);
+				ArrayRef<std::string> fieldNames,
+				ArrayRef<Type> explicitTemplateParameters);
 
 		llvm::ArrayRef<std::string> getFieldNames() const;
 
@@ -73,12 +77,15 @@ namespace mlir::rlc
 
 		/// Returns the list of element types contained in a non-opaque struct.
 		ArrayRef<Type> getBody() const;
+		ArrayRef<Type> getExplicitTemplateParameters() const;
 
 		/// Verifies that the type about to be constructed is well-formed.
 		static LogicalResult verify(
-				function_ref<InFlightDiagnostic()> emitError, StringRef);
+				function_ref<InFlightDiagnostic()> emitError,
+				std::pair<llvm::StringRef, llvm::SmallVector<mlir::Type, 2>> &);
 		static LogicalResult verify(
 				function_ref<InFlightDiagnostic()> emitError, ArrayRef<Type> types);
+		std::string mangledName();
 
 		void walkImmediateSubElements(
 				function_ref<void(Attribute)> walkAttrsFn,

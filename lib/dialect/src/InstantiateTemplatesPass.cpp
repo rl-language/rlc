@@ -80,24 +80,35 @@ namespace mlir::rlc
 			}
 
 			rewriter.setInsertionPoint(op.getInputTemplate().getDefiningOp());
-			mlir::AttrTypeReplacer replacer;
+			OverloadResolver resolver(builder.getSymbolTable());
+			auto* clone = rewriter.clone(*op.getInputTemplate().getDefiningOp());
+
+			llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type> deductions;
 			for (auto [first, second] : llvm::zip(
 							 op.getInputTemplate().getType().getInputs(),
 							 op.getType().getInputs()))
 			{
-				auto originalType = first;
-				auto replacementType = second;
-				replacer.addReplacement(
-						[originalType,
-						 replacementType](mlir::Type t) -> std::optional<mlir::Type> {
-							if (t == originalType)
-								return replacementType;
-							return std::nullopt;
-						});
+				resolver.deduceSubstitutions(deductions, first, second).succeeded();
+			}
+			if (op.getInputTemplate().getType().getNumResults() != 0)
+				resolver
+						.deduceSubstitutions(
+								deductions,
+								op.getInputTemplate().getType().getResult(0),
+								op.getType().getResult(0))
+						.succeeded();
+
+			for (auto sobstitution : deductions)
+			{
+				mlir::AttrTypeReplacer replacer;
+				replacer.addReplacement([&](mlir::Type t) -> std::optional<mlir::Type> {
+					if (t == sobstitution.first)
+						return sobstitution.second;
+					return std::nullopt;
+				});
+				replacer.recursivelyReplaceElementsIn(clone, true, true, true);
 			}
 
-			auto* clone = rewriter.clone(*op.getInputTemplate().getDefiningOp());
-			replacer.recursivelyReplaceElementsIn(clone, true, true, true);
 			lowerIsOperations(clone, symbolTable);
 			lowerAssignOps(builder, clone);
 			lowerConstructOps(builder, clone);
