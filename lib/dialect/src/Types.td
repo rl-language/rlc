@@ -53,6 +53,16 @@ def RLC_BoolType : RLC_Type<"Bool", "bool"> {
   }];
 }
 
+def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+  let summary = "RLC array type";
+  let description = [{
+    Entity type.
+  }];
+
+  let parameters = (ins "Type":$underlying);
+  let assemblyFormat = "`<` $underlying `>` ";
+}
+
 
 def RLC_ArrayType : RLC_Type<"Array", "array", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
   let summary = "RLC array type";

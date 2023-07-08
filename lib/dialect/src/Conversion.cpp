@@ -13,6 +13,96 @@ static mlir::Value makeAlloca(
 	return rewriter.create<mlir::LLVM::AllocaOp>(loc, type, count, 0);
 }
 
+class LowerFree: public mlir::OpConversionPattern<mlir::rlc::FreeOp>
+{
+	public:
+	LowerFree(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			mlir::LLVM::LLVMFuncOp free)
+			: mlir::OpConversionPattern<mlir::rlc::FreeOp>::OpConversionPattern(
+						converter, ctx),
+				free(free)
+	{
+	}
+	mutable mlir::LLVM::LLVMFuncOp free;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::FreeOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto ptr =
+				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getArgument());
+
+		auto ptrcasted = rewriter.create<mlir::LLVM::BitcastOp>(
+				op.getLoc(),
+				mlir::LLVM::LLVMPointerType::get(getContext()),
+				ptr.getResult());
+		rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+				op,
+				mlir::TypeRange(),
+				free.getSymName(),
+				mlir::ValueRange({ ptrcasted }));
+		return mlir::success();
+	}
+};
+
+class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
+{
+	public:
+	using mlir::OpConversionPattern<mlir::rlc::MallocOp>::OpConversionPattern;
+
+	LowerMalloc(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			mlir::LLVM::LLVMFuncOp malloc)
+			: mlir::OpConversionPattern<mlir::rlc::MallocOp>::OpConversionPattern(
+						converter, ctx),
+				malloc(malloc)
+	{
+	}
+	mutable mlir::LLVM::LLVMFuncOp malloc;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::MallocOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto loadedCount =
+				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getSize());
+		const auto& dl = mlir::DataLayout::closest(op);
+
+		auto baseType = typeConverter->convertType(op.getType())
+												.cast<mlir::LLVM::LLVMPointerType>()
+												.getElementType();
+
+		auto count = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getI64Type(),
+				rewriter.getI64IntegerAttr(dl.getTypeSize(
+						baseType.cast<mlir::LLVM::LLVMPointerType>().getElementType())));
+		auto loadedSize =
+				rewriter.create<mlir::LLVM::MulOp>(op.getLoc(), loadedCount, count);
+
+		auto voidptr = rewriter.create<mlir::LLVM::CallOp>(
+				op.getLoc(),
+				mlir::TypeRange(
+						{ mlir::LLVM::LLVMPointerType::get(rewriter.getContext()) }),
+				malloc.getSymName(),
+				mlir::ValueRange({ loadedSize }));
+
+		auto ptr = rewriter.create<mlir::LLVM::BitcastOp>(
+				op.getLoc(), baseType, voidptr.getResult());
+
+		auto alloca = makeAlloca(
+				rewriter, mlir::LLVM::LLVMPointerType::get(ptr.getType()), op.getLoc());
+		rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), ptr, alloca);
+		rewriter.replaceOp(op, alloca);
+		return mlir::success();
+	}
+};
+
 class EntityDeclarationEraser
 		: public mlir::OpConversionPattern<mlir::rlc::EntityDeclaration>
 {
@@ -142,19 +232,32 @@ class ArrayAccessRewriter
 													.getType()
 													.cast<mlir::LLVM::LLVMPointerType>()
 													.getElementType();
-		auto elem_type =
-				array_type.cast<mlir::LLVM::LLVMArrayType>().getElementType();
 
 		auto zero = rewriter.getZeroAttr(rewriter.getI64Type());
 		auto zeroValue = rewriter.create<mlir::LLVM::ConstantOp>(
 				op.getLoc(), rewriter.getI64Type(), zero);
 
-		rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+		if (auto casted = array_type.dyn_cast<mlir::LLVM::LLVMArrayType>())
+		{
+			mlir::Type elem_type = casted.getElementType();
+
+			auto gep = rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+					op,
+					mlir::LLVM::LLVMPointerType::get(elem_type),
+					adaptor.getValue(),
+					mlir::ValueRange({ zeroValue, loaded }));
+			return mlir::LogicalResult::success();
+		}
+
+		auto elem_type =
+				array_type.cast<mlir::LLVM::LLVMPointerType>().getElementType();
+		auto loadedPointerToMallocated =
+				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getValue());
+		auto gep = rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
 				op,
 				mlir::LLVM::LLVMPointerType::get(elem_type),
-				adaptor.getValue(),
-				mlir::ValueRange({ zeroValue, loaded }));
-
+				loadedPointerToMallocated,
+				mlir::ValueRange({ loaded }));
 		return mlir::LogicalResult::success();
 	}
 };
@@ -844,9 +947,25 @@ namespace mlir::rlc
 		using impl::LowerToLLVMPassBase<LowerToLLVMPass>::LowerToLLVMPassBase;
 		void runOnOperation() override
 		{
+			mlir::IRRewriter rewriter(&getContext());
+			rewriter.setInsertionPoint(
+					getOperation().getBody(0), getOperation().getBody(0)->begin());
+			auto malloc = rewriter.create<mlir::LLVM::LLVMFuncOp>(
+					getOperation().getLoc(),
+					"malloc",
+					mlir::LLVM::LLVMFunctionType::get(
+							mlir::LLVM::LLVMPointerType::get(&getContext()),
+							{ rewriter.getI64Type() }));
+
+			auto free = rewriter.create<mlir::LLVM::LLVMFuncOp>(
+					getOperation().getLoc(),
+					"free",
+					mlir::LLVM::LLVMFunctionType::get(
+							mlir::LLVM::LLVMVoidType::get(&getContext()),
+							{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
+
 			mlir::TypeConverter converter;
 			mlir::rlc::registerConversions(converter);
-
 			mlir::ConversionTarget target(getContext());
 
 			target.addLegalDialect<mlir::BuiltinDialect, mlir::LLVM::LLVMDialect>();
@@ -863,6 +982,8 @@ namespace mlir::rlc
 					.add<SelectRewriter>(converter, &getContext())
 					.add<AssignRewriter>(converter, &getContext())
 					.add<InitRewriter>(converter, &getContext())
+					.add<LowerMalloc>(converter, &getContext(), malloc)
+					.add<LowerFree>(converter, &getContext(), free)
 					.add(makeArith(lowerLess, converter, &getContext()))
 					.add(makeArith(lowerLessEqual, converter, &getContext()))
 					.add(makeArith(lowerGreaterEqual, converter, &getContext()))

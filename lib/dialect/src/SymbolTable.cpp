@@ -175,6 +175,12 @@ static void registerConversions(
 	converter.addConversion([](mlir::rlc::VoidType t) { return t; });
 	converter.addConversion([](mlir::rlc::BoolType t) { return t; });
 	converter.addConversion([](mlir::rlc::FloatType t) { return t; });
+	converter.addConversion([&](mlir::rlc::OwningPtrType t) -> mlir::Type {
+		auto converted = converter.convertType(t.getUnderlying());
+		if (converted == nullptr)
+			return converted;
+		return mlir::rlc::OwningPtrType::get(t.getContext(), converted);
+	});
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
 		if (converted == nullptr)
@@ -323,7 +329,8 @@ static mlir::Operation* emitBuiltinAssign(
 
 	if ((argTypes[0].isa<mlir::rlc::FloatType>() or
 			 argTypes[0].isa<mlir::rlc::IntegerType>() or
-			 argTypes[0].isa<mlir::rlc::BoolType>()) and
+			 argTypes[0].isa<mlir::rlc::BoolType>() or
+			 argTypes[0].isa<mlir::rlc::OwningPtrType>()) and
 			(argTypes[0] == argTypes[1]))
 	{
 		return builder.getRewriter().create<mlir::rlc::BuiltinAssignOp>(

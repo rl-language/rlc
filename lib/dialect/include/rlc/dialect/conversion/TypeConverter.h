@@ -76,6 +76,10 @@ namespace mlir::rlc
 		converter.addConversion(boolToBuiltinBool);
 		converter.addConversion(floatToBuiltinFloat);
 		converter.addConversion(intToBuiltinInt);
+		converter.addConversion([&](mlir::rlc::OwningPtrType type) -> Type {
+			auto newInner = converter.convertType(type.getUnderlying());
+			return mlir::LLVM::LLVMPointerType::get(newInner);
+		});
 		converter.addConversion([&](mlir::rlc::ArrayType type) -> Type {
 			auto newInner = converter.convertType(type.getUnderlying())
 													.cast<mlir::LLVM::LLVMPointerType>()

@@ -343,6 +343,13 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 		return;
 	}
 
+	if (auto maybeType = t.dyn_cast<mlir::rlc::OwningPtrType>())
+	{
+		typeToMangled(OS, maybeType.getUnderlying());
+		OS << "Ptr";
+		return;
+	}
+
 	if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
 	{
 		assert(maybeType.getResults().size() <= 1);
@@ -502,6 +509,11 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
 	{
 		return mlir::failure();
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::OwningPtrType>())
+	{
+		return isTemplateType(casted.getUnderlying());
 	}
 
 	type.dump();

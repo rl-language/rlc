@@ -11,11 +11,12 @@ include "mlir/Interfaces/ViewLikeInterface.td"
 class RLC_Dialect<string mnemonic, list<Trait> traits = []> :
     Op<RLC_Dialect, mnemonic, traits>;
 
-def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType, RLC_Unknown]>;
+def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType, RLC_OwningPtrType, RLC_Unknown]>;
 
 def RLCIntegerOrUnkownType : AnyTypeOf<[RLC_IntegerType, RLC_Unknown]>;
-def RLCArrayOrUnkownType : AnyTypeOf<[RLC_ArrayType, RLC_Unknown]>;
+def RLCArrayOrUnkownType : AnyTypeOf<[RLC_ArrayType, RLC_OwningPtrType, RLC_Unknown]>;
 def RLCBoolOrUnkownType : AnyTypeOf<[RLC_BoolType, RLC_Unknown]>;
+def RLCPtrOrUnkownType : AnyTypeOf<[RLC_OwningPtrType, RLC_Unknown]>;
 
 def AnyFunctionType : AnyTypeOf<[RLC_Unknown, FunctionType]>;
 
@@ -182,6 +183,37 @@ def RLC_Reference : RLC_Dialect<"ref"> {
 
   let assemblyFormat = [{
 	$referred `:` type($result) attr-dict 
+  }];
+}
+
+def RLC_MallocOp : RLC_Dialect<"malloc_op", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "implement malloc";
+
+  let description = [{
+	implements malloc.
+  }];
+
+  let arguments = (ins RLCIntegerOrUnkownType:$size);
+
+  let results = (outs RLCPtrOrUnkownType:$result);
+
+  let assemblyFormat = [{
+	$size type($size) `->` type($result) attr-dict 
+  }];
+}
+
+def RLC_FreeOp : RLC_Dialect<"free_op", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "implement malloc";
+
+  let description = [{
+	implements malloc.
+  }];
+
+
+  let arguments = (ins RLCPtrOrUnkownType:$argument);
+
+  let assemblyFormat = [{
+	$argument `:` type($argument) attr-dict 
   }];
 }
 
@@ -635,9 +667,14 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
 
   let builders = [
 		OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$fieldIndex), [{
-			auto real_type = value.getType().cast<ArrayType>();
-			auto resType = real_type.getUnderlying();
-            build($_builder, $_state, resType, value, fieldIndex);
+			if (auto real_type = value.getType().dyn_cast<ArrayType>()) {
+				auto resType = real_type.getUnderlying();
+				build($_builder, $_state, resType, value, fieldIndex);
+			} else if (auto real_type = value.getType().dyn_cast<OwningPtrType>()) {
+				auto resType = real_type.getUnderlying();
+				build($_builder, $_state, resType, value, fieldIndex);
+			} else 
+			abort();
     }]>];
 
   let assemblyFormat = [{

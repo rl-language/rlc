@@ -35,6 +35,8 @@ namespace rlc
 
 		llvm::Expected<mlir::Value> primaryExpression();
 		llvm::Expected<mlir::Value> postFixExpression();
+		llvm::Expected<mlir::Value> builtinMalloc();
+		llvm::Expected<mlir::rlc::FreeOp> builtinFree();
 		llvm::Expected<mlir::Value> expression();
 		llvm::Expected<mlir::Value> unaryExpression();
 		llvm::Expected<mlir::Value> assignmentExpression();

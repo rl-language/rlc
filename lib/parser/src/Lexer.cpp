@@ -64,6 +64,12 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordLet";
 		case Token::KeywordEntity:
 			return "KeywordEntity";
+		case Token::KeywordMalloc:
+			return "KeywordMalloc";
+		case Token::KeywordOwningPtr:
+			return "KeywordOwningPtr";
+		case Token::KeywordFree:
+			return "KeywordFree";
 		case Token::KeywordIf:
 			return "KeywordIf";
 		case Token::KeywordElse:
@@ -360,6 +366,15 @@ Token Lexer::eatIdent()
 
 	if (name == "type")
 		return Token::KeywordType;
+
+	if (name == "__builtin_malloc_do_not_use")
+		return Token::KeywordMalloc;
+
+	if (name == "__builtin_free_do_not_use")
+		return Token::KeywordFree;
+
+	if (name == "OwningPtr")
+		return Token::KeywordOwningPtr;
 
 	lIdent = name;
 	return Token::Identifier;

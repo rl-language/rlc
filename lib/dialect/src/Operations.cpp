@@ -477,6 +477,27 @@ mlir::LogicalResult mlir::rlc::ImplicitAssignOp::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::MallocOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	auto converted = builder.getConverter().convertType(getResult().getType());
+	if (not converted)
+	{
+		return mlir::failure();
+	}
+
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::MallocOp>(
+			*this, converted, this->getSize());
+
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::FreeOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::BuiltinAssignOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {

@@ -61,9 +61,40 @@ Expected<Token> Parser::expect(Token t)
 	if (!outVar)                                                                 \
 	return outVar.takeError()
 
+// builtinMalloc : "__builtin_malloc_do_not_use<" typeUse ">(" expression ")"
+Expected<mlir::Value> Parser::builtinMalloc()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordMalloc);
+	EXPECT(Token::LAng);
+	TRY(type, singleTypeUse());
+	EXPECT(Token::RAng);
+	EXPECT(Token::LPar);
+	TRY(size, expression());
+	EXPECT(Token::RPar);
+
+	return builder.create<mlir::rlc::MallocOp>(
+			location,
+			mlir::rlc::OwningPtrType::get(type->getContext(), *type),
+			*size);
+}
+
+// builtinFree : "__builtin_free_do_not_use(" expression ")\n"
+Expected<mlir::rlc::FreeOp> Parser::builtinFree()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordFree);
+	EXPECT(Token::LPar);
+	TRY(toDelete, expression());
+	EXPECT(Token::RPar);
+	EXPECT(Token::Newline);
+
+	return builder.create<mlir::rlc::FreeOp>(location, *toDelete);
+}
+
 /**
  * primaryExpression : Ident | Double | int64 | "true" | "false" | "("
- * expression ")"
+ * expression ")"  | builtinMalloc
  */
 Expected<mlir::Value> Parser::primaryExpression()
 {
@@ -82,6 +113,9 @@ Expected<mlir::Value> Parser::primaryExpression()
 
 	if (accept<Token::KeywordTrue>())
 		return builder.create<mlir::rlc::Constant>(location, true);
+
+	if (current == Token::KeywordMalloc)
+		return builtinMalloc();
 
 	if (accept<Token::LPar>())
 	{
@@ -600,6 +634,9 @@ Expected<mlir::Operation*> Parser::statement()
 	if (current == Token::KeywordLet)
 		return declarationStatement();
 
+	if (current == Token::KeywordFree)
+		return builtinFree();
+
 	return expressionStatement();
 }
 
@@ -683,7 +720,7 @@ Expected<mlir::rlc::FunctionUseType> Parser::functionTypeUse()
 
 /**
  * singleTypeUse : "(" functionType ")" | identifier["<"singleTypeUse (,
- * singleTypeUse)* ">"]["["int64"]"]
+ * singleTypeUse)* ">"]["["int64"]"] | "OwningPtr<" singleTypeUse ">"
  */
 Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 {
@@ -692,6 +729,19 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 		TRY(fType, functionTypeUse());
 		EXPECT(Token::RPar);
 		return mlir::rlc::ScalarUseType::get(ctx, *fType, "", 0, {});
+	}
+
+	if (accept<Token::KeywordOwningPtr>())
+	{
+		EXPECT(Token::LAng);
+		TRY(subType, singleTypeUse());
+		EXPECT(Token::RAng);
+		return mlir::rlc::ScalarUseType::get(
+				ctx,
+				mlir::rlc::OwningPtrType::get(subType->getContext(), *subType),
+				"",
+				0,
+				{});
 	}
 
 	EXPECT(Token::Identifier);

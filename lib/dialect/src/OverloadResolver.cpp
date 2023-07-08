@@ -31,6 +31,10 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		return mlir::success();
 	}
 
+	// if the caller is a template and the callsite must be a more strict template
+	if (mlir::rlc::isTemplateType(callSiteArgument).succeeded())
+		return mlir::failure();
+
 	if (auto pair =
 					std::pair{ calleeArgument.dyn_cast<mlir::rlc::EntityType>(),
 										 callSiteArgument.dyn_cast<mlir::rlc::EntityType>() };
@@ -48,6 +52,15 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 	if (auto pair =
 					std::pair{ calleeArgument.dyn_cast<mlir::rlc::ArrayType>(),
 										 callSiteArgument.dyn_cast<mlir::rlc::ArrayType>() };
+			pair.first and pair.second)
+	{
+		return deduceSubstitutions(
+				substitutions, pair.first.getUnderlying(), pair.second.getUnderlying());
+	}
+
+	if (auto pair =
+					std::pair{ calleeArgument.dyn_cast<mlir::rlc::OwningPtrType>(),
+										 callSiteArgument.dyn_cast<mlir::rlc::OwningPtrType>() };
 			pair.first and pair.second)
 	{
 		return deduceSubstitutions(
@@ -72,7 +85,6 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		}
 		return mlir::success();
 	}
-	llvm_unreachable("unandled type");
 	return mlir::failure();
 }
 

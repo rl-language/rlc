@@ -338,7 +338,11 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::DialectRegistry Registry;
-	Registry.insert<mlir::BuiltinDialect, mlir::rlc::RLCDialect>();
+	Registry.insert<
+			mlir::BuiltinDialect,
+			mlir::memref::MemRefDialect,
+			mlir::rlc::RLCDialect,
+			mlir::index::IndexDialect>();
 	mlir::registerLLVMDialectTranslation(Registry);
 	context.appendDialectRegistry(Registry);
 	context.loadAllAvailableDialects();

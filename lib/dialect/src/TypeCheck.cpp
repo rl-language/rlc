@@ -43,6 +43,11 @@ static void collectEntityUsedTyepNames(
 			collectEntityUsedTyepNames(arg, out);
 		return;
 	}
+	if (auto casted = type.dyn_cast<mlir::rlc::OwningPtrType>())
+	{
+		collectEntityUsedTyepNames(casted.getUnderlying(), out);
+		return;
+	}
 	llvm_unreachable("unrechable");
 }
 
