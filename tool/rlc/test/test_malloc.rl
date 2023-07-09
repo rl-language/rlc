@@ -3,6 +3,9 @@ ent<T> Vector:
 	Int size
 	Int capacity
 
+ent VectorContainer:
+	Vector<Int> asd
+
 fun<T> init(Vector<T> v):
 	v.content = __builtin_malloc_do_not_use<T>(4)
 	v.size = 0
@@ -14,6 +17,10 @@ fun<T> init(Vector<T> v):
 		counter = counter + 1
 
 fun<T> drop(Vector<T> v):
+	let counter = 0
+	while counter < v.capacity:
+		__builtin_destroy_do_not_use(v.content[counter])
+		counter = counter + 1
 	__builtin_free_do_not_use(v.content)
 	v.size = 0
 	v.capacity = 0

@@ -40,6 +40,9 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 										 callSiteArgument.dyn_cast<mlir::rlc::EntityType>() };
 			pair.first and pair.second)
 	{
+		if (pair.first.getName() != pair.second.getName())
+			return mlir::failure();
+
 		for (auto [callee, callsite] :
 				 llvm::zip(pair.first.getBody(), pair.second.getBody()))
 		{

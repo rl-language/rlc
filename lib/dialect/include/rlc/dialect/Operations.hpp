@@ -77,6 +77,11 @@ namespace mlir::rlc
 			mlir::rlc::ModuleBuilder& builder, mlir::Operation* op);
 	void lowerAssignOps(mlir::rlc::ModuleBuilder& builder, mlir::Operation* op);
 
+	void lowerDestructors(
+			llvm::DenseMap<mlir::Type, bool>& requireDestructor,
+			mlir::rlc::ModuleBuilder& builder,
+			mlir::Operation* op);
+
 }	 // namespace mlir::rlc
 
 namespace mlir::rlc::detail

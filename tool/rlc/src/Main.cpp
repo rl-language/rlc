@@ -389,9 +389,12 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::PassManager templateInstantiator(&context);
+	templateInstantiator.addPass(
+			mlir::rlc::createEmitImplicitDestructorInvocationsPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerIsOperationsPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerAssignPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerConstructOpPass());
+	templateInstantiator.addPass(mlir::rlc::createLowerDestructorsPass());
 	templateInstantiator.addPass(mlir::rlc::createInstantiateTemplatesPass());
 	if (templateInstantiator.run(ast).failed())
 	{
@@ -447,12 +450,16 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::PassManager implictExpansionManager(&context);
-	implictExpansionManager.addPass(mlir::rlc::createLowerArrayCallsPass());
 	implictExpansionManager.addPass(mlir::rlc::createLowerActionPass());
 	implictExpansionManager.addPass(mlir::rlc::createLowerConstructOpPass());
 	implictExpansionManager.addPass(mlir::rlc::createLowerAssignPass());
+	implictExpansionManager.addPass(
+			mlir::rlc::createEmitImplicitDestructorsPass());
+	implictExpansionManager.addPass(mlir::rlc::createLowerDestructorsPass());
+
 	implictExpansionManager.addPass(mlir::rlc::createEmitImplicitAssignPass());
 	implictExpansionManager.addPass(mlir::rlc::createEmitImplicitInitPass());
+	implictExpansionManager.addPass(mlir::rlc::createLowerArrayCallsPass());
 
 	if (implictExpansionManager.run(ast).failed())
 	{

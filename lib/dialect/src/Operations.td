@@ -702,6 +702,34 @@ def RLC_ExplicitConstructOp : RLC_Dialect<"explicit_construct"> {
     }]>];
 }
 
+def RLC_ExplicitDestroyOp : RLC_Dialect<"explicit_destroy"> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value, FunctionType:$destructor);
+
+  let assemblyFormat = [{
+		$value `:` type($value) `,` $destructor `:` type($destructor) attr-dict
+  }];
+}
+
+def RLC_DestroyOp : RLC_Dialect<"destroy", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value);
+
+  let assemblyFormat = [{
+		$value `:` type($value) attr-dict
+  }];
+}
+
 def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 

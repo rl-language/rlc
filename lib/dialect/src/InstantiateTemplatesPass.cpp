@@ -24,6 +24,7 @@ namespace mlir::rlc
 	{
 		using impl::InstantiateTemplatesPassBase<
 				InstantiateTemplatesPass>::InstantiateTemplatesPassBase;
+		llvm::DenseMap<mlir::Type, bool> destructorsCache;
 
 		mlir::Value redirectMaterializedCallFromTraitToExplicitFunction(
 				mlir::IRRewriter& rewriter,
@@ -112,6 +113,7 @@ namespace mlir::rlc
 			lowerIsOperations(clone, symbolTable);
 			lowerAssignOps(builder, clone);
 			lowerConstructOps(builder, clone);
+			lowerDestructors(destructorsCache, builder, clone);
 
 			auto resolvedFunction =
 					mlir::cast<mlir::rlc::FunctionOp>(clone).getResult();

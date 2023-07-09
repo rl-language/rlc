@@ -22,6 +22,7 @@ namespace rlc
 		KeywordOr,
 		KeywordRule,
 		KeywordMalloc,
+		KeywordDestroy,
 		KeywordFree,
 		KeywordEvent,
 		KeywordAction,

@@ -70,3 +70,18 @@ def EmitImplicitInitPass : Pass<"rlc-emit-implicit-init-pass", "mlir::ModuleOp">
   let summary = "emits default builtin init functions";
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def EmitImplicitDestructorInvocationsPass : Pass<"rlc-emit-implicit-destructor-invocation-pass", "mlir::ModuleOp"> {
+  let summary = "emits default builtin init functions";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def EmitImplicitDestructorsPass : Pass<"rlc-emit-implicit-destructors-pass", "mlir::ModuleOp"> {
+  let summary = "emits default builtin init functions";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def LowerDestructorsPass : Pass<"rlc-lower-destructors-pass", "mlir::ModuleOp"> {
+  let summary = "maps destructors invocations to a call";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

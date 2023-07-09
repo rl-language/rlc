@@ -137,7 +137,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 	llvm::SmallVector<mlir::Type, 2> templateParameters;
 	if (parser.parseOptionalLess().succeeded())
 	{
-		do
+		while (parser.parseOptionalGreater().failed())
 		{
 			mlir::Type type;
 			if (parser.parseType(type).failed())
@@ -148,22 +148,13 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 				return {};
 			}
 			templateParameters.push_back(type);
-		} while (parser.parseComma().succeeded());
-
-		if (parser.parseGreater().failed())
-		{
-			parser.emitError(
-					parser.getCurrentLocation(),
-					"expected a > while parsing template parameters of entity type");
-			return {};
+			if (parser.parseComma().failed())
+				return {};
 		}
 	}
 
 	auto toReturn =
 			EntityType::getIdentified(parser.getContext(), name, templateParameters);
-
-	if (parser.parseOptionalGreater())
-		return toReturn;
 
 	llvm::SmallVector<std::string, 2> names;
 	llvm::SmallVector<mlir::Type, 2> inners;

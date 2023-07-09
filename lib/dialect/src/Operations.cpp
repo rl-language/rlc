@@ -492,6 +492,12 @@ mlir::LogicalResult mlir::rlc::MallocOp::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::DestroyOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::FreeOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
