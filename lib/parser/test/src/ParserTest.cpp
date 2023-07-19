@@ -1,5 +1,4 @@
 #include "gtest/gtest.h"
-#include <bits/stdint-intn.h>
 
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Operations.hpp"

@@ -391,6 +391,7 @@ int main(int argc, char *argv[])
 	mlir::PassManager templateInstantiator(&context);
 	templateInstantiator.addPass(
 			mlir::rlc::createEmitImplicitDestructorInvocationsPass());
+	templateInstantiator.addPass(mlir::rlc::createLowerForFieldOpPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerIsOperationsPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerAssignPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerConstructOpPass());

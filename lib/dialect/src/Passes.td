@@ -61,6 +61,11 @@ def EmitImplicitAssignPass : Pass<"rlc-emit-implicit-assign-pass", "mlir::Module
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def LowerForFieldOpPass : Pass<"rlc-for-field-op", "mlir::ModuleOp"> {
+  let summary = "lower for field operations";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def LowerConstructOpPass : Pass<"rlc-lower-construct-op", "mlir::ModuleOp"> {
   let summary = "lower construct operations";
   let dependentDialects = ["rlc::RLCDialect"];

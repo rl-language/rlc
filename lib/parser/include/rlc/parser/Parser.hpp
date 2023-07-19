@@ -60,6 +60,7 @@ namespace rlc
 		llvm::Expected<bool> statementList();
 		llvm::Expected<bool> requirementList();
 		llvm::Expected<mlir::rlc::WhileStatement> whileStatement();
+		llvm::Expected<mlir::rlc::ForFieldStatement> forFieldStatement();
 		llvm::Expected<mlir::rlc::ReturnStatement> returnStatement();
 
 		llvm::Expected<
@@ -103,6 +104,7 @@ namespace rlc
 		std::string fileName;
 		Lexer lexer;
 		int64_t lInt64{ 0 };
+		int64_t currentTemplateTypeIndex{ 0 };
 		double lDouble{ 0 };
 		std::string lIdent;
 	};

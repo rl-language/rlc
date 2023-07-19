@@ -46,7 +46,7 @@ def main():
         else compile(args.source, args.rlc)
     )
 
-    if args.show_actions is not None:
+    if args.show_actions:
         sim.dump()
         return
 

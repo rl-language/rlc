@@ -110,15 +110,17 @@ namespace mlir::rlc
 				replacer.recursivelyReplaceElementsIn(clone, true, true, true);
 			}
 
+			auto resolvedFunction =
+					mlir::cast<mlir::rlc::FunctionOp>(clone).getResult();
+			op.replaceAllUsesWith(resolvedFunction);
+			op.erase();
+
+			lowerForFields(builder, clone);
 			lowerIsOperations(clone, symbolTable);
 			lowerAssignOps(builder, clone);
 			lowerConstructOps(builder, clone);
 			lowerDestructors(destructorsCache, builder, clone);
 
-			auto resolvedFunction =
-					mlir::cast<mlir::rlc::FunctionOp>(clone).getResult();
-			op.replaceAllUsesWith(resolvedFunction);
-			op.erase();
 			return resolvedFunction;
 		}
 

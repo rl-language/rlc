@@ -96,6 +96,25 @@ def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable
   }];
 }
 
+def RLC_ForFieldStatement : RLC_Dialect<"for_field", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "while.";
+
+  let arguments = (ins StrAttr:$name);
+
+  let description = [{
+	expression.
+  }];
+
+  let regions = (region
+  AnyRegion:$condition,
+  AnyRegion:$body
+  );
+
+  let assemblyFormat = [{
+	`cond` $condition `body` $body attr-dict
+  }];
+}
+
 def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "while.";
 

@@ -7,7 +7,7 @@ class RLC_Interface<string name> : OpInterface<name> {
 
 def TypeCheckable : RLC_Interface<"TypeCheckable"> {
     let description = [{
-        Interface for a Modelica equation.
+		//todo
     }];
 
     let methods = [

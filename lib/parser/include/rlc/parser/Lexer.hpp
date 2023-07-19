@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bits/stdint-intn.h>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -32,6 +31,7 @@ namespace rlc
 		KeywordWhile,
 		KeywordOwningPtr,
 		KeywordFor,
+		KeywordOf,
 		KeywordReturn,
 		KeywordEnable,
 		KeywordTrue,

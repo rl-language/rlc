@@ -579,6 +579,46 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 }
 
 /**
+ * forFieldStatment: `for` ident `of` expression ':\n' statementList
+ */
+Expected<mlir::rlc::ForFieldStatement> Parser::forFieldStatement()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordFor);
+
+	EXPECT(Token::Identifier);
+	auto name = lIdent;
+
+	auto expStatement =
+			builder.create<mlir::rlc::ForFieldStatement>(location, name);
+
+	EXPECT(Token::KeywordOf);
+
+	auto pos = builder.saveInsertionPoint();
+	builder.createBlock(&expStatement.getCondition());
+	TRY(exp, expression());
+
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+
+	builder.createBlock(
+			&expStatement.getBody(),
+			expStatement.getBody().end(),
+			mlir::TypeRange({ mlir::rlc::TemplateParameterType::get(
+					builder.getContext(),
+					(Twine("implicit_template_") + Twine(currentTemplateTypeIndex++))
+							.str(),
+					nullptr) }),
+			{ location });
+	TRY(statLis, statementList());
+
+	emitYieldIfNeeded(location);
+	builder.restoreInsertionPoint(pos);
+	return expStatement;
+}
+
+/**
  * whileStatement : While exp ':\n' statementList
  */
 Expected<mlir::rlc::WhileStatement> Parser::whileStatement()
@@ -643,6 +683,9 @@ Expected<mlir::Operation*> Parser::statement()
 
 	if (current == Token::KeywordWhile)
 		return whileStatement();
+
+	if (current == Token::KeywordFor)
+		return forFieldStatement();
 
 	if (current == Token::KeywordLet)
 		return declarationStatement();

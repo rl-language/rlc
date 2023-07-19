@@ -353,6 +353,24 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	auto &rewriter = builder.getRewriter();
+	for (auto *op : ops(getCondition()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	auto _ = builder.addSymbolTable();
+	builder.getSymbolTable().add(getName(), getBody().getArguments()[0]);
+
+	for (auto *op : ops(getBody()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {

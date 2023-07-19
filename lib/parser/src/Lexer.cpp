@@ -80,6 +80,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordWhile";
 		case Token::KeywordFor:
 			return "KeywordFor";
+		case Token::KeywordOf:
+			return "KeywordOf";
 		case Token::KeywordReturn:
 			return "KeywordReturn";
 		case Token::KeywordEnable:
@@ -341,6 +343,9 @@ Token Lexer::eatIdent()
 
 	if (name == "while")
 		return Token::KeywordWhile;
+
+	if (name == "of")
+		return Token::KeywordOf;
 
 	if (name == "for")
 		return Token::KeywordFor;
