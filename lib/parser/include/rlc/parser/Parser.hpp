@@ -77,13 +77,18 @@ namespace rlc
 		templateArguments();
 		llvm::Expected<FunctionDeclarationResult> functionDeclaration(
 				bool templateFunction = true);
+		llvm::Expected<FunctionDeclarationResult> externFunctionDeclaration();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDeclaration();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();
 
-		llvm::Expected<mlir::ModuleOp> system();
+		llvm::Expected<mlir::ModuleOp> system(mlir::ModuleOp module = nullptr);
 
 		void emitYieldIfNeeded(mlir::Location loc);
+		llvm::ArrayRef<std::string> getImportedFiles() const
+		{
+			return importedFiles;
+		}
 
 		private:
 		mlir::Type unkType();
@@ -107,5 +112,7 @@ namespace rlc
 		int64_t currentTemplateTypeIndex{ 0 };
 		double lDouble{ 0 };
 		std::string lIdent;
+
+		llvm::SmallVector<std::string, 4> importedFiles;
 	};
 }	 // namespace rlc

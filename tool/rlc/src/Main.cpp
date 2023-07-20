@@ -33,7 +33,7 @@
 #include "rlc/conversions/RLCToC.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Passes.hpp"
-#include "rlc/parser/Parser.hpp"
+#include "rlc/parser/MultiFileParser.hpp"
 #include "rlc/python/Interfaces.hpp"
 #include "rlc/python/Passes.hpp"
 #include "rlc/utils/Error.hpp"
@@ -49,6 +49,8 @@ static cl::opt<string> InputFilePath(
 		cl::desc("<input-file>"),
 		cl::init("-"),
 		cl::cat(astDumperCategory));
+
+cl::list<std::string> IncludeDirs("i", cl::desc("<include dirs>"));
 
 static cl::opt<bool> dumpTokens(
 		"token",
@@ -313,13 +315,19 @@ int main(int argc, char *argv[])
 	initLLVM();
 	mlir::registerAllTranslations();
 
-	SourceMgr sourceManager;
-	std::string AbslutePath;
-	sourceManager.AddIncludeFile(InputFilePath, SMLoc(), AbslutePath);
-
 	mlir::MLIRContext context;
-	mlir::SourceMgrDiagnosticHandler diagnostic(sourceManager, &context);
-	RlcExitOnError exitOnErr(diagnostic);
+	mlir::DialectRegistry Registry;
+	Registry.insert<
+			mlir::BuiltinDialect,
+			mlir::memref::MemRefDialect,
+			mlir::rlc::RLCDialect,
+			mlir::index::IndexDialect>();
+	mlir::registerLLVMDialectTranslation(Registry);
+	context.appendDialectRegistry(Registry);
+	context.loadAllAvailableDialects();
+	MultiFileParser parser(&context, IncludeDirs);
+
+	RlcExitOnError exitOnErr(parser.getDiagnostic());
 
 	error_code error;
 	raw_fd_ostream OS(outputFile, error);
@@ -332,26 +340,14 @@ int main(int argc, char *argv[])
 	const auto inputFileName = llvm::sys::path::filename(InputFilePath);
 	if (dumpTokens)
 	{
-		Lexer lexer(sourceManager.getMemoryBuffer(1)->getBuffer().data());
+		std::string fullPath;
+		parser.getSourceMgr().AddIncludeFile(InputFilePath, SMLoc(), fullPath);
+		Lexer lexer(parser.getSourceMgr().getMemoryBuffer(1)->getBuffer().data());
 		lexer.print(OS);
 		return 0;
 	}
 
-	mlir::DialectRegistry Registry;
-	Registry.insert<
-			mlir::BuiltinDialect,
-			mlir::memref::MemRefDialect,
-			mlir::rlc::RLCDialect,
-			mlir::index::IndexDialect>();
-	mlir::registerLLVMDialectTranslation(Registry);
-	context.appendDialectRegistry(Registry);
-	context.loadAllAvailableDialects();
-
-	Parser parser(
-			&context,
-			sourceManager.getMemoryBuffer(1)->getBuffer().str(),
-			AbslutePath);
-	auto ast = exitOnErr(parser.system());
+	auto ast = exitOnErr(parser.parse(InputFilePath));
 
 	if (dumpUncheckedAST)
 	{

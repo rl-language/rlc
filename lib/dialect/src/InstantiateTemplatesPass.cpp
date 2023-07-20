@@ -14,7 +14,7 @@ namespace mlir::rlc
 			mlir::rlc::TemplateInstantiationOp op)
 	{
 		for (auto type : op.getType().getInputs())
-			if (type.isa<mlir::rlc::TemplateParameterType>())
+			if (isTemplateType(type).succeeded())
 				return false;
 		return true;
 	}
@@ -112,14 +112,15 @@ namespace mlir::rlc
 
 			auto resolvedFunction =
 					mlir::cast<mlir::rlc::FunctionOp>(clone).getResult();
-			op.replaceAllUsesWith(resolvedFunction);
-			op.erase();
 
 			lowerForFields(builder, clone);
 			lowerIsOperations(clone, symbolTable);
 			lowerAssignOps(builder, clone);
 			lowerConstructOps(builder, clone);
 			lowerDestructors(destructorsCache, builder, clone);
+
+			op.replaceAllUsesWith(resolvedFunction);
+			op.erase();
 
 			return resolvedFunction;
 		}

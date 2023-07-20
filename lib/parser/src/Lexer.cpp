@@ -66,6 +66,10 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordEntity";
 		case Token::KeywordDestroy:
 			return "KeywordDestroy";
+		case Token::KeywordExtern:
+			return "KeywordExtern";
+		case Token::KeywordImport:
+			return "KeywordImport";
 		case Token::KeywordMalloc:
 			return "KeywordMalloc";
 		case Token::KeywordOwningPtr:
@@ -329,6 +333,9 @@ Token Lexer::eatIdent()
 	if (name == "true")
 		return Token::KeywordTrue;
 
+	if (name == "import")
+		return Token::KeywordImport;
+
 	if (name == "false")
 		return Token::KeywordFalse;
 
@@ -355,6 +362,9 @@ Token Lexer::eatIdent()
 
 	if (name == "enable")
 		return Token::KeywordEnable;
+
+	if (name == "ext")
+		return Token::KeywordExtern;
 
 	if (name == "and")
 		return Token::KeywordAnd;

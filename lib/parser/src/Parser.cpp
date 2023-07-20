@@ -890,6 +890,14 @@ Parser::templateArguments()
 	return toReturn;
 }
 
+Expected<Parser::FunctionDeclarationResult> Parser::externFunctionDeclaration()
+{
+	EXPECT(Token::KeywordExtern);
+	TRY(result, functionDeclaration());
+	EXPECT(Token::Newline);
+	return std::move(*result);
+}
+
 /**
  * functionDeclaration : "fun" templateArguments identifier "("
  * [argDeclaration
@@ -1063,7 +1071,7 @@ Expected<mlir::rlc::UncheckedTraitDefinition> Parser::traitDefinition()
 	return trait;
 }
 
-Expected<mlir::ModuleOp> Parser::system()
+Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 {
 	auto location = getCurrentSourcePos();
 	std::string name = "unknown";
@@ -1074,7 +1082,9 @@ Expected<mlir::ModuleOp> Parser::system()
 		EXPECT(Token::Newline);
 	}
 
-	auto module = mlir::ModuleOp::create(location, llvm::StringRef(name));
+	auto module = destination == nullptr
+										? mlir::ModuleOp::create(location, llvm::StringRef(name))
+										: destination;
 	builder.setInsertionPointToStart(
 			&*module.getBodyRegion().getBlocks().begin());
 
@@ -1083,6 +1093,12 @@ Expected<mlir::ModuleOp> Parser::system()
 		while (accept<Token::Newline>() or accept<Token::Indent>() or
 					 accept<Token::Deindent>())
 			;
+
+		if (current == Token::KeywordExtern)
+		{
+			TRY(f, externFunctionDeclaration());
+			continue;
+		}
 
 		if (current == Token::KeywordAction)
 		{
@@ -1099,6 +1115,22 @@ Expected<mlir::ModuleOp> Parser::system()
 		if (current == Token::KeywordEntity)
 		{
 			TRY(f, entityDeclaration());
+			continue;
+		}
+
+		if (accept<Token::KeywordImport>())
+		{
+			EXPECT(Token::Identifier);
+
+			std::string subFile = lIdent;
+			while (accept<Token::Dot>())
+			{
+				subFile.append("/");
+				EXPECT(Token::Identifier);
+				subFile.append(lIdent);
+			}
+			EXPECT(Token::Newline);
+			importedFiles.push_back(subFile + ".rl");
 			continue;
 		}
 

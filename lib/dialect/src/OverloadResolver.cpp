@@ -31,10 +31,6 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		return mlir::success();
 	}
 
-	// if the caller is a template and the callsite must be a more strict template
-	if (mlir::rlc::isTemplateType(callSiteArgument).succeeded())
-		return mlir::failure();
-
 	if (auto pair =
 					std::pair{ calleeArgument.dyn_cast<mlir::rlc::EntityType>(),
 										 callSiteArgument.dyn_cast<mlir::rlc::EntityType>() };
@@ -43,8 +39,9 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		if (pair.first.getName() != pair.second.getName())
 			return mlir::failure();
 
-		for (auto [callee, callsite] :
-				 llvm::zip(pair.first.getBody(), pair.second.getBody()))
+		for (auto [callee, callsite] : llvm::zip(
+						 pair.first.getExplicitTemplateParameters(),
+						 pair.second.getExplicitTemplateParameters()))
 		{
 			if (deduceSubstitutions(substitutions, callee, callsite).failed())
 				return mlir::failure();
@@ -88,6 +85,7 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		}
 		return mlir::success();
 	}
+
 	return mlir::failure();
 }
 

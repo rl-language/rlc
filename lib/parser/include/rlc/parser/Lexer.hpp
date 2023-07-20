@@ -41,6 +41,8 @@ namespace rlc
 		KeywordFun,
 		KeywordReq,
 		KeywordType,
+		KeywordExtern,
+		KeywordImport,
 		Indent,
 		Deindent,
 		Newline,
