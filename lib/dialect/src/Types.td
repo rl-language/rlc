@@ -19,6 +19,8 @@ def RLC_IntegerType : RLC_Type<"Integer", "int"> {
     Implementation agnostic integer type.
   }];
 
+  let parameters = (ins "int64_t":$size);
+
   /// Here we define the textual format of the type declaratively, which will
   /// automatically generate parser and printer logic. This will allow for
   /// instances of the type to be output as, for example:
@@ -28,6 +30,18 @@ def RLC_IntegerType : RLC_Type<"Integer", "int"> {
 
   /// Indicate that our type will add additional verification to the parameters.
   let genVerifyDecl = 0;
+
+  let extraClassDeclaration = [{
+	  static mlir::rlc::IntegerType getInt64(mlir::MLIRContext* ctx) {
+		return mlir::rlc::IntegerType::get(ctx, 64);
+	  }
+	  static mlir::rlc::IntegerType getInt8(mlir::MLIRContext* ctx) {
+		return mlir::rlc::IntegerType::get(ctx, 8);
+	  }
+
+  }];
+
+  let assemblyFormat = "`<` $size`>`";
 }
 
 def RLC_VoidType : RLC_Type<"Void", "void"> {

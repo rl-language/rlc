@@ -16,9 +16,13 @@ namespace mlir::rlc
 			mlir::IRRewriter& rewriter, mlir::rlc::ConstructOp op)
 	{
 		rewriter.setInsertionPoint(op);
-		if (op.getType().isa<mlir::rlc::IntegerType>())
+		if (auto casted = op.getType().dyn_cast<mlir::rlc::IntegerType>())
 		{
-			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, int64_t(0));
+			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(
+					op,
+					casted,
+					rewriter.getIntegerAttr(
+							rewriter.getIntegerType(casted.getSize()), 0));
 			return;
 		}
 		if (op.getType().isa<mlir::rlc::FloatType>())
@@ -75,6 +79,8 @@ namespace mlir::rlc
 			const auto emitAllNeedSubtypes = [&](auto subtype) {
 				if (isBuiltinType(subtype))
 					return;
+				if (isTemplateType(subtype).succeeded())
+					return;
 
 				declareImplicitInit(rewriter, table, op, subtype);
 			};
@@ -93,6 +99,9 @@ namespace mlir::rlc
 				emitBuiltinInits(rewriter, init);
 				continue;
 			}
+
+			if (isTemplateType(init.getType()).succeeded())
+				continue;
 
 			auto toCall = declareImplicitInit(rewriter, table, op, init.getType());
 			rewriter.setInsertionPoint(init);
@@ -128,10 +137,14 @@ namespace mlir::rlc
 				continue;
 			}
 
-			builder.emitCall(
-					fun,
+			OverloadResolver resolver(builder.getSymbolTable());
+			auto overload = resolver.instantiateOverload(
+					rewriter,
+					fun.getLoc(),
 					builtinOperatorName<mlir::rlc::InitOp>(),
 					mlir::ValueRange({ lhs }));
+			rewriter.create<mlir::rlc::CallOp>(
+					fun.getLoc(), overload, mlir::ValueRange({ lhs }));
 		}
 	}
 
@@ -147,7 +160,9 @@ namespace mlir::rlc
 		auto lhs = block->getArgument(0);
 
 		auto decl = rewriter.create<mlir::rlc::DeclarationStatement>(
-				fun.getLoc(), mlir::rlc::IntegerType::get(fun.getContext()), "counter");
+				fun.getLoc(),
+				mlir::rlc::IntegerType::getInt64(fun.getContext()),
+				"counter");
 		auto* counterInitializerBB =
 				rewriter.createBlock(&decl.getBody(), decl.getBody().begin());
 		rewriter.setInsertionPoint(
@@ -204,9 +219,9 @@ namespace mlir::rlc
 		rewriter.setInsertionPointAfter(whileStatemet);
 	}
 
-	static void emitImplicitInits(mlir::ModuleOp op)
+	static void emitImplicitInits(
+			mlir::rlc::ModuleBuilder& builder, mlir::ModuleOp op)
 	{
-		mlir::rlc::ModuleBuilder builder(op);
 		mlir::IRRewriter& rewriter = builder.getRewriter();
 
 		for (auto op : builder.getSymbolTable().get(
@@ -232,6 +247,13 @@ namespace mlir::rlc
 		}
 	}
 
+	void emitImplicitInits(mlir::ModuleOp op)
+	{
+		declareImplicitInits(op);
+		mlir::rlc::ModuleBuilder builder(op);
+		emitImplicitInits(builder, op);
+	}
+
 #define GEN_PASS_DEF_EMITIMPLICITINITPASS
 #include "rlc/dialect/Passes.inc"
 	struct EmitImplicitInitPass
@@ -240,11 +262,7 @@ namespace mlir::rlc
 		using impl::EmitImplicitInitPassBase<
 				EmitImplicitInitPass>::EmitImplicitInitPassBase;
 
-		void runOnOperation() override
-		{
-			declareImplicitInits(getOperation());
-			emitImplicitInits(getOperation());
-		}
+		void runOnOperation() override { emitImplicitInits(getOperation()); }
 	};
 
 }	 // namespace mlir::rlc

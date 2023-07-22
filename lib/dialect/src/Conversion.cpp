@@ -12,6 +12,30 @@ static mlir::Value makeAlloca(
 			loc, rewriter.getI64Type(), rewriter.getI64IntegerAttr(1));
 	return rewriter.create<mlir::LLVM::AllocaOp>(loc, type, count, 0);
 }
+static mlir::LLVM::LoadOp makeAlignedLoad(
+		mlir::ConversionPatternRewriter& rewriter,
+		mlir::Value pointerTo,
+		mlir::Location loc)
+{
+	auto aligment =
+			mlir::DataLayout::closest(pointerTo.getDefiningOp())
+					.getTypePreferredAlignment(pointerTo.getType()
+																				 .cast<mlir::LLVM::LLVMPointerType>()
+																				 .getElementType());
+	return rewriter.create<mlir::LLVM::LoadOp>(loc, pointerTo, aligment);
+}
+
+static mlir::LLVM::StoreOp makeAlignedStore(
+		mlir::ConversionPatternRewriter& rewriter,
+		mlir::Value toStore,
+		mlir::Value pointerTo,
+		mlir::Location loc)
+{
+	auto aligment = mlir::DataLayout::closest(pointerTo.getDefiningOp())
+											.getTypePreferredAlignment(toStore.getType());
+	return rewriter.create<mlir::LLVM::StoreOp>(
+			loc, toStore, pointerTo, aligment);
+}
 
 class LowerFree: public mlir::OpConversionPattern<mlir::rlc::FreeOp>
 {
@@ -32,8 +56,7 @@ class LowerFree: public mlir::OpConversionPattern<mlir::rlc::FreeOp>
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		auto ptr =
-				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getArgument());
+		auto ptr = makeAlignedLoad(rewriter, adaptor.getArgument(), op.getLoc());
 
 		auto ptrcasted = rewriter.create<mlir::LLVM::BitcastOp>(
 				op.getLoc(),
@@ -70,7 +93,7 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
 		auto loadedCount =
-				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getSize());
+				makeAlignedLoad(rewriter, adaptor.getSize(), op.getLoc());
 		const auto& dl = mlir::DataLayout::closest(op);
 
 		auto baseType = typeConverter->convertType(op.getType())
@@ -97,7 +120,7 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 
 		auto alloca = makeAlloca(
 				rewriter, mlir::LLVM::LLVMPointerType::get(ptr.getType()), op.getLoc());
-		rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), ptr, alloca);
+		makeAlignedStore(rewriter, ptr, alloca, op.getLoc());
 		rewriter.replaceOp(op, alloca);
 		return mlir::success();
 	}
@@ -226,8 +249,8 @@ class ArrayAccessRewriter
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		auto loaded = rewriter.create<mlir::LLVM::LoadOp>(
-				op.getLoc(), adaptor.getMemberIndex());
+		auto loaded =
+				makeAlignedLoad(rewriter, adaptor.getMemberIndex(), op.getLoc());
 		auto array_type = adaptor.getValue()
 													.getType()
 													.cast<mlir::LLVM::LLVMPointerType>()
@@ -252,7 +275,7 @@ class ArrayAccessRewriter
 		auto elem_type =
 				array_type.cast<mlir::LLVM::LLVMPointerType>().getElementType();
 		auto loadedPointerToMallocated =
-				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getValue());
+				makeAlignedLoad(rewriter, adaptor.getValue(), op.getLoc());
 		auto gep = rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
 				op,
 				mlir::LLVM::LLVMPointerType::get(elem_type),
@@ -280,8 +303,7 @@ class InitRewriter: public mlir::OpConversionPattern<mlir::rlc::InitOp>
 		auto zeroValue =
 				rewriter.create<mlir::LLVM::ConstantOp>(op.getLoc(), type, zero);
 
-		rewriter.create<mlir::LLVM::StoreOp>(
-				op.getLoc(), zeroValue, adaptor.getLhs());
+		makeAlignedStore(rewriter, zeroValue, adaptor.getLhs(), op.getLoc());
 		rewriter.eraseOp(op);
 
 		return mlir::LogicalResult::success();
@@ -300,10 +322,29 @@ class AssignRewriter
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
 		rewriter.setInsertionPoint(op);
-		auto loaded =
-				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getRhs());
-		rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), loaded, adaptor.getLhs());
+		auto loaded = makeAlignedLoad(rewriter, adaptor.getRhs(), op.getLoc());
+		makeAlignedStore(rewriter, loaded, adaptor.getLhs(), op.getLoc());
 		rewriter.replaceOp(op, adaptor.getLhs());
+
+		return mlir::LogicalResult::success();
+	}
+};
+
+class CopyRewriter: public mlir::OpConversionPattern<mlir::rlc::CopyOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::CopyOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::CopyOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto result =
+				makeAlloca(rewriter, adaptor.getToCopy().getType(), op.getLoc());
+
+		auto loaded = makeAlignedLoad(rewriter, adaptor.getToCopy(), op.getLoc());
+		makeAlignedStore(rewriter, loaded, result, op.getLoc());
+		rewriter.replaceOp(op, result);
 
 		return mlir::LogicalResult::success();
 	}
@@ -320,14 +361,15 @@ class YieldRewriter: public mlir::OpConversionPattern<mlir::rlc::Yield>
 	{
 		rewriter.setInsertionPoint(op);
 		assert(op.getArguments().size() <= 1);
+		assert(op.getOnEnd().empty());
 		if (adaptor.getArguments().empty())
 		{
 			rewriter.replaceOpWithNewOp<mlir::LLVM::ReturnOp>(op, mlir::ValueRange());
 		}
 		else
 		{
-			auto loaded = rewriter.create<mlir::LLVM::LoadOp>(
-					op.getLoc(), adaptor.getArguments()[0]);
+			auto loaded =
+					makeAlignedLoad(rewriter, adaptor.getArguments()[0], op.getLoc());
 			rewriter.replaceOpWithNewOp<mlir::LLVM::ReturnOp>(
 					op, mlir::ValueRange({ loaded }));
 		}
@@ -392,8 +434,7 @@ class ArithRewriterRewriter: public mlir::OpConversionPattern<Op>
 		return rewriteOp(
 				op,
 				rewriter,
-				rewriter.create<mlir::LLVM::LoadOp>(
-						op.getLoc(), adaptor.getOperands()[I])...);
+				makeAlignedLoad(rewriter, adaptor.getOperands()[I], op.getLoc())...);
 	}
 
 	mlir::LogicalResult matchAndRewrite(
@@ -405,7 +446,7 @@ class ArithRewriterRewriter: public mlir::OpConversionPattern<Op>
 				op, adaptor, rewriter, std::make_index_sequence<sizeof...(Args)>());
 		mlir::Value alloca = makeAlloca(
 				rewriter, mlir::LLVM::LLVMPointerType::get(res.getType()), op.getLoc());
-		rewriter.create<mlir::LLVM::StoreOp>(op.getLoc(), res, alloca);
+		makeAlignedStore(rewriter, res, alloca, op.getLoc());
 		rewriter.replaceOp(op, alloca);
 		return mlir::LogicalResult::success();
 	}
@@ -509,8 +550,7 @@ class CallRewriter: public mlir::OpConversionPattern<mlir::rlc::CallOp>
 			auto alloca = makeAlloca(
 					rewriter, mlir::LLVM::LLVMPointerType::get(out.front()), op.getLoc());
 			rewriter.replaceOp(op, alloca);
-			rewriter.create<mlir::LLVM::StoreOp>(
-					op.getLoc(), res.getResults().front(), alloca);
+			makeAlignedStore(rewriter, res.getResults().front(), alloca, op.getLoc());
 		}
 		else
 		{
@@ -546,8 +586,7 @@ class SelectRewriter: public mlir::OpConversionPattern<mlir::rlc::SelectBranch>
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		auto loaded =
-				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getCond());
+		auto loaded = makeAlignedLoad(rewriter, adaptor.getCond(), op.getLoc());
 
 		llvm::SmallVector<int32_t, 2> indexes;
 		llvm::SmallVector<mlir::ValueRange, 2> arguments;
@@ -579,8 +618,7 @@ class CbrRewriter: public mlir::OpConversionPattern<mlir::rlc::CondBranch>
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		auto loaded =
-				rewriter.create<mlir::LLVM::LoadOp>(op.getLoc(), adaptor.getCond());
+		auto loaded = makeAlignedLoad(rewriter, adaptor.getCond(), op.getLoc());
 		auto boolType = mlir::IntegerType::get(op.getContext(), 8);
 		auto zero = rewriter.create<mlir::LLVM::ConstantOp>(
 				op.getLoc(), boolType, rewriter.getZeroAttr(boolType));
@@ -592,6 +630,101 @@ class CbrRewriter: public mlir::OpConversionPattern<mlir::rlc::CondBranch>
 				zero);
 		rewriter.replaceOpWithNewOp<mlir::LLVM::CondBrOp>(
 				op, res, op.getTrueBranch(), op.getFalseBranch());
+
+		return mlir::LogicalResult::success();
+	}
+};
+
+class ToByteArrayRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::AsByteArrayOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::AsByteArrayOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::AsByteArrayOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto resultType = typeConverter->convertType(op.getResult().getType());
+		const auto& dl = mlir::DataLayout::closest(op);
+		auto reinterpretedSize =
+				dl.getTypeSize(adaptor.getLhs()
+													 .getType()
+													 .cast<mlir::LLVM::LLVMPointerType>()
+													 .getElementType());
+		auto sameSizeIntType = rewriter.getIntegerType(reinterpretedSize * 8);
+
+		mlir::Operation* loadedValue =
+				makeAlignedLoad(rewriter, adaptor.getLhs(), op.getLoc());
+		loadedValue = rewriter.create<mlir::LLVM::BitcastOp>(
+				op.getLoc(), sameSizeIntType, loadedValue->getResult(0));
+
+		mlir::Operation* result = rewriter.create<mlir::LLVM::UndefOp>(
+				op.getLoc(),
+				resultType.cast<mlir::LLVM::LLVMPointerType>().getElementType());
+		auto eight = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), sameSizeIntType, 8);
+		for (size_t byteIndex = 0; byteIndex < reinterpretedSize; byteIndex++)
+		{
+			auto truncated = rewriter.create<mlir::LLVM::TruncOp>(
+					op.getLoc(), rewriter.getI8Type(), loadedValue->getResult(0));
+			result = rewriter.create<mlir::LLVM::InsertValueOp>(
+					op.getLoc(), result->getResult(0), truncated, byteIndex);
+			loadedValue = rewriter.create<mlir::LLVM::LShrOp>(
+					op.getLoc(), loadedValue->getResult(0), eight);
+		}
+
+		auto inMemory = makeAlloca(rewriter, resultType, op.getLoc());
+		makeAlignedStore(rewriter, result->getResult(0), inMemory, op.getLoc());
+		rewriter.replaceOp(op, inMemory);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
+class FromByteArrayRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::FromByteArrayOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::FromByteArrayOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::FromByteArrayOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto resultType = typeConverter->convertType(op.getResult().getType());
+		const auto& dl = mlir::DataLayout::closest(op);
+		auto reinterpretedSize = dl.getTypeSize(
+				resultType.cast<mlir::LLVM::LLVMPointerType>().getElementType());
+		auto sameSizeIntType = rewriter.getIntegerType(reinterpretedSize * 8);
+
+		auto loadedArray = makeAlignedLoad(rewriter, adaptor.getLhs(), op.getLoc());
+
+		mlir::Operation* result =
+				rewriter.create<mlir::LLVM::UndefOp>(op.getLoc(), sameSizeIntType);
+		auto eight = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), sameSizeIntType, 8);
+		for (size_t byteIndex = reinterpretedSize; byteIndex != 0; byteIndex--)
+		{
+			result = rewriter.create<mlir::LLVM::ShlOp>(
+					op.getLoc(), result->getResult(0), eight);
+			auto extractedByte = rewriter.create<mlir::LLVM::ExtractValueOp>(
+					op.getLoc(), loadedArray, byteIndex - 1);
+			auto extented = rewriter.create<mlir::LLVM::SExtOp>(
+					op.getLoc(), sameSizeIntType, extractedByte);
+			result = rewriter.create<mlir::LLVM::OrOp>(
+					op.getLoc(), extented, result->getResult(0));
+		}
+
+		auto bitCasted = rewriter.create<mlir::LLVM::BitcastOp>(
+				op.getLoc(),
+				resultType.cast<mlir::LLVM::LLVMPointerType>().getElementType(),
+				result->getResult(0));
+		auto inMemory = makeAlloca(rewriter, resultType, op.getLoc());
+		makeAlignedStore(rewriter, bitCasted, inMemory, op.getLoc());
+		rewriter.replaceOp(op, inMemory);
 
 		return mlir::LogicalResult::success();
 	}
@@ -619,7 +752,7 @@ class ConstantRewriter: public mlir::OpConversionPattern<mlir::rlc::Constant>
 				out.front().cast<mlir::LLVM::LLVMPointerType>().getElementType(),
 				op.getValue());
 		rewriter.replaceOp(op, alloca);
-		rewriter.create<mlir::LLVM::StoreOp>(alloca.getLoc(), constant, alloca);
+		makeAlignedStore(rewriter, constant, alloca, alloca.getLoc());
 
 		return mlir::LogicalResult::success();
 	}
@@ -818,11 +951,31 @@ static mlir::Value lowerToIntCast(
 		mlir::ConversionPatternRewriter& builder,
 		mlir::Value lhs)
 {
+	if (op.getResult().getType() == op.getOperand().getType())
+	{
+		return op.getOperand();
+	}
 	if (isRLCFInt(op.getResult().getType()))
 	{
+		auto resType = op.getResult().getType().cast<mlir::rlc::IntegerType>();
+
+		if (isRLCFInt(op.getLhs().getType()))
+		{
+			auto inputTYpe = op.getLhs().getType().cast<mlir::rlc::IntegerType>();
+			if (resType.getSize() < inputTYpe.getSize())
+				return builder.create<mlir::LLVM::TruncOp>(
+						lhs.getLoc(), builder.getIntegerType(resType.getSize()), lhs);
+			return builder.create<mlir::LLVM::SExtOp>(
+					lhs.getLoc(), builder.getIntegerType(resType.getSize()), lhs);
+		}
 		if (isRLCFloat(op.getLhs().getType()))
 			return builder.create<mlir::LLVM::FPToSIOp>(
-					lhs.getLoc(), builder.getI64Type(), lhs);
+					lhs.getLoc(),
+					builder.getIntegerType(op.getResult()
+																		 .getType()
+																		 .cast<mlir::rlc::IntegerType>()
+																		 .getSize()),
+					lhs);
 
 		auto isZero = makeINEQ(
 				builder,
@@ -833,7 +986,7 @@ static mlir::Value lowerToIntCast(
 						builder.getZeroAttr(builder.getI8Type())),
 				op.getLoc());
 		return builder.create<mlir::LLVM::ZExtOp>(
-				lhs.getLoc(), builder.getI64Type(), isZero);
+				lhs.getLoc(), builder.getIntegerType(resType.getSize()), isZero);
 	}
 
 	if (isRLCFloat(op.getResult().getType()))
@@ -979,6 +1132,8 @@ namespace mlir::rlc
 					.add<ConstantRewriter>(converter, &getContext())
 					.add<CbrRewriter>(converter, &getContext())
 					.add<BrRewriter>(converter, &getContext())
+					.add<FromByteArrayRewriter>(converter, &getContext())
+					.add<ToByteArrayRewriter>(converter, &getContext())
 					.add<SelectRewriter>(converter, &getContext())
 					.add<AssignRewriter>(converter, &getContext())
 					.add<InitRewriter>(converter, &getContext())
@@ -1001,6 +1156,7 @@ namespace mlir::rlc
 					.add(makeArith(lowerAdd, converter, &getContext()))
 					.add(makeArith(lowerMult, converter, &getContext()))
 					.add<YieldRewriter>(converter, &getContext())
+					.add<CopyRewriter>(converter, &getContext())
 					.add<ArrayAccessRewriter>(converter, &getContext())
 					.add<UninitializedConstructRewriter>(converter, &getContext())
 					.add<MemberAccessRewriter>(converter, &getContext())

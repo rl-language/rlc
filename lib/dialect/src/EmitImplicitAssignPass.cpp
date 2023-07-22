@@ -52,8 +52,12 @@ namespace mlir::rlc
 		// emits the needed declarations for each subtypes
 		for (auto assign : ops)
 		{
+			assert(assign.getLhs().getType() != nullptr);
+			assert(assign.getRhs().getType() != nullptr);
 			const auto emitAllNeedSubtypes = [&](auto subtype) {
-				if (isBuiltinType(subtype))
+				if (isBuiltinType(subtype) or
+						subtype.template isa<mlir::rlc::OwningPtrType>() or
+						isTemplateType(subtype).succeeded())
 					return;
 
 				declareImplicitAssign(
@@ -69,6 +73,9 @@ namespace mlir::rlc
 		// of the new function
 		for (auto assign : ops)
 		{
+			if (isTemplateType(assign.getType()).succeeded())
+				continue;
+
 			auto toCall = declareImplicitAssign(
 					builder.getRewriter(),
 					builder.getSymbolTable(),
@@ -96,7 +103,9 @@ namespace mlir::rlc
 		auto rhs = block->getArgument(1);
 
 		auto decl = rewriter.create<mlir::rlc::DeclarationStatement>(
-				fun.getLoc(), mlir::rlc::IntegerType::get(fun.getContext()), "counter");
+				fun.getLoc(),
+				mlir::rlc::IntegerType::getInt64(fun.getContext()),
+				"counter");
 		auto* counterInitializerBB =
 				rewriter.createBlock(&decl.getBody(), decl.getBody().begin());
 		rewriter.setInsertionPoint(
@@ -191,6 +200,7 @@ namespace mlir::rlc
 		}
 		else
 		{
+			resType.dump();
 			assert(false && "unrechable");
 		}
 
@@ -209,6 +219,12 @@ namespace mlir::rlc
 			emitImplicitAssign(builder, decl.getDefiningOp<mlir::rlc::FunctionOp>());
 	}
 
+	void emitImplicitAssign(mlir::ModuleOp op)
+	{
+		declareImplicitAssigns(op);
+		emitImplicitAssigments(op);
+	}
+
 #define GEN_PASS_DEF_EMITIMPLICITASSIGNPASS
 #include "rlc/dialect/Passes.inc"
 
@@ -218,11 +234,7 @@ namespace mlir::rlc
 		using impl::EmitImplicitAssignPassBase<
 				EmitImplicitAssignPass>::EmitImplicitAssignPassBase;
 
-		void runOnOperation() override
-		{
-			declareImplicitAssigns(getOperation());
-			emitImplicitAssigments(getOperation());
-		}
+		void runOnOperation() override { emitImplicitAssign(getOperation()); }
 	};
 
 }	 // namespace mlir::rlc

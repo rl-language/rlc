@@ -23,7 +23,8 @@ namespace mlir::rlc
 					mlir::FunctionType::get(
 							&getContext(),
 							mlir::TypeRange(),
-							mlir::TypeRange({ mlir::rlc::IntegerType::get(&getContext()) })));
+							mlir::TypeRange(
+									{ mlir::rlc::IntegerType::getInt64(&getContext()) })));
 			auto realMain =
 					getOperation().lookupSymbol<mlir::LLVM::LLVMFuncOp>(mangeledMainName);
 			if (realMain == nullptr)

@@ -55,8 +55,8 @@ namespace mlir::rlc
 		if (auto type = toConsider.dyn_cast<mlir::rlc::EntityType>())
 		{
 			mlir::rlc::OverloadResolver resolver(builder.getSymbolTable());
-			auto overload = resolver.findOverload("drop", mlir::TypeRange({ type }));
-			if (overload)
+			auto overload = resolver.findOverloads("drop", mlir::TypeRange({ type }));
+			if (not overload.empty())
 			{
 				requireDestructor[toConsider] = true;
 				return mlir::success();
@@ -283,7 +283,8 @@ namespace mlir::rlc
 			llvm::DenseMap<mlir::Type, bool> requireDestructor;
 
 			getOperation().walk([&](mlir::Operation* op) {
-				if (mlir::isa<mlir::rlc::EntityDeclaration>(op))
+				if (not mlir::isa<mlir::rlc::DeclarationStatement>(op) and
+						not mlir::isa<mlir::rlc::CallOp>(op))
 					return;
 				for (mlir::Value result : op->getResults())
 					if (typeRequiresDestructor(
@@ -301,7 +302,10 @@ namespace mlir::rlc
 
 				for (auto* yield : destructionPoints)
 				{
-					rewriter.setInsertionPoint(yield);
+					auto casted = mlir::cast<mlir::rlc::Yield>(yield);
+					if (casted.getOnEnd().empty())
+						rewriter.createBlock(&casted.getOnEnd(), casted.getOnEnd().begin());
+					rewriter.setInsertionPointToEnd(&*casted.getOnEnd().begin());
 					rewriter.create<mlir::rlc::DestroyOp>(value.getLoc(), value);
 				}
 			}

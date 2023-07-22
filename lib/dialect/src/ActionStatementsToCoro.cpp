@@ -139,6 +139,37 @@ namespace mlir::rlc
 					return;
 				}
 			}
+
+			mlir::IRRewriter rewriter(getOperation().getContext());
+			llvm::SmallVector<mlir::rlc::Yield, 4> yields;
+			getOperation().walk(
+					[&](mlir::rlc::Yield yield) { yields.push_back(yield); });
+			for (auto yield : yields)
+			{
+				if (yield.getOnEnd().empty())
+					continue;
+
+				rewriter.setInsertionPoint(yield);
+				size_t i = 0;
+				for (auto arg : yield.getOperands())
+				{
+					auto copy = rewriter.create<mlir::rlc::CopyOp>(
+							yield.getLoc(), arg.getType(), arg);
+					yield.setOperand(i, copy);
+					i++;
+				}
+
+				llvm::SmallVector<mlir::Operation*, 2> ops;
+
+				for (auto& op : yield.getOnEnd().getOps())
+					ops.push_back(&op);
+
+				for (auto* op : ops)
+					op->moveBefore(yield);
+
+				while (not yield.getOnEnd().empty())
+					rewriter.eraseBlock(&yield.getOnEnd().front());
+			}
 		}
 	};
 }	 // namespace mlir::rlc

@@ -33,6 +33,8 @@ EntityType EntityType::getIdentified(
 		StringRef name,
 		ArrayRef<Type> explicitTemplateParameters)
 {
+	for (auto type : explicitTemplateParameters)
+		assert(not type.isa<mlir::rlc::UnknownType>());
 	return Base::get(
 			context, StructTypeStorage::KeyTy(name, explicitTemplateParameters));
 }
@@ -294,7 +296,7 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
 	{
-		OS << "int64_t";
+		OS << "int" << int64_t(maybeType.getSize()) << "_t";
 		return;
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
@@ -304,7 +306,7 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::BoolType>())
 	{
-		OS << "int8_t";
+		OS << "bool";
 		return;
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::VoidType>())

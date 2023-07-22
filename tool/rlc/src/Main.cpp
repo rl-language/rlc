@@ -50,6 +50,8 @@ static cl::opt<string> InputFilePath(
 		cl::init("-"),
 		cl::cat(astDumperCategory));
 
+cl::list<std::string> ExtraObjectFiles(
+		cl::Positional, cl::desc("<extra-object-files>"));
 cl::list<std::string> IncludeDirs("i", cl::desc("<include dirs>"));
 
 static cl::opt<bool> dumpTokens(
@@ -387,6 +389,7 @@ int main(int argc, char *argv[])
 	mlir::PassManager templateInstantiator(&context);
 	templateInstantiator.addPass(
 			mlir::rlc::createEmitImplicitDestructorInvocationsPass());
+	templateInstantiator.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerForFieldOpPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerIsOperationsPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerAssignPass());
@@ -542,19 +545,21 @@ int main(int argc, char *argv[])
 	auto realPath = exitOnErr(
 			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath)));
 	std::string Errors;
+	llvm::SmallVector<std::string, 4> argSource;
+	argSource.push_back("clang");
+	argSource.push_back(library.getFilename().str());
+	argSource.push_back("-o");
+	argSource.push_back(outputFile);
+	argSource.push_back("-lm");
+	argSource.push_back(shared ? "--shared" : "");
+	for (auto extraObject : ExtraObjectFiles)
+		argSource.push_back(extraObject);
+
+	llvm::SmallVector<llvm::StringRef, 4> args(
+			argSource.begin(), argSource.end());
+
 	auto res = llvm::sys::ExecuteAndWait(
-			realPath,
-			{ "clang",
-				library.getFilename(),
-				"-o",
-				outputFile,
-				"-lm",
-				shared ? "--shared" : "" },
-			std::nullopt,
-			{},
-			0,
-			0,
-			&Errors);
+			realPath, args, std::nullopt, {}, 0, 0, &Errors);
 	llvm::errs() << Errors;
 
 	Errors.clear();

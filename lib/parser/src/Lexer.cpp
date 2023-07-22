@@ -76,6 +76,10 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordOwningPtr";
 		case Token::KeywordFree:
 			return "KeywordFree";
+		case Token::KeywordFromArray:
+			return "KeywordFromArray";
+		case Token::KeywordToArray:
+			return "KeywordToArray";
 		case Token::KeywordIf:
 			return "KeywordIf";
 		case Token::KeywordElse:
@@ -392,6 +396,12 @@ Token Lexer::eatIdent()
 
 	if (name == "__builtin_free_do_not_use")
 		return Token::KeywordFree;
+
+	if (name == "__builtin_from_array")
+		return Token::KeywordFromArray;
+
+	if (name == "__builtin_to_array")
+		return Token::KeywordToArray;
 
 	if (name == "OwningPtr")
 		return Token::KeywordOwningPtr;

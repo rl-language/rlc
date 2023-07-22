@@ -98,7 +98,10 @@ namespace mlir::rlc
 			containedTypes = llvm::SmallVector<mlir::Type, 2>();
 			// Change the body successfully.
 			for (auto type : body)
+			{
+				assert(type != nullptr);
 				containedTypes->push_back(type);
+			}
 			this->fieldNames.clear();
 			for (const auto &field : fieldNames)
 				this->fieldNames.push_back(field);

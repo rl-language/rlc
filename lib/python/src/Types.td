@@ -57,6 +57,8 @@ def RLC_CTypesInt : RLC_PythonType<"CTypesInt", "ctypes_int"> {
   let description = [{
     Implementation agnostic integer type.
   }];
+  let parameters = (ins "int64_t":$size);
+  let assemblyFormat = "`<` $size`>`";
 }
 
 def RLC_PythonBool : RLC_PythonType<"Bool", "bool"> {
@@ -80,4 +82,6 @@ def RLC_PythonInt : RLC_PythonType<"Int", "int"> {
   let description = [{
     Implementation agnostic integer type.
   }];
+  let parameters = (ins "int64_t":$size);
+  let assemblyFormat = "`<` $size`>`";
 }

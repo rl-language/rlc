@@ -151,7 +151,7 @@ def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator, DeclareOpInterfaceM
 
 }
 
-def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>, NoTerminator]> {
   let summary = "ends statements";
 
   let arguments = (ins Variadic<AnyType>:$arguments);
@@ -166,9 +166,28 @@ def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<Type
 	expression.
   }];
 
+  let regions = (region
+  AnyRegion:$on_end
+  );
+
 
   let assemblyFormat = [{
-	($arguments^ `:` type($arguments))? attr-dict
+	($arguments^ `:` type($arguments))? $on_end attr-dict
+  }];
+}
+
+def RLC_CopyOp : RLC_Dialect<"copy"> {
+  let summary = "statement list.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$to_copy);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$to_copy `:` type($to_copy) type($result) attr-dict 
   }];
 }
 
@@ -631,7 +650,7 @@ def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeChecka
 	expression.
   }];
 
-  let arguments = (ins AnyAttrOf<[I64Attr, F64Attr, BoolAttr]>:$value);
+  let arguments = (ins AnyAttrOf<[I8Attr, I64Attr, F64Attr, BoolAttr]>:$value);
   let results = (outs AnyType:$result);
 
    let builders = [
@@ -640,8 +659,11 @@ def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeChecka
     }]>,OpBuilder<(ins "bool":$value), [{
             build($_builder, $_state, BoolType::get($_builder.getContext()),  $_builder.getBoolAttr(value));
     }]>,OpBuilder<(ins "std::int64_t":$value), [{
-            build($_builder, $_state, IntegerType::get($_builder.getContext()), $_builder.getI64IntegerAttr(value));
+            build($_builder, $_state, IntegerType::getInt64($_builder.getContext()), $_builder.getI64IntegerAttr(value));
+    }]>,OpBuilder<(ins "std::int8_t":$value), [{
+            build($_builder, $_state, IntegerType::getInt8($_builder.getContext()), $_builder.getI8IntegerAttr(value));
     }]>
+
 	];
 
   let assemblyFormat = [{
@@ -772,7 +794,8 @@ class RLC_InternalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
 			mlir::rlc::ModuleBuilder& builder)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
-		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
+		acceptable.push_back(mlir::rlc::IntegerType::getInt64(this->getContext()));
+		acceptable.push_back(mlir::rlc::IntegerType::getInt8(this->getContext()));
 		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
 		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 		return mlir::rlc::detail::typeCheckInteralOp(*this, builder, acceptable);
@@ -790,7 +813,8 @@ class RLC_RelationalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]>
 			mlir::rlc::ModuleBuilder& builder)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
-		acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
+		acceptable.push_back(mlir::rlc::IntegerType::getInt64(this->getContext()));
+		acceptable.push_back(mlir::rlc::IntegerType::getInt8(this->getContext()));
 		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
 		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 		return mlir::rlc::detail::typeCheckInteralOp(*this, builder, acceptable, mlir::rlc::BoolType::get(this->getContext()));
@@ -877,6 +901,35 @@ def RLC_DivOp : RLC_InternalOp<"_div"> {
   }];
 }
 
+def RLC_FromByteArrayOp : RLC_Dialect<"from_byte_array", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins RLCArrayOrUnkownType:$lhs);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$lhs `:` type($lhs) `->` type($result) attr-dict
+  }];
+}
+
+def RLC_AsByteArrayOp : RLC_Dialect<"as_byte_array", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins  AnyRLCScalarType:$lhs);
+  let results = (outs RLCArrayOrUnkownType:$result);
+
+  let assemblyFormat = [{
+	$lhs `:` type($lhs) `->` type($result) attr-dict
+  }];
+}
 
 def RLC_CastOp : RLC_Dialect<"cast", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";

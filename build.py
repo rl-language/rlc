@@ -82,7 +82,7 @@ def build_llvm(
         "-DLLVM_INSTALL_UTILS=True",
         "-DCMAKE_BUILD_TYPE={}".format(build_type),
         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
-        "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;",
+        "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;",
         "-DLLVM_USE_LINKER=lld",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
         f"-DCMAKE_C_COMPILER={clang}",

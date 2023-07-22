@@ -13,7 +13,7 @@ static void registerBuiltinConversions(
 		mlir::TypeConverter& converter, mlir::TypeConverter& ctypesConverter)
 {
 	converter.addConversion([](mlir::rlc::IntegerType t) -> mlir::Type {
-		return mlir::rlc::python::IntType::get(t.getContext());
+		return mlir::rlc::python::IntType::get(t.getContext(), t.getSize());
 	});
 
 	converter.addConversion([](mlir::rlc::BoolType t) -> mlir::Type {
@@ -70,7 +70,7 @@ static void registerBuiltinConversions(
 static void registerCTypesConversions(mlir::TypeConverter& converter)
 {
 	converter.addConversion([](mlir::rlc::IntegerType t) -> mlir::Type {
-		return mlir::rlc::python::CTypesIntType::get(t.getContext());
+		return mlir::rlc::python::CTypesIntType::get(t.getContext(), t.getSize());
 	});
 
 	converter.addConversion([](mlir::rlc::BoolType t) -> mlir::Type {

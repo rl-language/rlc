@@ -39,9 +39,8 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		if (pair.first.getName() != pair.second.getName())
 			return mlir::failure();
 
-		for (auto [callee, callsite] : llvm::zip(
-						 pair.first.getExplicitTemplateParameters(),
-						 pair.second.getExplicitTemplateParameters()))
+		for (auto [callee, callsite] :
+				 llvm::zip(pair.first.getBody(), pair.second.getBody()))
 		{
 			if (deduceSubstitutions(substitutions, callee, callsite).failed())
 				return mlir::failure();
@@ -110,6 +109,19 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 	{
 		assert(substitutions.find(casted) != substitutions.end());
 		resultType = substitutions[casted];
+	}
+	else if (isTemplateType(resultType).succeeded())
+	{
+		for (auto sobstitution : substitutions)
+		{
+			resultType =
+					resultType.cast<mlir::SubElementTypeInterface>().replaceSubElements(
+							[sobstitution](mlir::rlc::TemplateParameterType t) -> mlir::Type {
+								if (t == sobstitution.getFirst())
+									return sobstitution.second;
+								return t;
+							});
+		}
 	}
 
 	return mlir::FunctionType::get(

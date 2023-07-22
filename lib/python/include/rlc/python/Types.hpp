@@ -15,7 +15,18 @@ namespace mlir::rlc
 	{
 		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypesIntType>())
 		{
-			OS << "c_longlong";
+			if (maybeType.getSize() == 8)
+			{
+				OS << "c_byte";
+			}
+			else if (maybeType.getSize() == 64)
+			{
+				OS << "c_longlong";
+			}
+			else
+			{
+				llvm_unreachable("unhandled");
+			}
 			return;
 		}
 
@@ -98,8 +109,8 @@ namespace mlir::rlc
 			return mlir::rlc::python::BoolType::get(t.getContext());
 		if (t.isa<mlir::rlc::python::CTypesFloatType>())
 			return mlir::rlc::python::FloatType::get(t.getContext());
-		if (t.isa<mlir::rlc::python::CTypesIntType>())
-			return mlir::rlc::python::IntType::get(t.getContext());
+		if (auto casted = t.dyn_cast<mlir::rlc::python::CTypesIntType>())
+			return mlir::rlc::python::IntType::get(t.getContext(), casted.getSize());
 
 		return t;
 	}
@@ -110,8 +121,9 @@ namespace mlir::rlc
 			return mlir::rlc::python::CTypesBoolType::get(t.getContext());
 		if (t.isa<mlir::rlc::python::FloatType>())
 			return mlir::rlc::python::CTypesFloatType::get(t.getContext());
-		if (t.isa<mlir::rlc::python::IntType>())
-			return mlir::rlc::python::CTypesIntType::get(t.getContext());
+		if (auto casted = t.dyn_cast<mlir::rlc::python::IntType>())
+			return mlir::rlc::python::CTypesIntType::get(
+					t.getContext(), casted.getSize());
 		return t;
 	}
 

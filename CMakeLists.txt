@@ -16,7 +16,8 @@ SET(gtest_force_shared_crt OFF CACHE INTERNAL "")
 SET(GTEST_HAS_ABSL OFF CACHE INTERNAL "")
 
 add_subdirectory(googletest)
-
+#set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory -fsanitize-ignorelist=/home/massimo/Documents/example_rlc/rlc-infrastructure/rlc-debug/ignorelist.txt -fsanitize-recover=all")
+#set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=undefined")
 ##############################
 ###        benchmarks      ###
 ##############################

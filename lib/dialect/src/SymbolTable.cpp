@@ -20,7 +20,8 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 {
 	mlir::rlc::TypeTable table;
 
-	table.add("Int", mlir::rlc::IntegerType::get(mod.getContext()));
+	table.add("Int", mlir::rlc::IntegerType::getInt64(mod.getContext()));
+	table.add("Byte", mlir::rlc::IntegerType::getInt8(mod.getContext()));
 	table.add("Void", mlir::rlc::VoidType::get(mod.getContext()));
 	table.add("Float", mlir::rlc::FloatType::get(mod.getContext()));
 	table.add("Bool", mlir::rlc::BoolType::get(mod.getContext()));
@@ -353,18 +354,30 @@ static mlir::rlc::CastOp emitCast(
 		mlir::ValueRange arguments)
 {
 	auto argTypes = arguments.getType();
-	if (name == "int" and arguments.size() == 1 and
+	if (name == "byte" and arguments.size() == 1 and
 			(argTypes[0].isa<mlir::rlc::FloatType>() or
+			 argTypes[0].isa<mlir::rlc::IntegerType>() or
 			 argTypes[0].isa<mlir::rlc::BoolType>()))
 	{
 		return rewriter.create<mlir::rlc::CastOp>(
 				callSite->getLoc(),
 				arguments[0],
-				mlir::rlc::IntegerType::get(callSite->getContext()));
+				mlir::rlc::IntegerType::getInt8(callSite->getContext()));
+	}
+	if (name == "int" and arguments.size() == 1 and
+			(argTypes[0].isa<mlir::rlc::FloatType>() or
+			 argTypes[0].isa<mlir::rlc::IntegerType>() or
+			 argTypes[0].isa<mlir::rlc::BoolType>()))
+	{
+		return rewriter.create<mlir::rlc::CastOp>(
+				callSite->getLoc(),
+				arguments[0],
+				mlir::rlc::IntegerType::getInt64(callSite->getContext()));
 	}
 
 	if (name == "float" and arguments.size() == 1 and
 			(argTypes[0].isa<mlir::rlc::IntegerType>() or
+			 argTypes[0].isa<mlir::rlc::FloatType>() or
 			 argTypes[0].isa<mlir::rlc::BoolType>()))
 	{
 		return rewriter.create<mlir::rlc::CastOp>(
@@ -375,6 +388,7 @@ static mlir::rlc::CastOp emitCast(
 
 	if (name == "bool" and arguments.size() == 1 and
 			(argTypes[0].isa<mlir::rlc::FloatType>() or
+			 argTypes[0].isa<mlir::rlc::BoolType>() or
 			 argTypes[0].isa<mlir::rlc::IntegerType>()))
 	{
 		return rewriter.create<mlir::rlc::CastOp>(

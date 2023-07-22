@@ -5,7 +5,7 @@
 #include "rlc/dialect/conversion/TypeConverter.h"
 
 static void mergeYieldsIntoSplittedBlock(
-		llvm::ArrayRef<mlir::rlc::Yield> yields,
+		llvm::MutableArrayRef<mlir::rlc::Yield> yields,
 		mlir::Block* successor,
 		mlir::IRRewriter& rewriter)
 {
@@ -18,6 +18,9 @@ static void mergeYieldsIntoSplittedBlock(
 	rewriter.eraseOp(&*successor->begin());
 	if (yields.size() == 1)
 	{
+		rewriter.setInsertionPoint(yields.front());
+		for (auto& child : yields.front().getOnEnd().getOps())
+			rewriter.clone(child);
 		rewriter.mergeBlocks(
 				successor, yields.front()->getBlock(), mlir::ValueRange());
 		rewriter.eraseOp(yields.front());
@@ -27,6 +30,8 @@ static void mergeYieldsIntoSplittedBlock(
 	for (mlir::rlc::Yield yield : yields)
 	{
 		rewriter.setInsertionPoint(yield);
+		for (auto& child : yield.getOnEnd().getOps())
+			rewriter.clone(child);
 		rewriter.create<mlir::rlc::Branch>(yield.getLoc(), successor);
 		rewriter.eraseOp(yield);
 	}

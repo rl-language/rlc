@@ -23,6 +23,8 @@ namespace rlc
 		KeywordMalloc,
 		KeywordDestroy,
 		KeywordFree,
+		KeywordToArray,
+		KeywordFromArray,
 		KeywordEvent,
 		KeywordAction,
 		KeywordEntity,

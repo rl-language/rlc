@@ -33,7 +33,7 @@ namespace mlir::rlc
 				rewriter.eraseOp(op);
 			}
 			auto index = rewriter.create<mlir::rlc::DeclarationStatement>(
-					op.getLoc(), mlir::rlc::IntegerType::get(op.getContext()), "dc");
+					op.getLoc(), mlir::rlc::IntegerType::getInt64(op.getContext()), "dc");
 			auto* block = rewriter.createBlock(&index.getBody());
 			rewriter.setInsertionPoint(block, block->begin());
 			auto zero = rewriter.create<mlir::rlc::Constant>(

@@ -29,6 +29,9 @@ static void collectEntityUsedTyepNames(
 {
 	if (auto casted = type.dyn_cast<mlir::rlc::ScalarUseType>())
 	{
+		for (auto templ : casted.getExplicitTemplateParameters())
+			collectEntityUsedTyepNames(templ, out);
+
 		if (casted.getUnderlying() != nullptr)
 		{
 			collectEntityUsedTyepNames(casted.getUnderlying(), out);
@@ -75,7 +78,9 @@ static mlir::LogicalResult getEntityDeclarationSortedByDependencies(
 		{
 			if (auto iter = nameToEntityDeclaration.find(name);
 					iter != nameToEntityDeclaration.end())
+			{
 				EntityToUsedEntities[entityDecl].push_back(iter->second);
+			}
 		}
 	}
 
@@ -373,7 +378,7 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 
 		llvm::SmallVector<mlir::Type, 4> memberTypes;
 		llvm::SmallVector<std::string, 4> memberNames;
-		memberTypes.push_back(mlir::rlc::IntegerType::get(op.getContext()));
+		memberTypes.push_back(mlir::rlc::IntegerType::getInt64(op.getContext()));
 		memberNames.push_back("resume_index");
 
 		for (auto [type, name] :
@@ -429,13 +434,13 @@ namespace mlir::rlc
 				return;
 			}
 
-			if (deduceTraitTypes(getOperation()).failed())
+			if (deduceEntitiesBodies(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;
 			}
 
-			if (deduceEntitiesBodies(getOperation()).failed())
+			if (deduceTraitTypes(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;

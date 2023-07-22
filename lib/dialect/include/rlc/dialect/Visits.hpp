@@ -43,7 +43,8 @@ namespace rlc
 	{
 		llvm::SmallVector<mlir::Type, 4> subElements(
 				{ mlir::rlc::FloatType::get(module.getContext()),
-					mlir::rlc::IntegerType::get(module.getContext()),
+					mlir::rlc::IntegerType::getInt64(module.getContext()),
+					mlir::rlc::IntegerType::getInt8(module.getContext()),
 					mlir::rlc::BoolType::get(module.getContext()) });
 		llvm::DenseSet<mlir::Type> emitted;
 		for (auto& elem : subElements)

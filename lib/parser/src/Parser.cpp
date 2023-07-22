@@ -61,6 +61,32 @@ Expected<Token> Parser::expect(Token t)
 	if (!outVar)                                                                 \
 	return outVar.takeError()
 
+llvm::Expected<mlir::Value> Parser::builtinFromArray()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordFromArray);
+	EXPECT(Token::LAng);
+	TRY(type, singleTypeUse());
+	EXPECT(Token::RAng);
+	EXPECT(Token::LPar);
+	TRY(size, expression());
+	EXPECT(Token::RPar);
+
+	return builder.create<mlir::rlc::FromByteArrayOp>(location, *type, *size);
+}
+
+llvm::Expected<mlir::Value> Parser::builtinToArray()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordToArray);
+	EXPECT(Token::LPar);
+	TRY(size, expression());
+	EXPECT(Token::RPar);
+
+	return builder.create<mlir::rlc::AsByteArrayOp>(
+			location, mlir::rlc::UnknownType::get(builder.getContext()), *size);
+}
+
 // builtinMalloc : "__builtin_destroy_do_not_use(" expression ")"
 Expected<mlir::Operation*> Parser::builtinDestroy()
 {
@@ -107,7 +133,7 @@ Expected<mlir::rlc::FreeOp> Parser::builtinFree()
 
 /**
  * primaryExpression : Ident | Double | int64 | "true" | "false" | "("
- * expression ")"  | builtinMalloc
+ * expression ")"  | builtinMalloc | builtinFromArray | builtinToArray
  */
 Expected<mlir::Value> Parser::primaryExpression()
 {
@@ -129,6 +155,12 @@ Expected<mlir::Value> Parser::primaryExpression()
 
 	if (current == Token::KeywordMalloc)
 		return builtinMalloc();
+
+	if (current == Token::KeywordFromArray)
+		return builtinFromArray();
+
+	if (current == Token::KeywordToArray)
+		return builtinToArray();
 
 	if (accept<Token::LPar>())
 	{

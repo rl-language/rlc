@@ -10,7 +10,7 @@ TEST(DialectTest, typeTest)
 	mlir::MLIRContext ctx;
 	ctx.loadDialect<mlir::rlc::RLCDialect>();
 
-	auto integer = mlir::rlc::IntegerType::get(&ctx);
+	auto integer = mlir::rlc::IntegerType::getInt64(&ctx);
 	EXPECT_EQ(integer.getMnemonic(), "int");
 }
 
@@ -19,7 +19,7 @@ TEST(DialectTest, structTest)
 	mlir::MLIRContext ctx;
 	ctx.loadDialect<mlir::rlc::RLCDialect>();
 
-	auto integer = mlir::rlc::IntegerType::get(&ctx);
+	auto integer = mlir::rlc::IntegerType::getInt64(&ctx);
 	auto floattype = mlir::rlc::FloatType::get(&ctx);
 	auto entity = mlir::rlc::EntityType::getNewIdentified(
 			&ctx, "peppino", { integer, floattype }, { "asdint", "asdfloat" }, {});
@@ -54,14 +54,14 @@ TEST(ActionArgumentAnalysisTest, integerBoundTest)
 	builder.setInsertionPoint(&bb, bb.begin());
 	auto action = builder.create<mlir::rlc::ActionStatement>(
 			builder.getUnknownLoc(),
-			mlir::TypeRange({ mlir::rlc::IntegerType::get(&ctx) }),
+			mlir::TypeRange({ mlir::rlc::IntegerType::getInt64(&ctx) }),
 			"dc",
 			builder.getStrArrayAttr({ "arg" }));
 
 	auto* block = builder.createBlock(
 			&action.getPrecondition(),
 			action.getPrecondition().begin(),
-			mlir::TypeRange({ mlir::rlc::IntegerType::get(&ctx) }),
+			mlir::TypeRange({ mlir::rlc::IntegerType::getInt64(&ctx) }),
 			{ builder.getUnknownLoc() });
 	builder.setInsertionPoint(block, block->begin());
 

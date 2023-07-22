@@ -23,7 +23,7 @@ namespace mlir::rlc
 	inline llvm::Optional<mlir::Type> intToBuiltinInt(mlir::rlc::IntegerType type)
 	{
 		return mlir::LLVM::LLVMPointerType::get(
-				mlir::IntegerType::get(type.getContext(), 64));
+				mlir::IntegerType::get(type.getContext(), type.getSize()));
 	}
 
 	inline llvm::Optional<mlir::Type> acceptPtrType(
@@ -77,6 +77,7 @@ namespace mlir::rlc
 		converter.addConversion(floatToBuiltinFloat);
 		converter.addConversion(intToBuiltinInt);
 		converter.addConversion([&](mlir::rlc::OwningPtrType type) -> Type {
+			assert(type.getUnderlying() != nullptr);
 			auto newInner = converter.convertType(type.getUnderlying());
 			return mlir::LLVM::LLVMPointerType::get(newInner);
 		});

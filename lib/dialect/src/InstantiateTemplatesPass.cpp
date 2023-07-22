@@ -144,11 +144,11 @@ namespace mlir::rlc
 		{
 			std::map<AlreadyReplacedMapEntry, mlir::Value> alreadyReplaced;
 			mlir::IRRewriter rewriter(&getContext());
-			mlir::rlc::ModuleBuilder builder(getOperation());
 
 			bool replacedAtLeastOne = true;
 			while (replacedAtLeastOne)
 			{
+				mlir::rlc::ModuleBuilder builder(getOperation());
 				replacedAtLeastOne = false;
 				llvm::SmallVector<mlir::rlc::TemplateInstantiationOp, 4> ops;
 				getOperation().walk([&](mlir::rlc::TemplateInstantiationOp op) {
@@ -174,6 +174,8 @@ namespace mlir::rlc
 						alreadyReplaced[mapKey] = newInstance;
 					}
 				}
+				emitImplicitAssign(getOperation());
+				emitImplicitInits(getOperation());
 			}
 
 			llvm::SmallVector<mlir::rlc::FunctionOp> templates;

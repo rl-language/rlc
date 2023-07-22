@@ -1,5 +1,6 @@
 #include "rlc/dialect/Operations.hpp"
 
+#include "llvm/ADT/StringExtras.h"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/utils/IRange.hpp"
 #define GET_OP_CLASSES
@@ -91,6 +92,7 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 	}
 	rewriter.setInsertionPoint(*this);
 	auto *yield = getBody().front().getTerminator();
+
 	auto newOne = rewriter.create<mlir::rlc::ReturnStatement>(
 			getLoc(),
 			yield->getNumOperands() != 0 ? yield->getOpOperand(0).get().getType()
@@ -476,11 +478,103 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::AsByteArrayOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	int64_t size = 0;
+	if (getLhs().getType().isa<mlir::rlc::BoolType>())
+	{
+		size = 1;
+	}
+	else if (getLhs().getType().isa<mlir::rlc::FloatType>())
+	{
+		size = 8;
+	}
+	else if (auto casted = getLhs().getType().dyn_cast<mlir::rlc::IntegerType>())
+	{
+		size = casted.getSize() / 8;
+	}
+	else
+	{
+		emitError("input of to_byte_array must be a primitive type");
+		return mlir::failure();
+	}
+
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::AsByteArrayOp>(
+			*this,
+			mlir::rlc::ArrayType::get(
+					getContext(), mlir::rlc::IntegerType::getInt8(getContext()), size),
+			getLhs());
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	if (not getLhs().getType().isa<mlir::rlc::ArrayType>())
+	{
+		emitError("builtin from byte array argument must be a byte array");
+		return mlir::failure();
+	}
+	auto castedInput = getLhs().getType().cast<mlir::rlc::ArrayType>();
+	if (castedInput.getUnderlying() !=
+			mlir::rlc::IntegerType::getInt8(getContext()))
+	{
+		emitError("builtin from byte array argument must be a byte array");
+		return mlir::failure();
+	}
+
+	auto converted = builder.getConverter().convertType(getResult().getType());
+
+	if (converted.isa<mlir::rlc::FloatType>())
+	{
+		if (castedInput.getSize() != 8)
+		{
+			emitError("builtin from byte array to float must have a array of 8 bytes "
+								"as input");
+			return mlir::failure();
+		}
+		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
+				*this, converted, getLhs());
+		return mlir::success();
+	}
+
+	if (converted.isa<mlir::rlc::BoolType>())
+	{
+		if (castedInput.getSize() != 1)
+		{
+			emitError("builtin from byte array to bool must have a array of 1 bytes "
+								"as input");
+			return mlir::failure();
+		}
+		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
+				*this, converted, getLhs());
+		return mlir::success();
+	}
+
+	if (auto casted = converted.dyn_cast<mlir::rlc::IntegerType>())
+	{
+		if (castedInput.getSize() != casted.getSize() / 8)
+		{
+			emitError(
+					std::string("builtin from byte array to bool must have a array of ") +
+					llvm::Twine((casted.getSize() / 8)) + std::string(" bytes as input"));
+			return mlir::failure();
+		}
+		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
+				*this, casted, getLhs());
+		return mlir::success();
+	}
+	emitError("cannot convert byte array to desiderated output");
+	return mlir::failure();
+}
+
 mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	llvm::SmallVector<mlir::Type> acceptable;
-	acceptable.push_back(mlir::rlc::IntegerType::get(this->getContext()));
+	acceptable.push_back(mlir::rlc::IntegerType::getInt64(this->getContext()));
+	acceptable.push_back(mlir::rlc::IntegerType::getInt8(this->getContext()));
 	acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
 	acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 	return mlir::rlc::detail::typeCheckInteralOp(

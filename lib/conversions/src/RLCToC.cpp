@@ -16,8 +16,9 @@ static std::string nonArrayTypeToString(mlir::Type type)
 			.Case([&](mlir::rlc::EntityType Entity) { OS << Entity.getName(); })
 			.Case<mlir::rlc::FloatType>([&](mlir::rlc::FloatType) { OS << "double"; })
 			.Case<mlir::rlc::BoolType>([&](mlir::rlc::BoolType) { OS << "uint8_t"; })
-			.Case<mlir::rlc::IntegerType>(
-					[&](mlir::rlc::IntegerType Type) { OS << "int64_t"; })
+			.Case<mlir::rlc::IntegerType>([&](mlir::rlc::IntegerType Type) {
+				OS << "int" << Type.getSize() << "_t";
+			})
 			.Case<mlir::rlc::VoidType>([&](mlir::rlc::VoidType) { OS << "void"; })
 			.Default([](auto type) {
 				type.dump();
