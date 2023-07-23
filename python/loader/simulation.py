@@ -29,8 +29,7 @@ def dump(generated_struct, indendation=0):
             print(", ", end="")
         return
 
-    print(generated_struct)
-    assert False
+    print(generated_struct, end="")
 
 
 def import_file(name, file_path):
@@ -301,7 +300,11 @@ class Simulation:
         return None
 
 
-def compile(source, rlc_compiler="rlc"):
+def compile(source, rlc_compiler="rlc", rlc_includes=[]):
+    include_args = []
+    for arg in rlc_includes:
+        include_args.append("-i")
+        include_args.append(arg)
     with TemporaryDirectory() as tmp_dir:
         assert (
             run(
@@ -311,13 +314,14 @@ def compile(source, rlc_compiler="rlc"):
                     "--python",
                     "-o",
                     "{}/wrapper.py".format(tmp_dir),
-                ]
+                    "/tmp/file.o"
+                ] + include_args
             ).returncode
             == 0
         )
         assert (
             run(
-                [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]
+                [rlc_compiler, source, "--shared", "/tmp/file.o","-o", "{}/lib.so".format(tmp_dir)] + include_args
             ).returncode
             == 0
         )

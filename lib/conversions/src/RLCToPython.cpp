@@ -92,6 +92,12 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 				t.getContext(), converted, t.getSize());
 	});
 
+	converter.addConversion([&](mlir::rlc::OwningPtrType t) -> mlir::Type {
+		auto converted = converter.convertType(t.getUnderlying());
+		assert(converted);
+		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
+	});
+
 	converter.addConversion([&](mlir::rlc::EntityType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
 		for (auto sub : t.getBody())
@@ -218,6 +224,23 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 	rewriter.create<mlir::rlc::python::PythonReturn>(loc, toReturn);
 	return f;
 }
+
+class TraitDeclarationToNothing
+		: public mlir::OpConversionPattern<mlir::rlc::TraitDefinition>
+{
+	public:
+	using mlir::OpConversionPattern<
+			mlir::rlc::TraitDefinition>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::TraitDefinition op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
 
 class FunctionToPyFunction
 		: public mlir::OpConversionPattern<mlir::rlc::FunctionOp>
@@ -469,6 +492,7 @@ namespace mlir::python
 					ctypesConverter, &getContext());
 			patterns.add<ActionDeclToTNothing>(
 					&lib, &rlcBuilder, converter, &getContext());
+			patterns.add<TraitDeclarationToNothing>(converter, &getContext());
 			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
 
 			if (failed(applyPartialConversion(

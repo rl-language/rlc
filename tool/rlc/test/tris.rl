@@ -1,3 +1,5 @@
+import serialization.to_byte_vector
+
 ent Board:
 	Int[9] slots
 	Bool playerTurn
@@ -65,6 +67,11 @@ act play():
 			return
 
 		board.next_turn()
+
+fun gen_printer_parser():
+	let state = play()
+	let serialized = state.as_byte_vector()
+	state.from_byte_vector(serialized)
 
 fun main() -> Int:
 	let game = play()

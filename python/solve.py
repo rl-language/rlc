@@ -1,4 +1,5 @@
 import argparse
+from loader.simulation import dump
 from loader import Simulation, compile
 from solvers import find_end
 from shutil import which
@@ -15,6 +16,14 @@ def main():
         nargs="?",
         help="path to wrapper to load",
         default="wrapper.py",
+    )
+    parser.add_argument(
+        "--include",
+        "-i",
+        type=str,
+        nargs="*",
+        help="path to folder where rl files can be found",
+        default=[],
     )
     parser.add_argument(
         "--rlc",
@@ -43,7 +52,7 @@ def main():
     sim = (
         Simulation(args.wrapper[0])
         if len(args.wrapper) == 1
-        else compile(args.source, args.rlc)
+        else compile(args.source, args.rlc, args.include)
     )
 
     if args.show_actions:
@@ -51,6 +60,8 @@ def main():
         return
 
     state = sim.start(["play"])
+    dump(state.state)
+
     state.dump()
     find_end(sim, state)
 

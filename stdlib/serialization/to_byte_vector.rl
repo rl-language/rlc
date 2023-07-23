@@ -1,4 +1,5 @@
 import collections.vector
+import serialization.print
 
 trait<T> ByteVectorSerializable:
 	fun append_to_vector(T to_add, Vector<Byte> output)

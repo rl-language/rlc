@@ -46,6 +46,12 @@ def RLC_CTypeArrayType : RLC_PythonType<"CArray", "ctypes_array"> {
   let assemblyFormat = " $sub_type `:` $size ";
 }
 
+def RLC_CTypePointerType : RLC_PythonType<"CTypesPointer", "ctypes_pointer"> {
+  let parameters = (ins "Type":$underlying);
+
+  let assemblyFormat = "`<` $underlying`>` ";
+}
+
 def RLC_CTypeStructType : RLC_PythonType<"CTypeStruct", "ctypes_struct"> {
   let parameters = (ins StringRefParameter<>:$name, ArrayRefParameter<"Type">:$sub_types);
 
@@ -60,6 +66,7 @@ def RLC_CTypesInt : RLC_PythonType<"CTypesInt", "ctypes_int"> {
   let parameters = (ins "int64_t":$size);
   let assemblyFormat = "`<` $size`>`";
 }
+
 
 def RLC_PythonBool : RLC_PythonType<"Bool", "bool"> {
   let summary = "RLC builtin integer type";

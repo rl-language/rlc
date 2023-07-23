@@ -19,6 +19,75 @@ namespace mlir::rlc
 		return true;
 	}
 
+	static void registerFunctionTypes(
+			mlir::FunctionType t,
+			llvm::StringMap<llvm::DenseSet<mlir::rlc::EntityType>>& out)
+	{
+		for (auto t : t.getInputs())
+			if (auto casted = t.dyn_cast<mlir::rlc::EntityType>())
+				out[casted.getName()].insert(casted);
+
+		if (t.getNumResults() == 0)
+			return;
+
+		if (auto casted = t.getResult(0).dyn_cast<mlir::rlc::EntityType>())
+			out[casted.getName()].insert(casted);
+	}
+
+	static void collectAllTypesOnFunctionAndActions(
+			mlir::ModuleOp op,
+			llvm::StringMap<llvm::DenseSet<mlir::rlc::EntityType>>& out)
+	{
+		for (auto op : op.getOps<mlir::rlc::FunctionOp>())
+			registerFunctionTypes(op.getType(), out);
+
+		for (auto op : op.getOps<mlir::rlc::ActionFunction>())
+			for (auto emittedFunction : op.getResultTypes())
+				if (emittedFunction.isa<mlir::FunctionType>())
+					registerFunctionTypes(
+							emittedFunction.cast<mlir::FunctionType>(), out);
+	}
+
+	static void instantiateStructDeclarationIfNeeded(
+			mlir::ModuleOp op,
+			mlir::rlc::EntityType type,
+			mlir::rlc::EntityDeclaration originalDecl)
+	{
+		if (type == originalDecl.getType())
+			return;
+		assert(isTemplateType(originalDecl.getType()).succeeded());
+		mlir::IRRewriter rewriter(op.getContext());
+		rewriter.setInsertionPoint(originalDecl);
+		rewriter.create<mlir::rlc::EntityDeclaration>(
+				originalDecl.getLoc(),
+				type,
+				originalDecl.getNameAttr(),
+				rewriter.getTypeArrayAttr(type.getBody()),
+				originalDecl.getMemberNames(),
+				originalDecl.getTemplateParametersAttr());
+	}
+
+	static void declareInstantiatedStructs(mlir::ModuleOp op)
+	{
+		llvm::StringMap<llvm::DenseSet<mlir::rlc::EntityType>>
+				outwardExposedTemplateTypes;
+
+		collectAllTypesOnFunctionAndActions(op, outwardExposedTemplateTypes);
+		llvm::StringMap<mlir::rlc::EntityDeclaration> decls;
+		for (auto decl : op.getOps<mlir::rlc::EntityDeclaration>())
+		{
+			decls[decl.getName()] = decl;
+		}
+
+		for (auto& pair : outwardExposedTemplateTypes)
+			for (auto type : pair.second)
+				instantiateStructDeclarationIfNeeded(op, type, decls[pair.first()]);
+
+		for (auto& originalDecl : decls)
+			if (isTemplateType(originalDecl.second.getType()).succeeded())
+				originalDecl.second.erase();
+	}
+
 	struct InstantiateTemplatesPass
 			: impl::InstantiateTemplatesPassBase<InstantiateTemplatesPass>
 	{
@@ -190,6 +259,8 @@ namespace mlir::rlc
 				op.getOperation()->dropAllUses();
 				op.erase();
 			}
+
+			declareInstantiatedStructs(getOperation());
 		}
 	};
 }	 // namespace mlir::rlc
