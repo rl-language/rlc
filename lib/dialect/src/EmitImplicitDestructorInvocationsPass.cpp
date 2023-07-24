@@ -1,5 +1,6 @@
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/Dominance.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
@@ -85,12 +86,18 @@ namespace mlir::rlc
 			mlir::Region& region,
 			llvm::SmallVector<mlir::Operation*, 2>& out)
 	{
+		mlir::DominanceInfo dominance;
 		// we must emit the destructor before any yield, if the yield is not
 		// returning the value. If it returning the value, it is up to the caller to
 		// clean up
 		for (auto yield : region.getOps<mlir::rlc::Yield>())
+		{
+			if (not dominance.properlyDominates(value.getDefiningOp(), yield))
+				continue;
+
 			if (not llvm::is_contained(yield.getArguments(), value))
 				out.push_back(yield);
+		}
 
 		// recurr on all return statements, since the control flow actually ends at
 		// the yield of the return.

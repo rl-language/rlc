@@ -314,14 +314,13 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[]):
                     "--python",
                     "-o",
                     "{}/wrapper.py".format(tmp_dir),
-                    "/tmp/file.o"
                 ] + include_args
             ).returncode
             == 0
         )
         assert (
             run(
-                [rlc_compiler, source, "--shared", "/tmp/file.o","-o", "{}/lib.so".format(tmp_dir)] + include_args
+                [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)] + include_args
             ).returncode
             == 0
         )
