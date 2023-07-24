@@ -125,7 +125,44 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 	}
 };
 
-class EntityDeclarationEraser
+static mlir::Value getOrCreateGlobalString(
+		mlir::Location loc,
+		mlir::OpBuilder& builder,
+		mlir::StringRef name,
+		mlir::StringRef value,
+		mlir::ModuleOp module)
+{
+	// Create the global at the entry of the module.
+	mlir::LLVM::GlobalOp global;
+	if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
+	{
+		mlir::OpBuilder::InsertionGuard insertGuard(builder);
+		builder.setInsertionPointToStart(module.getBody());
+		auto type = mlir::LLVM::LLVMArrayType::get(
+				mlir::IntegerType::get(builder.getContext(), 8), value.size());
+		global = builder.create<mlir::LLVM::GlobalOp>(
+				loc,
+				type,
+				/*isConstant=*/true,
+				mlir::LLVM::Linkage::Internal,
+				name,
+				builder.getStringAttr(value),
+				/*alignment=*/0);
+	}
+
+	// Get the pointer to the first character in the global string.
+	mlir::Value globalPtr = builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+	mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
+			loc, builder.getI64Type(), builder.getIndexAttr(0));
+	return builder.create<mlir::LLVM::GEPOp>(
+			loc,
+			mlir::LLVM::LLVMPointerType::get(
+					mlir::IntegerType::get(builder.getContext(), 8)),
+			globalPtr,
+			mlir::ArrayRef<mlir::Value>({ cst0, cst0 }));
+}
+
+class EntityDeclarationRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::EntityDeclaration>
 {
 	using mlir::OpConversionPattern<
@@ -136,7 +173,66 @@ class EntityDeclarationEraser
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
+		auto pointerType = mlir::LLVM::LLVMPointerType::get(rewriter.getI8Type());
+		auto i64Type = rewriter.getI64Type();
+		auto arrayType =
+				mlir::LLVM::LLVMArrayType::get(pointerType, op.getMemberTypes().size());
+		auto structTest = ::mlir::LLVM::LLVMStructType::getNewIdentified(
+				op->getContext(),
+				"globalVariableType",
+				::mlir::ArrayRef<mlir::Type>({ pointerType, i64Type, arrayType }));
+
+		auto newOp = rewriter.create<mlir::LLVM::GlobalOp>(
+				op->getLoc(),
+				structTest,
+				true,
+				mlir::LLVM::Linkage::LinkonceODR,
+				op.getType().cast<mlir::rlc::EntityType>().mangledName(),
+				mlir::Attribute());
+
+		auto* block = rewriter.createBlock(&newOp.getInitializer());
+		rewriter.setInsertionPoint(block, block->begin());
+		mlir::Value structValue =
+				rewriter.create<mlir::LLVM::UndefOp>(op.getLoc(), structTest);
+
+		auto variableName = getOrCreateGlobalString(
+				op.getLoc(),
+				rewriter,
+				"__globalVariableName" +
+						op.getType().cast<mlir::rlc::EntityType>().mangledName(),
+				op.getName().str(),
+				newOp->getParentOfType<mlir::ModuleOp>());
+		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
+				op.getLoc(), structValue, variableName, mlir::ArrayRef<int64_t>({ 0 }));
+
+		auto numberOfFields = op.getMemberNames().size();
+		auto numberOfFieldsValue = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), rewriter.getI64Type(), numberOfFields);
+		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
+				op.getLoc(),
+				structValue,
+				numberOfFieldsValue,
+				mlir::ArrayRef<int64_t>({ 1 }));
+
+		for (unsigned i = 0, e = op.getMemberNames().size(); i < e; ++i)
+		{
+			auto variableName = getOrCreateGlobalString(
+					op.getLoc(),
+					rewriter,
+					op.getMemberNames()[i].cast<mlir::StringAttr>(),
+					op.getMemberNames()[i].cast<mlir::StringAttr>(),
+					newOp->getParentOfType<mlir::ModuleOp>());
+			structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
+					op.getLoc(),
+					structValue,
+					variableName,
+					mlir::ArrayRef<int64_t>({ 2, i }));
+		}
+
+		rewriter.create<mlir::LLVM::ReturnOp>(
+				op->getLoc(), mlir::ValueRange({ structValue }));
 		rewriter.eraseOp(op);
+
 		return mlir::success();
 	}
 };
@@ -1310,7 +1406,7 @@ namespace mlir::rlc
 					.add<UninitializedConstructRewriter>(converter, &getContext())
 					.add<MemberAccessRewriter>(converter, &getContext())
 					.add<ReferenceRewriter>(converter, &getContext())
-					.add<EntityDeclarationEraser>(converter, &getContext())
+					.add<EntityDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext());
 
 			if (failed(applyPartialConversion(
