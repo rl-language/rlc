@@ -57,7 +57,8 @@ namespace mlir::rlc
 			const auto emitAllNeedSubtypes = [&](auto subtype) {
 				if (isBuiltinType(subtype) or
 						subtype.template isa<mlir::rlc::OwningPtrType>() or
-						isTemplateType(subtype).succeeded())
+						isTemplateType(subtype).succeeded() or
+						subtype.template isa<mlir::rlc::IntegerLiteralType>())
 					return;
 
 				declareImplicitAssign(
@@ -121,7 +122,7 @@ namespace mlir::rlc
 
 		rewriter.setInsertionPoint(condition, condition->begin());
 		auto arraySize = rewriter.create<mlir::rlc::Constant>(
-				fun.getLoc(), int64_t(type.getSize()));
+				fun.getLoc(), int64_t(type.getArraySize()));
 		auto comparison =
 				rewriter.create<mlir::rlc::LessOp>(fun.getLoc(), decl, arraySize);
 		rewriter.create<mlir::rlc::Yield>(

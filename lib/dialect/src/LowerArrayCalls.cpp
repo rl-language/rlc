@@ -18,8 +18,10 @@ namespace mlir::rlc
 				OpAdaptor adaptor,
 				mlir::ConversionPatternRewriter& rewriter) const final
 		{
+			auto arrayType =
+					op.getArgs().front().getType().cast<mlir::rlc::ArrayType>();
 			int64_t size =
-					op.getArgs().front().getType().cast<mlir::rlc::ArrayType>().getSize();
+					arrayType.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();
 			rewriter.setInsertionPoint(op);
 			mlir::Value result = nullptr;
 			if (op.getNumResults() != 0)

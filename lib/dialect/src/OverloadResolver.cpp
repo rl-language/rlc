@@ -53,6 +53,17 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 										 callSiteArgument.dyn_cast<mlir::rlc::ArrayType>() };
 			pair.first and pair.second)
 	{
+		if (pair.first.getSize() != pair.second.getSize())
+		{
+			if (auto templateParemterCallee =
+							pair.first.getSize().dyn_cast<mlir::rlc::TemplateParameterType>())
+			{
+				assert(templateParemterCallee.getIsIntLiteral());
+				substitutions[templateParemterCallee] = pair.second.getSize();
+			}
+			else
+				return mlir::failure();
+		}
 		return deduceSubstitutions(
 				substitutions, pair.first.getUnderlying(), pair.second.getUnderlying());
 	}
@@ -175,7 +186,9 @@ llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 		if (deduceTemplateCallSiteType(
 						arguments, candidate.getType().cast<mlir::FunctionType>()) !=
 				nullptr)
+		{
 			matching.push_back(candidate);
+		}
 	}
 	return matching;
 }

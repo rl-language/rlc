@@ -825,6 +825,36 @@ class FromByteArrayRewriter
 	}
 };
 
+class IntegerLiteralRewrtier
+		: public mlir::OpConversionPattern<mlir::rlc::IntegerLiteralUse>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::IntegerLiteralUse>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::IntegerLiteralUse op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		llvm::SmallVector<mlir::Type, 2> out;
+		auto err = typeConverter->convertType(op.getResult().getType(), out);
+		assert(err.succeeded());
+		if (err.failed())
+			return err;
+
+		rewriter.setInsertionPoint(op);
+		auto alloca = makeAlloca(rewriter, out.front(), op.getLoc());
+		auto constant = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				out.front().cast<mlir::LLVM::LLVMPointerType>().getElementType(),
+				op.getInputType().cast<mlir::rlc::IntegerLiteralType>().getValue());
+		rewriter.replaceOp(op, alloca);
+		makeAlignedStore(rewriter, constant, alloca, alloca.getLoc());
+
+		return mlir::LogicalResult::success();
+	}
+};
+
 class ConstantRewriter: public mlir::OpConversionPattern<mlir::rlc::Constant>
 {
 	using mlir::OpConversionPattern<mlir::rlc::Constant>::OpConversionPattern;
@@ -1375,6 +1405,7 @@ namespace mlir::rlc
 					.add<ValueUpcastEraser>(converter, &getContext())
 					.add<CallRewriter>(converter, &getContext())
 					.add<ConstantRewriter>(converter, &getContext())
+					.add<IntegerLiteralRewrtier>(converter, &getContext())
 					.add<CbrRewriter>(converter, &getContext())
 					.add<BrRewriter>(converter, &getContext())
 					.add<FromByteArrayRewriter>(converter, &getContext())

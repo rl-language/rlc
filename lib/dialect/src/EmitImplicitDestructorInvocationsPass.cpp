@@ -30,6 +30,12 @@ namespace mlir::rlc
 			return mlir::failure();
 		}
 
+		if (toConsider.isa<mlir::rlc::IntegerLiteralType>())
+		{
+			requireDestructor[toConsider] = false;
+			return mlir::failure();
+		}
+
 		if (toConsider.isa<mlir::rlc::OwningPtrType>())
 		{
 			requireDestructor[toConsider] = false;

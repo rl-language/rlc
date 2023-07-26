@@ -332,7 +332,7 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	{
 		typeToMangled(OS, maybeType.getUnderlying());
 		OS << "_";
-		OS << maybeType.getSize();
+		OS << maybeType.getArraySize();
 		return;
 	}
 
@@ -478,7 +478,9 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
 	{
-		return isTemplateType(casted.getUnderlying());
+		return mlir::success(
+				isTemplateType(casted.getUnderlying()).succeeded() or
+				isTemplateType(casted.getSize()).succeeded());
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::IntegerType>())
@@ -509,7 +511,17 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 		return isTemplateType(casted.getUnderlying());
 	}
 
+	if (auto casted = type.dyn_cast<mlir::rlc::IntegerLiteralType>())
+	{
+		return mlir::failure();
+	}
+
 	type.dump();
 	llvm_unreachable("unhandled type");
 	return mlir::failure();
+}
+
+int64_t mlir::rlc::ArrayType::getArraySize()
+{
+	return getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();
 }

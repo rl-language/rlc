@@ -528,7 +528,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 
 	if (converted.isa<mlir::rlc::FloatType>())
 	{
-		if (castedInput.getSize() != 8)
+		if (castedInput.getArraySize() != 8)
 		{
 			emitError("builtin from byte array to float must have a array of 8 bytes "
 								"as input");
@@ -541,7 +541,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 
 	if (converted.isa<mlir::rlc::BoolType>())
 	{
-		if (castedInput.getSize() != 1)
+		if (castedInput.getArraySize() != 1)
 		{
 			emitError("builtin from byte array to bool must have a array of 1 bytes "
 								"as input");
@@ -554,7 +554,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 
 	if (auto casted = converted.dyn_cast<mlir::rlc::IntegerType>())
 	{
-		if (castedInput.getSize() != casted.getSize() / 8)
+		if (castedInput.getArraySize() != casted.getSize() / 8)
 		{
 			emitError(
 					std::string("builtin from byte array to bool must have a array of ") +
@@ -637,6 +637,19 @@ mlir::LogicalResult mlir::rlc::MemberAccess::typeCheck(
 {
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::MemberAccess>(
 			*this, getValue(), getMemberIndex());
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::IntegerLiteralUse::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	if (not getInputType()
+							.cast<mlir::rlc::TemplateParameterType>()
+							.getIsIntLiteral())
+	{
+		return emitError(
+				"input type of int literal must be a template parameter literal");
+	}
 	return mlir::success();
 }
 

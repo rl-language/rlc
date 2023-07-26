@@ -81,6 +81,8 @@ namespace mlir::rlc
 					return;
 				if (isTemplateType(subtype).succeeded())
 					return;
+				if (subtype.template isa<mlir::rlc::IntegerLiteralType>())
+					return;
 
 				declareImplicitInit(rewriter, table, op, subtype);
 			};
@@ -178,7 +180,7 @@ namespace mlir::rlc
 
 		rewriter.setInsertionPoint(condition, condition->begin());
 		auto arraySize = rewriter.create<mlir::rlc::Constant>(
-				fun.getLoc(), int64_t(type.getSize()));
+				fun.getLoc(), int64_t(type.getArraySize()));
 		auto comparison =
 				rewriter.create<mlir::rlc::LessOp>(fun.getLoc(), decl, arraySize);
 		rewriter.create<mlir::rlc::Yield>(

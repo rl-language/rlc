@@ -92,10 +92,21 @@ static void registerConversions(
 						return convertedUnderlying;
 					}
 
-					if (use.getSize() != 0)
-						return mlir::rlc::ArrayType::get(
-								use.getContext(), convertedUnderlying, use.getSize());
-					return convertedUnderlying;
+					if (auto casted =
+									use.getSize().dyn_cast<mlir::rlc::IntegerLiteralType>())
+					{
+						if (casted.getValue() != 0)
+							return mlir::rlc::ArrayType::get(
+									use.getContext(), convertedUnderlying, casted.getValue());
+
+						return convertedUnderlying;
+					}
+
+					auto convertedSize = converter.convertType(use.getSize());
+					if (not convertedSize)
+						return convertedSize;
+					return mlir::rlc::ArrayType::get(
+							use.getContext(), convertedUnderlying, convertedSize);
 				}
 
 				llvm::SmallVector<mlir::Type> explicitTemplateParameters;
@@ -125,11 +136,21 @@ static void registerConversions(
 					return std::nullopt;
 				}
 
-				if (use.getSize() != 0)
+				if (auto casted =
+								use.getSize().dyn_cast<mlir::rlc::IntegerLiteralType>())
+				{
+					if (casted.getValue() == 0)
+						return maybeType;
 					return mlir::rlc::ArrayType::get(
 							use.getContext(), maybeType, use.getSize());
+				}
 
-				return maybeType;
+				auto convertedSize = converter.convertType(use.getSize());
+				if (not convertedSize)
+					return convertedSize;
+
+				return mlir::rlc::ArrayType::get(
+						use.getContext(), maybeType, convertedSize);
 			});
 	converter.addConversion(
 			[&](mlir::FunctionType use) -> llvm::Optional<mlir::Type> {
@@ -193,15 +214,19 @@ static void registerConversions(
 	converter.addConversion(
 			[&](mlir::rlc::UncheckedTemplateParameterType t)
 					-> std::optional<mlir::Type> {
+				if (t.getTrait() == "Int")
+					return mlir::rlc::TemplateParameterType::get(
+							t.getContext(), t.getName(), nullptr, true);
+
 				if (t.getTrait() == "")
 					return mlir::rlc::TemplateParameterType::get(
-							t.getContext(), t.getName(), nullptr);
+							t.getContext(), t.getName(), nullptr, false);
 
 				if (auto maybeType = types.getOne(t.getTrait()))
 				{
 					if (auto trait = maybeType.dyn_cast<mlir::rlc::TraitMetaType>())
 						return mlir::rlc::TemplateParameterType::get(
-								t.getContext(), t.getName(), trait);
+								t.getContext(), t.getName(), trait, false);
 
 					mlir::emitError(
 							mlir::UnknownLoc::get(t.getContext()),

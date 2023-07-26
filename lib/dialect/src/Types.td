@@ -84,8 +84,17 @@ def RLC_ArrayType : RLC_Type<"Array", "array", [DeclareTypeInterfaceMethods<SubE
     Entity type.
   }];
 
-  let parameters = (ins "Type":$underlying, "int64_t":$size);
+  let extraClassDeclaration = [{
+	  int64_t getArraySize();
+  }];
+
+  let parameters = (ins "Type":$underlying, "mlir::Type":$size);
   let assemblyFormat = "`<` $underlying `:` $size`>` ";
+  let builders = [
+	  TypeBuilder<(ins "mlir::Type":$underlying ,"int64_t":$size),[{
+		return 	ArrayType::get($_ctxt, underlying, mlir::rlc::IntegerLiteralType::get($_ctxt, size));
+	  }]>,
+  ];
 }
 
 def RLC_TypeUse : RLC_Type<"ScalarUse", "type_use"> {
@@ -93,8 +102,22 @@ def RLC_TypeUse : RLC_Type<"ScalarUse", "type_use"> {
   let description = [{
     type that rappresents a not yet type checked type use.
   }];
-	let parameters = (ins OptionalParameter<"Type">:$underlying, StringRefParameter<>:$read_type, "int64_t":$size, OptionalArrayRefParameter<"Type">:$explicit_template_parameters);
-  let assemblyFormat = "`<`  $read_type (`[` $explicit_template_parameters^ `]`)? $size (`:` $underlying^ )?`>`";
+	let parameters = (ins OptionalParameter<"Type">:$underlying, StringRefParameter<>:$read_type, "mlir::Type":$size, OptionalArrayRefParameter<"Type">:$explicit_template_parameters);
+  let assemblyFormat = "`<`  $read_type (`[` $explicit_template_parameters^ `]`)? `array_size` `=` $size (`:` $underlying^ )?`>`";
+
+  let builders = [
+	  TypeBuilder<(ins "mlir::Type":$underlying),[{
+		return 	ScalarUseType::get($_ctxt, underlying, "", mlir::rlc::IntegerLiteralType::get($_ctxt, 0), {});
+	  }]>,
+	  TypeBuilder<(ins "llvm::StringRef":$name, CArg<"int64_t", "0">:$size, CArg<"mlir::TypeRange", "{}">:$template_parameters),[{
+		return ScalarUseType::get($_ctxt, name, mlir::rlc::IntegerLiteralType::get($_ctxt, size), template_parameters);
+	  }]>,
+	  TypeBuilder<(ins "llvm::StringRef":$name, "mlir::Type":$size, CArg<"mlir::TypeRange", "{}">:$template_parameters),[{
+assert(size != nullptr);
+		llvm::SmallVector<mlir::Type, 3> templates(template_parameters.begin(), template_parameters.end());
+		return ScalarUseType::get($_ctxt, nullptr, name, size, templates);
+	  }]>,
+  ];
 }
 
 def RLC_Unknown : RLC_Type<"Unknown", "unknown"> {
@@ -132,7 +155,7 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait", [DeclareTypeInterfaceMeth
 
   let extraClassDeclaration = [{
 	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
-		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr);
+		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr, false);
 	  }
 
 	mlir::LogicalResult typeRespectsTrait(mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table);
@@ -157,7 +180,18 @@ def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_paramete
   let description = [{
 	 rapresents template parameter
   }];
-  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::rlc::TraitMetaType">:$trait);
-  let assemblyFormat = "`<`  $name (`:` $trait^ )?`>`";
+  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::rlc::TraitMetaType">:$trait, "bool":$is_int_literal);
+  let assemblyFormat = "`<`  $name (`:` $trait^ )? struct($is_int_literal) `>`";
 }
 
+
+// Here is a simple definition of an "integer" type, with a width parameter.
+def RLC_IntegerLiteralType : RLC_Type<"IntegerLiteral", "int_literal"> {
+  let summary = "RLC builtin integer type";
+  let description = [{
+    Implementation agnostic integer type.
+  }];
+
+  let parameters = (ins "int64_t":$value);
+  let assemblyFormat = "`<` $value`>`";
+}

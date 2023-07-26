@@ -85,8 +85,10 @@ namespace mlir::rlc
 			auto newInner = converter.convertType(type.getUnderlying())
 													.cast<mlir::LLVM::LLVMPointerType>()
 													.getElementType();
-			return mlir::LLVM::LLVMPointerType::get(
-					mlir::LLVM::LLVMArrayType::get(newInner, type.getSize()));
+			assert(type.getSize().isa<mlir::rlc::IntegerLiteralType>());
+			return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMArrayType::get(
+					newInner,
+					type.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()));
 		});
 		converter.addConversion([&](mlir::FunctionType type) -> Type {
 			SmallVector<Type, 2> args;

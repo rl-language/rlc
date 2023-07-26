@@ -288,10 +288,23 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 												.getValue()
 												.cast<mlir::rlc::TemplateParameterType>();
 			builder.getConverter().registerType(casted.getName(), casted);
-
-			if (auto trait = casted.getTrait())
-				builder.addTraitToAviableOverloads(trait);
+			if (casted.getIsIntLiteral() == true)
+			{
+				builder.getRewriter().setInsertionPoint(&fun.getBody().front().front());
+				auto integerLiteral =
+						builder.getRewriter().create<mlir::rlc::IntegerLiteralUse>(
+								op.getLoc(),
+								mlir::rlc::IntegerType::getInt64(op.getContext()),
+								casted);
+				builder.getSymbolTable().add(casted.getName(), integerLiteral);
+			}
+			else
+			{
+				if (auto trait = casted.getTrait())
+					builder.addTraitToAviableOverloads(trait);
+			}
 		}
+
 		if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
 			return mlir::failure();
 	}

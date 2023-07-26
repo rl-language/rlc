@@ -32,6 +32,12 @@ fun<T> append_to_vector(Vector<T> to_add, Vector<Byte> output):
 		_to_vector_impl(to_add.data[counter], output)
 		counter = counter + 1 
 
+fun<T, Int X> append_to_vector(T[X] to_add, Vector<Byte> output):
+	let counter = 0
+	while counter < X:
+		_to_vector_impl(to_add[counter], output)
+		counter = counter + 1
+
 fun<T> _to_vector_impl(T to_add, Vector<Byte> output):
 	if to_add is ByteVectorSerializable:
 		to_add.append_to_vector(output)
@@ -84,6 +90,12 @@ fun<T> parse_from_vector(Vector<T> output, Vector<Byte> input, Int index):
 		_from_vector_impl(raw, input, index)
 		output.append(raw)
 		counter = counter + 1 
+
+fun<T, Int X> parse_from_vector(T[X] to_add, Vector<Byte> input, Int index):
+	let counter = 0
+	while counter < X:
+		_from_vector_impl(to_add[counter], input, index)
+		counter = counter + 1
 
 fun<T> _from_vector_impl(T to_add, Vector<Byte> input, Int index):
 	if to_add is ByteVectorParsable:

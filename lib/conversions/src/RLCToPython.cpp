@@ -32,7 +32,7 @@ static void registerBuiltinConversions(
 		auto converted = converter.convertType(t.getUnderlying());
 		assert(converted);
 		return mlir::rlc::python::CArrayType::get(
-				t.getContext(), converted, t.getSize());
+				t.getContext(), converted, t.getArraySize());
 	});
 
 	converter.addConversion([&](mlir::rlc::EntityType t) -> mlir::Type {
@@ -89,7 +89,7 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 		auto converted = converter.convertType(t.getUnderlying());
 		assert(converted);
 		return mlir::rlc::python::CArrayType::get(
-				t.getContext(), converted, t.getSize());
+				t.getContext(), converted, t.getArraySize());
 	});
 
 	converter.addConversion([&](mlir::rlc::OwningPtrType t) -> mlir::Type {

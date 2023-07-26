@@ -55,7 +55,7 @@ def RLC_UncheckedTraitDefinition : RLC_Dialect<"unckecked_trait", [DeclareOpInte
 
   let extraClassDeclaration = [{
 	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
-		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr);
+		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr, false);
 	  }
   }];
 }
@@ -642,6 +642,15 @@ def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeC
   }];
 }
 
+def RLC_IntegerLiteralUse : RLC_Dialect<"integer_literal_use", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+
+  let arguments = (ins TypeAttrOf<AnyType>:$input_type);
+  let results = (outs RLC_IntegerType:$result);
+
+  let assemblyFormat = [{
+	$input_type `:` type($result) attr-dict
+  }];
+}
 
 def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";

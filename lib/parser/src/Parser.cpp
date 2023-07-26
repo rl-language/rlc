@@ -641,7 +641,8 @@ Expected<mlir::rlc::ForFieldStatement> Parser::forFieldStatement()
 					builder.getContext(),
 					(Twine("implicit_template_") + Twine(currentTemplateTypeIndex++))
 							.str(),
-					nullptr) }),
+					nullptr,
+					false) }),
 			{ location });
 	TRY(statLis, statementList());
 
@@ -811,7 +812,7 @@ Expected<mlir::rlc::FunctionUseType> Parser::functionTypeUse()
 
 /**
  * singleTypeUse : "(" functionType ")" | identifier["<"singleTypeUse (,
- * singleTypeUse)* ">"]["["int64"]"] | "OwningPtr<" singleTypeUse ">"
+ * singleTypeUse)* ">"]["["int64"|Ident]"] | "OwningPtr<" singleTypeUse ">"
  */
 Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 {
@@ -819,7 +820,7 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 	{
 		TRY(fType, functionTypeUse());
 		EXPECT(Token::RPar);
-		return mlir::rlc::ScalarUseType::get(ctx, *fType, "", 0, {});
+		return mlir::rlc::ScalarUseType::get(ctx, *fType);
 	}
 
 	if (accept<Token::KeywordOwningPtr>())
@@ -828,16 +829,12 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 		TRY(subType, singleTypeUse());
 		EXPECT(Token::RAng);
 		return mlir::rlc::ScalarUseType::get(
-				ctx,
-				mlir::rlc::OwningPtrType::get(subType->getContext(), *subType),
-				"",
-				0,
-				{});
+				ctx, mlir::rlc::OwningPtrType::get(subType->getContext(), *subType));
 	}
 
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
-	int64_t arraySize = 0;
+	mlir::Type arraySize = mlir::rlc::IntegerLiteralType::get(ctx, 0);
 	llvm::SmallVector<mlir::Type, 2> templateParametersTypes;
 	if (accept<Token::LAng>())
 	{
@@ -851,12 +848,19 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 
 	if (accept<Token::LSquare>())
 	{
-		EXPECT(Token::Int64);
-		arraySize = lInt64;
+		if (accept<Token::Int64>())
+		{
+			arraySize = mlir::rlc::IntegerLiteralType::get(ctx, lInt64);
+		}
+		else
+		{
+			EXPECT(Token::Identifier);
+			arraySize = mlir::rlc::ScalarUseType::get(ctx, lIdent, 0);
+		}
 		EXPECT(Token::RSquare);
 	}
 	return mlir::rlc::ScalarUseType::get(
-			ctx, nullptr, nm, arraySize, templateParametersTypes);
+			ctx, nm, arraySize, templateParametersTypes);
 }
 
 Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
@@ -892,7 +896,7 @@ Parser::functionArguments()
 }
 
 /**
- * templateArguments: "<" ident ident ("," ident ident?)* ">"
+ * templateArguments: "<" ident ident? ("," ident ident?)* ">"
  */
 Expected<llvm::SmallVector<mlir::rlc::UncheckedTemplateParameterType, 2>>
 Parser::templateArguments()
@@ -1031,7 +1035,7 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
 		argName.push_back(arg.first);
 	}
 
-	auto retType = mlir::rlc::ScalarUseType::get(ctx, nullptr, "Void", 0, {});
+	auto retType = mlir::rlc::ScalarUseType::get(ctx, "Void", 0, {});
 	return builder.create<mlir::rlc::ActionFunction>(
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),

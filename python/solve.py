@@ -60,7 +60,6 @@ def main():
         return
 
     state = sim.start(["play"])
-    dump(state.state)
 
     state.dump()
     find_end(sim, state)
