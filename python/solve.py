@@ -40,7 +40,6 @@ def main():
         nargs="?",
         help="path to .rl source file",
     )
-    parser.add_argument("--show-actions", "-a", action='store_true', default=False)
 
     args = parser.parse_args()
     assert (
@@ -55,15 +54,10 @@ def main():
         else compile(args.source, args.rlc, args.include)
     )
 
-    if args.show_actions:
-        sim.dump()
-        return
-
     state = sim.start(["play"])
 
     state.dump()
     find_end(sim, state)
-
 
 if __name__ == "__main__":
     main()

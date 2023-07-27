@@ -106,4 +106,3 @@ fun<T> _from_vector_impl(T to_add, Vector<Byte> input, Int index):
 
 fun<T> from_byte_vector(T result, Vector<Byte> input):
 	_from_vector_impl(result, input, 0)
-

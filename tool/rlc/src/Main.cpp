@@ -327,7 +327,13 @@ int main(int argc, char *argv[])
 	mlir::registerLLVMDialectTranslation(Registry);
 	context.appendDialectRegistry(Registry);
 	context.loadAllAvailableDialects();
-	MultiFileParser parser(&context, IncludeDirs);
+	auto pathToRlc = llvm::sys::fs::getMainExecutable(argv[0], (void *) &main);
+	auto rlcDirectory =
+			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
+	llvm::SmallVector<std::string, 4> includes(
+			IncludeDirs.begin(), IncludeDirs.end());
+	includes.push_back(rlcDirectory);
+	MultiFileParser parser(&context, includes);
 
 	RlcExitOnError exitOnErr(parser.getDiagnostic());
 

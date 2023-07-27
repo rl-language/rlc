@@ -1,2 +1,2 @@
-set -x LD_LIBRARY_PATH (realpath ./release/install/lib/) ;
-set -x PATH (realpath ./release/install/bin/) $PATH
+set -x LD_LIBRARY_PATH (realpath ../rlc-release/install/lib/) ;
+set -x PATH (realpath ../rlc-release/install/bin/) $PATH

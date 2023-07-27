@@ -158,3 +158,7 @@ elseif(TRUE)
 endif()
 
 
+##############################
+###         stdlib         ###
+##############################
+install(DIRECTORY ./stdlib DESTINATION ${CMAKE_INSTALL_LIBDIR}/rlc)

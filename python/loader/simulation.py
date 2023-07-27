@@ -5,31 +5,40 @@ from tempfile import TemporaryDirectory
 from subprocess import run
 from ctypes import Structure, Array
 
+def as_dict(generated_struct):
+    if type(generated_struct).__name__.startswith("Vector"):
+        struct = []
+        for i in range(generated_struct.size):
+            value = generated_struct.data[i]
+            struct.append(as_dict(value))
+        return struct
 
-def dump(generated_struct, indendation=0):
     if isinstance(generated_struct, Structure):
-        print()
+        struct = {}
         for field_name, field_type in generated_struct._fields_:
-            print((" " * indendation) + field_name[1:] + ": ", end="")
-            dump(getattr(generated_struct, field_name), indendation + 1)
-            print()
-        return
+            value = getattr(generated_struct, field_name)
+            struct[field_name] = as_dict(value)
+        return struct
 
     if (
         isinstance(generated_struct, bool)
         or isinstance(generated_struct, int)
         or isinstance(generated_struct, float)
     ):
-        print(generated_struct, end="")
-        return
+        return generated_struct
 
     if isinstance(generated_struct, Array):
+        struct = []
         for i in range(len(generated_struct)):
-            dump(generated_struct[i], indendation + 1)
-            print(", ", end="")
-        return
+            value = generated_struct[i]
+            struct.append(as_dict(value))
+        return struct
 
-    print(generated_struct, end="")
+    print(generated_struct)
+    assert(False)
+
+def dump(generated_struct):
+    print(as_dict(generated_struct))
 
 
 def import_file(name, file_path):

@@ -766,8 +766,9 @@ class ToByteArrayRewriter
 					op.getLoc(), rewriter.getI8Type(), loadedValue->getResult(0));
 			result = rewriter.create<mlir::LLVM::InsertValueOp>(
 					op.getLoc(), result->getResult(0), truncated, byteIndex);
-			loadedValue = rewriter.create<mlir::LLVM::LShrOp>(
-					op.getLoc(), loadedValue->getResult(0), eight);
+			if (byteIndex != reinterpretedSize - 1)
+				loadedValue = rewriter.create<mlir::LLVM::LShrOp>(
+						op.getLoc(), loadedValue->getResult(0), eight);
 		}
 
 		auto inMemory = makeAlloca(rewriter, resultType, op.getLoc());
