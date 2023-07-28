@@ -73,7 +73,8 @@ def build_llvm(
     build_shared: bool,
     build_type: str,
     clang: str,
-    clang_plus_plus: str
+    clang_plus_plus: str,
+    use_lld: bool
 ):
     assert_run_program(
         execution_dir,
@@ -83,7 +84,7 @@ def build_llvm(
         "-DCMAKE_BUILD_TYPE={}".format(build_type),
         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;",
-        "-DLLVM_USE_LINKER=lld",
+        "-DLLVM_USE_LINKER=lld" if use_lld else "",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
@@ -127,6 +128,11 @@ def main():
         action='store_true',
     )
     parser.add_argument(
+        "--no-use-lld",
+        help="do not set up rlc",
+        action='store_true',
+    )
+    parser.add_argument(
         "--llvm-only",
         help="do not set up rlc",
         action='store_true',
@@ -164,7 +170,8 @@ def main():
 
     # check needed programs are in path
     cmake = assert_in_path("cmake")
-    ldd = assert_in_path("lld")
+    if args.no_use_lld == False:
+        ldd = assert_in_path("lld")
     ninja = assert_in_path("ninja")
     git = assert_in_path("git")
     python = assert_in_path("python")
@@ -206,7 +213,8 @@ def main():
             build_shared=True,
             build_type="Debug",
             clang=args.c_compiler,
-            clang_plus_plus=args.cxx_compiler
+            clang_plus_plus=args.cxx_compiler,
+            use_lld=not args.no_use_lld
         )
         install(execution_dir=llvm_build_debug_dir, ninja_path=ninja)
 
@@ -222,7 +230,8 @@ def main():
             build_shared=False,
             build_type="Release",
             clang=args.c_compiler,
-            clang_plus_plus=args.cxx_compiler
+            clang_plus_plus=args.cxx_compiler,
+            use_lld=not args.no_use_lld
         )
         install(execution_dir=llvm_build_release_dir, ninja_path=ninja)
 
