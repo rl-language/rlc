@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
-if ! [ -x "$(command -v virtualenv)" ]; then
-  echo 'Error: virtualenv is not installed.' >&2
+if ! [ -x "$(command -v python3)" ]; then
+  echo 'Error: python3 is not installed.' >&2
   exit 1
 fi
 
@@ -12,8 +12,9 @@ cd rlc-infrastructure
 git clone git@github.com:drblallo/rlc.git 
 
 # SETUP PYTHON
-virtualenv .venv
-source .venv/local/bin/activate 
+python3 -m pip install virtualenv --user
+python3 -m virtualenv .venv
+source .venv/bin/activate 
 pip install -r rlc/requirements.txt
 deactivate
 source ./rlc/environment.sh
