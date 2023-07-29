@@ -46,6 +46,7 @@ def build_rlc(
     build_shared: bool,
     build_type: str,
     llvm_install_dir,
+    clang_path: str
 ):
     assert_run_program(
         execution_dir,
@@ -58,10 +59,12 @@ def build_rlc(
         "Ninja",
         "-DMLIR_DIR={}/lib/cmake/mlir".format(llvm_install_dir),
         "-DLLVM_DIR={}/lib/cmake/llvm".format(llvm_install_dir),
-        "-DCMAKE_C_COMPILER=clang",
-        "-DCMAKE_CXX_COMPILER=clang++",
+        f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}",
+        f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++",
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
         "-DCMAKE_BUILD_WITH_INSTALL_RPATH={}".format("OFF" if build_shared else "ON"),
+	"-DHAVE_STD_REGEX=ON",
+	"-DRUN_HAVE_STD_REGEX=1",
     )
 
 
@@ -86,6 +89,8 @@ def build_llvm(
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;",
         "-DLLVM_USE_LINKER=lld" if use_lld else "",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
+        "-DLLVM_CREATE_XCODE_TOOLCHAIN=False",
+	"-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
         "-G",
@@ -203,8 +208,10 @@ def main():
 
     # build debug llvm
     llvm_install_debug_dir = path.abspath("llvm-install-debug")
+    llvm_install_release_dir = path.abspath("llvm-install-release")
+
     if debug_llvm and not exists(llvm_install_debug_dir) and args.llvm_dir == "":
-        llvm_build_debug_dir = try_make_dir("llvm-debug")
+        llvm_build_debug_dir = try_make_dir(rlc_infrastructure + "/llvm-debug")
         build_llvm(
             execution_dir=llvm_build_debug_dir,
             cmake_path=cmake,
@@ -218,10 +225,10 @@ def main():
         )
         install(execution_dir=llvm_build_debug_dir, ninja_path=ninja)
 
+
     # build release llvm
-    llvm_install_release_dir = path.abspath("llvm-install-release")
     if not exists(llvm_install_release_dir) and args.llvm_dir == "":
-        llvm_build_release_dir = try_make_dir("llvm-release")
+        llvm_build_release_dir = try_make_dir(rlc_infrastructure + "/llvm-release")
         build_llvm(
             execution_dir=llvm_build_release_dir,
             cmake_path=cmake,
@@ -255,6 +262,7 @@ def main():
         build_shared=build_shared,
         build_type="Debug",
         llvm_install_dir=llvm_dir,
+        clang_path=f"{llvm_install_release_dir}/bin/clang"
     )
     install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
     assert_run_program(

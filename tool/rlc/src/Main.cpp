@@ -548,6 +548,7 @@ int main(int argc, char *argv[])
 		library.keep();
 		return 0;
 	}
+	library.os().flush();
 
 	auto realPath = exitOnErr(
 			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath)));
