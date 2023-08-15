@@ -19,19 +19,25 @@ static void mergeYieldsIntoSplittedBlock(
 	if (yields.size() == 1)
 	{
 		rewriter.setInsertionPoint(yields.front());
-		for (auto& child : yields.front().getOnEnd().getOps())
-			rewriter.clone(child);
+		llvm::SmallVector<mlir::Operation*> toMove;
+		for (auto& child : yields.front().getOps())
+			toMove.push_back(&child);
+		for (auto& child : toMove)
+			child->moveBefore(yields.front());
 		rewriter.mergeBlocks(
 				successor, yields.front()->getBlock(), mlir::ValueRange());
-		rewriter.eraseOp(yields.front());
+		yields.front().erase();
 		return;
 	}
 
 	for (mlir::rlc::Yield yield : yields)
 	{
 		rewriter.setInsertionPoint(yield);
-		for (auto& child : yield.getOnEnd().getOps())
-			rewriter.clone(child);
+		llvm::SmallVector<mlir::Operation*> toMove;
+		for (auto& child : yield.getOps())
+			toMove.push_back(&child);
+		for (auto* op : toMove)
+			op->moveBefore(yield);
 		rewriter.create<mlir::rlc::Branch>(yield.getLoc(), successor);
 		rewriter.eraseOp(yield);
 	}
@@ -309,6 +315,7 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 			use->set(ref);
 		}
 	}
+	assert(op.verify().succeeded());
 	for (auto f : ops)
 	{
 		assert(f.verify().succeeded());

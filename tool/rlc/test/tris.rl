@@ -53,6 +53,7 @@ fun next_turn(Board board):
 
 act play():
 	let board : Board
+	let score = 10
 	while !full(board):
 		act mark(Int x, Int y)
 		req x < 3
@@ -60,6 +61,7 @@ act play():
 		req y < 3
 		req y >= 0
 		req board.get(x, y) == 0
+		score = score - 1
 
 		board.set(x, y, board.current_player())
 

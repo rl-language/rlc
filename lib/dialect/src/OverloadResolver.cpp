@@ -146,7 +146,6 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 {
 	llvm::SmallVector<mlir::Value> matching = findOverloads(name, arguments);
 
-	assert(matching.size() <= 1);
 	if (not matching.empty())
 		return matching.front();
 

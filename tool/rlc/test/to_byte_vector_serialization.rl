@@ -5,6 +5,7 @@ ent Struct2:
 
 ent Struct1:
 	Int asd
+	Bool x
 	Float[2] ras
 	Vector<Struct2> inners
 
@@ -35,12 +36,16 @@ fun eq(Struct1 lhs, Struct1 rhs) -> Bool:
 		return false
 	if lhs.ras[1] != rhs.ras[1]:
 		return false
+	if lhs.x != rhs.x:
+		return false
 	return eq(lhs.inners, rhs.inners)
 
 fun main() -> Int:
 	let var : Struct1
-	var.asd = 5
+	var.asd = 2
+	var.x = true
 	var.ras[1] = 10.0
+	var.ras[0] = 2.0
 	let transformed = var.as_byte_vector()
 	let result : Struct1
 	from_byte_vector(result, transformed)

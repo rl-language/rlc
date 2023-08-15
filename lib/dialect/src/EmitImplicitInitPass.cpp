@@ -71,10 +71,24 @@ namespace mlir::rlc
 		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
 
 		llvm::SmallVector<mlir::rlc::ConstructOp, 2> ops;
-		op.walk([&](mlir::rlc::ConstructOp op) { ops.push_back(op); });
+		llvm::SmallVector<mlir::Type, 2> types;
+		op.walk([&](mlir::rlc::ConstructOp op) {
+			ops.push_back(op);
+			types.push_back(op.getType());
+		});
+
+		op.walk([&](mlir::rlc::EntityDeclaration op) {
+			types.push_back(op.getType());
+		});
+
+		op.walk([&](mlir::rlc::ActionFunction op) {
+			types.push_back(op.getEntityType());
+		});
+
+		llvm::DenseMap<mlir::Type, mlir::Value> typeToFunction;
 
 		// emits the needed declarations for each subtypes
-		for (auto init : ops)
+		for (auto type : types)
 		{
 			const auto emitAllNeedSubtypes = [&](auto subtype) {
 				if (isBuiltinType(subtype))
@@ -84,12 +98,13 @@ namespace mlir::rlc
 				if (subtype.template isa<mlir::rlc::IntegerLiteralType>())
 					return;
 
-				declareImplicitInit(rewriter, table, op, subtype);
+				auto toCall = declareImplicitInit(rewriter, table, op, subtype);
+				typeToFunction[type] = toCall;
 			};
 
-			if (auto subTypes =
-							init.getType().dyn_cast<mlir::SubElementTypeInterface>())
+			if (auto subTypes = type.dyn_cast<mlir::SubElementTypeInterface>())
 				subTypes.walkSubTypes(emitAllNeedSubtypes);
+			emitAllNeedSubtypes(type);
 		}
 
 		// emits the the root tyes and drops the points where they are used in favor
@@ -105,8 +120,8 @@ namespace mlir::rlc
 			if (isTemplateType(init.getType()).succeeded())
 				continue;
 
-			auto toCall = declareImplicitInit(rewriter, table, op, init.getType());
 			rewriter.setInsertionPoint(init);
+			auto toCall = typeToFunction[init.getType()];
 			assert(toCall);
 			auto newOp = rewriter.create<mlir::rlc::ExplicitConstructOp>(
 					init.getLoc(), toCall);

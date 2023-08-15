@@ -28,6 +28,12 @@ static void registerBuiltinConversions(
 		return mlir::rlc::python::NoneType::get(t.getContext());
 	});
 
+	converter.addConversion([&](mlir::rlc::OwningPtrType t) -> mlir::Type {
+		auto converted = ctypesConverter.convertType(t.getUnderlying());
+		assert(converted);
+		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
+	});
+
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
 		assert(converted);

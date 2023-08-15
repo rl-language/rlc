@@ -19,11 +19,10 @@ fun append_to_vector(Float to_add, Vector<Byte> output):
 
 fun append_to_vector(Bool to_add, Vector<Byte> output):
 	let array = __builtin_to_array(to_add)	
-	output.append(array[1])
+	output.append(array[0])
 
 fun append_to_vector(Byte to_add, Vector<Byte> output):
-	let array = __builtin_to_array(to_add)	
-	output.append(array[1])
+	output.append(to_add)
 
 fun<T> append_to_vector(Vector<T> to_add, Vector<Byte> output):
 	append_to_vector(to_add.size, output)
@@ -73,7 +72,7 @@ fun parse_from_vector(Float result, Vector<Byte> input, Int index):
 
 fun parse_from_vector(Bool result, Vector<Byte> input, Int index):
 	let to_parse : Byte[1]
-	to_parse[1] = input.get(index)
+	to_parse[0] = input.get(index)
 	index = index + 1	
 	result = __builtin_from_array<Bool>(to_parse)	
 

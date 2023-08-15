@@ -46,7 +46,7 @@ def build_rlc(
     build_shared: bool,
     build_type: str,
     llvm_install_dir,
-    clang_path: str
+    clang_path: str,
 ):
     assert_run_program(
         execution_dir,
@@ -63,8 +63,8 @@ def build_rlc(
         f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++",
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
         "-DCMAKE_BUILD_WITH_INSTALL_RPATH={}".format("OFF" if build_shared else "ON"),
-	"-DHAVE_STD_REGEX=ON",
-	"-DRUN_HAVE_STD_REGEX=1",
+        "-DHAVE_STD_REGEX=ON",
+        "-DRUN_HAVE_STD_REGEX=1",
     )
 
 
@@ -77,7 +77,7 @@ def build_llvm(
     build_type: str,
     clang: str,
     clang_plus_plus: str,
-    use_lld: bool
+    use_lld: bool,
 ):
     assert_run_program(
         execution_dir,
@@ -89,8 +89,7 @@ def build_llvm(
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;",
         "-DLLVM_USE_LINKER=lld" if use_lld else "",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
-        "-DLLVM_CREATE_XCODE_TOOLCHAIN=False",
-	"-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi",
+        "-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
         "-G",
@@ -125,45 +124,39 @@ def main():
     parser.add_argument(
         "--no-debug-llvm",
         help="does not build debug llvm",
-        action='store_true',
+        action="store_true",
     )
     parser.add_argument(
         "--dry-run",
         help="only prints the command that would be executing",
-        action='store_true',
+        action="store_true",
     )
     parser.add_argument(
         "--no-use-lld",
         help="do not set up rlc",
-        action='store_true',
+        action="store_true",
     )
     parser.add_argument(
         "--llvm-only",
         help="do not set up rlc",
-        action='store_true',
+        action="store_true",
     )
     parser.add_argument(
         "--llvm-dir",
         help="use the provided LLVM installation and skip other LLVM steps",
         type=str,
-        default=""
+        default="",
     )
     parser.add_argument(
-        "--cxx-compiler",
-        help="path to cxx compiler",
-        type=str,
-        default="clang++"
+        "--cxx-compiler", help="path to cxx compiler", type=str, default="clang++"
     )
     parser.add_argument(
-        "--c-compiler",
-        help="path to c compiler",
-        type=str,
-        default="clang"
+        "--c-compiler", help="path to c compiler", type=str, default="clang"
     )
     parser.add_argument(
         "--rlc-shared",
         help="if LLVM is provided by command line, this option allow to decide if rlc should be built as a shared or static libray. This is needed if LLVM is itself shared or static.  Defaults to false. ",
-        action='store_true',
+        action="store_true",
     )
     args = parser.parse_args()
     global dry_run
@@ -221,10 +214,9 @@ def main():
             build_type="Debug",
             clang=args.c_compiler,
             clang_plus_plus=args.cxx_compiler,
-            use_lld=not args.no_use_lld
+            use_lld=not args.no_use_lld,
         )
         install(execution_dir=llvm_build_debug_dir, ninja_path=ninja)
-
 
     # build release llvm
     if not exists(llvm_install_release_dir) and args.llvm_dir == "":
@@ -238,7 +230,7 @@ def main():
             build_type="Release",
             clang=args.c_compiler,
             clang_plus_plus=args.cxx_compiler,
-            use_lld=not args.no_use_lld
+            use_lld=not args.no_use_lld,
         )
         install(execution_dir=llvm_build_release_dir, ninja_path=ninja)
 
@@ -252,7 +244,6 @@ def main():
     else:
         build_shared = args.rlc_shared
 
-
     # build debug
     build_rlc(
         execution_dir=rlc_build_dir,
@@ -262,7 +253,7 @@ def main():
         build_shared=build_shared,
         build_type="Debug",
         llvm_install_dir=llvm_dir,
-        clang_path=f"{llvm_install_release_dir}/bin/clang"
+        clang_path=f"{llvm_install_release_dir}/bin/clang",
     )
     install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
     assert_run_program(

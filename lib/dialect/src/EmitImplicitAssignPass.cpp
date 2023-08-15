@@ -47,13 +47,22 @@ namespace mlir::rlc
 		mlir::rlc::ModuleBuilder builder(op);
 
 		llvm::SmallVector<mlir::rlc::ImplicitAssignOp, 2> ops;
-		op.walk([&](mlir::rlc::ImplicitAssignOp op) { ops.push_back(op); });
+		llvm::SmallVector<mlir::Type, 2> types;
+		op.walk([&](mlir::rlc::ImplicitAssignOp op) {
+			ops.push_back(op);
+			types.push_back(op.getType());
+		});
+		op.walk([&](mlir::rlc::EntityDeclaration op) {
+			types.push_back(op.getType());
+		});
+		op.walk([&](mlir::rlc::ActionFunction op) {
+			types.push_back(op.getEntityType());
+		});
 
+		llvm::DenseMap<mlir::Type, mlir::rlc::FunctionOp> typeToFunction;
 		// emits the needed declarations for each subtypes
-		for (auto assign : ops)
+		for (auto type : types)
 		{
-			assert(assign.getLhs().getType() != nullptr);
-			assert(assign.getRhs().getType() != nullptr);
 			const auto emitAllNeedSubtypes = [&](auto subtype) {
 				if (isBuiltinType(subtype) or
 						subtype.template isa<mlir::rlc::OwningPtrType>() or
@@ -61,27 +70,27 @@ namespace mlir::rlc
 						subtype.template isa<mlir::rlc::IntegerLiteralType>())
 					return;
 
-				declareImplicitAssign(
+				auto toCall = declareImplicitAssign(
 						builder.getRewriter(), builder.getSymbolTable(), op, subtype);
+				typeToFunction[type] = toCall;
 			};
 
-			if (auto subTypes =
-							assign.getType().dyn_cast<mlir::SubElementTypeInterface>())
+			if (auto subTypes = type.dyn_cast<mlir::SubElementTypeInterface>())
 				subTypes.walkSubTypes(emitAllNeedSubtypes);
+
+			emitAllNeedSubtypes(type);
 		}
 
 		// emits the the root tyes and drops the points where they are used in favor
 		// of the new function
 		for (auto assign : ops)
 		{
+			assert(assign.getLhs().getType() != nullptr);
+			assert(assign.getRhs().getType() != nullptr);
 			if (isTemplateType(assign.getType()).succeeded())
 				continue;
 
-			auto toCall = declareImplicitAssign(
-					builder.getRewriter(),
-					builder.getSymbolTable(),
-					op,
-					assign.getType());
+			auto toCall = typeToFunction[assign.getType()];
 
 			builder.getRewriter().setInsertionPoint(assign);
 			builder.getRewriter().replaceOpWithNewOp<mlir::rlc::CallOp>(

@@ -1,4 +1,4 @@
 vulture
 pytest
 pylint
-torch
+torch==2.0.1
