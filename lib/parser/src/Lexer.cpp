@@ -66,6 +66,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordEntity";
 		case Token::KeywordDestroy:
 			return "KeywordDestroy";
+		case Token::KeywordEnum:
+			return "KeywordEnum";
 		case Token::KeywordExtern:
 			return "KeywordExtern";
 		case Token::KeywordImport:
@@ -133,7 +135,9 @@ llvm::StringRef rlc::tokenToString(Token t)
 		case Token::RBracket:
 			return "RBracket";
 		case Token::Colons:
-			return "Colonts";
+			return "Colons";
+		case Token::ColonsColons:
+			return "ColonsColons";
 		case Token::Equal:
 			return "Equal";
 		case Token::Identifier:
@@ -302,6 +306,10 @@ optional<Token> Lexer::twoSymbols(char current)
 			if (*in == '>')
 				return Token::Arrow;
 			return nullopt;
+		case ':':
+			if (*in == ':')
+				return Token::ColonsColons;
+			return nullopt;
 	}
 	return nullopt;
 }
@@ -318,6 +326,9 @@ Token Lexer::eatIdent()
 
 	if (name == "else")
 		return Token::KeywordElse;
+
+	if (name == "enum")
+		return Token::KeywordEnum;
 
 	if (name == "ent")
 		return Token::KeywordEntity;

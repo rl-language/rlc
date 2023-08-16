@@ -132,14 +132,26 @@ Expected<mlir::rlc::FreeOp> Parser::builtinFree()
 }
 
 /**
- * primaryExpression : Ident | Double | int64 | "true" | "false" | "("
- * expression ")"  | builtinMalloc | builtinFromArray | builtinToArray
+ * primaryExpression : Ident ("::" Ident)? | Double | int64 | "true" | "false" |
+ * "(" expression ")"  | builtinMalloc | builtinFromArray | builtinToArray
  */
 Expected<mlir::Value> Parser::primaryExpression()
 {
 	auto location = getCurrentSourcePos();
 	if (accept<Token::Identifier>())
-		return builder.create<mlir::rlc::UnresolvedReference>(location, lIdent);
+	{
+		if (not accept<Token::ColonsColons>())
+			return builder.create<mlir::rlc::UnresolvedReference>(location, lIdent);
+
+		auto enumName = lIdent;
+		EXPECT(Token::Identifier);
+		auto enumField = lIdent;
+		return builder.create<mlir::rlc::UncheckedEnumUse>(
+				location,
+				mlir::rlc::UnknownType::get(builder.getContext()),
+				enumName,
+				enumField);
+	}
 
 	if (accept<Token::Double>())
 		return builder.create<mlir::rlc::Constant>(location, lDouble);
@@ -1073,6 +1085,35 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 	return decl;
 }
 
+/*
+ * enumDeclaration: "enum" ident:\nindent ident(\n indent)*\ndeindent
+ */
+Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordEnum);
+	EXPECT(Token::Identifier);
+	auto enumName = lIdent;
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+	EXPECT(Token::Indent);
+
+	llvm::SmallVector<std::unique_ptr<std::string>, 2> enumFields;
+	llvm::SmallVector<llvm::StringRef, 2> enumFieldsRefs;
+
+	while (not accept<Token::Deindent>())
+	{
+		EXPECT(Token::Identifier);
+		auto enumField = lIdent;
+		EXPECT(Token::Newline);
+		enumFields.emplace_back(std::make_unique<std::string>(enumField));
+		enumFieldsRefs.push_back(*enumFields.back());
+	}
+
+	return builder.create<mlir::rlc::EnumDeclarationOp>(
+			location, enumName, builder.getStrArrayAttr(enumFieldsRefs));
+}
+
 /**
  * traitDefinition: trait "<" ident ">:\n" indent (functionDeclaration "\n")*
  * deindent
@@ -1145,6 +1186,12 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		if (current == Token::KeywordFun)
 		{
 			TRY(f, functionDefinition());
+			continue;
+		}
+
+		if (current == Token::KeywordEnum)
+		{
+			TRY(f, enumDeclaration());
 			continue;
 		}
 

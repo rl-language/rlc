@@ -369,6 +369,7 @@ int main(int argc, char *argv[])
 	}
 
 	mlir::PassManager typeChecker(&context);
+	typeChecker.addPass(mlir::rlc::createEmitEnumEntitiesPass());
 	typeChecker.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 	typeChecker.addPass(mlir::rlc::createTypeCheckPass());
 	if (typeChecker.run(ast).failed())

@@ -295,6 +295,56 @@ class MemberAccessRewriter
 	}
 };
 
+class EnumUseLowerer: public mlir::OpConversionPattern<mlir::rlc::EnumUse>
+{
+	using mlir::OpConversionPattern<mlir::rlc::EnumUse>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::EnumUse op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type = getTypeConverter()->convertType(op.getResult().getType());
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+
+		auto zero = rewriter.getZeroAttr(rewriter.getI64Type());
+		auto dataType = type.cast<mlir::LLVM::LLVMPointerType>().getElementType();
+		auto constantZero = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), rewriter.getI64Type(), zero);
+		auto gep = rewriter.create<mlir::LLVM::GEPOp>(
+				op.getLoc(),
+				mlir::LLVM::LLVMPointerType::get(dataType),
+				alloca,
+				mlir::ValueRange({ constantZero, constantZero }));
+
+		auto value = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getI64Type(),
+				rewriter.getI64IntegerAttr(op.getEnumValue()));
+
+		makeAlignedStore(rewriter, value, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::success();
+	}
+};
+
+class EnumDeclarationEraser
+		: public mlir::OpConversionPattern<mlir::rlc::EnumDeclarationOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::EnumDeclarationOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::EnumDeclarationOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class ValueUpcastEraser
 		: public mlir::OpConversionPattern<mlir::rlc::ValueUpcastOp>
 {
@@ -1404,6 +1454,8 @@ namespace mlir::rlc
 			patterns.add<FunctionRewriter>(converter, &getContext())
 					.add<TraitDeclarationEraser>(converter, &getContext())
 					.add<ValueUpcastEraser>(converter, &getContext())
+					.add<EnumDeclarationEraser>(converter, &getContext())
+					.add<EnumUseLowerer>(converter, &getContext())
 					.add<CallRewriter>(converter, &getContext())
 					.add<ConstantRewriter>(converter, &getContext())
 					.add<IntegerLiteralRewrtier>(converter, &getContext())

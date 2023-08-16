@@ -95,3 +95,8 @@ def LowerDestructorsPass : Pass<"rlc-lower-destructors-pass", "mlir::ModuleOp"> 
   let summary = "maps destructors invocations to a call";
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def EmitEnumEntitiesPass : Pass<"rlc-emit-enum-entities-pass", "mlir::ModuleOp"> {
+  let summary = "for each enum declare a entity";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

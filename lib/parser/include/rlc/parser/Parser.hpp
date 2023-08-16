@@ -42,6 +42,8 @@ namespace rlc
 		llvm::Expected<mlir::Operation*> builtinDestroy();
 		llvm::Expected<mlir::Value> expression();
 		llvm::Expected<mlir::Value> unaryExpression();
+		llvm::Expected<mlir::rlc::EnumDeclarationOp> enumDeclaration();
+		llvm::Expected<mlir::Value> enumUse();
 		llvm::Expected<mlir::Value> assignmentExpression();
 		llvm::Expected<mlir::Value> multyplicativeExpression();
 		llvm::Expected<mlir::Value> additiveExpression();

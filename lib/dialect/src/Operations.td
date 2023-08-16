@@ -240,6 +240,52 @@ def RLC_MallocOp : RLC_Dialect<"malloc_op", [DeclareOpInterfaceMethods<TypeCheck
   }];
 }
 
+def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op"> {
+  let summary = "implement malloc";
+
+  let description = [{
+	implements malloc.
+  }];
+
+  let arguments = (ins StrAttr:$name, StrArrayAttr:$enum_names);
+
+  let assemblyFormat = [{
+	$name $enum_names attr-dict 
+  }];
+}
+
+def RLC_EnumUse : RLC_Dialect<"enum_use", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "implement malloc";
+
+  let description = [{
+	implements malloc.
+  }];
+
+
+  let arguments = (ins I64Attr:$enum_value);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$enum_value `->` type($result) attr-dict 
+  }];
+}
+
+def RLC_UncheckedEnumUse : RLC_Dialect<"unchecked_enum_use"> {
+  let summary = "implement malloc";
+
+  let description = [{
+	implements malloc.
+  }];
+
+
+  let arguments = (ins StrAttr:$enum_name, StrAttr:$enum_value);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$enum_name $enum_value `->` type($result) attr-dict 
+  }];
+}
+
 def RLC_FreeOp : RLC_Dialect<"free_op", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "implement malloc";
 
