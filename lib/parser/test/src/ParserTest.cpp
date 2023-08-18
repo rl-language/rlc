@@ -195,7 +195,8 @@ TEST(ParserTest, arrayTypeTest)
 		FAIL();
 
 	EXPECT_EQ(s->getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
-	EXPECT_EQ(s->getReadType(), "int");
+	EXPECT_EQ(
+			s->getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(), "int");
 }
 
 TEST(ParserTest, functionTypeTest)
@@ -213,7 +214,8 @@ TEST(ParserTest, functionTypeTest)
 							 .cast<mlir::rlc::FunctionUseType>()
 							 .getSubTypes()[0]
 							 .cast<mlir::rlc::ScalarUseType>();
-	EXPECT_EQ(r.getReadType(), "int");
+	EXPECT_EQ(
+			r.getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(), "int");
 	EXPECT_EQ(r.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
 }
 
@@ -232,7 +234,8 @@ TEST(ParserTest, complexFunctionTypeTest)
 							 .cast<mlir::rlc::FunctionUseType>()
 							 .getSubTypes()[0]
 							 .cast<mlir::rlc::ScalarUseType>();
-	EXPECT_EQ(r.getReadType(), "int");
+	EXPECT_EQ(
+			r.getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(), "int");
 	EXPECT_EQ(r.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
 	auto r2 = s->getUnderlying()
 								.cast<mlir::rlc::FunctionUseType>()

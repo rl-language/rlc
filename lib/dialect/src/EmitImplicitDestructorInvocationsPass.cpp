@@ -295,9 +295,20 @@ namespace mlir::rlc
 			llvm::SmallVector<mlir::Value, 3> toEmitDestroy;
 			llvm::DenseMap<mlir::Type, bool> requireDestructor;
 
+			for (auto function : getOperation().getOps<mlir::rlc::FunctionOp>())
+			{
+				function.walk([&](mlir::Operation* op) {
+					if (not mlir::isa<mlir::rlc::DeclarationStatement>(op))
+						return;
+					for (mlir::Value result : op->getResults())
+						if (typeRequiresDestructor(
+										builder, requireDestructor, result.getType())
+										.succeeded())
+							toEmitDestroy.push_back(result);
+				});
+			}
 			getOperation().walk([&](mlir::Operation* op) {
-				if (not mlir::isa<mlir::rlc::DeclarationStatement>(op) and
-						not mlir::isa<mlir::rlc::CallOp>(op))
+				if (not mlir::isa<mlir::rlc::CallOp>(op))
 					return;
 				for (mlir::Value result : op->getResults())
 					if (typeRequiresDestructor(
@@ -305,7 +316,6 @@ namespace mlir::rlc
 									.succeeded())
 						toEmitDestroy.push_back(result);
 			});
-
 			for (auto value : toEmitDestroy)
 			{
 				llvm::SmallVector<mlir::Operation*, 2> destructionPoints;

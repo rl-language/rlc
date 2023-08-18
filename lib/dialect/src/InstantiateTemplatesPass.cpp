@@ -64,7 +64,7 @@ namespace mlir::rlc
 				originalDecl.getNameAttr(),
 				rewriter.getTypeArrayAttr(type.getBody()),
 				originalDecl.getMemberNames(),
-				originalDecl.getTemplateParametersAttr());
+				rewriter.getArrayAttr({}));
 	}
 
 	static void declareInstantiatedStructs(mlir::ModuleOp op)

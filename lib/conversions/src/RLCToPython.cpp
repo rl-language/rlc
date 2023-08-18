@@ -50,7 +50,7 @@ static void registerBuiltinConversions(
 			types.push_back(converted);
 		}
 		return mlir::rlc::python::CTypeStructType::get(
-				t.getContext(), t.getName(), types);
+				t.getContext(), t.mangledName(), types);
 	});
 
 	converter.addConversion([&](mlir::FunctionType t) -> mlir::Type {
@@ -113,7 +113,7 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 			types.push_back(converted);
 		}
 		return mlir::rlc::python::CTypeStructType::get(
-				t.getContext(), t.getName(), types);
+				t.getContext(), t.mangledName(), types);
 	});
 
 	converter.addConversion([&](mlir::FunctionType t) -> mlir::Type {
@@ -230,6 +230,23 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 	rewriter.create<mlir::rlc::python::PythonReturn>(loc, toReturn);
 	return f;
 }
+
+class EnumDeclarationToNothing
+		: public mlir::OpConversionPattern<mlir::rlc::EnumDeclarationOp>
+{
+	public:
+	using mlir::OpConversionPattern<
+			mlir::rlc::EnumDeclarationOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::EnumDeclarationOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
 
 class TraitDeclarationToNothing
 		: public mlir::OpConversionPattern<mlir::rlc::TraitDefinition>
@@ -499,6 +516,7 @@ namespace mlir::python
 			patterns.add<ActionDeclToTNothing>(
 					&lib, &rlcBuilder, converter, &getContext());
 			patterns.add<TraitDeclarationToNothing>(converter, &getContext());
+			patterns.add<EnumDeclarationToNothing>(converter, &getContext());
 			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
 
 			if (failed(applyPartialConversion(

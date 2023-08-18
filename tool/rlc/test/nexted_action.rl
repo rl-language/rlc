@@ -10,6 +10,8 @@ act guess():
 
 fun main() -> Int:
 	let struct = guess()
+	if struct.is_done():
+		return 1
 	struct.p1_choise(1)
 	struct.p2_choise(3)
 	struct.p2_choise(4)

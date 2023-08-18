@@ -296,7 +296,7 @@ class State:
         return bytes(real_content)
 
     def from_byte_vector(self, byte_vector):
-        vector = self.simulation.module.Vector()
+        vector = self.simulation.module.VectorTint8_tT()
         for byte in byte_vector:
             self.simulation.module.functions.append(vector, byte - 128)
         self.simulation.module.functions.from_byte_vector(self.state, vector)

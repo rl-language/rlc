@@ -128,7 +128,7 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 				 decl.getTemplateParameters().getAsValueRange<mlir::TypeAttr>())
 			templates.push_back(type);
 		rewriter.setInsertionPoint(decl);
-		decl = rewriter.create<mlir::rlc::EntityDeclaration>(
+		auto newDecl = rewriter.create<mlir::rlc::EntityDeclaration>(
 				decl.getLoc(),
 				mlir::rlc::EntityType::getIdentified(
 						decl.getContext(), decl.getName(), templates),
@@ -311,8 +311,54 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
+static void assignActionsIndicies(mlir::ModuleOp op)
+{
+	mlir::IRRewriter rewriter(op.getContext());
+	for (auto fun : op.getOps<mlir::rlc::ActionFunction>())
+	{
+		size_t lastId = 1;
+		int64_t lastResumePoint = 1;
+		llvm::SmallVector<mlir::rlc::ActionStatement, 2> statments;
+		fun.walk([&](mlir::rlc::ActionStatement statement) {
+			statments.push_back(statement);
+		});
+
+		llvm::DenseMap<mlir::rlc::ActionsStatement, int64_t> asctionsToResumePoint;
+
+		for (auto statement : statments)
+		{
+			rewriter.setInsertionPoint(statement);
+
+			int64_t resumePoint;
+			if (auto parent =
+							statement->getParentOfType<mlir::rlc::ActionsStatement>())
+			{
+				if (asctionsToResumePoint.count(parent) == 0)
+					asctionsToResumePoint[parent] = lastResumePoint++;
+				resumePoint = asctionsToResumePoint[parent];
+			}
+			else
+			{
+				resumePoint = lastResumePoint++;
+			}
+
+			auto newOp = rewriter.create<mlir::rlc::ActionStatement>(
+					statement.getLoc(),
+					statement.getResultTypes(),
+					statement.getName(),
+					statement.getDeclaredNames(),
+					lastId,
+					resumePoint);
+			lastId++;
+			newOp.getPrecondition().takeBody(statement.getPrecondition());
+			rewriter.replaceOp(statement, newOp.getResults());
+		}
+	}
+}
+
 static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 {
+	assignActionsIndicies(op);
 	mlir::rlc::ModuleBuilder builder(op);
 	mlir::IRRewriter rewriter(op.getContext());
 

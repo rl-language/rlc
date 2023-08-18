@@ -43,6 +43,7 @@ namespace rlc
 		llvm::Expected<mlir::Value> expression();
 		llvm::Expected<mlir::Value> unaryExpression();
 		llvm::Expected<mlir::rlc::EnumDeclarationOp> enumDeclaration();
+		llvm::Expected<mlir::Value> initializerList();
 		llvm::Expected<mlir::Value> enumUse();
 		llvm::Expected<mlir::Value> assignmentExpression();
 		llvm::Expected<mlir::Value> multyplicativeExpression();
@@ -60,6 +61,7 @@ namespace rlc
 		llvm::Expected<mlir::rlc::IfStatement> ifStatement();
 		llvm::Expected<mlir::Operation*> statement();
 		llvm::Expected<mlir::rlc::ActionStatement> actionStatement();
+		llvm::Expected<mlir::rlc::ActionsStatement> actionsStatement();
 		llvm::Expected<mlir::rlc::DeclarationStatement> declarationStatement();
 		llvm::Expected<bool> statementList();
 		llvm::Expected<bool> requirementList();
@@ -74,6 +76,7 @@ namespace rlc
 		argDeclaration();
 
 		llvm::Expected<mlir::rlc::ScalarUseType> singleTypeUse();
+		llvm::Expected<mlir::rlc::ScalarUseType> singleNonArrayTypeUse();
 		llvm::Expected<mlir::rlc::FunctionUseType> functionTypeUse();
 		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition();
 		llvm::Expected<

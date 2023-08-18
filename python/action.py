@@ -8,9 +8,6 @@ from command_line import load_simulation_from_args, make_rlc_argparse, load_netw
 
 def main():
     parser = make_rlc_argparse("solve", description="runs a action of the simulation")
-    parser = argparse.ArgumentParser(
-        "run", description="runs a action of the simulation"
-    )
     parser.add_argument(
         "--load",
         "-l",
@@ -36,6 +33,7 @@ def main():
     )
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
+    args = parser.parse_args()
     sim = load_simulation_from_args(args)
 
     if args.show_actions:

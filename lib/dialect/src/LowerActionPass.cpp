@@ -265,6 +265,17 @@ namespace mlir::rlc
 						addressOfArgInFrame,
 						subF.getBlocks().front().getArgument(arg.index() + 1));
 			}
+
+			// the resumption point stored in the frame is not enough to discrimated
+			// among alternative resumption points, so we have to store the actual id
+			// of the selected action so it can resume
+			auto resumptionPointSelector = rewriter.create<mlir::rlc::Constant>(
+					subF.getLoc(), static_cast<int64_t>(subAct.getId()));
+			auto candidatesResumptionPoint = rewriter.create<mlir::rlc::MemberAccess>(
+					subF.getLoc(), subF.getBody().getArgument(0), 0);
+			rewriter.create<mlir::rlc::BuiltinAssignOp>(
+					subF.getLoc(), candidatesResumptionPoint, resumptionPointSelector);
+
 			rewriter.create<mlir::rlc::CallOp>(
 					subF.getLoc(),
 					mlir::TypeRange(),

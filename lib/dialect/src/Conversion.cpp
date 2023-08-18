@@ -329,6 +329,23 @@ class EnumUseLowerer: public mlir::OpConversionPattern<mlir::rlc::EnumUse>
 	}
 };
 
+class FlatActionStatementEraser
+		: public mlir::OpConversionPattern<mlir::rlc::FlatActionStatement>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::FlatActionStatement>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::FlatActionStatement op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.replaceOpWithNewOp<mlir::LLVM::BrOp>(
+				op, mlir::ValueRange(), op.getNexts().front());
+		return mlir::success();
+	}
+};
+
 class EnumDeclarationEraser
 		: public mlir::OpConversionPattern<mlir::rlc::EnumDeclarationOp>
 {
@@ -873,6 +890,50 @@ class FromByteArrayRewriter
 		rewriter.replaceOp(op, inMemory);
 
 		return mlir::LogicalResult::success();
+	}
+};
+
+class InitializerListLowerer
+		: public mlir::OpConversionPattern<mlir::rlc::InitializerListOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::InitializerListOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::InitializerListOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type = getTypeConverter()->convertType(op.getResult().getType());
+		auto underlying = type.cast<mlir::LLVM::LLVMPointerType>()
+													.getElementType()
+													.cast<mlir::LLVM::LLVMArrayType>()
+													.getElementType();
+
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+
+		auto zero = rewriter.getZeroAttr(rewriter.getI64Type());
+		auto zeroValue = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), rewriter.getI64Type(), zero);
+
+		for (size_t i = 0; i < adaptor.getArgs().size(); i++)
+		{
+			auto index = rewriter.getI64IntegerAttr(i);
+			auto indexValue = rewriter.create<mlir::LLVM::ConstantOp>(
+					op.getLoc(), rewriter.getI64Type(), index);
+			auto gep = rewriter.create<mlir::LLVM::GEPOp>(
+					op.getLoc(),
+					mlir::LLVM::LLVMPointerType::get(underlying),
+					alloca,
+					mlir::ValueRange({ zeroValue, indexValue }));
+
+			auto loaded =
+					makeAlignedLoad(rewriter, adaptor.getArgs()[i], op.getLoc());
+			makeAlignedStore(rewriter, loaded, gep, op.getLoc());
+		}
+
+		rewriter.replaceOp(op, alloca);
+		return mlir::success();
 	}
 };
 
@@ -1455,10 +1516,12 @@ namespace mlir::rlc
 					.add<TraitDeclarationEraser>(converter, &getContext())
 					.add<ValueUpcastEraser>(converter, &getContext())
 					.add<EnumDeclarationEraser>(converter, &getContext())
+					.add<FlatActionStatementEraser>(converter, &getContext())
 					.add<EnumUseLowerer>(converter, &getContext())
 					.add<CallRewriter>(converter, &getContext())
 					.add<ConstantRewriter>(converter, &getContext())
 					.add<IntegerLiteralRewrtier>(converter, &getContext())
+					.add<InitializerListLowerer>(converter, &getContext())
 					.add<CbrRewriter>(converter, &getContext())
 					.add<BrRewriter>(converter, &getContext())
 					.add<FromByteArrayRewriter>(converter, &getContext())

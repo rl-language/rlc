@@ -4,7 +4,7 @@
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
-static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
+static llvm::DenseMap<int64_t, mlir::Block*> splitActionBlocks(
 		mlir::rlc::FlatFunctionOp fun,
 		mlir::IRRewriter& rewriter,
 		mlir::Value resumeIndex)
@@ -27,13 +27,12 @@ static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
 				fun.getLoc(), resumeIndex, newResumeIndexValue);
 	}
 
-	llvm::SmallVector<mlir::Block*, 4> resumePoints;
+	llvm::DenseMap<int64_t, mlir::Block*> resumePoints;
 	llvm::SmallVector<mlir::Block*, 4> blocksToAnalyze;
 
 	for (auto& block : fun.getBlocks())
 		blocksToAnalyze.push_back(&block);
 
-	int64_t newResumeIndex = 1;
 	while (not blocksToAnalyze.empty())
 	{
 		auto& block = blocksToAnalyze.back();
@@ -45,14 +44,14 @@ static llvm::SmallVector<mlir::Block*, 4> splitActionBlocks(
 			if (casted == nullptr)
 				continue;
 
-			resumePoints.push_back(rewriter.splitBlock(block, std::next(iter)));
-			blocksToAnalyze.push_back(resumePoints.back());
+			resumePoints[casted.getId()] =
+					rewriter.splitBlock(block, std::next(iter));
+			blocksToAnalyze.push_back(resumePoints[casted.getId()]);
 
 			rewriter.setInsertionPoint(casted);
 
-			auto newResumeIndexValue =
-					rewriter.create<mlir::rlc::Constant>(casted.getLoc(), newResumeIndex);
-			newResumeIndex++;
+			auto newResumeIndexValue = rewriter.create<mlir::rlc::Constant>(
+					casted.getLoc(), (int64_t) casted.getResumptionPoint());
 			rewriter.create<mlir::rlc::BuiltinAssignOp>(
 					casted.getLoc(), resumeIndex, newResumeIndexValue);
 			rewriter.create<mlir::rlc::Yield>(casted.getLoc());
@@ -110,11 +109,14 @@ static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
 			fun.getLoc(), entry.getArgument(0), 0);
 
 	auto resumePoints = splitActionBlocks(fun, rewriter, routineIndex);
-	resumePoints.insert(resumePoints.begin(), everythingElse);
+	resumePoints[0] = everythingElse;
+	llvm::SmallVector<mlir::Block*, 2> sortedResumePoints(resumePoints.size());
+	for (auto& pair : resumePoints)
+		sortedResumePoints[pair.first] = pair.second;
 
 	rewriter.setInsertionPoint(&entry, entry.end());
 	rewriter.create<mlir::rlc::SelectBranch>(
-			fun.getLoc(), routineIndex, resumePoints);
+			fun.getLoc(), routineIndex, sortedResumePoints);
 	return mlir::success();
 }
 

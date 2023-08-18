@@ -100,3 +100,8 @@ def EmitEnumEntitiesPass : Pass<"rlc-emit-enum-entities-pass", "mlir::ModuleOp">
   let summary = "for each enum declare a entity";
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def SortTypeDeclarationsPass : Pass<"rlc-sort-type-declarations", "mlir::ModuleOp"> {
+  let summary = "for each enum declare a entity";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

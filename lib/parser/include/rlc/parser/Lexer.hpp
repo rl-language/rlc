@@ -41,6 +41,7 @@ namespace rlc
 		KeywordFalse,
 		KeywordIn,
 		KeywordLet,
+		KeywordActions,
 		KeywordFun,
 		KeywordReq,
 		KeywordType,
@@ -111,6 +112,7 @@ namespace rlc
 		size_t currentColumn{ 1 };
 		std::vector<size_t> indentStack;
 		bool newLine{ true };
+		int64_t nestedParentesys{ 0 };
 
 		int64_t lInt64{ 0 };
 		double lDouble{ 0 };

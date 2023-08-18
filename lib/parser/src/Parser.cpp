@@ -75,6 +75,25 @@ llvm::Expected<mlir::Value> Parser::builtinFromArray()
 	return builder.create<mlir::rlc::FromByteArrayOp>(location, *type, *size);
 }
 
+// initializerList: "[" expression ( "," expression)* "]"
+llvm::Expected<mlir::Value> Parser::initializerList()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::LSquare);
+	llvm::SmallVector<mlir::Value> expressions;
+	do
+	{
+		while (accept<Token::Newline>() or accept<Token::Indent>() or
+					 accept<Token::Deindent>())
+			;
+		TRY(arg, expression());
+		expressions.push_back(*arg);
+	} while (accept<Token::Comma>());
+	EXPECT(Token::RSquare);
+	return builder.create<mlir::rlc::InitializerListOp>(
+			location, mlir::rlc::UnknownType::get(builder.getContext()), expressions);
+}
+
 llvm::Expected<mlir::Value> Parser::builtinToArray()
 {
 	auto location = getCurrentSourcePos();
@@ -133,7 +152,8 @@ Expected<mlir::rlc::FreeOp> Parser::builtinFree()
 
 /**
  * primaryExpression : Ident ("::" Ident)? | Double | int64 | "true" | "false" |
- * "(" expression ")"  | builtinMalloc | builtinFromArray | builtinToArray
+ * "(" expression ")"  | builtinMalloc | builtinFromArray | builtinToArray |
+ * initializerList
  */
 Expected<mlir::Value> Parser::primaryExpression()
 {
@@ -179,6 +199,11 @@ Expected<mlir::Value> Parser::primaryExpression()
 		TRY(exp, expression());
 		EXPECT(Token::RPar);
 		return exp;
+	}
+
+	if (current == Token::LSquare)
+	{
+		return initializerList();
 	}
 
 	return make_error<RlcError>(
@@ -551,6 +576,49 @@ llvm::Expected<bool> Parser::requirementList()
 	return true;
 }
 
+llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordActions);
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+	EXPECT(Token::Indent);
+
+	llvm::SmallVector<llvm::SmallVector<mlir::Operation*, 2>, 4> ops;
+
+	while (not accept<Token::Deindent>())
+	{
+		while (accept<Token::Newline>())
+			;
+		if (current == Token::KeywordAction)
+			ops.push_back({});
+
+		TRY(op, statement());
+		ops.back().push_back(*op);
+	}
+
+	auto statements =
+			builder.create<mlir::rlc::ActionsStatement>(location, ops.size());
+
+	for (size_t i = 0; i < ops.size(); i++)
+	{
+		auto* bb = builder.createBlock(
+				&statements.getActions()[i], statements.getActions()[i].begin());
+		for (auto* op : ops[i])
+			op->moveBefore(bb, bb->end());
+
+		if (not mlir::isa<mlir::rlc::Yield>(ops[i].back()) and
+				not mlir::isa<mlir::rlc::ReturnStatement>(ops[i].back()))
+		{
+			builder.setInsertionPointAfter(ops[i].back());
+			builder.create<mlir::rlc::Yield>(location);
+		}
+	}
+	builder.setInsertionPointAfter(statements);
+
+	return statements;
+}
+
 /**
  * actionStatement : actionDeclaration '\n'
  */
@@ -729,6 +797,12 @@ Expected<mlir::Operation*> Parser::statement()
 	if (current == Token::KeywordWhile)
 		return whileStatement();
 
+	if (current == Token::KeywordActions)
+	{
+		TRY(f, actionsStatement());
+		return *f;
+	}
+
 	if (current == Token::KeywordFor)
 		return forFieldStatement();
 
@@ -798,6 +872,8 @@ Expected<bool> Parser::statementList()
 	EXPECT(Token::Indent);
 	while (!accept<Token::Deindent>())
 	{
+		while (accept<Token::Newline>())
+			;
 		TRY(s, statement());
 	}
 
@@ -823,10 +899,10 @@ Expected<mlir::rlc::FunctionUseType> Parser::functionTypeUse()
 }
 
 /**
- * singleTypeUse : "(" functionType ")" | identifier["<"singleTypeUse (,
- * singleTypeUse)* ">"]["["int64"|Ident]"] | "OwningPtr<" singleTypeUse ">"
+ * singleNonArrayTypeUse : "(" functionType ")" | identifier | "OwningPtr<"
+ * singleTypeUse ">"
  */
-Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
+Expected<mlir::rlc::ScalarUseType> Parser::singleNonArrayTypeUse()
 {
 	if (accept<Token::LPar>())
 	{
@@ -858,8 +934,19 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 		EXPECT(Token::RAng);
 	}
 
-	if (accept<Token::LSquare>())
+	return mlir::rlc::ScalarUseType::get(ctx, nm, 0, templateParametersTypes);
+}
+
+/**
+ * singleTypeUse : singleNonArrayTypeUse (["["int64"|Ident "]"] )*
+ */
+Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
+{
+	TRY(typeUse, singleNonArrayTypeUse());
+
+	while (accept<Token::LSquare>())
 	{
+		mlir::Type arraySize;
 		if (accept<Token::Int64>())
 		{
 			arraySize = mlir::rlc::IntegerLiteralType::get(ctx, lInt64);
@@ -869,10 +956,10 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
 			EXPECT(Token::Identifier);
 			arraySize = mlir::rlc::ScalarUseType::get(ctx, lIdent, 0);
 		}
+		*typeUse = mlir::rlc::ScalarUseType::get(ctx, *typeUse, "", arraySize, {});
 		EXPECT(Token::RSquare);
 	}
-	return mlir::rlc::ScalarUseType::get(
-			ctx, nm, arraySize, templateParametersTypes);
+	return typeUse;
 }
 
 Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>

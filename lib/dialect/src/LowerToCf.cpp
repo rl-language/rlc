@@ -134,6 +134,36 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
+		mlir::rlc::ActionsStatement op, mlir::IRRewriter& rewriter)
+{
+	rewriter.setInsertionPoint(op);
+	llvm::SmallVector<mlir::rlc::Yield, 2> actionsTerminators;
+	llvm::SmallVector<mlir::Block*> actionsBlocks;
+
+	for (auto& region : op.getActions())
+	{
+		auto terminatos = getYieldTerminators(region);
+		for (auto terminator : terminatos)
+			actionsTerminators.emplace_back(terminator);
+		actionsBlocks.emplace_back(&region.front());
+	}
+
+	auto* previousBlock = rewriter.getBlock();
+	auto* afterBlock =
+			rewriter.splitBlock(previousBlock, rewriter.getInsertionPoint());
+
+	for (auto& region : op.getActions())
+		rewriter.inlineRegionBefore(region, afterBlock);
+
+	mergeYieldsIntoSplittedBlock(actionsTerminators, afterBlock, rewriter);
+
+	rewriter.setInsertionPointToEnd(previousBlock);
+	rewriter.create<mlir::rlc::FlatActionStatement>(op.getLoc(), actionsBlocks);
+
+	return mlir::LogicalResult::success();
+}
+
+static mlir::LogicalResult flatten(
 		mlir::rlc::IfStatement op, mlir::IRRewriter& rewriter)
 {
 	rewriter.setInsertionPoint(op);
@@ -287,6 +317,10 @@ static mlir::LogicalResult squashCF(
 			return res;
 
 		if (auto res = dispatch.operator()<mlir::rlc::WhileStatement>();
+				res.failed())
+			return res;
+
+		if (auto res = dispatch.operator()<mlir::rlc::ActionsStatement>();
 				res.failed())
 			return res;
 	}

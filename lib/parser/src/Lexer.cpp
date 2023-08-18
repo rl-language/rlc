@@ -19,6 +19,15 @@ char Lexer::eatChar()
 		currentLine++;
 		currentColumn = 1;
 	}
+	if (c == '(' or c == '{' or c == '[')
+	{
+		nestedParentesys++;
+	}
+	if (c == ')' or c == '}' or c == ']')
+	{
+		nestedParentesys--;
+	}
+
 	in++;
 	return c;
 }
@@ -98,6 +107,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordEnable";
 		case Token::KeywordTrue:
 			return "KeywordTrue";
+		case Token::KeywordActions:
+			return "KeywordActions";
 		case Token::KeywordFalse:
 			return "KeywordFalse";
 		case Token::KeywordIn:
@@ -348,6 +359,9 @@ Token Lexer::eatIdent()
 	if (name == "true")
 		return Token::KeywordTrue;
 
+	if (name == "actions")
+		return Token::KeywordActions;
+
 	if (name == "import")
 		return Token::KeywordImport;
 
@@ -433,15 +447,21 @@ Token Lexer::next()
 		return Token::End;
 	}
 
-	auto t = eatSpaces();
-	if (t.has_value())
-		return t.value();
-
-	if (deindentToEmit != 0)
+	if (nestedParentesys == 0)
 	{
-		deindentToEmit--;
-		return Token::Deindent;
+		auto t = eatSpaces();
+		if (t.has_value())
+			return t.value();
+
+		if (deindentToEmit != 0)
+		{
+			deindentToEmit--;
+			return Token::Deindent;
+		}
 	}
+	else
+		while (isspace(*in) or *in == '\n')
+			eatChar();
 
 	if (*in == '#')	 // eat comments
 		while (eatChar() != '\n')

@@ -176,6 +176,21 @@ def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<Type
   }];
 }
 
+def RLC_InitializerListOp : RLC_Dialect<"initializer_list", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "statement list.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins Variadic<AnyType>:$args);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$args `:` type($args) type($result) attr-dict 
+  }];
+}
+
 def RLC_CopyOp : RLC_Dialect<"copy"> {
   let summary = "statement list.";
 
@@ -666,19 +681,19 @@ def RLC_CallOp : RLC_Dialect<"call",
 def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$name, StrArrayAttr:$declared_names);
+  let arguments = (ins StrAttr:$name, StrArrayAttr:$declared_names, I64Attr:$id, I64Attr:$resumption_point);
   let description = [{
 	expression.
   }];
   let results = (outs Variadic<AnyType>:$results);
 
    let builders = [
-        OpBuilder<(ins "TypeRange":$results, "StringRef":$name, "ArrayRef<std::string>":$declared_names), [{
+        OpBuilder<(ins "TypeRange":$results, "StringRef":$name, "ArrayRef<std::string>":$declared_names, CArg<"int64_t", "-1">:$id, CArg<"int64_t", "-1">:$resumption_point), [{
             auto nameAttr = $_builder.getStringAttr(name);
             llvm::SmallVector<Attribute> attrs;
             for (auto& name : declared_names)
               attrs.push_back($_builder.getStringAttr(name));
-            build($_builder, $_state, results, nameAttr, $_builder.getArrayAttr(attrs));
+            build($_builder, $_state, results, nameAttr, $_builder.getArrayAttr(attrs), id, resumption_point);
     }]>];
 
   let regions = (region AnyRegion:$precondition);
@@ -1295,7 +1310,7 @@ def RLC_EqualOp : RLC_RelationalOp<"_equal"> {
 	expression.
   }];
 
-  let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
   let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
@@ -1357,6 +1372,38 @@ def RLC_CondBranch : RLC_Dialect<"crb", [Terminator]> {
 
   let assemblyFormat = [{
 	$cond type($cond) $true_branch $false_branch attr-dict
+  }];
+}
+
+def RLC_ActionsStatement : RLC_Dialect<"actions_statement", [NoRegionArguments, DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let regions = (region
+  VariadicRegion<AnyRegion>:$actions
+  );
+
+
+  let assemblyFormat = [{
+	$actions attr-dict
+  }];
+}
+
+def RLC_FlatActionStatement : RLC_Dialect<"flat_actions_statement", [Terminator]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let successors = (successor VariadicSuccessor<AnySuccessor>:$nexts);
+
+
+  let assemblyFormat = [{
+	$nexts attr-dict
   }];
 }
 

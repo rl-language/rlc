@@ -56,7 +56,9 @@ TEST(ActionArgumentAnalysisTest, integerBoundTest)
 			builder.getUnknownLoc(),
 			mlir::TypeRange({ mlir::rlc::IntegerType::getInt64(&ctx) }),
 			"dc",
-			builder.getStrArrayAttr({ "arg" }));
+			builder.getStrArrayAttr({ "arg" }),
+			0,
+			0);
 
 	auto* block = builder.createBlock(
 			&action.getPrecondition(),

@@ -22,6 +22,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 #include "mlir/IR/Verifier.h"
 #include "mlir/InitAllDialects.h"
@@ -30,6 +31,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "mlir/Transforms/Passes.h"
 #include "rlc/conversions/RLCToC.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Passes.hpp"
@@ -214,6 +216,13 @@ static void optimize(llvm::Module &M)
 	// This one corresponds to a typical -O2 optimization pipeline.
 	if (Optimize)
 	{
+		ModulePassManager passManager;
+		FunctionPassManager functionPassManager;
+		functionPassManager.addPass(llvm::PromotePass());
+		passManager.addPass(
+				createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
+		passManager.run(M, MAM);
+
 		PB.buildModuleSimplificationPipeline(
 					OptimizationLevel::O2, llvm::ThinOrFullLTOPhase::ThinLTOPreLink)
 				.run(M, MAM);
@@ -436,6 +445,7 @@ int main(int argc, char *argv[])
 	if (dumpPythonWrapper or dumpPythonAST)
 	{
 		mlir::PassManager manager(&context);
+		manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
 		manager.addPass(mlir::python::createRLCToPythonPass());
 		auto res = manager.run(ast);
 
@@ -497,6 +507,7 @@ int main(int argc, char *argv[])
 	manager.addPass(mlir::rlc::createRespectCReturnTypeCallingConventions());
 	if (not compileOnly)
 		manager.addPass(mlir::rlc::createEmitMainPass());
+	manager.addPass(mlir::createCanonicalizerPass());
 	if (manager.run(ast).failed())
 	{
 		mlir::OpPrintingFlags flags;

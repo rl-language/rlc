@@ -76,6 +76,13 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	if (not getValue().getType().isa<mlir::rlc::ArrayType>() and
+			not getValue().getType().isa<mlir::rlc::OwningPtrType>())
+	{
+		emitError("argument of array access expression is not a array or a owning "
+							"pointer");
+		return mlir::failure();
+	}
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());
 	return mlir::success();
@@ -379,6 +386,22 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::ActionsStatement::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	auto &rewriter = builder.getRewriter();
+
+	for (auto &region : getActions())
+	{
+		auto _ = builder.addSymbolTable();
+		for (auto *op : ops(region))
+			if (mlir::rlc::typeCheck(*op, builder).failed())
+				return mlir::failure();
+	}
+
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -474,7 +497,12 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	rewriter.setInsertionPoint(*this);
 	auto newDecl = rewriter.create<mlir::rlc::ActionStatement>(
-			getLoc(), deducedTypes, getName(), getDeclaredNames());
+			getLoc(),
+			deducedTypes,
+			getName(),
+			getDeclaredNames(),
+			getId(),
+			getResumptionPoint());
 	newDecl.getPrecondition().takeBody(getPrecondition());
 	rewriter.replaceOp(getOperation(), newDecl.getResults());
 
@@ -585,6 +613,60 @@ mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
 	acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
 	return mlir::rlc::detail::typeCheckInteralOp(
 			*this, builder, acceptable, mlir::rlc::VoidType::get(this->getContext()));
+}
+
+static bool initializerListTypeIsValid(mlir::Type t)
+{
+	if (t.isa<mlir::rlc::IntegerType>())
+	{
+		return true;
+	}
+	if (t.isa<mlir::rlc::BoolType>())
+	{
+		return true;
+	}
+	if (t.isa<mlir::rlc::FloatType>())
+	{
+		return true;
+	}
+
+	if (auto type = mlir::dyn_cast<mlir::rlc::ArrayType>(t))
+	{
+		return initializerListTypeIsValid(type.getUnderlying());
+	}
+	return false;
+}
+
+mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	for (auto element : getArgs())
+	{
+		if (element.getType() != getArgs()[0].getType())
+		{
+			emitOpError("initializer list has arguments of different type");
+			element.getDefiningOp()->emitRemark("missmatched argument here");
+			return mlir::failure();
+		}
+	}
+
+	auto type = mlir::rlc::ArrayType::get(
+			getContext(), getArgs()[0].getType(), getArgs().size());
+
+	// the reason we only accept this types is because they are trivially
+	// copiable and the back. if the backend to mlir invoked copy assigment
+	// operators correctly there would not be a need for this.
+	if (not initializerListTypeIsValid(type))
+	{
+		emitOpError("only acceptable types in initializer list are primitive types "
+								"or arrays of primitive types");
+		return mlir::failure();
+	}
+
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::InitializerListOp>(
+			*this, type, getArgs());
+
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::ImplicitAssignOp::typeCheck(
