@@ -28,13 +28,14 @@ act play():
 
 		# declares a suspension point of the simulation,
 		# an action called mark that requires two ints to be performed.
-		act mark(Int x, Int y)
+		act mark(Int x, Int y) {
 		# declares contraints about which inputs are valid
-		req x < 3
-		req x >= 0
-		req y < 3
-		req y >= 0
-		req board.get(x, y) == 0
+			x < 3,
+			x >= 0,
+			y < 3,
+			y >= 0,
+			board.get(x, y) == 0
+		}
 
 		# marks the board at the position provided
 		board.set(x, y)
@@ -145,3 +146,32 @@ Do not push directly onto branches of this repo. Instead:
 
 The intent of this workflow is so that reviewrs can use the review feature of github pull requests to have persistent comment threads.
 
+
+### Features  to develop next
+
+#### missing for release
+* testing properly generated c
+* testing properly generated python
+* scalar type constraints for float
+* proper support for different architectures
+* fix the bug about all loops being unrolled
+* support args to struct
+* allow to return by non copy
+* test error messages
+* inlining of actions
+* alternative types
+
+#### long term feature
+* require clauses out of line
+* require clauses on structs
+* inline initializers
+* string support
+* add array bound checks
+
+#### standard lib
+* graph library
+* dictionary library
+* random library
+
+#### machine learning
+* figure out how to make transformers fast

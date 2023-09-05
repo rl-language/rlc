@@ -565,11 +565,15 @@ llvm::Expected<bool> Parser::requirementList()
 	auto location = getCurrentSourcePos();
 	llvm::SmallVector<mlir::Value, 4> values;
 
-	while (accept<Token::KeywordReq>())
+	if (accept<Token::LBracket>())
 	{
-		TRY(rest, expression());
-		values.push_back(*rest);
-		EXPECT(Token::Newline);
+		do
+		{
+			TRY(rest, expression());
+			values.push_back(*rest);
+		} while (accept<Token::Comma>());
+
+		EXPECT(Token::RBracket);
 	}
 
 	builder.create<mlir::rlc::Yield>(location, values);
@@ -625,7 +629,6 @@ llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
 llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 {
 	TRY(action, actionDeclaration());
-	EXPECT(Token::Newline);
 	auto pos = builder.saveInsertionPoint();
 
 	llvm::SmallVector<std::string, 3> argNames;
@@ -645,6 +648,8 @@ llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 	builder.createBlock(
 			&op.getPrecondition(), {}, action->getArgumentTypes(), locs);
 	TRY(list, requirementList());
+
+	EXPECT(Token::Newline);
 	action->erase();
 
 	builder.restoreInsertionPoint(pos);
@@ -1096,12 +1101,11 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
 
-	EXPECT(Token::Colons);
-	EXPECT(Token::Newline);
-
 	builder.createBlock(
 			&fun.getPrecondition(), {}, fun.getArgumentTypes(), result->argLocs);
 	TRY(list, requirementList());
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
 
 	builder.createBlock(
 			&fun.getBody(), {}, fun.getArgumentTypes(), result->argLocs);
@@ -1151,8 +1155,6 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 {
 	TRY(decl, actionDeclaration());
 	auto location = getCurrentSourcePos();
-	EXPECT(Token::Colons);
-	EXPECT(Token::Newline);
 
 	auto pos = builder.saveInsertionPoint();
 	llvm::SmallVector<mlir::Location> locs;
@@ -1162,6 +1164,8 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 	builder.createBlock(
 			&decl->getPrecondition(), {}, decl->getFunctionType().getInputs(), locs);
 	TRY(list, requirementList());
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
 
 	auto block = builder.createBlock(
 			&decl->getBody(), {}, decl->getFunctionType().getInputs(), locs);

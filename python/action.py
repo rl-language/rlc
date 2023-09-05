@@ -46,7 +46,7 @@ def main():
 
     if not state.is_done():
         print(*args.actions)
-        state.execute_from_raw_bytes(bytes(int(x) for x in args.actions))
+        state.execute(*args.actions)
 
     if args.output != "":
         state.write(args.output)

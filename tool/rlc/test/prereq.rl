@@ -1,8 +1,6 @@
-act example(Int X):
-req X < 4
+act example(Int X) {X < 4}: 
 	X = X + 1
-	act sub_action(Int Y)
-	req Y < X
+	act sub_action(Int Y) {Y < X}
 
 fun main() -> Int:
 	let frame = example(2)
