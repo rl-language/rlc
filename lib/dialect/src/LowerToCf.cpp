@@ -137,6 +137,7 @@ static mlir::LogicalResult flatten(
 		mlir::rlc::ActionsStatement op, mlir::IRRewriter& rewriter)
 {
 	rewriter.setInsertionPoint(op);
+	auto location = op->getLoc();
 	llvm::SmallVector<mlir::rlc::Yield, 2> actionsTerminators;
 	llvm::SmallVector<mlir::Block*> actionsBlocks;
 
@@ -158,7 +159,7 @@ static mlir::LogicalResult flatten(
 	mergeYieldsIntoSplittedBlock(actionsTerminators, afterBlock, rewriter);
 
 	rewriter.setInsertionPointToEnd(previousBlock);
-	rewriter.create<mlir::rlc::FlatActionStatement>(op.getLoc(), actionsBlocks);
+	rewriter.create<mlir::rlc::FlatActionStatement>(location, actionsBlocks);
 
 	return mlir::LogicalResult::success();
 }

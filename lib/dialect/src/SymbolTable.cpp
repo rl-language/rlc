@@ -324,6 +324,7 @@ mlir::Type mlir::rlc::ModuleBuilder::typeOfAction(mlir::rlc::ActionFunction& f)
 	return actionToActionType[f.getResult()];
 }
 
+// returns the list of action statements invoked by the body of this action.
 llvm::iterator_range<mlir::Operation**>
 mlir::rlc::ModuleBuilder::actionStatementsOfAction(
 		mlir::rlc::ActionFunction& val)

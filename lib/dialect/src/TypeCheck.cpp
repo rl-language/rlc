@@ -388,6 +388,14 @@ static mlir::LogicalResult deduceTraitTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
+/*
+	Rewrites the Action Function operations in the module to include the type, which contains information about
+	- Arguments
+	- Members (arguments, declared variables, variables provided by subactions, resume_index)
+	- Subactions
+	- Preconditions
+	- Body
+*/
 static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 {
 	mlir::rlc::ModuleBuilder builder(op);
@@ -395,19 +403,24 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 
 	llvm::SmallVector<mlir::rlc::ActionFunction, 4> funs(
 			op.getOps<mlir::rlc::ActionFunction>());
+
+	// iterate through all ActionFunctions in the module
 	for (auto fun : funs)
 	{
 		llvm::SmallVector<mlir::Type, 3> generatedFunctions;
 
+		auto funType = builder.typeOfAction(fun);
+ 
 		mlir::Type actionType =
 				builder.getConverter().convertType(mlir::FunctionType::get(
 						op.getContext(),
 						fun.getFunctionType().getInputs(),
-						{ builder.typeOfAction(fun) }));
+						{ funType }));
 
+		// for each subaction invoked by this action, add it to generatedFunctions 
 		for (const auto& op : builder.actionStatementsOfAction(fun))
 		{
-			llvm::SmallVector<mlir::Type, 3> args({ builder.typeOfAction(fun) });
+			llvm::SmallVector<mlir::Type, 3> args({ funType });
 
 			for (auto type : op->getResultTypes())
 			{
@@ -419,13 +432,14 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 					mlir::FunctionType::get(op->getContext(), args, mlir::TypeRange()));
 		}
 
+		// rewrite the Action Function Operation with the generatedFunctions.
 		rewriter.setInsertionPoint(fun);
 		auto newAction = rewriter.create<mlir::rlc::ActionFunction>(
 				fun.getLoc(),
 				actionType,
 				mlir::FunctionType::get(
 						rewriter.getContext(),
-						mlir::TypeRange({ builder.typeOfAction(fun) }),
+						mlir::TypeRange({ funType }),
 						mlir::TypeRange(
 								{ mlir::rlc::BoolType::get(rewriter.getContext()) })),
 				generatedFunctions,
@@ -437,9 +451,12 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 
 		llvm::SmallVector<mlir::Type, 4> memberTypes;
 		llvm::SmallVector<std::string, 4> memberNames;
+
+		// add the implicit local variable "resume_index" to members
 		memberTypes.push_back(mlir::rlc::IntegerType::getInt64(op.getContext()));
 		memberNames.push_back("resume_index");
 
+		// add args to members
 		for (auto [type, name] :
 				 llvm::zip(newAction.getArgumentTypes(), newAction.getArgNames()))
 		{
@@ -447,6 +464,7 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 			memberNames.push_back(name.cast<mlir::StringAttr>().str());
 		}
 
+		// add the variables "returned" by subactions to members
 		newAction.walk([&](mlir::rlc::ActionStatement statement) {
 			for (auto [type, name] :
 					 llvm::zip(statement.getResults(), statement.getDeclaredNames()))
@@ -456,12 +474,14 @@ static mlir::LogicalResult deduceActionTypes(mlir::ModuleOp op)
 			}
 		});
 
+		// add all declared variables to members
 		newAction.walk([&](mlir::rlc::DeclarationStatement statement) {
 			memberTypes.push_back(statement.getType());
 			memberNames.push_back(statement.getSymName().str());
 		});
 
-		auto res = builder.typeOfAction(fun).cast<mlir::rlc::EntityType>().setBody(
+		// add the types of all named members to the action's type.
+		auto res = funType.cast<mlir::rlc::EntityType>().setBody(
 				memberTypes, memberNames);
 		assert(res.succeeded());
 	}
