@@ -181,11 +181,6 @@ mlir::LogicalResult mlir::rlc::python::PythonReturn::emit(
 mlir::LogicalResult mlir::rlc::python::AssignResultType::emit(
 		llvm::raw_ostream& OS, SerializationContext& context)
 {
-	OS.indent(context.getIndent() * 4);
-	OS << context.nameOf(getLhs()) << ".restype = ";
-	writeTypeName(OS, getReturnType());
-	OS << "\n";
-
 	return mlir::success();
 }
 
@@ -264,16 +259,25 @@ mlir::LogicalResult mlir::rlc::python::PythonCall::emit(
 {
 	OS.indent(context.getIndent() * 4);
 	assert(getNumResults() <= 1);
-	if (getNumResults() != 0)
+	if (getNumResults() != 0 and
+			not getResults()[0].getType().isa<mlir::rlc::python::NoneType>())
 	{
-		OS << context.registerValue(getResults().front()) << " = ";
+		OS << context.registerValue(getResults().front()) << " = "
+			 << "(" << typeToString(getResults().front().getType(), true) << ")()\n";
+		OS.indent(context.getIndent() * 4);
 	}
 
 	OS << context.nameOf(getCallee()) << "(";
 
+	if (getNumResults() != 0 and
+			not getResults()[0].getType().isa<mlir::rlc::python::NoneType>())
+	{
+		OS << "byref(" << context.nameOf(getResults().front()) << "), ";
+	}
+
 	for (auto arg : getArgs())
 	{
-		OS << "pointer(" << context.nameOf(arg) << "), ";
+		OS << "byref(" << context.nameOf(arg) << "), ";
 	}
 
 	OS << ")\n";

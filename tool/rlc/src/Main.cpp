@@ -504,7 +504,6 @@ int main(int argc, char *argv[])
 	manager.addPass(mlir::rlc::createLowerToCfPass());
 	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 	manager.addPass(mlir::rlc::createLowerToLLVMPass());
-	manager.addPass(mlir::rlc::createRespectCReturnTypeCallingConventions());
 	if (not compileOnly)
 		manager.addPass(mlir::rlc::createEmitMainPass());
 	manager.addPass(mlir::createCanonicalizerPass());

@@ -13,7 +13,7 @@ static std::string nonArrayTypeToString(mlir::Type type)
 	std::string O;
 	llvm::raw_string_ostream OS(O);
 	llvm::TypeSwitch<mlir::Type>(type)
-			.Case([&](mlir::rlc::EntityType Entity) { OS << Entity.getName(); })
+			.Case([&](mlir::rlc::EntityType Entity) { OS << Entity.mangledName(); })
 			.Case<mlir::rlc::FloatType>([&](mlir::rlc::FloatType) { OS << "double"; })
 			.Case<mlir::rlc::BoolType>([&](mlir::rlc::BoolType) { OS << "uint8_t"; })
 			.Case<mlir::rlc::IntegerType>([&](mlir::rlc::IntegerType Type) {
@@ -36,7 +36,13 @@ static std::string typeToString(mlir::Type type)
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case<mlir::rlc::ArrayType>([&](mlir::rlc::ArrayType array) {
 				OS << typeToString(array.getUnderlying());
-				OS << "[" << array.getSize() << "]";
+				OS << "["
+					 << array.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()
+					 << "]";
+			})
+			.Case<mlir::rlc::OwningPtrType>([&](mlir::rlc::OwningPtrType ptr) {
+				OS << typeToString(ptr.getUnderlying());
+				OS << "*";
 			})
 			.Default([&](auto type) { OS << nonArrayTypeToString(type); });
 	OS.flush();
@@ -49,7 +55,13 @@ static void printTypeField(
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case<mlir::rlc::ArrayType>([&](mlir::rlc::ArrayType array) {
 				printTypeField(fieldName, array.getUnderlying(), OS);
-				OS << "[" << array.getSize() << "]";
+				OS << "["
+					 << array.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()
+					 << "]";
+			})
+			.Case<mlir::rlc::OwningPtrType>([&](mlir::rlc::OwningPtrType ptr) {
+				OS << typeToString(ptr.getUnderlying());
+				OS << "*";
 			})
 			.Default([&](auto type) { OS << nonArrayTypeToString(type); });
 
@@ -71,12 +83,14 @@ static void printTypeDefinition(mlir::Type type, llvm::raw_ostream& OS)
 					OS << ";\n";
 				}
 
-				OS << "} " << Entity.getName() << ";\n";
+				OS << "} " << Entity.mangledName() << ";\n";
 			})
 			.Case<
 					mlir::rlc::IntegerType,
 					mlir::rlc::BoolType,
 					mlir::rlc::FloatType,
+					mlir::rlc::OwningPtrType,
+					mlir::rlc::IntegerLiteralType,
 					mlir::rlc::ArrayType>([&](auto) {	 // Pass, already defined by C
 			})
 			.Default([](auto type) {
@@ -95,11 +109,18 @@ static void printFunctionSignature(
 		llvm::raw_ostream& OS)
 {
 	OS << "#ifdef RLC_GET_FUNCTION_DECLS\n";
-	if (type.getResults().empty())
-		OS << "void ";
-	else
-		printTypeField("", type.getResults().front(), OS);
+	OS << "void ";
 	OS << name << "(";
+
+	if (not type.getResults().empty() and
+			not type.getResults()[0].isa<mlir::rlc::VoidType>())
+	{
+		printTypeField("* __result", type.getResults().front(), OS);
+
+		if (fieldNames.size() != 0)
+			OS << ", ";
+	}
+
 	for (size_t index = 0; index < fieldNames.size(); index++)
 	{
 		printTypeField(
@@ -164,7 +185,9 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 #define RLC_VISIT_FUNCTION(name, mangled_name, cShortName, return_type, ...)   \
 	static inline return_type cShortName(RLC_ARGUMENTS)                         \
 	{                                                                            \
-		return mangled_name(__VA_ARGS__);                                          \
+		return_type ret_value;
+		mangled_name(&ret_value, __VA_ARGS__);                                          \
+		return ret_value;
 	} 
 #endif
 )"""";

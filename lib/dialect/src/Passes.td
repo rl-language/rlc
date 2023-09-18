@@ -86,11 +86,6 @@ def EmitImplicitDestructorsPass : Pass<"rlc-emit-implicit-destructors-pass", "ml
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
-def RespectCReturnTypeCallingConventions: Pass<"rlc-respect-c-return-type-calling-conventions", "mlir::ModuleOp"> {
-  let summary = "make sure that function with a return type larger than 64 are passed as pointers";
-  let dependentDialects = ["rlc::RLCDialect"];
-}
-
 def LowerDestructorsPass : Pass<"rlc-lower-destructors-pass", "mlir::ModuleOp"> {
   let summary = "maps destructors invocations to a call";
   let dependentDialects = ["rlc::RLCDialect"];

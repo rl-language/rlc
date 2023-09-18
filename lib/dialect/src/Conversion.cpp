@@ -524,17 +524,18 @@ class YieldRewriter: public mlir::OpConversionPattern<mlir::rlc::Yield>
 		rewriter.setInsertionPoint(op);
 		assert(op.getArguments().size() <= 1);
 		assert(op.getOnEnd().empty());
-		if (adaptor.getArguments().empty())
-		{
-			rewriter.replaceOpWithNewOp<mlir::LLVM::ReturnOp>(op, mlir::ValueRange());
-		}
-		else
+		if (not adaptor.getArguments().empty())
 		{
 			auto loaded =
 					makeAlignedLoad(rewriter, adaptor.getArguments()[0], op.getLoc());
-			rewriter.replaceOpWithNewOp<mlir::LLVM::ReturnOp>(
-					op, mlir::ValueRange({ loaded }));
+			makeAlignedStore(
+					rewriter,
+					loaded,
+					op->getParentOfType<mlir::LLVM::LLVMFuncOp>().getArguments()[0],
+					op.getLoc());
 		}
+		auto newOp = rewriter.replaceOpWithNewOp<mlir::LLVM::ReturnOp>(
+				op, mlir::ValueRange());
 
 		return mlir::LogicalResult::success();
 	}
@@ -687,37 +688,38 @@ class CallRewriter: public mlir::OpConversionPattern<mlir::rlc::CallOp>
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		llvm::SmallVector<mlir::Type, 2> out;
+		rewriter.setInsertionPoint(op);
+		llvm::SmallVector<mlir::Value, 2> args;
+		assert(op.getNumResults() <= 1);
+		args.push_back(adaptor.getCallee());
+		auto loc = op.getLoc();
 
-		for (auto type : op.getResultTypes())
+		if (op.getNumResults() == 1 and
+				not op.getResult(0).getType().isa<mlir::rlc::VoidType>())
 		{
-			if (type.isa<mlir::rlc::VoidType>())
-				continue;
+			auto type = op.getResult(0).getType();
 
 			auto res = typeConverter->convertType(type);
 
-			out.push_back(res.cast<mlir::LLVM::LLVMPointerType>().getElementType());
-		}
+			auto resultType =
+					res.cast<mlir::LLVM::LLVMPointerType>().getElementType();
 
-		rewriter.setInsertionPoint(op);
-		llvm::SmallVector<mlir::Value, 2> args;
-		args.push_back(adaptor.getCallee());
-		for (auto arg : adaptor.getArgs())
-			args.push_back(arg);
-
-		auto res = rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), out, args);
-
-		if (not out.empty())
-		{
 			auto alloca = makeAlloca(
-					rewriter, mlir::LLVM::LLVMPointerType::get(out.front()), op.getLoc());
+					rewriter, mlir::LLVM::LLVMPointerType::get(resultType), op.getLoc());
+
+			args.push_back(alloca);
 			rewriter.replaceOp(op, alloca);
-			makeAlignedStore(rewriter, res.getResults().front(), alloca, op.getLoc());
 		}
 		else
 		{
 			rewriter.eraseOp(op);
 		}
+
+		for (auto arg : adaptor.getArgs())
+			args.push_back(arg);
+
+		auto newOp = rewriter.create<mlir::LLVM::CallOp>(
+				op.getLoc(), mlir::ValueRange(), args);
 
 		return mlir::LogicalResult::success();
 	}
@@ -1025,6 +1027,12 @@ class FunctionRewriter
 				op.getLoc(), op.getMangledName(), fType, linkage);
 		rewriter.cloneRegionBefore(
 				op.getBody(), newF.getBody(), newF.getBody().begin());
+
+		if (not op.isDeclaration() and op.getType().getResults().size() == 1 and
+				not op.getType().getResults().front().isa<mlir::rlc::VoidType>())
+			newF.getBody().front().insertArgument(
+					size_t(0), op.getType().getResults().front(), op.getLoc());
+
 		rewriter.eraseOp(op);
 		auto convered =
 				rewriter.convertRegionTypes(&newF.getRegion(), *typeConverter);
@@ -1329,155 +1337,6 @@ static mlir::Value lowerGreaterEqual(
 
 namespace mlir::rlc
 {
-#define GEN_PASS_DEF_RESPECTCRETURNTYPECALLINGCONVENTIONS
-#include "rlc/dialect/Passes.inc"
-
-	static void promoteTooLargeReturnValuesToArgument(mlir::ModuleOp op)
-	{
-		mlir::IRRewriter rewriter(op.getContext());
-		auto dl = mlir::DataLayout::closest(op);
-		llvm::SmallVector<mlir::LLVM::LLVMFuncOp, 4> functions;
-		for (auto f : op.getOps<mlir::LLVM::LLVMFuncOp>())
-			functions.push_back(f);
-
-		for (auto function : functions)
-		{
-			if (function.getFunctionType()
-							.getReturnType()
-							.isa<mlir::LLVM::LLVMVoidType>())
-				continue;
-			if (dl.getTypeSizeInBits(function.getFunctionType().getReturnType()) <=
-					64)
-				continue;
-
-			llvm::SmallVector<mlir::Type, 3> realTypes;
-			auto pointerToReturnType = mlir::LLVM::LLVMPointerType::get(
-					function.getFunctionType().getReturnType());
-			realTypes.push_back(pointerToReturnType);
-			for (auto type : function.getFunctionType().getParams())
-				realTypes.push_back(type);
-			auto realType = mlir::LLVM::LLVMFunctionType::get(
-					mlir::LLVM::LLVMVoidType::get(op.getContext()), realTypes);
-
-			rewriter.setInsertionPoint(function);
-			auto newF = rewriter.create<mlir::LLVM::LLVMFuncOp>(
-					function.getLoc(),
-					function.getSymName(),
-					realType,
-					function.getLinkage());
-
-			newF.getBody().takeBody(function.getBody());
-			newF.getBody().insertArgument(
-					unsigned(0), pointerToReturnType, function.getLoc());
-			rewriter.eraseOp(function);
-
-			llvm::SmallVector<mlir::LLVM::ReturnOp, 3> toReplace;
-			newF.walk([&](mlir::LLVM::ReturnOp ret) { toReplace.push_back(ret); });
-
-			for (auto& ret : toReplace)
-			{
-				rewriter.setInsertionPoint(ret);
-				makeAlignedStore(
-						rewriter,
-						ret.getArg(),
-						newF.getBody().getArgument(0),
-						newF.getLoc());
-
-				rewriter.replaceOpWithNewOp<mlir::LLVM::ReturnOp>(
-						ret, mlir::ValueRange());
-			}
-		}
-	}
-
-	static void promoteTooLargeReturnValueCalls(mlir::ModuleOp op)
-	{
-		mlir::IRRewriter rewriter(op.getContext());
-		auto dl = mlir::DataLayout::closest(op.getOperation());
-		llvm::SmallVector<mlir::LLVM::CallOp, 4> calls;
-		op.walk([&](mlir::LLVM::CallOp op) { calls.push_back(op); });
-		for (auto call : calls)
-		{
-			if (call.getNumResults() < 1)
-				continue;
-			assert(call.getNumResults() == 1);
-
-			if (dl.getTypeSizeInBits(call.getResults().front().getType()) <= 64)
-				continue;
-
-			rewriter.setInsertionPoint(call);
-
-			auto alloca = makeAlloca(
-					rewriter,
-					mlir::LLVM::LLVMPointerType::get(call.getResults().front().getType()),
-					call.getLoc());
-
-			llvm::SmallVector<mlir::Value, 3> arguments;
-			arguments = { call.getOperands().front(), alloca };
-			for (auto operand : call.getOperands().drop_front())
-				arguments.push_back(operand);
-
-			rewriter.create<mlir::LLVM::CallOp>(
-					call.getLoc(), mlir::TypeRange(), call.getCalleeAttr(), arguments);
-
-			auto load = makeAlignedLoad(rewriter, alloca, alloca.getLoc());
-			call.getResult().replaceAllUsesWith(load);
-			rewriter.eraseOp(call);
-		}
-	}
-
-	static void promoteTooLargeReturnValueRefs(mlir::ModuleOp op)
-	{
-		mlir::IRRewriter rewriter(op.getContext());
-		auto dl = mlir::DataLayout::closest(op.getOperation());
-		llvm::SmallVector<mlir::LLVM::AddressOfOp, 4> addressOf;
-		op.walk([&](mlir::LLVM::AddressOfOp op) { addressOf.push_back(op); });
-
-		for (auto& op : addressOf)
-		{
-			auto t =
-					op.getType().cast<mlir::LLVM::LLVMPointerType>().getElementType();
-			if (not t.isa<mlir::LLVM::LLVMFunctionType>())
-				continue;
-
-			auto fType = t.cast<mlir::LLVM::LLVMFunctionType>();
-			if (fType.getReturnTypes().size() != 1)
-				continue;
-
-			if (fType.getReturnType().isa<mlir::LLVM::LLVMVoidType>())
-				continue;
-
-			if (dl.getTypeSizeInBits(fType.getReturnType()) <= 64)
-				continue;
-
-			auto pointerToReturnType =
-					mlir::LLVM::LLVMPointerType::get(fType.getReturnType());
-			llvm::SmallVector<mlir::Type, 3> realTypes;
-			realTypes.push_back(pointerToReturnType);
-			for (auto type : fType.getParams())
-				realTypes.push_back(type);
-
-			auto realType = mlir::LLVM::LLVMFunctionType::get(
-					mlir::LLVM::LLVMVoidType::get(op.getContext()), realTypes);
-			rewriter.setInsertionPoint(op);
-			rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(
-					op, mlir::LLVM::LLVMPointerType::get(realType), op.getGlobalName());
-		}
-	}
-
-	struct RespectCReturnTypeCallingConventions
-			: impl::RespectCReturnTypeCallingConventionsBase<
-						RespectCReturnTypeCallingConventions>
-	{
-		using impl::RespectCReturnTypeCallingConventionsBase<
-				RespectCReturnTypeCallingConventions>::
-				RespectCReturnTypeCallingConventionsBase;
-		void runOnOperation() override
-		{
-			promoteTooLargeReturnValuesToArgument(getOperation());
-			promoteTooLargeReturnValueCalls(getOperation());
-			promoteTooLargeReturnValueRefs(getOperation());
-		}
-	};
 
 #define GEN_PASS_DEF_LOWERTOLLVMPASS
 #include "rlc/dialect/Passes.inc"

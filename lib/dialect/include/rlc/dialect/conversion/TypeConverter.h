@@ -92,26 +92,17 @@ namespace mlir::rlc
 		});
 		converter.addConversion([&](mlir::FunctionType type) -> Type {
 			SmallVector<Type, 2> args;
+			for (auto arg : type.getResults())
+			{
+				if (not arg.isa<mlir::rlc::VoidType>())
+					args.push_back(converter.convertType(arg));
+			}
+
 			for (auto arg : type.getInputs())
 				args.push_back(converter.convertType(arg));
 
-			SmallVector<Type, 2> res;
-			for (auto arg : type.getResults())
-			{
-				if (arg.isa<mlir::rlc::VoidType>())
-					res.push_back(mlir::LLVM::LLVMVoidType::get(type.getContext()));
-				else
-					res.push_back(converter.convertType(arg)
-														.cast<mlir::LLVM::LLVMPointerType>()
-														.getElementType());
-			}
-
-			if (res.empty())
-				res.push_back(mlir::LLVM::LLVMVoidType::get(type.getContext()));
-
-			assert(res.size() == 1);
-			return mlir::LLVM::LLVMPointerType::get(
-					mlir::LLVM::LLVMFunctionType::get(res.front(), args));
+			return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMFunctionType::get(
+					mlir::LLVM::LLVMVoidType::get(type.getContext()), args));
 		});
 		converter.addConversion([&](mlir::rlc::EntityType type) -> Type {
 			SmallVector<Type, 2> fields;

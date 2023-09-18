@@ -41,12 +41,29 @@ namespace mlir::rlc
 			auto* block = op.addEntryBlock();
 			builder.setInsertionPoint(block, block->begin());
 
+			auto count = builder.create<mlir::LLVM::ConstantOp>(
+					realMain.getLoc(),
+					builder.getI64Type(),
+					builder.getI64IntegerAttr(1));
+			auto alloca = builder.create<mlir::LLVM::AllocaOp>(
+					realMain.getLoc(),
+					mlir::LLVM::LLVMPointerType::get(builder.getI64Type()),
+					count,
+					0);
 			auto call = builder.create<mlir::LLVM::CallOp>(
-					realMain.getLoc(), realMain, mlir::ValueRange());
+					realMain.getLoc(), realMain, mlir::ValueRange({ alloca }));
+
+			auto aligment =
+					mlir::DataLayout::closest(alloca).getTypePreferredAlignment(
+							alloca.getType()
+									.cast<mlir::LLVM::LLVMPointerType>()
+									.getElementType());
+			auto loaded = builder.create<mlir::LLVM::LoadOp>(
+					realMain.getLoc(), alloca, aligment);
 
 			auto res = *call.getResults().begin();
 			auto trunchated = builder.create<mlir::LLVM::TruncOp>(
-					realMain.getLoc(), returnType, res);
+					realMain.getLoc(), returnType, loaded);
 			builder.create<mlir::LLVM::ReturnOp>(
 					realMain.getLoc(), mlir::ValueRange({ trunchated }));
 		}

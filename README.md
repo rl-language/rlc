@@ -153,7 +153,6 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 * testing properly generated c
 * testing properly generated python
 * scalar type constraints for float
-* proper support for different architectures
 * fix the bug about all loops being unrolled
 * support args to struct
 * allow to return by non copy
@@ -167,6 +166,7 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 * inline initializers
 * string support
 * add array bound checks
+* proper support for different architectures
 
 #### standard lib
 * graph library

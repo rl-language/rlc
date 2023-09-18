@@ -216,6 +216,12 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 	auto result = rewriter.create<mlir::rlc::python::PythonCall>(
 			loc, mlir::TypeRange({ resType }), res, values);
 
+	if (resType.isa<mlir::rlc::python::NoneType>())
+	{
+		rewriter.create<mlir::rlc::python::PythonReturn>(loc, mlir::ValueRange());
+		return f;
+	}
+
 	mlir::Value toReturn = result.getResult(0);
 
 	if (resType.isa<mlir::rlc::python::CTypesFloatType>())
