@@ -421,6 +421,7 @@ int main(int argc, char *argv[])
 	templateInstantiator.addPass(mlir::rlc::createEmitImplicitAssignPass());
 	templateInstantiator.addPass(mlir::rlc::createEmitImplicitInitPass());
 	templateInstantiator.addPass(mlir::rlc::createLowerArrayCallsPass());
+	templateInstantiator.addPass(mlir::rlc::createAddOutOfBoundsCheckPass());
 	if (templateInstantiator.run(ast).failed())
 	{
 		mlir::OpPrintingFlags flags;

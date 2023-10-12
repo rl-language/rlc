@@ -100,3 +100,8 @@ def SortTypeDeclarationsPass : Pass<"rlc-sort-type-declarations", "mlir::ModuleO
   let summary = "for each enum declare a entity";
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def AddOutOfBoundsCheckPass : Pass<"rlc-add-out-of-bounds-check", "mlir::ModuleOp"> {
+  let summary = "add bound checks for array accesses";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

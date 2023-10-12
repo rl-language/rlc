@@ -1592,3 +1592,7 @@ def RLC_ValueUpcastOp : RLC_Dialect<"value_upcast", [DeclareOpInterfaceMethods<T
 	$input type($input) `->` type($result) attr-dict 
   }];
 }
+
+def RLC_AbortOp : RLC_Dialect<"abort", [Terminator]> {
+  let summary="terminates the execution.";
+}
