@@ -13,7 +13,7 @@ static void emitPreconditionFunction(mlir::rlc::FunctionOp fun)
 			fun.getContext(),
 			fun.getFunctionType().getInputs(),
 			{ mlir::rlc::BoolType::get(fun.getContext()) });
-	auto validityFunction = rewriter.create<mlir::rlc::FlatFunctionOp>(
+	auto validityFunction = rewriter.create<mlir::rlc::FunctionOp>(
 			fun.getLoc(),
 			("can_" + fun.getUnmangledName()).str(),
 			ftype,

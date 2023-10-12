@@ -1,5 +1,5 @@
 macro (rlc_test_file file_name)
-add_test(NAME compile_${file_name} COMMAND rlc::rlc ${CMAKE_CURRENT_SOURCE_DIR}/${file_name} -o ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.compiled -O2 -i ${CMAKE_SOURCE_DIR}/stdlib/)
+add_test(NAME compile_${file_name} COMMAND rlc::rlc ${CMAKE_CURRENT_SOURCE_DIR}/${file_name} -o ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.compiled -O2 -i ${CMAKE_SOURCE_DIR}/stdlib/ --emit-precondition-checks)
 add_test(NAME dump_unchecked_ast_${file_name} COMMAND rlc::rlc ${CMAKE_CURRENT_SOURCE_DIR}/${file_name} --unchecked -i ${CMAKE_SOURCE_DIR}/stdlib/)
 add_test(NAME dump_ast_${file_name} COMMAND rlc::rlc ${CMAKE_CURRENT_SOURCE_DIR}/${file_name} --rlc -i ${CMAKE_SOURCE_DIR}/stdlib/)
 add_test(NAME execute_${file_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${file_name}.compiled)

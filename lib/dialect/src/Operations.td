@@ -1605,4 +1605,14 @@ def RLC_FunctionMetadataOp : RLC_Dialect<"function_metadata"> {
 
 def RLC_AbortOp : RLC_Dialect<"abort", [Terminator]> {
   let summary="terminates the execution.";
+  
+  let assemblyFormat = "attr-dict";
+}
+
+def RLC_AssertOp : RLC_Dialect<"assert"> {
+  let summary="terminates the execution if the assertion does not evaluate to true.";
+
+  let arguments = (ins RLCBoolOrUnkownType:$assertion);
+
+  let assemblyFormat = "$assertion type($assertion) attr-dict";
 }

@@ -132,9 +132,6 @@ static cl::opt<bool> shared(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
-static cl::opt<bool> Optimize(
-		"O2", cl::desc("Optimize"), cl::init(false), cl::cat(astDumperCategory));
-
 static cl::opt<bool> dumpIR(
 		"ir",
 		cl::desc("dumps the llvm-ir and exits"),
@@ -143,6 +140,21 @@ static cl::opt<bool> dumpIR(
 
 static cl::opt<string> outputFile(
 		"o", cl::desc("<output-file>"), cl::init("-"), cl::cat(astDumperCategory));
+
+static cl::opt<bool> emitPreconditionChecks(
+		"emit-precondition-checks",
+		cl::desc("emits precondition checks for functions"),
+		cl::init(true),
+		cl::cat(astDumperCategory)
+);
+
+static cl::opt<bool> Optimize(
+		"O2",
+		cl::desc("Optimize"),
+		cl::callback([](const bool &value){emitPreconditionChecks.setInitialValue(!value);}),
+		cl::init(false),
+		cl::cat(astDumperCategory)
+		);
 
 static void configurePassManager(
 		const llvm::SmallVector<std::string, 4> &includeDirs,
@@ -225,6 +237,13 @@ static void configurePassManager(
 	}
 
 	manager.addPass(mlir::rlc::createExtractPreconditionPass());
+
+	if (emitPreconditionChecks)
+	{
+		manager.addPass(mlir::rlc::createAddPreconditionsCheckPass());
+	}
+
+	manager.addPass(mlir::rlc::createLowerAssertsPass());
 	manager.addPass(mlir::rlc::createLowerToCfPass());
 	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 	manager.addPass(mlir::rlc::createStripFunctionMetadataPass());

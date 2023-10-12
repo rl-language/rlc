@@ -41,27 +41,17 @@ namespace mlir::rlc
 			}
 
 			mlir::OpBuilder builder(op);
-			auto ifStatement = builder.create<mlir::rlc::IfStatement>(op->getLoc());
 
 			// construct the condition
-			auto *conditionBlock = builder.createBlock(&ifStatement.getCondition());
-			auto arraySizeConst = builder.create<mlir::rlc::Constant>(ifStatement->getLoc(), array.getArraySize());
-			auto ge = builder.create<mlir::rlc::GreaterEqualOp>(ifStatement->getLoc(), op.getMemberIndex(), arraySizeConst.getResult());
+			auto arraySizeConst = builder.create<mlir::rlc::Constant>(op->getLoc(), array.getArraySize());
+			auto ge = builder.create<mlir::rlc::GreaterEqualOp>(op->getLoc(), op.getMemberIndex(), arraySizeConst.getResult());
+			auto zero = builder.create<mlir::rlc::Constant>(op->getLoc(), (int64_t) 0);
+			auto lt = builder.create<mlir::rlc::LessOp>(op->getLoc(), op.getMemberIndex(), zero);
+			auto disj = builder.create<OrOp>(op->getLoc(), ge, lt);
+			auto neg = builder.create<NotOp>(op.getLoc(), disj);
 
-			auto zero = builder.create<mlir::rlc::Constant>(ifStatement->getLoc(), (int64_t) 0);
-			auto lt = builder.create<mlir::rlc::LessOp>(ifStatement->getLoc(), op.getMemberIndex(), zero);
-
-			auto disj = builder.create<OrOp>(ifStatement->getLoc(), ge, lt);
-			builder.create<mlir::rlc::Yield>(ifStatement.getLoc(), disj.getResult());
-
-
-			// construct the true branch
-			auto *trueBranch = builder.createBlock(&ifStatement.getTrueBranch());
-			builder.create<mlir::rlc::AbortOp>(ifStatement.getLoc());
-
-			// construct the false branch that does nothing
-			auto *falseBranch = builder.createBlock(&ifStatement.getElseBranch());
-			builder.create<mlir::rlc::Yield>(ifStatement.getLoc());
+			// emit the assertion.
+			builder.create<mlir::rlc::AssertOp>(op.getLoc(), neg);
 		}
 	};
 

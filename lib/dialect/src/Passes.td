@@ -179,3 +179,13 @@ def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def LowerAssertsPass : Pass<"rlc-lower-asserts", "mlir::ModuleOp"> {
+  let summary = "lower AssertOp's into if statements and AbortOp's";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def AddPreconditionsCheckPass : Pass<"rlc-add-preconditions-check", "mlir::ModuleOp"> {
+  let summary = "add bound checks for action preconditions";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
