@@ -16,7 +16,6 @@ def RLC_Dialect : Dialect {
   /// The C++ namespace that the dialect, and its sub-components, get placed in.
   let cppNamespace = "::mlir::rlc";
   let useDefaultTypePrinterParser = 0;
-  let useFoldAPI = kEmitFoldAdaptorFolder;
 
   let dependentDialects = [
 	"LLVM::LLVMDialect"

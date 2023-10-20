@@ -13,6 +13,7 @@ namespace mlir::rlc
 }
 
 #define GET_TYPEDEF_CLASSES
+#include "rlc/dialect/TypeStorage.hpp"
 #include "rlc/dialect/Types.inc"
 
 namespace mlir::rlc
@@ -22,14 +23,10 @@ namespace mlir::rlc
 
 	std::string mangledName(
 			llvm::StringRef functionName, mlir::FunctionType type);
-	struct StructTypeStorage;
 
-	class EntityType: public Type::TypeBase<
-												EntityType,
-												Type,
-												StructTypeStorage,
-												SubElementTypeInterface::Trait,
-												TypeTrait::IsMutable>
+	class EntityType
+			: public Type::
+						TypeBase<EntityType, Type, StructTypeStorage, TypeTrait::IsMutable>
 	{
 		public:
 		/// Inherit base constructors.
@@ -81,8 +78,7 @@ namespace mlir::rlc
 
 		/// Verifies that the type about to be constructed is well-formed.
 		static LogicalResult verify(
-				function_ref<InFlightDiagnostic()> emitError,
-				std::pair<llvm::StringRef, llvm::SmallVector<mlir::Type, 2>> &);
+				function_ref<InFlightDiagnostic()> emitError, StructTypeStorage::Key &);
 		static LogicalResult verify(
 				function_ref<InFlightDiagnostic()> emitError, ArrayRef<Type> types);
 		std::string mangledName();
@@ -106,3 +102,35 @@ namespace mlir::rlc
 			mlir::Type replacement);
 }	 // namespace mlir::rlc
 	 //
+namespace mlir
+{
+
+	template<>
+	struct AttrTypeSubElementHandler<mlir::rlc::EntityType>
+	{
+		static void walk(
+				const rlc::EntityType &param, AttrTypeImmediateSubElementWalker &walker)
+		{
+			for (Type type : param.getBody())
+				walker.walk(type);
+
+			for (Type type : param.getExplicitTemplateParameters())
+				walker.walk(type);
+		}
+		static FailureOr<rlc::EntityType> replace(
+				const rlc::EntityType &param,
+				AttrSubElementReplacements &attrRepls,
+				TypeSubElementReplacements &typeRepls)
+		{
+			auto type = rlc::EntityType::getIdentified(
+					param.getContext(),
+					param.getName(),
+					typeRepls.take_front(param.getBody().size()));
+			auto result = type.setBody(
+					typeRepls.take_front(param.getBody().size()), param.getFieldNames());
+			assert(result.succeeded());
+			return type;
+		}
+	};
+
+}	 // namespace mlir

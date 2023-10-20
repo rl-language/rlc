@@ -61,7 +61,7 @@ namespace mlir::rlc::python
 				OS << "if len(args) == " << candidate.getArgumentTypes().size();
 				if (not candidate.getArgumentTypes().empty())
 					OS << " and ";
-				for (auto& pair : llvm::enumerate(candidate.getArgumentTypes()))
+				for (const auto& pair : llvm::enumerate(candidate.getArgumentTypes()))
 				{
 					OS << "isinstance(args[" << pair.index() << "], "
 						 << typeToString(pair.value()) << ")";

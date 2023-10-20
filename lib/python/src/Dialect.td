@@ -16,7 +16,6 @@ def RLC_Python : Dialect {
   /// The C++ namespace that the dialect, and its sub-components, get placed in.
   let cppNamespace = "::mlir::rlc::python";
   let useDefaultTypePrinterParser = 1;
-  let useFoldAPI = kEmitFoldAdaptorFolder;
 
   let dependentDialects = [
   ];

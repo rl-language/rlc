@@ -393,7 +393,7 @@ mlir::FunctionType mlir::rlc::replaceTemplateParameter(
 		mlir::Type replacement)
 {
 	return original
-			.replaceSubElements(
+			.replace(
 					[toReplace, replacement](mlir::Type t) -> std::optional<mlir::Type> {
 						if (auto Casted = t.dyn_cast<mlir::rlc::TemplateParameterType>())
 						{

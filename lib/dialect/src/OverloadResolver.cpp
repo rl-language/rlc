@@ -126,12 +126,12 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 		for (auto sobstitution : substitutions)
 		{
 			resultType =
-					resultType.cast<mlir::SubElementTypeInterface>().replaceSubElements(
-							[sobstitution](mlir::rlc::TemplateParameterType t) -> mlir::Type {
-								if (t == sobstitution.getFirst())
-									return sobstitution.second;
-								return t;
-							});
+					resultType.replace([sobstitution](mlir::Type type) -> mlir::Type {
+						auto t = type.dyn_cast<mlir::rlc::TemplateParameterType>();
+						if (not t or t != sobstitution.getFirst())
+							return type;
+						return sobstitution.second;
+					});
 		}
 	}
 

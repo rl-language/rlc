@@ -224,7 +224,7 @@ namespace mlir::rlc
 
 		rewriter.create<mlir::rlc::Yield>(f.getLoc(), mlir::Value({ frame }));
 
-		for (auto& subAction :
+		for (const auto& subAction :
 				 llvm::enumerate(builder.actionStatementsOfAction(action)))
 		{
 			rewriter.setInsertionPoint(action);

@@ -12,7 +12,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -21,7 +20,7 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/TargetParser/Host.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 #include "mlir/IR/Verifier.h"
@@ -29,8 +28,10 @@
 #include "mlir/InitAllTranslations.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
 #include "rlc/conversions/RLCToC.hpp"
 #include "rlc/dialect/Dialect.h"
@@ -175,7 +176,6 @@ static void initLLVM()
 	initializeExpandMemCmpPassPass(Registry);
 	initializeCodeGenPreparePass(Registry);
 	initializeAtomicExpandPass(Registry);
-	initializeRewriteSymbolsLegacyPassPass(Registry);
 	initializeWinEHPreparePass(Registry);
 	initializeSafeStackLegacyPassPass(Registry);
 	initializeSjLjEHPreparePass(Registry);
@@ -188,7 +188,6 @@ static void initLLVM()
 	initializeExpandReductionsPass(Registry);
 	initializeWasmEHPreparePass(Registry);
 	initializeWriteBitcodePassPass(Registry);
-	initializeHardwareLoopsPass(Registry);
 }
 
 static void optimize(llvm::Module &M)
@@ -326,7 +325,8 @@ int main(int argc, char *argv[])
 	initLLVM();
 	mlir::registerAllTranslations();
 
-	mlir::MLIRContext context;
+	mlir::MLIRContext context(mlir::MLIRContext::Threading::DISABLED);
+	mlir::registerBuiltinDialectTranslation(context);
 	mlir::DialectRegistry Registry;
 	Registry.insert<
 			mlir::BuiltinDialect,

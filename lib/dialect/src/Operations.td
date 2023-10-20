@@ -450,6 +450,19 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
             return getType().getResults();
         }
 
+		/// Returns the argument attributes for all callable region arguments or
+		/// null if there are none.
+		ArrayAttr getCallableArgAttrs() {
+		  return nullptr;
+		}
+
+		/// Returns the result attributes for all callable region results or
+		/// null if there are none.
+		ArrayAttr getCallableResAttrs() {
+		  return nullptr;
+		}
+
+
 		bool isInternal() {
 			return getUnmangledName().startswith("_");
 		}
@@ -608,7 +621,7 @@ def RLC_ArrayCallOp : RLC_Dialect<"array_call",
         }
 
         operand_iterator arg_operand_begin() {
-            return operand_begin();
+            return operand_begin() + 1;
         }
 
         operand_iterator arg_operand_end() {
@@ -617,8 +630,12 @@ def RLC_ArrayCallOp : RLC_Dialect<"array_call",
 
         /// Return the callee of this operation.
         mlir::CallInterfaceCallable getCallableForCallee() {
-            return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+            return getCallee();
         }
+		/// Set the callee for this operation.
+		void setCalleeFromCallable(CallInterfaceCallable callee) {
+		  (*this)->setOperand(0, callee.get<mlir::Value>());
+		}
     }];
 }
 
@@ -663,7 +680,7 @@ def RLC_CallOp : RLC_Dialect<"call",
         }
 
         operand_iterator arg_operand_begin() {
-            return operand_begin();
+            return operand_begin() + 1;
         }
 
         operand_iterator arg_operand_end() {
@@ -672,8 +689,12 @@ def RLC_CallOp : RLC_Dialect<"call",
 
         /// Return the callee of this operation.
         mlir::CallInterfaceCallable getCallableForCallee() {
-            return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+            return getCallee();
         }
+		/// Set the callee for this operation.
+		void setCalleeFromCallable(CallInterfaceCallable callee) {
+		  (*this)->setOperand(0, callee.get<mlir::Value>());
+		}
     }];
 }
 

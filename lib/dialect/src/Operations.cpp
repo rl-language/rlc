@@ -67,7 +67,7 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 	auto newOne = rewriter.create<mlir::rlc::DeclarationStatement>(
 			getLoc(), deducedType, getName());
 	newOne.getBody().takeBody(getBody());
-	rewriter.replaceOp(*this, { newOne });
+	rewriter.replaceOp(*this, newOne);
 
 	builder.getSymbolTable().add(newOne.getSymName(), newOne);
 	return mlir::success();

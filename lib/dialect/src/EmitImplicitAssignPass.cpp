@@ -63,7 +63,7 @@ namespace mlir::rlc
 		// emits the needed declarations for each subtypes
 		for (auto type : types)
 		{
-			const auto emitAllNeedSubtypes = [&](auto subtype) {
+			const auto emitAllNeedSubtypes = [&](mlir::Type subtype) {
 				if (isBuiltinType(subtype) or
 						subtype.template isa<mlir::rlc::OwningPtrType>() or
 						isTemplateType(subtype).succeeded() or
@@ -75,9 +75,7 @@ namespace mlir::rlc
 				typeToFunction[type] = toCall;
 			};
 
-			if (auto subTypes = type.dyn_cast<mlir::SubElementTypeInterface>())
-				subTypes.walkSubTypes(emitAllNeedSubtypes);
-
+			type.walk(emitAllNeedSubtypes);
 			emitAllNeedSubtypes(type);
 		}
 

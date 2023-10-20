@@ -187,8 +187,7 @@ namespace mlir::rlc
 		op.walk([&](mlir::rlc::DestroyOp destroyOp) {
 			auto type = destroyOp.getOperand().getType();
 			collectToCreate(type);
-			if (auto casted = type.dyn_cast<mlir::SubElementTypeInterface>())
-				casted.walkSubTypes(collectToCreate);
+			type.walk(collectToCreate);
 		});
 
 		for (auto type : destructorsToCreate)

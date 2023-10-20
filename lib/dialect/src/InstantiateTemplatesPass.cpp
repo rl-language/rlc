@@ -261,6 +261,13 @@ namespace mlir::rlc
 			}
 
 			declareInstantiatedStructs(getOperation());
+
+			getOperation().walk([&](mlir::rlc::TemplateInstantiationOp op) {
+				op->getParentOfType<mlir::rlc::FunctionOp>().dump();
+				assert(
+						false && "found a template instantiation op surviving the template "
+										 "instantiaion pass");
+			});
 		}
 	};
 }	 // namespace mlir::rlc

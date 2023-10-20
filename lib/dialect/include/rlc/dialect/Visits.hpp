@@ -59,7 +59,7 @@ namespace rlc
 
 			subElements.push_back(topLevelType);
 
-			topLevelType.walkSubTypes([&](mlir::Type type) {
+			topLevelType.walk([&](mlir::Type type) {
 				if (emitted.contains(type))
 					return;
 

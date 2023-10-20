@@ -1,7 +1,6 @@
 // Include the definition of the necessary tablegen constructs for defining
 // our types.
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/IR/SubElementInterfaces.td"
 include "Dialect.td"
 
 // It's common to define a base classes for types in the same dialect. This
@@ -67,7 +66,7 @@ def RLC_BoolType : RLC_Type<"Bool", "bool"> {
   }];
 }
 
-def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr"> {
   let summary = "RLC array type";
   let description = [{
     Entity type.
@@ -78,7 +77,7 @@ def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr", [DeclareTypeInterfac
 }
 
 
-def RLC_ArrayType : RLC_Type<"Array", "array", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+def RLC_ArrayType : RLC_Type<"Array", "array"> {
   let summary = "RLC array type";
   let description = [{
     Entity type.
@@ -127,7 +126,7 @@ def RLC_Unknown : RLC_Type<"Unknown", "unknown"> {
   }];
 }
 
-def RLC_FunctionTypeUse : RLC_Type<"FunctionUse", "function", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+def RLC_FunctionTypeUse : RLC_Type<"FunctionUse", "function"> {
   let summary = "RLC builtin bool type";
   let description = [{
     Implementation agnostic bool type.
@@ -144,7 +143,7 @@ def RLC_TypeType : RLC_Type<"Type", "type"> {
   }];
 }
 
-def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
   let summary = "RLC type rappresenting a trait type";
   let description = [{
 	 rapresents a trait meta type
@@ -165,7 +164,7 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait", [DeclareTypeInterfaceMeth
   }];
 }
 
-def RLC_UncheckedTemplateParameterType : RLC_Type<"UncheckedTemplateParameter", "unchecked_template_parameter", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+def RLC_UncheckedTemplateParameterType : RLC_Type<"UncheckedTemplateParameter", "unchecked_template_parameter"> {
   let summary = "RLC type rappresenting a template paremeter before typechecking";
   let description = [{
 	 rapresents template parameter before typecheckng
@@ -175,7 +174,7 @@ def RLC_UncheckedTemplateParameterType : RLC_Type<"UncheckedTemplateParameter", 
 }
 
 
-def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter", [DeclareTypeInterfaceMethods<SubElementTypeInterface>]> {
+def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter"> {
   let summary = "RLC type rappresenting a template paremeter";
   let description = [{
 	 rapresents template parameter

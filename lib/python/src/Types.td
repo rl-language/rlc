@@ -1,7 +1,6 @@
 // Include the definition of the necessary tablegen constructs for defining
 // our types.
 include "mlir/IR/AttrTypeBase.td"
-include "mlir/IR/SubElementInterfaces.td"
 include "Dialect.td"
 
 class RLC_PythonType<string name, string typeMnemonic, list<Trait> traits = []>

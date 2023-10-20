@@ -68,13 +68,13 @@ static mlir::Type instantiateStructType(mlir::Type type, mlir::TypeRange values)
 	{
 		auto originalType = first;
 		auto replacementType = second;
-		mlir::AttrTypeReplacer replacer;
-		replacer.addReplacement([&](mlir::Type t) -> std::optional<mlir::Type> {
-			if (t == originalType)
-				return replacementType;
-			return std::nullopt;
-		});
-		casted = replacer.replace(casted).cast<mlir::rlc::EntityType>();
+		casted = casted
+								 .replace([&](mlir::Type t) -> mlir::Type {
+									 if (t == originalType)
+										 return replacementType;
+									 return t;
+								 })
+								 .cast<mlir::rlc::EntityType>();
 	}
 	return casted;
 }
@@ -83,7 +83,7 @@ static void registerConversions(
 		mlir::TypeConverter& converter, mlir::rlc::TypeTable& types)
 {
 	converter.addConversion(
-			[&](mlir::rlc::ScalarUseType use) -> llvm::Optional<mlir::Type> {
+			[&](mlir::rlc::ScalarUseType use) -> std::optional<mlir::Type> {
 				if (use.getUnderlying() != nullptr)
 				{
 					auto convertedUnderlying = converter.convertType(use.getUnderlying());
@@ -153,7 +153,7 @@ static void registerConversions(
 						use.getContext(), maybeType, convertedSize);
 			});
 	converter.addConversion(
-			[&](mlir::FunctionType use) -> llvm::Optional<mlir::Type> {
+			[&](mlir::FunctionType use) -> std::optional<mlir::Type> {
 				llvm::SmallVector<mlir::Type, 2> types;
 				llvm::SmallVector<mlir::Type, 2> outs;
 
@@ -176,7 +176,7 @@ static void registerConversions(
 				return mlir::FunctionType::get(use.getContext(), types, outs);
 			});
 	converter.addConversion(
-			[&](mlir::rlc::FunctionUseType use) -> llvm::Optional<mlir::Type> {
+			[&](mlir::rlc::FunctionUseType use) -> std::optional<mlir::Type> {
 				llvm::SmallVector<mlir::Type, 2> types;
 
 				for (auto subtype : llvm::drop_end(use.getSubTypes()))

@@ -29,20 +29,15 @@ namespace mlir::rlc
 					llvm::SmallVector<mlir::rlc::EntityDeclaration, 2>>
 					dependencies;
 
+			;
 			for (auto decl : decls)
 			{
-				if (auto casted = decl.getResult()
-															.getType()
-															.dyn_cast<mlir::SubElementTypeInterface>())
-				{
-					auto maybeAddDependency = [&](mlir::Type t) {
-						if (declaredTypeToDeclaration.count(t) == 0)
-							return;
+				decl.getResult().getType().walk([&](mlir::Type t) {
+					if (declaredTypeToDeclaration.count(t) == 0)
+						return;
 
-						dependencies[decl].push_back(declaredTypeToDeclaration[t]);
-					};
-					casted.walkSubTypes(maybeAddDependency);
-				}
+					dependencies[decl].push_back(declaredTypeToDeclaration[t]);
+				});
 			}
 
 			llvm::DenseSet<mlir::rlc::EntityDeclaration> alredyEmitted;

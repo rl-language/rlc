@@ -760,9 +760,11 @@ class SelectRewriter: public mlir::OpConversionPattern<mlir::rlc::SelectBranch>
 			arguments.emplace_back(mlir::ValueRange());
 		}
 
+		auto truncated = rewriter.create<mlir::LLVM::TruncOp>(
+				op.getLoc(), rewriter.getI32Type(), loaded);
 		rewriter.replaceOpWithNewOp<mlir::LLVM::SwitchOp>(
 				op,
-				loaded,
+				truncated,
 				op.getSuccessor(0),
 				mlir::ValueRange(),
 				indexes,
@@ -875,12 +877,15 @@ class FromByteArrayRewriter
 		{
 			result = rewriter.create<mlir::LLVM::ShlOp>(
 					op.getLoc(), result->getResult(0), eight);
-			auto extractedByte = rewriter.create<mlir::LLVM::ExtractValueOp>(
+			mlir::Value extractedByte = rewriter.create<mlir::LLVM::ExtractValueOp>(
 					op.getLoc(), loadedArray, byteIndex - 1);
-			auto extented = rewriter.create<mlir::LLVM::SExtOp>(
-					op.getLoc(), sameSizeIntType, extractedByte);
+
+			if (extractedByte.getType() != sameSizeIntType)
+				extractedByte = rewriter.create<mlir::LLVM::SExtOp>(
+						op.getLoc(), sameSizeIntType, extractedByte);
+
 			result = rewriter.create<mlir::LLVM::OrOp>(
-					op.getLoc(), extented, result->getResult(0));
+					op.getLoc(), extractedByte, result->getResult(0));
 		}
 
 		auto bitCasted = rewriter.create<mlir::LLVM::BitcastOp>(
@@ -1222,6 +1227,7 @@ static mlir::Value lowerToIntCast(
 																		 .getSize()),
 					lhs);
 
+		// input is bool
 		auto isZero = makeINEQ(
 				builder,
 				lhs,
@@ -1230,6 +1236,12 @@ static mlir::Value lowerToIntCast(
 						builder.getI8Type(),
 						builder.getZeroAttr(builder.getI8Type())),
 				op.getLoc());
+
+		// if the result size is 8, the same as the input, don't bother to zero
+		// extend it
+		if (resType.getSize() == 8)
+			return isZero;
+
 		return builder.create<mlir::LLVM::ZExtOp>(
 				lhs.getLoc(), builder.getIntegerType(resType.getSize()), isZero);
 	}

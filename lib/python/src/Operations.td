@@ -119,6 +119,18 @@ def RLC_PythonFun : RLC_PythonOp<"fun", [Symbol, CallableOpInterface, AutomaticA
             return getType().getResults();
 		}
 
+		/// Returns the argument attributes for all callable region arguments or
+		/// null if there are none.
+		ArrayAttr getCallableArgAttrs() {
+		  return nullptr;
+		}
+
+		/// Returns the result attributes for all callable region results or
+		/// null if there are none.
+		ArrayAttr getCallableResAttrs() {
+		  return nullptr;
+		}
+
         ArrayRef<Type> getArgumentTypes() {
             return getType().getInputs();
         }
@@ -174,7 +186,7 @@ def RLC_PythonCall : RLC_PythonOp<"call", [CallOpInterface, DeclareOpInterfaceMe
         }
 
         operand_iterator arg_operand_begin() {
-            return operand_begin();
+            return operand_begin() + 1;
         }
 
         operand_iterator arg_operand_end() {
@@ -183,7 +195,14 @@ def RLC_PythonCall : RLC_PythonOp<"call", [CallOpInterface, DeclareOpInterfaceMe
 
         /// Return the callee of this operation.
         mlir::CallInterfaceCallable getCallableForCallee() {
-            return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+            return getCallee();
         }
+		/// Set the callee for this operation.
+		void setCalleeFromCallable(CallInterfaceCallable callee) {
+		  (*this)->setOperand(0, callee.get<mlir::Value>());
+		}
+
+		
+
     }];
 }

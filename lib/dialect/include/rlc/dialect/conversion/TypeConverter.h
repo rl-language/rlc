@@ -7,65 +7,64 @@
 
 namespace mlir::rlc
 {
-	inline llvm::Optional<mlir::Type> boolToBuiltinBool(mlir::rlc::BoolType type)
+	inline std::optional<mlir::Type> boolToBuiltinBool(mlir::rlc::BoolType type)
 	{
 		return mlir::LLVM::LLVMPointerType::get(
 				mlir::IntegerType::get(type.getContext(), 8));
 	}
 
-	inline llvm::Optional<mlir::Type> floatToBuiltinFloat(
+	inline std::optional<mlir::Type> floatToBuiltinFloat(
 			mlir::rlc::FloatType type)
 	{
 		return mlir::LLVM::LLVMPointerType::get(
 				mlir::Float64Type::get(type.getContext()));
 	}
 
-	inline llvm::Optional<mlir::Type> intToBuiltinInt(mlir::rlc::IntegerType type)
+	inline std::optional<mlir::Type> intToBuiltinInt(mlir::rlc::IntegerType type)
 	{
 		return mlir::LLVM::LLVMPointerType::get(
 				mlir::IntegerType::get(type.getContext(), type.getSize()));
 	}
 
-	inline llvm::Optional<mlir::Type> acceptPtrType(
+	inline std::optional<mlir::Type> acceptPtrType(
 			mlir::LLVM::LLVMPointerType type)
 	{
 		return type;
 	}
 
-	inline llvm::Optional<mlir::Type> acceptFloat(mlir::FloatType type)
+	inline std::optional<mlir::Type> acceptFloat(mlir::FloatType type)
 	{
 		return type;
 	}
 
-	inline llvm::Optional<mlir::Type> acceptInt(mlir::IntegerType type)
+	inline std::optional<mlir::Type> acceptInt(mlir::IntegerType type)
 	{
 		return type;
 	}
 
-	inline llvm::Optional<mlir::Type> acceptStrctType(
+	inline std::optional<mlir::Type> acceptStrctType(
 			mlir::LLVM::LLVMStructType type)
 	{
 		return type;
 	}
 
-	inline llvm::Optional<mlir::Type> voidToVoid(mlir::rlc::VoidType type)
+	inline std::optional<mlir::Type> voidToVoid(mlir::rlc::VoidType type)
 	{
 		return mlir::LLVM::LLVMVoidType::get(type.getContext());
 	}
 
-	inline llvm::Optional<mlir::Type> acceptVoidType(
-			mlir::LLVM::LLVMVoidType type)
+	inline std::optional<mlir::Type> acceptVoidType(mlir::LLVM::LLVMVoidType type)
 	{
 		return type;
 	}
 
-	inline llvm::Optional<mlir::Type> acceptLLVMArrayType(
+	inline std::optional<mlir::Type> acceptLLVMArrayType(
 			mlir::LLVM::LLVMArrayType type)
 	{
 		return type;
 	}
 
-	inline llvm::Optional<mlir::Type> acceptLLVMFunctionType(
+	inline std::optional<mlir::Type> acceptLLVMFunctionType(
 			mlir::LLVM::LLVMFunctionType type)
 	{
 		return type;

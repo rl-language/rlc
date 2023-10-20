@@ -185,6 +185,7 @@ def main():
 
     llvm_source_dir = path.abspath("llvm-project")
     rlc_build_dir = try_make_dir("rlc-debug")
+    rlc_release_dir = try_make_dir("rlc-release")
 
     # clone llvm
     if not exists(llvm_source_dir) and args.llvm_dir == "":
@@ -196,7 +197,7 @@ def main():
             "--depth",
             "1",
             "-b",
-            "release/16.x",
+            "release/17.x",
         )
 
     # build debug llvm
@@ -256,6 +257,19 @@ def main():
         clang_path=f"{llvm_install_release_dir}/bin/clang",
     )
     install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
+
+    build_rlc(
+        execution_dir=rlc_release_dir,
+        cmake_path=cmake,
+        rlc_source_dir=rlc_dir,
+        install_dir="./install",
+        build_shared=False,
+        build_type="Release",
+        llvm_install_dir=llvm_install_release_dir,
+        clang_path=f"{llvm_install_release_dir}/bin/clang",
+    )
+    install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=True)
+
     assert_run_program(
         rlc_dir,
         python,
