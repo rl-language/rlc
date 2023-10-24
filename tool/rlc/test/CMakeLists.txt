@@ -19,3 +19,5 @@ foreach(file ${files})
 	rlc_test_file(${name})
 endforeach()
 
+add_subdirectory(crashes)
+

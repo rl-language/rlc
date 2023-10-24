@@ -1,7 +1,11 @@
 
 #include "llvm/ADT/TypeSwitch.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Support/LogicalResult.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
@@ -900,6 +904,24 @@ class FromByteArrayRewriter
 	}
 };
 
+class AbortRewriter 
+	: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::AbortOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::AbortOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.create<mlir::LLVM::Trap>(op.getLoc());
+		rewriter.create<mlir::LLVM::ReturnOp>(op.getLoc(), mlir::ValueRange());
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class InitializerListLowerer
 		: public mlir::OpConversionPattern<mlir::rlc::InitializerListOp>
 {
@@ -1425,7 +1447,8 @@ namespace mlir::rlc
 					.add<MemberAccessRewriter>(converter, &getContext())
 					.add<ReferenceRewriter>(converter, &getContext())
 					.add<EntityDeclarationRewriter>(converter, &getContext())
-					.add<ExplicitConstructRewriter>(converter, &getContext());
+					.add<ExplicitConstructRewriter>(converter, &getContext())
+					.add<AbortRewriter>(converter, &getContext());
 
 			if (failed(applyPartialConversion(
 							getOperation(), target, std::move(patterns))))

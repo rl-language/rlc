@@ -9,6 +9,8 @@ namespace mlir::rlc
 {
 #define GEN_PASS_DEF_EMITMAINPASS
 #include "rlc/dialect/Passes.inc"
+	// Wraps RLC's main function, which has a mangled name and returns an int64, in a function named 'main' 
+	//	which returns an int32.
 	struct EmitMainPass: public impl::EmitMainPassBase<EmitMainPass>
 	{
 		void getDependentDialects(mlir::DialectRegistry& registry) const override
@@ -25,6 +27,8 @@ namespace mlir::rlc
 							mlir::TypeRange(),
 							mlir::TypeRange(
 									{ mlir::rlc::IntegerType::getInt64(&getContext()) })));
+
+			// do nothing if this module does not have an LLVMFuncOp with the mangled name.
 			auto realMain =
 					getOperation().lookupSymbol<mlir::LLVM::LLVMFuncOp>(mangeledMainName);
 			if (realMain == nullptr)
@@ -32,6 +36,7 @@ namespace mlir::rlc
 
 			mlir::OpBuilder builder(realMain);
 
+			// construct a function with return type int32 and name "main". As opposed to int64 and the mangled name.
 			auto returnType = builder.getI32Type();
 			auto op = builder.create<mlir::LLVM::LLVMFuncOp>(
 					realMain.getLoc(),
@@ -41,6 +46,7 @@ namespace mlir::rlc
 			auto* block = op.addEntryBlock();
 			builder.setInsertionPoint(block, block->begin());
 
+			// allocate an int64, pointed by the result of alloca
 			auto count = builder.create<mlir::LLVM::ConstantOp>(
 					realMain.getLoc(),
 					builder.getI64Type(),
@@ -50,9 +56,12 @@ namespace mlir::rlc
 					mlir::LLVM::LLVMPointerType::get(builder.getI64Type()),
 					count,
 					0);
+
+			// pass the int64 pointer to the RLC main function, as the return value will be stored in the first argument.
 			auto call = builder.create<mlir::LLVM::CallOp>(
 					realMain.getLoc(), realMain, mlir::ValueRange({ alloca }));
 
+			// Load the returned value and return it. Converting the 64-bit return to 32-bit integer.
 			auto aligment =
 					mlir::DataLayout::closest(alloca).getTypePreferredAlignment(
 							alloca.getType()
@@ -61,7 +70,6 @@ namespace mlir::rlc
 			auto loaded = builder.create<mlir::LLVM::LoadOp>(
 					realMain.getLoc(), alloca, aligment);
 
-			auto res = *call.getResults().begin();
 			auto trunchated = builder.create<mlir::LLVM::TruncOp>(
 					realMain.getLoc(), returnType, loaded);
 			builder.create<mlir::LLVM::ReturnOp>(
