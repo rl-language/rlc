@@ -696,39 +696,64 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 }
 
 /**
- * forFieldStatment: `for` ident `of` expression ':\n' statementList
+ * forFieldStatment: `for` ident (`,` ident)* `of` expression (`,` expression)*
+ * ':\n' statementList
  */
 Expected<mlir::rlc::ForFieldStatement> Parser::forFieldStatement()
 {
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordFor);
 
-	EXPECT(Token::Identifier);
-	auto name = lIdent;
+	llvm::SmallVector<std::string, 2> names;
+	llvm::SmallVector<llvm::StringRef, 2> namesRef;
+	llvm::SmallVector<mlir::Value, 2> values;
 
-	auto expStatement =
-			builder.create<mlir::rlc::ForFieldStatement>(location, name);
+	do
+	{
+		EXPECT(Token::Identifier);
+		names.push_back(lIdent);
+	} while (accept<Token::Comma>());
+
+	for (auto& name : names)
+		namesRef.push_back(name);
+
+	auto expStatement = builder.create<mlir::rlc::ForFieldStatement>(
+			location, builder.getStrArrayAttr(namesRef));
 
 	EXPECT(Token::KeywordOf);
 
 	auto pos = builder.saveInsertionPoint();
 	builder.createBlock(&expStatement.getCondition());
-	TRY(exp, expression());
 
-	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
+	do
+	{
+		TRY(exp, expression());
+		values.push_back(*exp);
+	} while (accept<Token::Comma>());
+
+	builder.create<mlir::rlc::Yield>(location, values);
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
+
+	llvm::SmallVector<mlir::Type, 2> introducedTypes;
+	llvm::SmallVector<mlir::Location, 2> locations;
+	for (auto name : names)
+	{
+		auto templateParameter = mlir::rlc::TemplateParameterType::get(
+				builder.getContext(),
+				(Twine("implicit_template_") + Twine(currentTemplateTypeIndex++)).str(),
+				nullptr,
+				false);
+
+		introducedTypes.push_back(templateParameter);
+		locations.push_back(location);
+	}
 
 	builder.createBlock(
 			&expStatement.getBody(),
 			expStatement.getBody().end(),
-			mlir::TypeRange({ mlir::rlc::TemplateParameterType::get(
-					builder.getContext(),
-					(Twine("implicit_template_") + Twine(currentTemplateTypeIndex++))
-							.str(),
-					nullptr,
-					false) }),
-			{ location });
+			introducedTypes,
+			locations);
 	TRY(statLis, statementList());
 
 	emitYieldIfNeeded(location);

@@ -99,7 +99,7 @@ def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable
 def RLC_ForFieldStatement : RLC_Dialect<"for_field", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "while.";
 
-  let arguments = (ins StrAttr:$name);
+  let arguments = (ins StrArrayAttr:$names);
 
   let description = [{
 	expression.

@@ -376,8 +376,30 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
+	auto yield = mlir::cast<mlir::rlc::Yield>(
+			getCondition().getBlocks().back().getTerminator());
+	if (yield.getArguments().size() != getNames().size())
+	{
+		emitError(
+				"missmatched count between for induction variables and for arguments");
+		return mlir::failure();
+	}
+
+	for (auto argument : yield.getArguments())
+	{
+		if (argument.getType() != yield.getArguments()[0].getType())
+		{
+			emitError("for field statement does not support expressions with "
+								"different types");
+			argument.getDefiningOp()->emitRemark("one argument is:");
+			yield.getArguments()[0].getDefiningOp()->emitRemark("one argument is:");
+			return mlir::failure();
+		}
+	}
+
 	auto _ = builder.addSymbolTable();
-	builder.getSymbolTable().add(getName(), getBody().getArguments()[0]);
+	for (auto [argument, name] : llvm::zip(getBody().getArguments(), getNames()))
+		builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), argument);
 
 	for (auto *op : ops(getBody()))
 		if (mlir::rlc::typeCheck(*op, builder).failed())
