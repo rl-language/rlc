@@ -224,8 +224,10 @@ static void configurePassManager(
 		return;
 	}
 
+	manager.addPass(mlir::rlc::createExtractPreconditionPass());
 	manager.addPass(mlir::rlc::createLowerToCfPass());
 	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
+	manager.addPass(mlir::rlc::createStripFunctionMetadataPass());
 	manager.addPass(mlir::rlc::createLowerToLLVMPass());
 	if (not compileOnly)
 		manager.addPass(mlir::rlc::createEmitMainPass());
@@ -263,7 +265,7 @@ static int run(
 		mlir::OpPrintingFlags flags;
 		if (not hidePosition)
 			flags.enableDebugInfo(true);
-		ast.print(OS, flags);
+		ast.print(llvm::errs(), flags);
 
 		return -1;
 	}

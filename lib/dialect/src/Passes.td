@@ -101,6 +101,15 @@ def SortTypeDeclarationsPass : Pass<"rlc-sort-type-declarations", "mlir::ModuleO
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def ExtractPreconditionPass : Pass<"rlc-extract-preconditions", "mlir::ModuleOp"> {
+  let summary = "extract precondition pass";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def StripFunctionMetadataPass : Pass<"rlc-strip-function-metadata", "mlir::ModuleOp"> {
+  let summary = "strip function metadata";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
 
 def AddOutOfBoundsCheckPass : Pass<"rlc-add-out-of-bounds-check", "mlir::ModuleOp"> {
   let summary = "add bound checks for array accesses";

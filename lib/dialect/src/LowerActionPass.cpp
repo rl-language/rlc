@@ -85,39 +85,7 @@ namespace mlir::rlc
 		}
 	}
 
-	static void emitPreconditionCheckerWrapper(
-			mlir::rlc::ActionFunction action, mlir::rlc::ModuleBuilder& builder)
-	{
-		mlir::IRRewriter rewriter(action.getContext());
-		rewriter.setInsertionPoint(action);
-
-		auto ftype = mlir::FunctionType::get(
-				action.getContext(),
-				action.getFunctionType().getInputs(),
-				{ mlir::rlc::BoolType::get(action.getContext()) });
-		auto validityFunction = rewriter.create<mlir::rlc::FlatFunctionOp>(
-				action.getLoc(),
-				("can_" + action.getUnmangledName()).str(),
-				ftype,
-				action.getArgNamesAttr());
-		rewriter.cloneRegionBefore(
-				action.getPrecondition(),
-				validityFunction.getBody(),
-				validityFunction.getBody().begin());
-
-		auto& yieldedConditions = validityFunction.getBody().front().back();
-		rewriter.setInsertionPoint(&yieldedConditions);
-
-		mlir::Value lastOperand =
-				rewriter.create<mlir::rlc::Constant>(action.getLoc(), true);
-		for (auto value : yieldedConditions.getOperands())
-			lastOperand = rewriter.create<mlir::rlc::AndOp>(
-					action.getLoc(), lastOperand, value);
-		rewriter.replaceOpWithNewOp<mlir::rlc::Yield>(
-				&yieldedConditions, mlir::ValueRange({ lastOperand }));
-	}
-
-	static void emitPreconditionCheckerWrapper(
+	static void addFrameArgumentToPrecondition(
 			mlir::rlc::ActionFunction root,
 			mlir::FunctionType actionType,
 			mlir::rlc::FunctionOp action,
@@ -139,31 +107,6 @@ namespace mlir::rlc
 					operand.set(action.getPrecondition().getArgument(0));
 			}
 		}
-
-		auto validityFunction = rewriter.create<mlir::rlc::FlatFunctionOp>(
-				action.getLoc(),
-				("can_" + action.getUnmangledName()).str(),
-				mlir::FunctionType::get(
-						action.getContext(),
-						actionType.getInputs(),
-						{ mlir::rlc::BoolType::get(action.getContext()) }),
-				action.getArgNames());
-
-		rewriter.cloneRegionBefore(
-				action.getPrecondition(),
-				validityFunction.getBody(),
-				validityFunction.getBody().begin());
-
-		auto& yieldedConditions = validityFunction.getBody().front().back();
-		rewriter.setInsertionPoint(&yieldedConditions);
-
-		mlir::Value lastOperand =
-				rewriter.create<mlir::rlc::Constant>(action.getLoc(), true);
-		for (auto value : yieldedConditions.getOperands())
-			lastOperand = rewriter.create<mlir::rlc::AndOp>(
-					action.getLoc(), lastOperand, value);
-		rewriter.replaceOpWithNewOp<mlir::rlc::Yield>(
-				&yieldedConditions, mlir::ValueRange({ lastOperand }));
 	}
 
 	static void emitActionWrapperCalls(
@@ -245,7 +188,7 @@ namespace mlir::rlc
 			rewriter.createBlock(
 					&subF.getBody(), subF.getBody().begin(), type.getInputs(), locs);
 
-			emitPreconditionCheckerWrapper(action, type, subF, builder);
+			addFrameArgumentToPrecondition(action, type, subF, builder);
 
 			for (auto arg : llvm::enumerate(subAct.getDeclaredNames()))
 			{
@@ -301,7 +244,6 @@ namespace mlir::rlc
 
 			for (auto action : acts)
 			{
-				emitPreconditionCheckerWrapper(action, builder);
 				replaceAllAccessesWithIndirectOnes(action, builder);
 				replaceAllDeclarationsWithIndirectOnes(action, builder);
 				emitActionWrapperCalls(action, builder);

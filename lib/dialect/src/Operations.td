@@ -525,6 +525,7 @@ def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
     let extraClassDeclaration = extraBaseClassDeclaration;
 }
 
+
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
   let arguments = (ins StrAttr:$unmangledName, StrArrayAttr:$argNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
@@ -1592,6 +1593,15 @@ def RLC_ValueUpcastOp : RLC_Dialect<"value_upcast", [DeclareOpInterfaceMethods<T
 	$input type($input) `->` type($result) attr-dict 
   }];
 }
+
+def RLC_FunctionMetadataOp : RLC_Dialect<"function_metadata"> {
+  let arguments = (ins FunctionType:$source_function, FunctionType:$precondition_function);
+
+  let assemblyFormat = [{
+	$source_function type($source_function) $precondition_function type($precondition_function) attr-dict 
+  }];
+}
+
 
 def RLC_AbortOp : RLC_Dialect<"abort", [Terminator]> {
   let summary="terminates the execution.";

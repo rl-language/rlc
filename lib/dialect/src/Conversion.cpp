@@ -904,11 +904,9 @@ class FromByteArrayRewriter
 	}
 };
 
-class AbortRewriter 
-	: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
+class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 {
-	using mlir::OpConversionPattern<
-			mlir::rlc::AbortOp>::OpConversionPattern;
+	using mlir::OpConversionPattern<mlir::rlc::AbortOp>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::AbortOp op,
