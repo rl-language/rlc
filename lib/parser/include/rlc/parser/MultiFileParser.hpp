@@ -1,5 +1,7 @@
 #pragma once
 
+#include <set>
+
 #include "llvm/Support/SourceMgr.h"
 #include "rlc/parser/Parser.hpp"
 
@@ -10,17 +12,20 @@ namespace rlc
 	{
 		public:
 		MultiFileParser(
-				mlir::MLIRContext* context, llvm::ArrayRef<std::string> includeDirs)
-				: context(context), diagnostic(sourceManager, context)
+				mlir::MLIRContext* context,
+				llvm::ArrayRef<std::string> includeDirs,
+				mlir::ModuleOp module = nullptr)
+				: context(context), diagnostic(sourceManager, context), module(module)
 		{
 			sourceManager.setIncludeDirs(includeDirs);
+			if (module == nullptr)
+				this->module =
+						mlir::ModuleOp::create(mlir::UnknownLoc::get(context), "unknown");
 		}
 
 		llvm::Expected<mlir::ModuleOp> parse(const std::string& fileName)
 		{
 			mlir::IRRewriter rewriter(context);
-			mlir::ModuleOp toReturn =
-					mlir::ModuleOp::create(rewriter.getUnknownLoc(), "unknown");
 			std::set<std::string> alreadyLoaded;
 			llvm::SmallVector<std::string> fileToLoad = { fileName };
 
@@ -45,13 +50,13 @@ namespace rlc
 						context,
 						sourceManager.getMemoryBuffer(id)->getBuffer().str(),
 						AbslutePath);
-				auto maybeAst = parser.system(toReturn);
+				auto maybeAst = parser.system(module);
 				if (not maybeAst)
 					return maybeAst.takeError();
 				for (auto file : parser.getImportedFiles())
 					fileToLoad.push_back(file);
 			}
-			return toReturn;
+			return module;
 		}
 
 		llvm::SourceMgr& getSourceMgr() { return sourceManager; }
@@ -67,6 +72,7 @@ namespace rlc
 		llvm::SourceMgr sourceManager;
 		mlir::MLIRContext* context;
 		mlir::SourceMgrDiagnosticHandler diagnostic;
+		mlir::ModuleOp module;
 	};
 
 }	 // namespace rlc

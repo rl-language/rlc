@@ -1,10 +1,12 @@
-get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
-get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
+rlcAddLibrary(backend src/BackEnd.cpp)
+llvm_map_components_to_libnames(llvm_utils_libs Support)
 llvm_map_components_to_libnames(llvm_libs core ipo vectorize instcombine target scalaropts objcarcopts ${LLVM_TARGETS_TO_BUILD})
-rlcAddTool(rlc
+target_link_libraries(backend
+	PRIVATE
 	rlc::parser
 	rlc::conversions
-	rlc::backend
+	rlc::dialect
+	${llvm_utils_libs}
 	MLIRTargetLLVMIRExport
 	LLVMCodeGen
 	LLVMAnalysis
@@ -20,5 +22,6 @@ rlcAddTool(rlc
 	MLIRSPIRVDialect
 	${dialect_libs}
 	${translation_libs}
-	${llvm_libs})
+	${llvm_libs}
+	)
 

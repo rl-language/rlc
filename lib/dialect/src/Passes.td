@@ -101,7 +101,72 @@ def SortTypeDeclarationsPass : Pass<"rlc-sort-type-declarations", "mlir::ModuleO
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+
 def AddOutOfBoundsCheckPass : Pass<"rlc-add-out-of-bounds-check", "mlir::ModuleOp"> {
   let summary = "add bound checks for array accesses";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def PrintIRPass : Pass<"rlc-print-ir-pass", "mlir::ModuleOp"> {
+  let summary = "prints the ir on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "stream on which to print the module">,
+    Option<"hide_position", "hide positions", "bool", /*default=*/"true",
+           "avoid printing the ir locations">,
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def PrintCHeaderPass : Pass<"rlc-print-c-header-pass", "mlir::ModuleOp"> {
+  let summary = "prints the c header on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "stream on which to print the module">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def PrintGodotPass : Pass<"rlc-print-godot-pass", "mlir::ModuleOp"> {
+  let summary = "prints the godot file on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "stream on which to print the module">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+
+def ParseFilePass : Pass<"rlc-parse-file-pass", "mlir::ModuleOp"> {
+  let summary = "parse file";
+  let options = [
+    Option<"includeDirs", "include dirs", "const llvm::SmallVector<std::string, 4>*", /*default=*/"nullptr",
+           "include dirs">,
+    Option<"input", "input file", "std::string", /*default=*/"\"\"",
+           "input file">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
+  let summary = "parse file";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "output stream">,
+    Option<"optimize", "optimize", "bool", /*default=*/"false",
+           "optimize">,
+    Option<"clangPath", "clang path", "std::string", /*default=*/"\"\"",
+           "clang to use to link">,
+    Option<"outputFile", "output file", "std::string", /*default=*/"\"\"",
+           "output file">,
+    Option<"shared", "shared lib", "bool", /*default=*/"false",
+           "shared lib">,
+    Option<"extraObjectFiles", "extra object files", "const std::vector<std::string>*", /*default=*/"nullptr",
+           "extra object files">,
+    Option<"dumpIR", "dump ir and stop", "bool", /*default=*/"false",
+           "dump ir and stop">,
+    Option<"compileOnly", "compile and stop", "bool", /*default=*/"false",
+           "compile and stop">,
+  ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

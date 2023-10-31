@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mlir/Pass/Pass.h"
-#include "rlc/dialect/Dialect.h"
+#include "rlc/python/Dialect.h"
 
 namespace mlir::python
 {
