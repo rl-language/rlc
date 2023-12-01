@@ -179,9 +179,10 @@ TEST(ParserTest, singleTypeTest)
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
+	auto casted = s->cast<mlir::rlc::ScalarUseType>();
 
-	EXPECT_EQ(s->getSize(), mlir::rlc::IntegerLiteralType::get(&context, 0));
-	EXPECT_EQ(s->getReadType(), "int");
+	EXPECT_EQ(casted.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 0));
+	EXPECT_EQ(casted.getReadType(), "int");
 }
 
 TEST(ParserTest, arrayTypeTest)
@@ -193,10 +194,12 @@ TEST(ParserTest, arrayTypeTest)
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
+	auto casted = s->cast<mlir::rlc::ScalarUseType>();
 
-	EXPECT_EQ(s->getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
+	EXPECT_EQ(casted.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
 	EXPECT_EQ(
-			s->getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(), "int");
+			casted.getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(),
+			"int");
 }
 
 TEST(ParserTest, functionTypeTest)
@@ -209,8 +212,9 @@ TEST(ParserTest, functionTypeTest)
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->getUnderlying().isa<mlir::rlc::FunctionUseType>());
-	auto r = s->getUnderlying()
+	auto casted = s->cast<mlir::rlc::ScalarUseType>();
+	EXPECT_TRUE(casted.getUnderlying().isa<mlir::rlc::FunctionUseType>());
+	auto r = casted.getUnderlying()
 							 .cast<mlir::rlc::FunctionUseType>()
 							 .getSubTypes()[0]
 							 .cast<mlir::rlc::ScalarUseType>();
@@ -229,15 +233,16 @@ TEST(ParserTest, complexFunctionTypeTest)
 	if (!s)
 		FAIL();
 
-	EXPECT_TRUE(s->getUnderlying().isa<mlir::rlc::FunctionUseType>());
-	auto r = s->getUnderlying()
+	auto casted = s->cast<mlir::rlc::ScalarUseType>();
+	EXPECT_TRUE(casted.getUnderlying().isa<mlir::rlc::FunctionUseType>());
+	auto r = casted.getUnderlying()
 							 .cast<mlir::rlc::FunctionUseType>()
 							 .getSubTypes()[0]
 							 .cast<mlir::rlc::ScalarUseType>();
 	EXPECT_EQ(
 			r.getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(), "int");
 	EXPECT_EQ(r.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
-	auto r2 = s->getUnderlying()
+	auto r2 = casted.getUnderlying()
 								.cast<mlir::rlc::FunctionUseType>()
 								.getSubTypes()[1]
 								.cast<mlir::rlc::ScalarUseType>();

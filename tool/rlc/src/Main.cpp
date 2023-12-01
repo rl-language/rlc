@@ -145,16 +145,16 @@ static cl::opt<bool> emitPreconditionChecks(
 		"emit-precondition-checks",
 		cl::desc("emits precondition checks for functions"),
 		cl::init(true),
-		cl::cat(astDumperCategory)
-);
+		cl::cat(astDumperCategory));
 
 static cl::opt<bool> Optimize(
 		"O2",
 		cl::desc("Optimize"),
-		cl::callback([](const bool &value){emitPreconditionChecks.setInitialValue(!value);}),
+		cl::callback([](const bool &value) {
+			emitPreconditionChecks.setInitialValue(!value);
+		}),
 		cl::init(false),
-		cl::cat(astDumperCategory)
-		);
+		cl::cat(astDumperCategory));
 
 static void configurePassManager(
 		const llvm::SmallVector<std::string, 4> &includeDirs,
@@ -213,6 +213,7 @@ static void configurePassManager(
 	if (dumpPythonWrapper or dumpPythonAST)
 	{
 		manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
+		manager.addPass(mlir::python::createRLCTypesToPythonTypesPass());
 		manager.addPass(mlir::python::createRLCToPythonPass());
 		if (dumpPythonAST)
 			manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));

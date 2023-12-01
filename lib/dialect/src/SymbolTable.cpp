@@ -203,6 +203,18 @@ static void registerConversions(
 			return converted;
 		return mlir::rlc::OwningPtrType::get(t.getContext(), converted);
 	});
+	converter.addConversion([&](mlir::rlc::AlternativeType t) -> mlir::Type {
+		llvm::SmallVector<mlir::Type, 2> content;
+		for (mlir::Type underlying : t.getUnderlying())
+		{
+			auto converted = converter.convertType(underlying);
+			if (converted == nullptr)
+				return nullptr;
+			content.push_back(converted);
+		}
+
+		return mlir::rlc::AlternativeType::get(t.getContext(), content);
+	});
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
 		if (converted == nullptr)

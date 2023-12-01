@@ -14,6 +14,9 @@ static std::string nonArrayTypeToString(mlir::Type type)
 	llvm::raw_string_ostream OS(O);
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case([&](mlir::rlc::EntityType Entity) { OS << Entity.mangledName(); })
+			.Case([&](mlir::rlc::AlternativeType alternative) {
+				OS << alternative.getMangledName();
+			})
 			.Case<mlir::rlc::FloatType>([&](mlir::rlc::FloatType) { OS << "double"; })
 			.Case<mlir::rlc::BoolType>([&](mlir::rlc::BoolType) { OS << "uint8_t"; })
 			.Case<mlir::rlc::IntegerType>([&](mlir::rlc::IntegerType Type) {
@@ -72,6 +75,27 @@ static void printTypeField(
 static void printTypeDefinition(mlir::Type type, llvm::raw_ostream& OS)
 {
 	llvm::TypeSwitch<mlir::Type>(type)
+			.Case([&](mlir::rlc::AlternativeType alternative) {
+				OS << "struct " << alternative.getMangledName() << " {\n";
+
+				OS.indent(2);
+				OS << "union {\n";
+				for (auto field : llvm::enumerate(alternative.getUnderlying()))
+				{
+					OS.indent(4);
+					printTypeField(
+							(llvm::Twine("field") + llvm::Twine(field.index())).str(),
+							field.value(),
+							OS);
+					OS << ";\n";
+				}
+				OS.indent(2);
+				OS << "} content;\n";
+				OS.indent(2);
+				OS << "int64_t active_index;\n";
+
+				OS << "};\n";
+			})
 			.Case([&](mlir::rlc::EntityType Entity) {
 				OS << "typedef struct {\n";
 
@@ -91,7 +115,9 @@ static void printTypeDefinition(mlir::Type type, llvm::raw_ostream& OS)
 					mlir::rlc::FloatType,
 					mlir::rlc::OwningPtrType,
 					mlir::rlc::IntegerLiteralType,
-					mlir::rlc::ArrayType>([&](auto) {	 // Pass, already defined by C
+					mlir::rlc::ArrayType,
+					mlir::rlc::VoidType,
+					mlir::FunctionType>([&](auto) {	 // Pass, already defined by C
 			})
 			.Default([](auto type) {
 				type.dump();

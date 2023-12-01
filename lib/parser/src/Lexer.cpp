@@ -173,6 +173,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "ExMark";
 		case Token::Comma:
 			return "Comma";
+		case Token::VerticalPipe:
+			return "VerticalPipe";
 		case Token::Dot:
 			return "Dot";
 		case Token::Module:
@@ -285,6 +287,8 @@ optional<Token> Lexer::eatSymbol()
 			return Token::Dot;
 		case '\n':
 			return Token::Newline;
+		case '|':
+			return Token::VerticalPipe;
 	}
 	return nullopt;
 }

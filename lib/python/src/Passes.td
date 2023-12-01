@@ -5,6 +5,10 @@ def RLCToPythonPass: Pass<"rlc-to-python", "mlir::ModuleOp"> {
   let summary = "convert rlc to python";
 }
 
+def RLCTypesToPythonTypesPass: Pass<"rlc-types-to-python-types", "mlir::ModuleOp"> {
+  let summary = "convert rlc types to python types";
+}
+
 def PrintPythonPass : Pass<"rlc-print-python-pass", "mlir::ModuleOp"> {
   let summary = "prints the python wrapper file on the provided stream";
   let options = [

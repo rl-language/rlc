@@ -8,6 +8,11 @@
 
 namespace mlir::rlc
 {
+	static bool isBuiltinType(mlir::Type type)
+	{
+		return type.isa<mlir::rlc::IntegerType>() or
+					 type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::BoolType>();
+	}
 
 	static mlir::LogicalResult typeRequiresDestructor(
 			mlir::rlc::ModuleBuilder& builder,
@@ -26,6 +31,21 @@ namespace mlir::rlc
 
 		if (toConsider.isa<mlir::FunctionType>())
 		{
+			requireDestructor[toConsider] = false;
+			return mlir::failure();
+		}
+
+		if (auto type = toConsider.dyn_cast<mlir::rlc::AlternativeType>())
+		{
+			for (auto field : type.getUnderlying())
+			{
+				if (typeRequiresDestructor(builder, requireDestructor, field).failed())
+					continue;
+
+				requireDestructor[toConsider] = true;
+				return mlir::success();
+			}
+
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
@@ -112,6 +132,52 @@ namespace mlir::rlc
 		});
 	}
 
+	static void emitImplicitDestructorAlternativeType(
+			IRRewriter& rewriter,
+			mlir::rlc::FunctionOp fun,
+			OverloadResolver& resolver)
+	{
+		for (auto field : fun.getBody()
+													.getArgument(0)
+													.getType()
+													.cast<mlir::rlc::AlternativeType>()
+													.getUnderlying())
+		{
+			if (isBuiltinType(field))
+				continue;
+
+			rewriter.setInsertionPointToEnd(&fun.getBody().front());
+
+			auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(fun.getLoc());
+			auto* condition = rewriter.createBlock(&ifStatement.getCondition());
+			rewriter.setInsertionPointToEnd(condition);
+
+			auto isThisEntry = rewriter.create<mlir::rlc::IsOp>(
+					fun.getLoc(), fun.getBody().front().getArgument(0), field);
+
+			rewriter.create<mlir::rlc::Yield>(
+					fun.getLoc(), mlir::ValueRange({ isThisEntry }));
+
+			auto* trueBranch = rewriter.createBlock(&ifStatement.getTrueBranch());
+			rewriter.setInsertionPointToEnd(trueBranch);
+
+			auto casted = rewriter.create<mlir::rlc::ValueUpcastOp>(
+					fun.getLoc(), field, fun.getBody().getArgument(0));
+
+			auto subFunction = resolver.instantiateOverload(
+					rewriter, fun.getLoc(), "drop", mlir::ValueRange({ casted }));
+			rewriter.create<mlir::rlc::CallOp>(
+					fun.getLoc(), subFunction, mlir::ValueRange({ casted }));
+
+			rewriter.create<mlir::rlc::Yield>(fun.getLoc());
+
+			auto* falseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
+			rewriter.setInsertionPointToEnd(falseBranch);
+			rewriter.create<mlir::rlc::Yield>(fun.getLoc());
+		}
+		rewriter.setInsertionPointToEnd(&fun.getBody().front());
+	}
+
 	static void emitImplicitDestructors(
 			mlir::rlc::ModuleBuilder& builder,
 			llvm::DenseMap<mlir::Type, bool>& map,
@@ -158,6 +224,10 @@ namespace mlir::rlc
 						op.getLoc(),
 						subFunction,
 						mlir::ValueRange({ body->getArgument(0) }));
+			}
+			else if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+			{
+				emitImplicitDestructorAlternativeType(rewriter, fun, resolver);
 			}
 
 			rewriter.create<mlir::rlc::Yield>(fun.getLoc());

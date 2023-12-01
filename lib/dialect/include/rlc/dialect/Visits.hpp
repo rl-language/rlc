@@ -4,37 +4,6 @@
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "rlc/dialect/Operations.hpp"
-
-namespace llvm
-{
-
-	// template<>
-	// struct GraphTraits<mlir::rlc::EntityType>
-	//{
-	// using NodeRef = mlir::Type;
-	// using ChildIteratorType = llvm::ArrayRef<mlir::Type>::iterator;
-
-	// static NodeRef getEntryNode(mlir::rlc::EntityType N) { return N; }
-
-	// static ChildIteratorType child_begin(NodeRef N)
-	//{
-	// if (auto cast)
-	// if (not N.cast<mlir::SubElementTypeInterface>())
-	// return nullptr;
-
-	// return N.cast<mlir::rlc::EntityType>().getBody().begin();
-	//}
-
-	// static ChildIteratorType child_end(NodeRef N)
-	//{
-	// if (not N.isa<mlir::rlc::EntityType>())
-	// return nullptr;
-
-	// return N.cast<mlir::rlc::EntityType>().getBody().begin();
-	//}
-	//};
-}	 // namespace llvm
-
 namespace rlc
 {
 	/// returns in post order (that is: contained elements first) each type of the
@@ -50,22 +19,35 @@ namespace rlc
 		for (auto& elem : subElements)
 			emitted.insert(elem);
 
+		auto visit = [&](mlir::Type type) {
+			if (emitted.contains(type))
+				return;
+
+			subElements.push_back(type);
+			emitted.insert(type);
+		};
+
 		for (auto decl : module.getOps<mlir::rlc::EntityDeclaration>())
 		{
 			auto topLevelType = decl.getType().cast<mlir::rlc::EntityType>();
 			if (emitted.contains(topLevelType))
 				continue;
-			emitted.insert(topLevelType);
 
 			subElements.push_back(topLevelType);
+			emitted.insert(topLevelType);
 
-			topLevelType.walk([&](mlir::Type type) {
-				if (emitted.contains(type))
-					return;
+			topLevelType.walk(visit);
+		}
 
-				subElements.push_back(type);
-				emitted.insert(type);
-			});
+		for (auto f : module.getOps<mlir::rlc::FunctionOp>())
+		{
+			if (emitted.contains(f.getType()))
+				continue;
+
+			subElements.push_back(f.getType());
+			emitted.insert(f.getType());
+
+			f.getType().walk(visit);
 		}
 
 		return subElements;

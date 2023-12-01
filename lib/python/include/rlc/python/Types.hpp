@@ -92,6 +92,18 @@ namespace mlir::rlc
 			return;
 		}
 
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypeUnionType>())
+		{
+			for (auto type : llvm::enumerate(maybeType.getSubTypes()))
+			{
+				writeTypeName(OS, type.value(), ctypesSyntax);
+				if (type.index() != maybeType.getSubTypes().size() - 1)
+					OS << "Or";
+			}
+
+			return;
+		}
+
 		assert(false && "unrechable");
 	}
 

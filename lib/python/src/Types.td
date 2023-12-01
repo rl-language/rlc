@@ -57,6 +57,12 @@ def RLC_CTypeStructType : RLC_PythonType<"CTypeStruct", "ctypes_struct"> {
   let assemblyFormat = "$name `<` $sub_types`>` ";
 }
 
+def RLC_CTypeUnionType : RLC_PythonType<"CTypeUnion", "ctypes_union"> {
+  let parameters = (ins ArrayRefParameter<"Type">:$sub_types);
+
+  let assemblyFormat = "`<` $sub_types`>` ";
+}
+
 def RLC_CTypesInt : RLC_PythonType<"CTypesInt", "ctypes_int"> {
   let summary = "RLC builtin integer type";
   let description = [{

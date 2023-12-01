@@ -76,6 +76,19 @@ def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr"> {
   let assemblyFormat = "`<` $underlying `>` ";
 }
 
+def RLC_AlternativeType : RLC_Type<"Alternative", "alternative"> {
+  let summary = "RLC alternative type";
+  let description = [{
+    Alternative type.
+  }];
+
+  let parameters = (ins ArrayRefParameter<"Type">:$underlying);
+  let assemblyFormat = "`<` $underlying `>` ";
+  let extraClassDeclaration = [{
+	  std::string getMangledName();
+  }];
+}
+
 
 def RLC_ArrayType : RLC_Type<"Array", "array"> {
   let summary = "RLC array type";

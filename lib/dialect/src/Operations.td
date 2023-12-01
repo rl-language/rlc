@@ -172,7 +172,21 @@ def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<Type
 
 
   let assemblyFormat = [{
-	($arguments^ `:` type($arguments))? $on_end attr-dict
+	($arguments^ `:` type($arguments))? ( $on_end^ )? attr-dict
+  }];
+}
+
+def RLC_SetActiveEntryOp : RLC_Dialect<"set_active_entry"> {
+  let summary = "sets which is the current option currently active in a alternative type.";
+
+  let description = [{
+	sets which is the current option currently active in a alternative type. This should not be exposed to the front end but rather is something needed to implement assign and init of alternative types
+  }];
+
+  let arguments = (ins RLC_AlternativeType:$to_set, I64Attr:$new_active);
+
+  let assemblyFormat = [{
+	$to_set `:` type($to_set) `,` $new_active attr-dict 
   }];
 }
 
@@ -833,20 +847,6 @@ def RLC_ExplicitConstructOp : RLC_Dialect<"explicit_construct"> {
 		OpBuilder<(ins "mlir::Value":$initializer), [{
             build($_builder, $_state, initializer.getType().cast<mlir::FunctionType>().getInput(0), initializer);
     }]>];
-}
-
-def RLC_ExplicitDestroyOp : RLC_Dialect<"explicit_destroy"> {
-  let summary = "constant.";
-
-  let description = [{
-	expression.
-  }];
-
-  let arguments = (ins AnyType:$value, FunctionType:$destructor);
-
-  let assemblyFormat = [{
-		$value `:` type($value) `,` $destructor `:` type($destructor) attr-dict
-  }];
 }
 
 def RLC_DestroyOp : RLC_Dialect<"destroy", [DeclareOpInterfaceMethods<TypeCheckable>]> {

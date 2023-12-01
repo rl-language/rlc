@@ -333,6 +333,116 @@ class EnumUseLowerer: public mlir::OpConversionPattern<mlir::rlc::EnumUse>
 	}
 };
 
+class SetActiveOpRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::SetActiveEntryOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::SetActiveEntryOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::SetActiveEntryOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto lastElementIndex = adaptor.getToSet()
+																.getType()
+																.cast<mlir::LLVM::LLVMPointerType>()
+																.getElementType()
+																.cast<mlir::LLVM::LLVMStructType>()
+																.getBody()
+																.size() -
+														1;
+
+		auto zero = rewriter.getZeroAttr(rewriter.getI64Type());
+		auto zeroValue = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), rewriter.getI64Type(), zero);
+		auto indexOp = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getI32Type(),
+				rewriter.getI32IntegerAttr(lastElementIndex));
+
+		auto gep = rewriter.create<mlir::LLVM::GEPOp>(
+				op.getLoc(),
+				mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type()),
+				adaptor.getToSet(),
+				mlir::ValueRange({ zeroValue, indexOp }));
+
+		auto value = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getI64Type(),
+				rewriter.getI64IntegerAttr(op.getNewActive()));
+
+		makeAlignedStore(rewriter, value, gep, op.getLoc());
+		rewriter.eraseOp(op);
+
+		return mlir::success();
+	}
+};
+
+class IsOpRewriter: public mlir::OpConversionPattern<mlir::rlc::IsOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::IsOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::IsOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto resType = typeConverter->convertType(op.getType());
+		auto resultAlloca = makeAlloca(rewriter, resType, op.getLoc());
+		assert(op.getExpression().getType().isa<mlir::rlc::AlternativeType>());
+		auto type = op.getExpression().getType().cast<mlir::rlc::AlternativeType>();
+		const auto* index = llvm::find(type.getUnderlying(), op.getTypeOrTrait());
+
+		auto unionIndex = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getI64Type(),
+				rewriter.getI64IntegerAttr(
+						std::distance(type.getUnderlying().begin(), index)));
+
+		assert(index != type.getUnderlying().end());
+
+		auto lastElementIndex = adaptor.getExpression()
+																.getType()
+																.cast<mlir::LLVM::LLVMPointerType>()
+																.getElementType()
+																.cast<mlir::LLVM::LLVMStructType>()
+																.getBody()
+																.size() -
+														1;
+
+		auto zero = rewriter.getZeroAttr(rewriter.getI64Type());
+		auto zeroValue = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), rewriter.getI64Type(), zero);
+		auto indexOp = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getI32Type(),
+				rewriter.getI32IntegerAttr(lastElementIndex));
+
+		auto gep = rewriter.create<mlir::LLVM::GEPOp>(
+				op.getLoc(),
+				mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type()),
+				adaptor.getExpression(),
+				mlir::ValueRange({ zeroValue, indexOp }));
+
+		auto load = makeAlignedLoad(rewriter, gep, gep.getLoc());
+
+		auto res = rewriter.create<mlir::LLVM::ICmpOp>(
+				op.getLoc(),
+				rewriter.getI1Type(),
+				mlir::LLVM::ICmpPredicate::eq,
+				load,
+				unionIndex);
+		auto extended = rewriter.create<mlir::LLVM::ZExtOp>(
+				op.getLoc(), rewriter.getI8Type(), res);
+
+		makeAlignedStore(rewriter, extended, resultAlloca, op.getLoc());
+		rewriter.replaceOp(op, resultAlloca);
+
+		return mlir::success();
+	}
+};
+
 class FlatActionStatementEraser
 		: public mlir::OpConversionPattern<mlir::rlc::FlatActionStatement>
 {
@@ -366,7 +476,7 @@ class EnumDeclarationEraser
 	}
 };
 
-class ValueUpcastEraser
+class ValueUpcastRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::ValueUpcastOp>
 {
 	using mlir::OpConversionPattern<
@@ -377,14 +487,26 @@ class ValueUpcastEraser
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		if (op.getInput().getType() != op.getResult().getType())
+		if (op.getInput().getType() != op.getResult().getType() and
+				not op.getInput().getType().isa<mlir::rlc::AlternativeType>())
 		{
 			op.emitError("internal error somehow a template upcast did not had the "
 									 "same input and output type at lowering time");
 			return mlir::failure();
 		}
-		op.replaceAllUsesWith(op.getInput());
-		rewriter.eraseOp(op);
+		if (not op.getInput().getType().isa<mlir::rlc::AlternativeType>())
+		{
+			op.replaceAllUsesWith(op.getInput());
+			rewriter.eraseOp(op);
+		}
+		else
+		{
+			auto converted =
+					getTypeConverter()->convertType(op.getResult().getType());
+			rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(
+					op, converted, adaptor.getInput());
+		}
+
 		return mlir::success();
 	}
 };
@@ -1396,7 +1518,7 @@ namespace mlir::rlc
 							{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
 
 			mlir::TypeConverter converter;
-			mlir::rlc::registerConversions(converter);
+			mlir::rlc::registerConversions(converter, getOperation());
 			mlir::ConversionTarget target(getContext());
 
 			target.addLegalDialect<mlir::BuiltinDialect, mlir::LLVM::LLVMDialect>();
@@ -1405,13 +1527,15 @@ namespace mlir::rlc
 			mlir::RewritePatternSet patterns(&getContext());
 			patterns.add<FunctionRewriter>(converter, &getContext())
 					.add<TraitDeclarationEraser>(converter, &getContext())
-					.add<ValueUpcastEraser>(converter, &getContext())
+					.add<ValueUpcastRewriter>(converter, &getContext())
 					.add<EnumDeclarationEraser>(converter, &getContext())
 					.add<FlatActionStatementEraser>(converter, &getContext())
 					.add<EnumUseLowerer>(converter, &getContext())
 					.add<CallRewriter>(converter, &getContext())
 					.add<ConstantRewriter>(converter, &getContext())
 					.add<IntegerLiteralRewrtier>(converter, &getContext())
+					.add<IsOpRewriter>(converter, &getContext())
+					.add<SetActiveOpRewriter>(converter, &getContext())
 					.add<InitializerListLowerer>(converter, &getContext())
 					.add<CbrRewriter>(converter, &getContext())
 					.add<BrRewriter>(converter, &getContext())

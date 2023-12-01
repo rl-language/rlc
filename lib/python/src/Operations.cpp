@@ -97,25 +97,56 @@ mlir::LogicalResult mlir::rlc::python::PythonFun::emit(
 	return mlir::success();
 }
 
-mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
-		llvm::raw_ostream& OS, SerializationContext& context)
+static void emitStructShort(
+		mlir::rlc::python::SerializationContext& context,
+		llvm::raw_ostream& OS,
+		bool isUnion,
+		llvm::StringRef name,
+		llvm::ArrayRef<llvm::StringRef> fieldNames,
+		llvm::ArrayRef<llvm::StringRef> fieldTypes)
 {
-	OS.indent(context.getIndent() * 4);
-	auto type = getType().cast<mlir::rlc::python::CTypeStructType>();
-	OS << "class " << type.getName() << "(Structure)";
+	OS << "class " << name << "(" << (isUnion ? "Union" : "Structure") << ")";
 
 	OS << ":\n";
 	OS.indent((context.getIndent() + 1) * 4);
 	OS << "_fields_ = [";
-	for (const auto& [type, name] :
-			 llvm::zip(type.getSubTypes(), getFieldNames()))
+	for (const auto& [type, name] : llvm::zip(fieldTypes, fieldNames))
 	{
-		OS << "(\"_" << name.cast<mlir::StringAttr>().str() << "\", ";
-		writeTypeName(OS, type, true);
+		OS << "(\"_" << name << "\", ";
+		OS << type;
 		OS << "), ";
 	}
 	OS << "]\n\n";
+}
 
+static void emitStructShort(
+		mlir::rlc::python::SerializationContext& context,
+		llvm::raw_ostream& OS,
+		bool isUnion,
+		llvm::StringRef name,
+		llvm::ArrayRef<mlir::StringRef> fieldNames,
+		mlir::TypeRange fieldTypes)
+{
+	llvm::SmallVector<std::string, 2> fieldTypesStrings;
+	for (const auto& type : fieldTypes)
+	{
+		std::string s;
+		llvm::raw_string_ostream OS(s);
+		mlir::rlc::writeTypeName(OS, type, true);
+		OS.flush();
+		fieldTypesStrings.push_back(s);
+	}
+	llvm::SmallVector<llvm::StringRef, 2> args;
+	for (auto& s : fieldTypesStrings)
+		args.push_back(s);
+	emitStructShort(context, OS, isUnion, name, fieldNames, args);
+}
+
+static void emitStructImplicitMethods(
+		mlir::rlc::python::SerializationContext& context,
+		llvm::raw_ostream& OS,
+		llvm::StringRef name)
+{
 	OS.indent((context.getIndent() + 1) * 4);
 	OS << "def __init__(self):\n";
 	OS.indent((context.getIndent() + 2) * 4);
@@ -125,29 +156,97 @@ mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
 	OS.indent((context.getIndent() + 1) * 4);
 	OS << "def copy(self):\n";
 	OS.indent((context.getIndent() + 2) * 4);
-	OS << "return functions.assign(" << type.getName() << "(), self)\n";
+	OS << "return functions.assign(" << name << "(), self)\n";
 	OS << "\n";
 
 	OS.indent((context.getIndent() + 1) * 4);
 	OS << "def __drop__(self):\n";
 	OS.indent((context.getIndent() + 2) * 4);
-	OS << "return functions.drop(" << type.getName() << "(), self)\n";
+	OS << "return functions.drop(" << name << "(), self)\n";
 	OS << "\n";
+}
 
-	for (const auto& [type, name] :
-			 llvm::zip(type.getSubTypes(), getFieldNames()))
+static void emitStructGetter(
+		mlir::rlc::python::SerializationContext& context,
+		llvm::raw_ostream& OS,
+		mlir::StringRef fieldName,
+		mlir::StringRef fieldType)
+{
+	OS.indent((context.getIndent() + 1) * 4);
+	OS << "@property\n";
+	OS.indent((context.getIndent() + 1) * 4);
+	OS << "def " << fieldName << "(self) -> " << fieldType << ":\n";
+	OS.indent((context.getIndent() + 2) * 4);
+	OS << "return self._" << fieldName;
+	OS << "\n\n";
+}
+
+static void emitStructGetters(
+		mlir::rlc::python::SerializationContext& context,
+		llvm::raw_ostream& OS,
+		llvm::ArrayRef<mlir::StringRef> fieldNames,
+		mlir::TypeRange fieldTypes)
+{
+	for (const auto& [type, name] : llvm::zip(fieldTypes, fieldNames))
 	{
-		OS.indent((context.getIndent() + 1) * 4);
-		OS << "@property\n";
-		OS.indent((context.getIndent() + 1) * 4);
-		OS << "def " << name.cast<mlir::StringAttr>().str() << "(self) -> "
-			 << typeToString(pythonCTypesToBuiltin(type), true) << ":\n";
-		OS.indent((context.getIndent() + 2) * 4);
-		OS << "return self._" << name.cast<mlir::StringAttr>().str();
-		OS << "\n\n";
+		emitStructGetter(
+				context,
+				OS,
+				name,
+				mlir::rlc::typeToString(mlir::rlc::pythonCTypesToBuiltin(type), true));
 	}
+}
+
+static void emitStruct(
+		mlir::rlc::python::SerializationContext& context,
+		llvm::raw_ostream& OS,
+		bool isUnion,
+		llvm::StringRef name,
+		llvm::ArrayRef<mlir::StringRef> fieldNames,
+		mlir::TypeRange fieldTypes)
+{
+	emitStructShort(context, OS, isUnion, name, fieldNames, fieldTypes);
+	emitStructImplicitMethods(context, OS, name);
+	emitStructGetters(context, OS, fieldNames, fieldTypes);
 
 	OS << "\n\n";
+}
+
+mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
+		llvm::raw_ostream& OS, SerializationContext& context)
+{
+	OS.indent(context.getIndent() * 4);
+	if (getType().isa<mlir::rlc::python::CTypeStructType>())
+	{
+		auto type = getType().cast<mlir::rlc::python::CTypeStructType>();
+		llvm::SmallVector<llvm::StringRef, 2> fieldNames;
+		for (auto name : getFieldNames())
+			fieldNames.push_back(name.cast<mlir::StringAttr>());
+		emitStruct(
+				context, OS, false, type.getName(), fieldNames, type.getSubTypes());
+	}
+	else
+	{
+		auto type = getType().cast<python::CTypeUnionType>();
+		auto name = typeToString(type, true);
+
+		llvm::SmallVector<llvm::StringRef, 2> fieldNames;
+		for (auto name : getFieldNames())
+			fieldNames.push_back(name.cast<mlir::StringAttr>());
+		emitStructShort(
+				context, OS, true, "_" + name, fieldNames, type.getSubTypes());
+		emitStructGetters(context, OS, fieldNames, type.getSubTypes());
+		emitStructShort(
+				context,
+				OS,
+				false,
+				name,
+				{ "content", "active_index" },
+				{ "_" + name, "c_longlong" });
+		emitStructImplicitMethods(context, OS, name);
+		emitStructGetter(context, OS, "content", "_" + name);
+		emitStructGetter(context, OS, "active_index", "c_longlong");
+	}
 
 	return mlir::success();
 }

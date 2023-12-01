@@ -328,6 +328,19 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 		}
 		return;
 	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
+	{
+		size_t i = 0;
+		for (auto input : maybeType.getUnderlying())
+		{
+			i++;
+			typeToMangled(OS, input);
+
+			if (i != maybeType.getUnderlying().size())
+				OS << "_or_";
+		}
+		return;
+	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
 	{
 		typeToMangled(OS, maybeType.getUnderlying());
@@ -364,6 +377,17 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 }
 
 std::string mlir::rlc::EntityType::mangledName()
+{
+	std::string s;
+	llvm::raw_string_ostream OS(s);
+
+	typeToMangled(OS, *this);
+	OS.flush();
+
+	return s;
+}
+
+std::string mlir::rlc::AlternativeType::getMangledName()
 {
 	std::string s;
 	llvm::raw_string_ostream OS(s);
@@ -461,6 +485,15 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 		for (auto child : casted.getExplicitTemplateParameters())
 			if (isTemplateType(child).succeeded())
 				return mlir::success();
+		return mlir::failure();
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+	{
+		for (auto child : casted.getUnderlying())
+			if (isTemplateType(child).succeeded())
+				return mlir::success();
+
 		return mlir::failure();
 	}
 

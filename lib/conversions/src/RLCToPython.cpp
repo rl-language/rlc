@@ -4,6 +4,7 @@
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Types.hpp"
+#include "rlc/dialect/Visits.hpp"
 #include "rlc/python/Dialect.h"
 #include "rlc/python/Operations.hpp"
 #include "rlc/python/Passes.hpp"
@@ -39,6 +40,17 @@ static void registerBuiltinConversions(
 		assert(converted);
 		return mlir::rlc::python::CArrayType::get(
 				t.getContext(), converted, t.getArraySize());
+	});
+
+	converter.addConversion([&](mlir::rlc::AlternativeType t) -> mlir::Type {
+		llvm::SmallVector<mlir::Type, 3> types;
+		for (auto sub : t.getUnderlying())
+		{
+			auto converted = ctypesConverter.convertType(sub);
+			assert(converted);
+			types.push_back(converted);
+		}
+		return mlir::rlc::python::CTypeUnionType::get(t.getContext(), types);
 	});
 
 	converter.addConversion([&](mlir::rlc::EntityType t) -> mlir::Type {
@@ -104,6 +116,17 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
 	});
 
+	converter.addConversion([&](mlir::rlc::AlternativeType t) -> mlir::Type {
+		llvm::SmallVector<mlir::Type, 3> types;
+		for (auto sub : t.getUnderlying())
+		{
+			auto converted = converter.convertType(sub);
+			assert(converted);
+			types.push_back(converted);
+		}
+		return mlir::rlc::python::CTypeUnionType::get(t.getContext(), types);
+	});
+
 	converter.addConversion([&](mlir::rlc::EntityType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
 		for (auto sub : t.getBody())
@@ -135,32 +158,6 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 		return mlir::FunctionType::get(t.getContext(), inputTypes, resTypes);
 	});
 }
-
-class EntityDeclarationToClassDecl
-		: public mlir::OpConversionPattern<mlir::rlc::EntityDeclaration>
-{
-	using mlir::OpConversionPattern<
-			mlir::rlc::EntityDeclaration>::OpConversionPattern;
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::EntityDeclaration op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		mlir::Type type = typeConverter->convertType(op.getType());
-		llvm::SmallVector<llvm::StringRef, 2> names;
-		for (const auto& name :
-				 op.getType().cast<mlir::rlc::EntityType>().getFieldNames())
-		{
-			names.push_back(name);
-		}
-
-		rewriter.create<mlir::rlc::python::CTypeStructDecl>(
-				op.getLoc(), type, rewriter.getStrArrayAttr(names));
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
 
 static mlir::rlc::python::PythonFun emitFunctionWrapper(
 		mlir::Location loc,
@@ -236,6 +233,23 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 	rewriter.create<mlir::rlc::python::PythonReturn>(loc, toReturn);
 	return f;
 }
+
+class EntityDeclarationToNothing
+		: public mlir::OpConversionPattern<mlir::rlc::EntityDeclaration>
+{
+	public:
+	using mlir::OpConversionPattern<
+			mlir::rlc::EntityDeclaration>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::EntityDeclaration op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
 
 class EnumDeclarationToNothing
 		: public mlir::OpConversionPattern<mlir::rlc::EnumDeclarationOp>
@@ -517,17 +531,74 @@ namespace mlir::python
 			target.addIllegalDialect<mlir::rlc::RLCDialect>();
 
 			mlir::RewritePatternSet patterns(&getContext());
-			patterns.add<EntityDeclarationToClassDecl>(
-					ctypesConverter, &getContext());
 			patterns.add<ActionDeclToTNothing>(
 					&lib, &rlcBuilder, converter, &getContext());
 			patterns.add<TraitDeclarationToNothing>(converter, &getContext());
 			patterns.add<EnumDeclarationToNothing>(converter, &getContext());
+			patterns.add<EntityDeclarationToNothing>(converter, &getContext());
 			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
 
 			if (failed(applyPartialConversion(
 							getOperation(), target, std::move(patterns))))
 				signalPassFailure();
+		}
+	};
+
+	static void emitDeclaration(
+			mlir::Location loc,
+			mlir::Type type,
+			mlir::IRRewriter& rewriter,
+			mlir::TypeConverter& converter)
+	{
+		mlir::Type converted = converter.convertType(type);
+		llvm::SmallVector<std::string, 2> names;
+		llvm::SmallVector<llvm::StringRef, 2> refs;
+
+		if (auto entity = type.dyn_cast<mlir::rlc::EntityType>())
+		{
+			for (const auto& name : entity.getFieldNames())
+				names.push_back(name);
+		}
+		else if (auto alternative = type.dyn_cast<mlir::rlc::AlternativeType>())
+		{
+			for (const auto& name : llvm::enumerate(alternative.getUnderlying()))
+				names.push_back(
+						(llvm::Twine("field") + llvm::Twine(name.index())).str());
+		}
+		else
+		{
+			return;
+		}
+
+		for (auto& name : names)
+			refs.push_back(name);
+
+		rewriter.create<mlir::rlc::python::CTypeStructDecl>(
+				loc, converted, rewriter.getStrArrayAttr(refs));
+	}
+
+#define GEN_PASS_DEF_RLCTYPESTOPYTHONTYPESPASS
+#include "rlc/python/Passes.inc"
+	struct RLCTypesToPythonTypesPass
+			: impl::RLCTypesToPythonTypesPassBase<RLCTypesToPythonTypesPass>
+	{
+		using RLCTypesToPythonTypesPassBase<
+				RLCTypesToPythonTypesPass>::RLCTypesToPythonTypesPassBase;
+		void getDependentDialects(mlir::DialectRegistry& registry) const override
+		{
+			registry.insert<mlir::rlc::RLCDialect>();
+			registry.insert<mlir::rlc::python::RLCPython>();
+		}
+
+		void runOnOperation() override
+		{
+			mlir::TypeConverter ctypesConverter;
+			registerCTypesConversions(ctypesConverter);
+			mlir::IRRewriter rewriter(&getContext());
+
+			rewriter.setInsertionPointToStart(getOperation().getBody());
+			for (auto t : ::rlc::postOrderTypes(getOperation()))
+				emitDeclaration(getOperation().getLoc(), t, rewriter, ctypesConverter);
 		}
 	};
 }	 // namespace mlir::python

@@ -217,6 +217,8 @@ namespace mlir::rlc
 			bool replacedAtLeastOne = true;
 			while (replacedAtLeastOne)
 			{
+				emitImplicitAssign(getOperation());
+				emitImplicitInits(getOperation());
 				mlir::rlc::ModuleBuilder builder(getOperation());
 				replacedAtLeastOne = false;
 				llvm::SmallVector<mlir::rlc::TemplateInstantiationOp, 4> ops;
@@ -243,8 +245,6 @@ namespace mlir::rlc
 						alreadyReplaced[mapKey] = newInstance;
 					}
 				}
-				emitImplicitAssign(getOperation());
-				emitImplicitInits(getOperation());
 			}
 
 			llvm::SmallVector<mlir::rlc::FunctionOp> templates;

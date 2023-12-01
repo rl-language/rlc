@@ -129,6 +129,27 @@ namespace mlir::rlc
 		}
 	}
 
+	static void initValue(
+			mlir::Value lhs, ModuleBuilder& builder, mlir::Location loc)
+	{
+		mlir::IRRewriter& rewriter = builder.getRewriter();
+		if (isBuiltinType(lhs.getType()))
+		{
+			auto initialValue = builder.getRewriter().create<mlir::rlc::ConstructOp>(
+					loc, lhs.getType());
+			auto assign = builder.getRewriter().create<mlir::rlc::BuiltinAssignOp>(
+					initialValue.getLoc(), lhs, initialValue);
+			emitBuiltinInits(rewriter, initialValue);
+			rewriter.setInsertionPointAfter(assign);
+			return;
+		}
+
+		builder.emitCall(
+				lhs.getDefiningOp(),
+				builtinOperatorName<mlir::rlc::InitOp>(),
+				mlir::ValueRange({ lhs }));
+	}
+
 	static void emitEntityImplicitInit(
 			mlir::rlc::EntityType type,
 			mlir::rlc::FunctionOp fun,
@@ -141,27 +162,23 @@ namespace mlir::rlc
 			auto lhs = rewriter.create<mlir::rlc::MemberAccess>(
 					fun.getLoc(), fun.getBody().front().getArgument(0), field.index());
 
-			if (isBuiltinType(lhs.getType()))
-			{
-				auto initialValue =
-						builder.getRewriter().create<mlir::rlc::ConstructOp>(
-								fun.getLoc(), lhs.getType());
-				auto assign = builder.getRewriter().create<mlir::rlc::BuiltinAssignOp>(
-						initialValue.getLoc(), lhs, initialValue);
-				emitBuiltinInits(rewriter, initialValue);
-				rewriter.setInsertionPointAfter(assign);
-				continue;
-			}
-
-			OverloadResolver resolver(builder.getSymbolTable());
-			auto overload = resolver.instantiateOverload(
-					rewriter,
-					fun.getLoc(),
-					builtinOperatorName<mlir::rlc::InitOp>(),
-					mlir::ValueRange({ lhs }));
-			rewriter.create<mlir::rlc::CallOp>(
-					fun.getLoc(), overload, mlir::ValueRange({ lhs }));
+			initValue(lhs, builder, fun.getLoc());
 		}
+	}
+
+	static void emitImplicitInitAlternative(
+			mlir::rlc::AlternativeType type,
+			mlir::rlc::FunctionOp fun,
+			mlir::rlc::ModuleBuilder& builder)
+	{
+		auto& rewriter = builder.getRewriter();
+		rewriter.create<mlir::rlc::SetActiveEntryOp>(
+				fun.getLoc(),
+				fun.getBody().getArgument(0),
+				rewriter.getI64IntegerAttr(0));
+		auto casted = rewriter.create<mlir::rlc::ValueUpcastOp>(
+				fun.getLoc(), type.getUnderlying()[0], fun.getBody().getArgument(0));
+		initValue(casted, builder, fun.getLoc());
 	}
 
 	static void emitImplicitInitArray(
@@ -207,23 +224,7 @@ namespace mlir::rlc
 		auto lhsElem =
 				rewriter.create<mlir::rlc::ArrayAccess>(fun.getLoc(), lhs, decl);
 
-		if (isBuiltinType(lhsElem.getType()))
-		{
-			auto initialValue = builder.getRewriter().create<mlir::rlc::ConstructOp>(
-					fun.getLoc(), lhsElem.getType());
-			auto assign = builder.getRewriter().create<mlir::rlc::BuiltinAssignOp>(
-					initialValue.getLoc(), lhsElem, initialValue);
-			emitBuiltinInits(rewriter, initialValue);
-			rewriter.setInsertionPointToEnd(loop);
-		}
-		else if (auto call = builder.emitCall(
-								 fun,
-								 mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
-								 mlir::ValueRange({ lhsElem }));
-						 not call)
-		{
-			llvm_unreachable("unrechable");
-		}
+		initValue(lhsElem, builder, lhsElem.getLoc());
 
 		auto oneConstant =
 				rewriter.create<mlir::rlc::Constant>(fun.getLoc(), int64_t(1));
@@ -259,6 +260,12 @@ namespace mlir::rlc
 			{
 				emitImplicitInitArray(arrayType, fun, builder);
 			}
+			else if (
+					auto alternativeType = type.dyn_cast<mlir::rlc::AlternativeType>())
+			{
+				emitImplicitInitAlternative(alternativeType, fun, builder);
+			}
+
 			rewriter.create<mlir::rlc::Yield>(op.getLoc(), mlir::ValueRange());
 		}
 	}

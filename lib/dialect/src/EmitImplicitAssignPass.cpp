@@ -29,6 +29,22 @@ namespace mlir::rlc
 
 		assert(not isBuiltinType(type));
 
+		if (auto alternative = type.dyn_cast<mlir::rlc::AlternativeType>())
+		{
+			for (auto field : alternative.getUnderlying())
+			{
+				auto fType =
+						mlir::FunctionType::get(op.getContext(), { type, field }, { type });
+				auto fun = rewriter.create<mlir::rlc::FunctionOp>(
+						op.getLoc(),
+						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
+						fType,
+						rewriter.getStrArrayAttr({ "arg0", "arg1" }));
+
+				table.add(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(), fun);
+			}
+		}
+
 		auto fType =
 				mlir::FunctionType::get(op.getContext(), { type, type }, { type });
 
@@ -59,8 +75,6 @@ namespace mlir::rlc
 			types.push_back(op.getEntityType());
 		});
 
-		llvm::DenseMap<mlir::Type, mlir::rlc::FunctionOp> typeToFunction;
-		// emits the needed declarations for each subtypes
 		for (auto type : types)
 		{
 			const auto emitAllNeedSubtypes = [&](mlir::Type subtype) {
@@ -72,7 +86,6 @@ namespace mlir::rlc
 
 				auto toCall = declareImplicitAssign(
 						builder.getRewriter(), builder.getSymbolTable(), op, subtype);
-				typeToFunction[type] = toCall;
 			};
 
 			type.walk(emitAllNeedSubtypes);
@@ -88,13 +101,12 @@ namespace mlir::rlc
 			if (isTemplateType(assign.getType()).succeeded())
 				continue;
 
-			auto toCall = typeToFunction[assign.getType()];
-
 			builder.getRewriter().setInsertionPoint(assign);
-			builder.getRewriter().replaceOpWithNewOp<mlir::rlc::CallOp>(
+			builder.emitCall(
 					assign,
-					toCall,
-					mlir::ValueRange({ assign.getLhs(), assign.getRhs() }));
+					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
+					{ assign.getLhs(), assign.getRhs() });
+			builder.getRewriter().eraseOp(assign);
 		}
 	}
 
@@ -160,6 +172,108 @@ namespace mlir::rlc
 		rewriter.create<mlir::rlc::Yield>(fun.getLoc(), mlir::ValueRange({}));
 	}
 
+	// basically emit
+	// fun assign(X | Y | Z... arg1, Y arg2):
+	//   if not arg1 is Y:
+	//     destroy arg1
+	//     setActive arg1, Y
+	//     casted = upcast Y, arg1
+	//     init casted
+	//   casted = upcast Y, arg1
+	//   arg1 = arg2
+	static void emitImplicitAssignAlternatveField(
+			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
+	{
+		auto resType = fun.getResultTypes().front();
+		auto& rewriter = builder.getRewriter();
+		auto type = resType.dyn_cast<mlir::rlc::AlternativeType>();
+		auto* block = &fun.getBody().front();
+		auto toAssignType = block->getArgumentTypes()[1];
+
+		size_t outputResultingIndex = std::distance(
+				type.getUnderlying().begin(),
+				llvm::find(type.getUnderlying(), toAssignType));
+
+		rewriter.setInsertionPointToEnd(block);
+
+		auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(fun.getLoc());
+		auto* condition = rewriter.createBlock(&ifStatement.getCondition());
+		rewriter.setInsertionPointToEnd(condition);
+		auto isThisField = rewriter.create<mlir::rlc::IsOp>(
+				fun.getLoc(), block->getArgument(0), toAssignType);
+
+		auto isItNotThisField =
+				rewriter.create<mlir::rlc::NotOp>(fun.getLoc(), isThisField);
+		rewriter.create<mlir::rlc::Yield>(
+				fun.getLoc(), mlir::ValueRange({ isItNotThisField }));
+
+		auto* trueBranch = rewriter.createBlock(&ifStatement.getTrueBranch());
+		rewriter.setInsertionPointToEnd(trueBranch);
+		rewriter.create<mlir::rlc::DestroyOp>(fun.getLoc(), block->getArgument(0));
+		rewriter.create<mlir::rlc::SetActiveEntryOp>(
+				fun.getLoc(), block->getArgument(0), outputResultingIndex);
+		auto casted = rewriter.create<mlir::rlc::ValueUpcastOp>(
+				fun.getLoc(), toAssignType, block->getArgument(1));
+		if (not isBuiltinType(casted.getType()))
+			builder.emitCall(
+					fun,
+					mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
+					mlir::ValueRange({ casted }));
+
+		rewriter.create<mlir::rlc::Yield>(fun.getLoc());
+		auto* elseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
+		rewriter.setInsertionPointToEnd(elseBranch);
+		rewriter.create<mlir::rlc::Yield>(fun.getLoc());
+
+		rewriter.setInsertionPointToEnd(block);
+		auto castedAgain = rewriter.create<mlir::rlc::ValueUpcastOp>(
+				fun.getLoc(), toAssignType, block->getArgument(1));
+
+		builder.emitCall(
+				fun,
+				mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
+				mlir::ValueRange({ castedAgain, block->getArgument(1) }));
+	}
+
+	// Iterate on every possible alternative of the right and side, if it is the
+	// the current active possibility, dispatch to the other emitted assign
+	// operation that handles that in the specific
+	static void emitImplicitAssignAlternatve(
+			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
+	{
+		auto resType = fun.getResultTypes().front();
+		auto& rewriter = builder.getRewriter();
+		auto type = resType.dyn_cast<mlir::rlc::AlternativeType>();
+
+		auto* block = &fun.getBody().front();
+		for (auto field : type.getUnderlying())
+		{
+			rewriter.setInsertionPointToEnd(block);
+			auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(fun.getLoc());
+			auto* condition = rewriter.createBlock(&ifStatement.getCondition());
+			rewriter.setInsertionPointToEnd(condition);
+			auto isThisField = rewriter.create<mlir::rlc::IsOp>(
+					fun.getLoc(), block->getArgument(1), field);
+			rewriter.create<mlir::rlc::Yield>(
+					fun.getLoc(), mlir::ValueRange({ isThisField }));
+
+			auto* trueBranch = rewriter.createBlock(&ifStatement.getTrueBranch());
+			rewriter.setInsertionPointToEnd(trueBranch);
+			auto casted = rewriter.create<mlir::rlc::ValueUpcastOp>(
+					fun.getLoc(), field, block->getArgument(1));
+
+			builder.emitCall(
+					fun,
+					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
+					mlir::ValueRange({ block->getArgument(0), casted }));
+			rewriter.create<mlir::rlc::Yield>(fun.getLoc());
+
+			auto* elseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
+			rewriter.setInsertionPointToEnd(elseBranch);
+			rewriter.create<mlir::rlc::Yield>(fun.getLoc());
+		}
+	}
+
 	static void emitImplicitAssignEntity(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
 	{
@@ -195,7 +309,7 @@ namespace mlir::rlc
 		auto* block = rewriter.createBlock(
 				&fun.getBody(),
 				fun.getBody().begin(),
-				{ resType, resType },
+				fun.getArgumentTypes(),
 				{ fun.getLoc(), fun.getLoc() });
 
 		if (auto arraytype = resType.dyn_cast<mlir::rlc::ArrayType>())
@@ -205,6 +319,13 @@ namespace mlir::rlc
 		else if (auto type = resType.dyn_cast<mlir::rlc::EntityType>())
 		{
 			emitImplicitAssignEntity(builder, fun);
+		}
+		else if (auto type = resType.dyn_cast<mlir::rlc::AlternativeType>())
+		{
+			if (type == fun.getType().getInput(1))
+				emitImplicitAssignAlternatve(builder, fun);
+			else
+				emitImplicitAssignAlternatveField(builder, fun);
 		}
 		else
 		{

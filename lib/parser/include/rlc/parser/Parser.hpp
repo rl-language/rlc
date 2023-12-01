@@ -53,8 +53,7 @@ namespace rlc
 		llvm::Expected<mlir::Value> andExpression();
 		llvm::Expected<mlir::Value> orExpression();
 		llvm::Expected<mlir::rlc::EntityDeclaration> entityDeclaration();
-		llvm::Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
-		entityField();
+		llvm::Expected<std::pair<std::string, mlir::Type>> entityField();
 		llvm::Expected<llvm::SmallVector<mlir::Value, 3>> argumentExpressionList();
 
 		llvm::Expected<mlir::rlc::ExpressionStatement> expressionStatement();
@@ -69,13 +68,11 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ForFieldStatement> forFieldStatement();
 		llvm::Expected<mlir::rlc::ReturnStatement> returnStatement();
 
-		llvm::Expected<
-				llvm::SmallVector<std::pair<std::string, mlir::rlc::ScalarUseType>, 3>>
+		llvm::Expected<llvm::SmallVector<std::pair<std::string, mlir::Type>, 3>>
 		functionArguments();
-		llvm::Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
-		argDeclaration();
+		llvm::Expected<std::pair<std::string, mlir::Type>> argDeclaration();
 
-		llvm::Expected<mlir::rlc::ScalarUseType> singleTypeUse();
+		llvm::Expected<mlir::Type> singleTypeUse();
 		llvm::Expected<mlir::rlc::ScalarUseType> singleNonArrayTypeUse();
 		llvm::Expected<mlir::rlc::FunctionUseType> functionTypeUse();
 		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition();

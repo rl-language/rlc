@@ -41,7 +41,8 @@ namespace mlir::rlc
 		for (auto op : toReplace)
 		{
 			if (isTemplateType(op.getTypeOrTrait()).succeeded() or
-					isTemplateType(op.getExpression().getType()).succeeded())
+					isTemplateType(op.getExpression().getType()).succeeded() or
+					op.getExpression().getType().isa<mlir::rlc::AlternativeType>())
 				continue;
 
 			bool evalsToTrue = true;
@@ -65,7 +66,7 @@ namespace mlir::rlc
 		op->walk([&](mlir::rlc::IfStatement op) { ifs.push_back(op); });
 
 		// walk the statements backward so the innermost ones get deleated first
-		// and you do not delate them twice
+		// and you do not delete them twice
 		for (auto ifOp : llvm::reverse(ifs))
 			eraseIfStatementIfConstant(ifOp);
 	}

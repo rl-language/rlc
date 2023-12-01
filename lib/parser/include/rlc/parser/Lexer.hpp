@@ -78,7 +78,8 @@ namespace rlc
 		Int64,
 		Bool,
 		Dot,
-		Error
+		Error,
+		VerticalPipe
 	};
 
 	llvm::StringRef tokenToString(Token t);

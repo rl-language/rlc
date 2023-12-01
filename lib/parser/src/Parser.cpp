@@ -489,8 +489,7 @@ Expected<mlir::Value> Parser::assignmentExpression()
 /**
  * EntityField : TypeUse Identifier
  */
-llvm::Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
-Parser::entityField()
+llvm::Expected<std::pair<std::string, mlir::Type>> Parser::entityField()
 {
 	TRY(type, singleTypeUse());
 	EXPECT(Token::Identifier);
@@ -968,32 +967,44 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleNonArrayTypeUse()
 }
 
 /**
- * singleTypeUse : singleNonArrayTypeUse (["["int64"|Ident "]"] )*
+ * singleTypeUse : singleNonArrayTypeUse (["["int64"|Ident "]"] )* (|
+ * singleTypeUse)*
  */
-Expected<mlir::rlc::ScalarUseType> Parser::singleTypeUse()
+Expected<mlir::Type> Parser::singleTypeUse()
 {
-	TRY(typeUse, singleNonArrayTypeUse());
+	llvm::SmallVector<mlir::Type, 2> seenTypes;
 
-	while (accept<Token::LSquare>())
+	do
 	{
-		mlir::Type arraySize;
-		if (accept<Token::Int64>())
+		TRY(typeUse, singleNonArrayTypeUse());
+
+		while (accept<Token::LSquare>())
 		{
-			arraySize = mlir::rlc::IntegerLiteralType::get(ctx, lInt64);
+			mlir::Type arraySize;
+			if (accept<Token::Int64>())
+			{
+				arraySize = mlir::rlc::IntegerLiteralType::get(ctx, lInt64);
+			}
+			else
+			{
+				EXPECT(Token::Identifier);
+				arraySize = mlir::rlc::ScalarUseType::get(ctx, lIdent, 0);
+			}
+			*typeUse =
+					mlir::rlc::ScalarUseType::get(ctx, *typeUse, "", arraySize, {});
+			EXPECT(Token::RSquare);
 		}
-		else
-		{
-			EXPECT(Token::Identifier);
-			arraySize = mlir::rlc::ScalarUseType::get(ctx, lIdent, 0);
-		}
-		*typeUse = mlir::rlc::ScalarUseType::get(ctx, *typeUse, "", arraySize, {});
-		EXPECT(Token::RSquare);
-	}
-	return typeUse;
+
+		seenTypes.push_back(*typeUse);
+	} while (accept<Token::VerticalPipe>());
+
+	if (seenTypes.size() == 1)
+		return seenTypes.front();
+
+	return mlir::rlc::AlternativeType::get(ctx, seenTypes);
 }
 
-Expected<std::pair<std::string, mlir::rlc::ScalarUseType>>
-Parser::argDeclaration()
+Expected<std::pair<std::string, mlir::Type>> Parser::argDeclaration()
 {
 	TRY(tp, singleTypeUse());
 	EXPECT(Token::Identifier);
@@ -1004,12 +1015,12 @@ Parser::argDeclaration()
 /**
  * functionDefinition : "(" [argDeclaration ("," argDeclaration)*] ")"
  */
-Expected<llvm::SmallVector<std::pair<std::string, mlir::rlc::ScalarUseType>, 3>>
+Expected<llvm::SmallVector<std::pair<std::string, mlir::Type>, 3>>
 Parser::functionArguments()
 {
 	EXPECT(Token::LPar);
 
-	llvm::SmallVector<std::pair<std::string, mlir::rlc::ScalarUseType>, 3> args;
+	llvm::SmallVector<std::pair<std::string, mlir::Type>, 3> args;
 
 	if (current != Token::RPar)
 	{
