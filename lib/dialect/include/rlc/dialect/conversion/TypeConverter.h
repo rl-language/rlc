@@ -115,12 +115,10 @@ namespace mlir::rlc
 			newBody.push_back(maxAligmentType);
 
 			assert(maxAligmentType != nullptr);
-			for (auto padding = dataLayaout.getTypeSize(maxAligmentType);
-					 padding < size;
-					 padding++)
-			{
-				newBody.push_back(mlir::IntegerType::get(type.getContext(), 8));
-			}
+			newBody.push_back(mlir::LLVM::LLVMArrayType::get(
+					type.getContext(),
+					mlir::IntegerType::get(type.getContext(), 8),
+					size - dataLayaout.getTypeSize(maxAligmentType)));
 
 			newBody.push_back(mlir::IntegerType::get(type.getContext(), 64));
 

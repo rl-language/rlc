@@ -7,5 +7,5 @@ fun main() -> Int:
 		return -2 
 	asd = 3
 	if asd is Int:
-		return asd
+		return asd - 3
 	return -1

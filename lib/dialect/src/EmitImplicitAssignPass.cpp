@@ -212,13 +212,15 @@ namespace mlir::rlc
 		rewriter.create<mlir::rlc::DestroyOp>(fun.getLoc(), block->getArgument(0));
 		rewriter.create<mlir::rlc::SetActiveEntryOp>(
 				fun.getLoc(), block->getArgument(0), outputResultingIndex);
-		auto casted = rewriter.create<mlir::rlc::ValueUpcastOp>(
-				fun.getLoc(), toAssignType, block->getArgument(1));
-		if (not isBuiltinType(casted.getType()))
+		if (not isBuiltinType(toAssignType))
+		{
+			auto casted = rewriter.create<mlir::rlc::ValueUpcastOp>(
+					fun.getLoc(), toAssignType, block->getArgument(1));
 			builder.emitCall(
 					fun,
 					mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 					mlir::ValueRange({ casted }));
+		}
 
 		rewriter.create<mlir::rlc::Yield>(fun.getLoc());
 		auto* elseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
@@ -227,7 +229,7 @@ namespace mlir::rlc
 
 		rewriter.setInsertionPointToEnd(block);
 		auto castedAgain = rewriter.create<mlir::rlc::ValueUpcastOp>(
-				fun.getLoc(), toAssignType, block->getArgument(1));
+				fun.getLoc(), toAssignType, block->getArgument(0));
 
 		builder.emitCall(
 				fun,

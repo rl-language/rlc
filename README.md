@@ -154,11 +154,9 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 * testing properly generated python
 * scalar type constraints for float
 * fix the bug about all loops being unrolled
-* support args to struct
 * allow to return by non copy
 * test error messages
 * inlining of actions
-* alternative types
 
 #### long term feature
 * require clauses out of line
@@ -167,6 +165,7 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 * string support
 * add array bound checks
 * proper support for different architectures
+* add "if x is Y as k:" to allow a way to dodge shadowing
 
 #### standard lib
 * graph library
