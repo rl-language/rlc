@@ -90,42 +90,44 @@ namespace mlir::rlc
 					newInner,
 					type.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()));
 		});
-		converter.addConversion([&](mlir::rlc::AlternativeType type) -> Type {
-			llvm::SmallVector<mlir::Type> innerTypes;
-			unsigned int size = 0;
-			unsigned int aligment = 0;
-			mlir::Type maxAligmentType = nullptr;
-			const auto& dataLayaout = mlir::DataLayout::closest(module);
-			for (auto subType : type.getUnderlying())
-			{
-				auto result = converter.convertType(subType)
-													.cast<mlir::LLVM::LLVMPointerType>()
-													.getElementType();
-				assert(result != nullptr);
-				innerTypes.push_back(result);
-				size = std::max(size, dataLayaout.getTypeSize(result));
-				if (auto maybeNewAlign = dataLayaout.getTypePreferredAlignment(result);
-						aligment < maybeNewAlign)
-				{
-					aligment = maybeNewAlign;
-					maxAligmentType = result;
-				}
-			}
-			llvm::SmallVector<mlir::Type, 4> newBody;
-			newBody.push_back(maxAligmentType);
+		converter.addConversion(
+				[&converter, module](mlir::rlc::AlternativeType type) -> Type {
+					llvm::SmallVector<mlir::Type> innerTypes;
+					unsigned int size = 0;
+					unsigned int aligment = 0;
+					mlir::Type maxAligmentType = nullptr;
+					const auto& dataLayaout = mlir::DataLayout::closest(module);
+					for (auto subType : type.getUnderlying())
+					{
+						auto result = converter.convertType(subType)
+															.cast<mlir::LLVM::LLVMPointerType>()
+															.getElementType();
+						assert(result != nullptr);
+						innerTypes.push_back(result);
+						size = std::max(size, dataLayaout.getTypeSize(result));
+						if (auto maybeNewAlign =
+										dataLayaout.getTypePreferredAlignment(result);
+								aligment < maybeNewAlign)
+						{
+							aligment = maybeNewAlign;
+							maxAligmentType = result;
+						}
+					}
+					llvm::SmallVector<mlir::Type, 4> newBody;
+					newBody.push_back(maxAligmentType);
 
-			assert(maxAligmentType != nullptr);
-			newBody.push_back(mlir::LLVM::LLVMArrayType::get(
-					type.getContext(),
-					mlir::IntegerType::get(type.getContext(), 8),
-					size - dataLayaout.getTypeSize(maxAligmentType)));
+					assert(maxAligmentType != nullptr);
+					newBody.push_back(mlir::LLVM::LLVMArrayType::get(
+							type.getContext(),
+							mlir::IntegerType::get(type.getContext(), 8),
+							size - dataLayaout.getTypeSize(maxAligmentType)));
 
-			newBody.push_back(mlir::IntegerType::get(type.getContext(), 64));
+					newBody.push_back(mlir::IntegerType::get(type.getContext(), 64));
 
-			auto result =
-					mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), newBody);
-			return mlir::LLVM::LLVMPointerType::get(result);
-		});
+					auto result = mlir::LLVM::LLVMStructType::getLiteral(
+							type.getContext(), newBody);
+					return mlir::LLVM::LLVMPointerType::get(result);
+				});
 		converter.addConversion([&](mlir::FunctionType type) -> Type {
 			SmallVector<Type, 2> args;
 			for (auto arg : type.getResults())

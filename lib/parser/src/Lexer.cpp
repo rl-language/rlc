@@ -83,6 +83,10 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordImport";
 		case Token::KeywordMalloc:
 			return "KeywordMalloc";
+		case Token::KeywordUsing:
+			return "KeywordUsing";
+		case Token::KeywordAlternative:
+			return "KeywordAlternative";
 		case Token::KeywordOwningPtr:
 			return "KeywordOwningPtr";
 		case Token::KeywordFree:
@@ -354,8 +358,14 @@ Token Lexer::eatIdent()
 	if (name == "rul")
 		return Token::KeywordRule;
 
+	if (name == "using")
+		return Token::KeywordUsing;
+
 	if (name == "is")
 		return Token::KeywordIs;
+
+	if (name == "Alternative")
+		return Token::KeywordAlternative;
 
 	if (name == "act")
 		return Token::KeywordAction;

@@ -117,6 +117,16 @@ namespace mlir::rlc
 					trait.getMetaType().getRequestedFunctionNames()[index],
 					op.getType().getInputs());
 
+			if (newInstantiation == nullptr)
+			{
+				op->emitError(
+						llvm::Twine("could not find overload for function ") +
+						trait.getMetaType().getRequestedFunctionNames()[index].strref());
+				op.getType().dump();
+				op->getParentOfType<mlir::rlc::FunctionOp>().dump();
+				abort();
+			}
+
 			op.replaceAllUsesWith(newInstantiation);
 			op.erase();
 			return newInstantiation;

@@ -60,6 +60,12 @@ static cl::opt<bool> dumpUncheckedAST(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpFlatIR(
+		"flattened",
+		cl::desc("dump ir before lowering to llvm dialect"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpCheckedAST(
 		"type-checked",
 		cl::desc("dumps the type checked ast before template expansion and exits"),
@@ -248,6 +254,11 @@ static void configurePassManager(
 	manager.addPass(mlir::rlc::createLowerToCfPass());
 	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 	manager.addPass(mlir::rlc::createStripFunctionMetadataPass());
+	if (dumpFlatIR)
+	{
+		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
+		return;
+	}
 	manager.addPass(mlir::rlc::createLowerToLLVMPass());
 	if (not compileOnly)
 		manager.addPass(mlir::rlc::createEmitMainPass());

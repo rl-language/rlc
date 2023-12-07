@@ -8,6 +8,7 @@ def RLC_Dialect : Dialect {
   let description = [{
 	very important
   }];
+  let hasConstantMaterializer = 1;
 
   /// This is the namespace of the dialect. It is used to encapsulate the sub-components
   /// of the dialect, such as operations ("my_dialect.foo").

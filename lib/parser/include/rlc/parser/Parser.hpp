@@ -52,6 +52,7 @@ namespace rlc
 		llvm::Expected<mlir::Value> equalityExpression();
 		llvm::Expected<mlir::Value> andExpression();
 		llvm::Expected<mlir::Value> orExpression();
+		llvm::Expected<mlir::rlc::UsingTypeOp> usingTypeStatement();
 		llvm::Expected<mlir::rlc::EntityDeclaration> entityDeclaration();
 		llvm::Expected<std::pair<std::string, mlir::Type>> entityField();
 		llvm::Expected<llvm::SmallVector<mlir::Value, 3>> argumentExpressionList();

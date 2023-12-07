@@ -27,6 +27,8 @@ namespace rlc
 		KeywordToArray,
 		KeywordFromArray,
 		KeywordEvent,
+		KeywordUsing,
+		KeywordAlternative,
 		KeywordAction,
 		KeywordEntity,
 		KeywordIf,

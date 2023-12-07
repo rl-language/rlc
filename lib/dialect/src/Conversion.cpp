@@ -1086,6 +1086,35 @@ class InitializerListLowerer
 	}
 };
 
+class IsAlternativeOpRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::IsAlternativeTypeOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::IsAlternativeTypeOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::IsAlternativeTypeOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto alloca = makeAlloca(
+				rewriter,
+				mlir::LLVM::LLVMPointerType::get(
+						mlir::IntegerType::get(op.getContext(), 8)),
+				op.getLoc());
+		auto res = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getI8IntegerAttr(
+						op.getInput().getType().isa<mlir::rlc::AlternativeType>()));
+
+		makeAlignedStore(rewriter, res, alloca, op.getLoc());
+
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
 class IntegerLiteralRewrtier
 		: public mlir::OpConversionPattern<mlir::rlc::IntegerLiteralUse>
 {
@@ -1533,6 +1562,7 @@ namespace mlir::rlc
 					.add<EnumUseLowerer>(converter, &getContext())
 					.add<CallRewriter>(converter, &getContext())
 					.add<ConstantRewriter>(converter, &getContext())
+					.add<IsAlternativeOpRewriter>(converter, &getContext())
 					.add<IntegerLiteralRewrtier>(converter, &getContext())
 					.add<IsOpRewriter>(converter, &getContext())
 					.add<SetActiveOpRewriter>(converter, &getContext())
@@ -1572,8 +1602,8 @@ namespace mlir::rlc
 					.add<ExplicitConstructRewriter>(converter, &getContext())
 					.add<AbortRewriter>(converter, &getContext());
 
-			if (failed(applyPartialConversion(
-							getOperation(), target, std::move(patterns))))
+			if (failed(
+							applyFullConversion(getOperation(), target, std::move(patterns))))
 				signalPassFailure();
 		}
 	};

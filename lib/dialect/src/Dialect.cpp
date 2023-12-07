@@ -2,6 +2,7 @@
 #include "rlc/dialect/Dialect.h"
 
 #include "Dialect.inc"
+#include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Types.hpp"
 
 class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
@@ -12,7 +13,7 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 	public:
 	using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
-	AliasResult getAlias(mlir::Type type, llvm::raw_ostream& OS) const final
+	AliasResult getAlias(mlir::Type type, llvm::raw_ostream &OS) const final
 	{
 		if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
 		{
@@ -40,4 +41,18 @@ void mlir::rlc::RLCDialect::initialize()
 	registerTypes();
 	registerOperations();
 	addInterfaces<TypeAliasASMInterface>();
+}
+
+mlir::Operation *mlir::rlc::RLCDialect::materializeConstant(
+		OpBuilder &builder, Attribute value, Type type, Location loc)
+{
+	if (auto boolAttr = value.dyn_cast<mlir::BoolAttr>())
+	{
+		if (type.isa<mlir::rlc::BoolType>())
+		{
+			return builder.create<mlir::rlc::Constant>(loc, boolAttr.getValue());
+		}
+	}
+
+	return nullptr;
 }

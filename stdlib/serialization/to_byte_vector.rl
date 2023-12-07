@@ -41,8 +41,17 @@ fun<T> _to_vector_impl(T to_add, Vector<Byte> output):
 	if to_add is ByteVectorSerializable:
 		to_add.append_to_vector(output)
 	else:
-		for field of to_add:
-			field._to_vector_impl(output)
+		if to_add is Alternative:
+			let counter = 0
+			for field of to_add:
+				using Type = type(field)
+				if to_add is Type:
+					counter._to_vector_impl(output)
+					to_add._to_vector_impl(output)
+				counter = counter + 1
+		else:
+			for field of to_add:
+				field._to_vector_impl(output)
 
 fun<T> as_byte_vector(T to_convert) -> Vector<Byte>:
 	let vec : Vector<Byte>
@@ -100,8 +109,20 @@ fun<T> _from_vector_impl(T to_add, Vector<Byte> input, Int index):
 	if to_add is ByteVectorParsable:
 		to_add.parse_from_vector(input, index)
 	else:
-		for field of to_add:
-			field._from_vector_impl(input, index)
+		if to_add is Alternative:
+			let counter = 0
+			counter._from_vector_impl(input, index)
+			for field of to_add:
+				if counter == 0:
+					using Type = type(field)
+					let to_parse : Type
+					to_parse._from_vector_impl(input, index)
+					to_add = to_parse
+					return
+				counter = counter - 1
+		else:
+			for field of to_add:
+				field._from_vector_impl(input, index)
 
 fun<T> from_byte_vector(T result, Vector<Byte> input):
 	_from_vector_impl(result, input, 0)

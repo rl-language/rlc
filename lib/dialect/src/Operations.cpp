@@ -185,6 +185,27 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::UsingTypeOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	{
+		auto _ = builder.addSymbolTable();
+
+		for (auto *op : ops(getBody()))
+			if (mlir::rlc::typeCheck(*op, builder).failed())
+				return mlir::failure();
+	}
+
+	builder.getConverter().registerType(
+			getName(),
+			mlir::dyn_cast<mlir::rlc::Yield>(getBody().back().getTerminator())
+					.getArguments()[0]
+					.getType());
+
+	builder.getRewriter().eraseOp(*this);
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::StatementList::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -787,6 +808,12 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 			"no known member " + getMemberName() + " in struct " +
 			structType.getName());
 	return mlir::failure();
+}
+
+mlir::LogicalResult mlir::rlc::IsAlternativeTypeOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::LogicalResult::success();
 }
 
 mlir::LogicalResult mlir::rlc::typeCheck(

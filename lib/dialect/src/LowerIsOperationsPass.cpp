@@ -32,7 +32,27 @@ namespace mlir::rlc
 		op.erase();
 	}
 
-	void lowerIsOperations(mlir::Operation* op, mlir::rlc::ValueTable table)
+	static void lowerAlternativeIsOperations(mlir::Operation* op)
+	{
+		llvm::SmallVector<mlir::rlc::IsAlternativeTypeOp, 4> toReplace;
+		op->walk(
+				[&](mlir::rlc::IsAlternativeTypeOp op) { toReplace.push_back(op); });
+
+		mlir::IRRewriter rewriter(op->getContext());
+		for (auto op : toReplace)
+		{
+			if (isTemplateType(op.getInput().getType()).succeeded())
+				continue;
+
+			bool evalsToTrue =
+					op.getInput().getType().isa<mlir::rlc::AlternativeType>();
+			rewriter.setInsertionPoint(op);
+			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, evalsToTrue);
+		}
+	}
+
+	static void lowerNonAlternativeIsOperations(
+			mlir::Operation* op, mlir::rlc::ValueTable& table)
 	{
 		llvm::SmallVector<mlir::rlc::IsOp, 4> toReplace;
 		op->walk([&](mlir::rlc::IsOp op) { toReplace.push_back(op); });
@@ -42,7 +62,8 @@ namespace mlir::rlc
 		{
 			if (isTemplateType(op.getTypeOrTrait()).succeeded() or
 					isTemplateType(op.getExpression().getType()).succeeded() or
-					op.getExpression().getType().isa<mlir::rlc::AlternativeType>())
+					(op.getExpression().getType().isa<mlir::rlc::AlternativeType>() and
+					 not op.getTypeOrTrait().isa<mlir::rlc::TraitMetaType>()))
 				continue;
 
 			bool evalsToTrue = true;
@@ -61,14 +82,14 @@ namespace mlir::rlc
 			rewriter.setInsertionPoint(op);
 			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, evalsToTrue);
 		}
+	}
 
-		llvm::SmallVector<mlir::rlc::IfStatement, 4> ifs;
-		op->walk([&](mlir::rlc::IfStatement op) { ifs.push_back(op); });
-
-		// walk the statements backward so the innermost ones get deleated first
-		// and you do not delete them twice
-		for (auto ifOp : llvm::reverse(ifs))
-			eraseIfStatementIfConstant(ifOp);
+	void lowerIsOperations(mlir::Operation* op, mlir::rlc::ValueTable& table)
+	{
+		lowerNonAlternativeIsOperations(op, table);
+		lowerAlternativeIsOperations(op);
+		op->walk(
+				[&](mlir::rlc::IfStatement op) { eraseIfStatementIfConstant(op); });
 	}
 
 	struct LowerIsOperationsPass

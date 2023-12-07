@@ -233,9 +233,38 @@ Expected<SmallVector<mlir::Value, 3>> Parser::argumentExpressionList()
 mlir::Type Parser::unkType() { return mlir::rlc::UnknownType::get(ctx); }
 
 /**
+ * usingTypeStatement : `using` ident `=` `Type` `(` expression `)`
+ */
+Expected<mlir::rlc::UsingTypeOp> Parser::usingTypeStatement()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordUsing);
+	EXPECT(Token::Identifier);
+	auto typeName = lIdent;
+
+	auto usingOp = builder.create<mlir::rlc::UsingTypeOp>(location, lIdent);
+	auto* bb = builder.createBlock(&usingOp.getBody());
+
+	EXPECT(Token::Equal);
+
+	EXPECT(Token::KeywordType);
+	EXPECT(Token::LPar);
+
+	builder.setInsertionPointToStart(bb);
+	TRY(accExp, expression());
+
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *accExp }));
+
+	EXPECT(Token::RPar);
+	builder.setInsertionPointAfter(usingOp);
+	return usingOp;
+}
+
+/**
  * postFixExpression :
  *			((postFixExpression)*
  *					"is" type
+ *					| "is" "Alternative"
  *					|("["expression"]"
  *					|"("argumentExpressionList ")" |
  *					. identifier ["(" argumentExpressionList")"]))
@@ -251,6 +280,13 @@ Expected<mlir::Value> Parser::postFixExpression()
 		auto location = getCurrentSourcePos();
 		if (accept<Token::KeywordIs>())
 		{
+			if (accept<Token::KeywordAlternative>())
+			{
+				exp = builder.create<mlir::rlc::IsAlternativeTypeOp>(location, exp)
+									.getResult();
+				continue;
+			}
+
 			TRY(type, singleTypeUse());
 			exp = builder.create<mlir::rlc::UncheckedIsOp>(location, exp, *type)
 								.getResult();
@@ -825,6 +861,9 @@ Expected<mlir::Operation*> Parser::statement()
 
 	if (current == Token::KeywordWhile)
 		return whileStatement();
+
+	if (current == Token::KeywordUsing)
+		return usingTypeStatement();
 
 	if (current == Token::KeywordActions)
 	{

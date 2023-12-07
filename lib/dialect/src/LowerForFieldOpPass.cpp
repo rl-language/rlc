@@ -7,6 +7,42 @@
 
 namespace mlir::rlc
 {
+	static void emitField(
+			mlir::rlc::ModuleBuilder& builder,
+			mlir::IRRewriter& rewriter,
+			mlir::Location loc,
+			mlir::ValueRange members,
+			mlir::Type fieldType,
+			size_t fieldIndex,
+			mlir::rlc::ForFieldStatement toClone)
+	{
+		auto cloned = mlir::cast<mlir::rlc::ForFieldStatement>(
+				rewriter.clone(*toClone.getOperation()));
+
+		for (auto [member, argument] :
+				 llvm::zip(members, cloned.getBody().getArguments()))
+			argument.replaceAllUsesWith(member);
+
+		mlir::AttrTypeReplacer replacer;
+		replacer.addReplacement([&](mlir::Type t) -> std::optional<mlir::Type> {
+			if (t == cloned.getBody().getArgument(0).getType())
+				return fieldType;
+			return std::nullopt;
+		});
+		replacer.recursivelyReplaceElementsIn(cloned, true, true, true);
+
+		for (auto& op : cloned.getBody().getOps())
+		{
+			if (mlir::isa<mlir::rlc::Yield>(op))
+				continue;
+
+			auto* newOp = rewriter.clone(op);
+			lowerForFields(builder, newOp);
+		}
+
+		rewriter.eraseOp(cloned);
+	}
+
 	static void lowerForField(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::ForFieldStatement op)
 	{
@@ -34,47 +70,50 @@ namespace mlir::rlc
 			}
 		}
 
-		if (not expressions[0].getType().isa<mlir::rlc::EntityType>())
+		if (auto casted =
+						expressions[0].getType().dyn_cast<mlir::rlc::EntityType>())
 		{
-			builder.getRewriter().eraseOp(op);
-			return;
+			for (auto field : llvm::enumerate(casted.getBody()))
+			{
+				llvm::SmallVector<mlir::Value, 2> members;
+				for (auto expression : expressions)
+				{
+					auto member = rewriter.create<mlir::rlc::MemberAccess>(
+							op.getLoc(), expression, field.index());
+					members.push_back(member);
+				}
+				emitField(
+						builder,
+						rewriter,
+						op.getLoc(),
+						members,
+						field.value(),
+						field.index(),
+						op);
+			}
 		}
-		auto casted = expressions[0].getType().cast<mlir::rlc::EntityType>();
-		for (auto field : llvm::enumerate(casted.getBody()))
+		else if (
+				auto casted =
+						expressions[0].getType().dyn_cast<mlir::rlc::AlternativeType>())
 		{
-			llvm::SmallVector<mlir::Value, 2> members;
-			for (auto expression : expressions)
+			for (auto field : llvm::enumerate(casted.getUnderlying()))
 			{
-				auto member = rewriter.create<mlir::rlc::MemberAccess>(
-						op.getLoc(), expression, field.index());
-				members.push_back(member);
+				llvm::SmallVector<mlir::Value, 2> members;
+				for (auto expression : expressions)
+				{
+					auto member = rewriter.create<mlir::rlc::ValueUpcastOp>(
+							op.getLoc(), field.value(), expression);
+					members.push_back(member);
+				}
+				emitField(
+						builder,
+						rewriter,
+						op.getLoc(),
+						members,
+						field.value(),
+						field.index(),
+						op);
 			}
-
-			auto cloned = mlir::cast<mlir::rlc::ForFieldStatement>(
-					rewriter.clone(*op.getOperation()));
-
-			for (auto [member, argument] :
-					 llvm::zip(members, cloned.getBody().getArguments()))
-				argument.replaceAllUsesWith(member);
-
-			mlir::AttrTypeReplacer replacer;
-			replacer.addReplacement([&](mlir::Type t) -> std::optional<mlir::Type> {
-				if (t == cloned.getBody().getArgument(0).getType())
-					return field.value();
-				return std::nullopt;
-			});
-			replacer.recursivelyReplaceElementsIn(cloned, true, true, true);
-
-			for (auto& op : cloned.getBody().getOps())
-			{
-				if (mlir::isa<mlir::rlc::Yield>(op))
-					continue;
-
-				auto* newOp = rewriter.clone(op);
-				lowerForFields(builder, newOp);
-			}
-
-			rewriter.eraseOp(cloned);
 		}
 		rewriter.eraseOp(op);
 	}
@@ -84,7 +123,7 @@ namespace mlir::rlc
 		llvm::SmallVector<mlir::rlc::ForFieldStatement, 2> ops;
 		op->walk([&](mlir::rlc::ForFieldStatement op) {
 			ops.push_back(op);
-			return mlir::WalkResult::interrupt();
+			return mlir::WalkResult::skip();
 		});
 		for (auto op : ops)
 			lowerForField(builder, op);

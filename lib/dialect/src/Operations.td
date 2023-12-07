@@ -190,6 +190,24 @@ def RLC_SetActiveEntryOp : RLC_Dialect<"set_active_entry"> {
   }];
 }
 
+def RLC_UsingTypeOp : RLC_Dialect<"using_type", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "statement list.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins StrAttr:$name);
+
+  let regions = (region
+    AnyRegion:$body
+  );
+
+  let assemblyFormat = [{
+	$name $body attr-dict 
+  }];
+}
+
 def RLC_InitializerListOp : RLC_Dialect<"initializer_list", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 
@@ -297,6 +315,28 @@ def RLC_EnumUse : RLC_Dialect<"enum_use", [DeclareOpInterfaceMethods<TypeCheckab
   let assemblyFormat = [{
 	$enum_value `->` type($result) attr-dict 
   }];
+}
+
+
+def RLC_IsAlternativeTypeOp : RLC_Dialect<"is_alternative_type", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "is alternative type";
+
+  let description = [{
+	returns true if the underlying type is a alternative type.
+  }];
+
+
+  let arguments = (ins AnyType:$input);
+  let results = (outs RLC_BoolType:$result);
+
+  let assemblyFormat = [{
+	$input  `:` type($input) `->` type($result) attr-dict 
+  }];
+
+   let builders = [
+        OpBuilder<(ins "mlir::Value":$expression), [{
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression);
+    }]>];
 }
 
 def RLC_UncheckedEnumUse : RLC_Dialect<"unchecked_enum_use"> {
