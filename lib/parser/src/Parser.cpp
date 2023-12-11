@@ -1116,7 +1116,7 @@ Expected<Parser::FunctionDeclarationResult> Parser::externFunctionDeclaration()
 /**
  * functionDeclaration : "fun" templateArguments identifier "("
  * [argDeclaration
- * ("," argDeclaration)*] ")" ["->" singleTypeUse]
+ * ("," argDeclaration)*] ")" ["->" "ref"? singleTypeUse]
  */
 Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 		bool templateFunction)
@@ -1151,8 +1151,12 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 	mlir::Type retType = mlir::rlc::VoidType::get(ctx);
 	if (accept<Token::Arrow>())
 	{
+		bool isRef = accept<Token::KeywordRef>();
 		TRY(actualRetType, singleTypeUse());
 		retType = *actualRetType;
+		if (isRef)
+			retType =
+					mlir::rlc::ReferenceType::get(actualRetType->getContext(), retType);
 	}
 
 	auto fun = builder.create<mlir::rlc::FunctionOp>(

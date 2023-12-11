@@ -653,7 +653,10 @@ def RLC_ArrayCallOp : RLC_Dialect<"array_call",
 				build($_builder, $_state, mlir::TypeRange(), callee, args);
 			else
 			{
-				auto resType = mlir::rlc::ArrayType::get($_builder.getContext(), functionType.getResults().front(), argumentSize);
+				mlir::Type resType = functionType.getResults().front();
+				if (auto casted = resType.dyn_cast<mlir::rlc::ReferenceType>())
+					resType = casted.getUnderlying();
+				resType = mlir::rlc::ArrayType::get($_builder.getContext(), resType, argumentSize);
 				build($_builder, $_state, resType, callee, args);
 			}
         }]>    
@@ -716,7 +719,13 @@ def RLC_CallOp : RLC_Dialect<"call",
 			if (functionType.getResults().size() == 0 or functionType.getResults().front() == VoidType::get($_builder.getContext()))
 				build($_builder, $_state, mlir::TypeRange(), callee, args);
 			else
-				build($_builder, $_state, functionType.getResults().front(), callee, args);
+			{
+
+				mlir::Type resType = functionType.getResults().front();
+				if (auto casted = resType.dyn_cast<mlir::rlc::ReferenceType>())
+					resType = casted.getUnderlying();
+				build($_builder, $_state, resType, callee, args);
+			}
         }]>    
 	];
 

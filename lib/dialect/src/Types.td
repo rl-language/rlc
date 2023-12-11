@@ -66,6 +66,16 @@ def RLC_BoolType : RLC_Type<"Bool", "bool"> {
   }];
 }
 
+def RLC_ReferenceType : RLC_Type<"Reference", "ref"> {
+  let summary = "RLC reference type";
+  let description = [{
+    reference type.
+  }];
+
+  let parameters = (ins "Type":$underlying);
+  let assemblyFormat = "`<` $underlying `>` ";
+}
+
 def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr"> {
   let summary = "RLC array type";
   let description = [{
@@ -138,6 +148,7 @@ def RLC_Unknown : RLC_Type<"Unknown", "unknown"> {
     Implementation agnostic bool type.
   }];
 }
+
 
 def RLC_FunctionTypeUse : RLC_Type<"FunctionUse", "function"> {
   let summary = "RLC builtin bool type";

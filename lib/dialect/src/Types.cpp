@@ -348,6 +348,12 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 		OS << maybeType.getArraySize();
 		return;
 	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ReferenceType>())
+	{
+		typeToMangled(OS, maybeType.getUnderlying());
+		OS << "Ref";
+		return;
+	}
 
 	if (auto maybeType = t.dyn_cast<mlir::rlc::OwningPtrType>())
 	{
@@ -507,6 +513,11 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 			if (isTemplateType(child).succeeded())
 				return mlir::success();
 		return mlir::failure();
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())
+	{
+		return isTemplateType(casted.getUnderlying());
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())

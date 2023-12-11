@@ -193,6 +193,10 @@ static void registerConversions(
 
 				return mlir::FunctionType::get(use.getContext(), types, { converted });
 			});
+	converter.addConversion([&](mlir::rlc::ReferenceType t) {
+		auto converted = converter.convertType(t.getUnderlying());
+		return mlir::rlc::ReferenceType::get(t.getContext(), converted);
+	});
 	converter.addConversion([](mlir::rlc::IntegerType t) { return t; });
 	converter.addConversion([](mlir::rlc::VoidType t) { return t; });
 	converter.addConversion([](mlir::rlc::BoolType t) { return t; });

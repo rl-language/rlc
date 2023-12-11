@@ -107,6 +107,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordOf";
 		case Token::KeywordReturn:
 			return "KeywordReturn";
+		case Token::KeywordRef:
+			return "KeywordRef";
 		case Token::KeywordEnable:
 			return "KeywordEnable";
 		case Token::KeywordTrue:
@@ -360,6 +362,9 @@ Token Lexer::eatIdent()
 
 	if (name == "using")
 		return Token::KeywordUsing;
+
+	if (name == "ref")
+		return Token::KeywordRef;
 
 	if (name == "is")
 		return Token::KeywordIs;

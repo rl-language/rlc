@@ -66,6 +66,10 @@ static void printTypeField(
 				OS << typeToString(ptr.getUnderlying());
 				OS << "*";
 			})
+			.Case<mlir::rlc::ReferenceType>([&](mlir::rlc::ReferenceType ptr) {
+				OS << typeToString(ptr.getUnderlying());
+				OS << "*";
+			})
 			.Default([&](auto type) { OS << nonArrayTypeToString(type); });
 
 	if (not type.isa<mlir::rlc::ArrayType>())
@@ -114,6 +118,7 @@ static void printTypeDefinition(mlir::Type type, llvm::raw_ostream& OS)
 					mlir::rlc::BoolType,
 					mlir::rlc::FloatType,
 					mlir::rlc::OwningPtrType,
+					mlir::rlc::ReferenceType,
 					mlir::rlc::IntegerLiteralType,
 					mlir::rlc::ArrayType,
 					mlir::rlc::VoidType,

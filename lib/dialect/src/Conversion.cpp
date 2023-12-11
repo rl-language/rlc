@@ -652,8 +652,13 @@ class YieldRewriter: public mlir::OpConversionPattern<mlir::rlc::Yield>
 		assert(op.getOnEnd().empty());
 		if (not adaptor.getArguments().empty())
 		{
-			auto loaded =
-					makeAlignedLoad(rewriter, adaptor.getArguments()[0], op.getLoc());
+			auto loaded = adaptor.getArguments()[0];
+			if (op->getParentOfType<mlir::LLVM::LLVMFuncOp>()
+							.getArguments()[0]
+							.getType() == loaded.getType())
+			{
+				loaded = makeAlignedLoad(rewriter, loaded, op.getLoc());
+			}
 			makeAlignedStore(
 					rewriter,
 					loaded,
@@ -820,25 +825,21 @@ class CallRewriter: public mlir::OpConversionPattern<mlir::rlc::CallOp>
 		args.push_back(adaptor.getCallee());
 		auto loc = op.getLoc();
 
+		mlir::Type type = mlir::rlc::VoidType::get(op.getContext());
+		mlir::Value result = nullptr;
 		if (op.getNumResults() == 1 and
 				not op.getResult(0).getType().isa<mlir::rlc::VoidType>())
 		{
-			auto type = op.getResult(0).getType();
+			type = op.getCalleeType().getResult(0);
 
 			auto res = typeConverter->convertType(type);
 
 			auto resultType =
 					res.cast<mlir::LLVM::LLVMPointerType>().getElementType();
 
-			auto alloca = makeAlloca(
+			result = makeAlloca(
 					rewriter, mlir::LLVM::LLVMPointerType::get(resultType), op.getLoc());
-
-			args.push_back(alloca);
-			rewriter.replaceOp(op, alloca);
-		}
-		else
-		{
-			rewriter.eraseOp(op);
+			args.push_back(result);
 		}
 
 		for (auto arg : adaptor.getArgs())
@@ -846,6 +847,14 @@ class CallRewriter: public mlir::OpConversionPattern<mlir::rlc::CallOp>
 
 		auto newOp = rewriter.create<mlir::LLVM::CallOp>(
 				op.getLoc(), mlir::ValueRange(), args);
+
+		if (type.isa<mlir::rlc::ReferenceType>())
+			result = makeAlignedLoad(rewriter, result, op.getLoc());
+
+		if (result != nullptr)
+			rewriter.replaceOp(op, result);
+		else
+			rewriter.eraseOp(op);
 
 		return mlir::LogicalResult::success();
 	}
