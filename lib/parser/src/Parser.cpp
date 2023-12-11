@@ -158,6 +158,7 @@ Expected<mlir::rlc::FreeOp> Parser::builtinFree()
 Expected<mlir::Value> Parser::primaryExpression()
 {
 	auto location = getCurrentSourcePos();
+
 	if (accept<Token::Identifier>())
 	{
 		if (not accept<Token::ColonsColons>())
@@ -615,6 +616,32 @@ llvm::Expected<bool> Parser::requirementList()
 	return true;
 }
 
+/**
+ * actionStatement : subaction `ident` = `ident` `(` argumentExpressionList `)`
+ * \n
+ */
+llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordSubAction);
+
+	EXPECT(Token::Identifier);
+	auto varName = lIdent;
+
+	EXPECT(Token::Equal);
+
+	EXPECT(Token::Identifier);
+	auto name = lIdent;
+
+	EXPECT(Token::LPar);
+	TRY(args, argumentExpressionList());
+	EXPECT(Token::RPar);
+	EXPECT(Token::Newline);
+
+	return builder.create<mlir::rlc::SubActionStatement>(
+			location, varName, name, *args);
+}
+
 llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
 {
 	auto location = getCurrentSourcePos();
@@ -858,6 +885,9 @@ Expected<mlir::Operation*> Parser::statement()
 
 	if (current == Token::KeywordReturn)
 		return returnStatement();
+
+	if (current == Token::KeywordSubAction)
+		return subActionStatement();
 
 	if (current == Token::KeywordWhile)
 		return whileStatement();

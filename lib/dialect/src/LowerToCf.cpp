@@ -136,6 +136,7 @@ static mlir::LogicalResult flatten(
 static mlir::LogicalResult flatten(
 		mlir::rlc::ActionsStatement op, mlir::IRRewriter& rewriter)
 {
+	auto parent = op->getParentOfType<mlir::rlc::FunctionOp>();
 	rewriter.setInsertionPoint(op);
 	auto location = op->getLoc();
 	llvm::SmallVector<mlir::rlc::Yield, 2> actionsTerminators;

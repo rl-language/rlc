@@ -427,6 +427,20 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
   }];
 }
 
+def RLC_SubActionStatement : RLC_Dialect<"subaction"> {
+  let summary = "subaction.";
+
+  let arguments = (ins StrAttr:$frame_name, StrAttr:$name, Variadic<AnyType>:$args);
+  let description = [{
+	subaction.
+  }];
+
+
+  let assemblyFormat = [{
+	$frame_name `=` $name `(` $args type($args) `)` attr-dict 
+  }];
+}
+
 def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 

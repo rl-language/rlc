@@ -68,6 +68,7 @@ namespace rlc
 		llvm::Expected<mlir::rlc::WhileStatement> whileStatement();
 		llvm::Expected<mlir::rlc::ForFieldStatement> forFieldStatement();
 		llvm::Expected<mlir::rlc::ReturnStatement> returnStatement();
+		llvm::Expected<mlir::rlc::SubActionStatement> subActionStatement();
 
 		llvm::Expected<llvm::SmallVector<std::pair<std::string, mlir::Type>, 3>>
 		functionArguments();

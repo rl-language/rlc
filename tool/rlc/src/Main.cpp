@@ -175,6 +175,8 @@ static void configurePassManager(
 		return;
 	}
 
+	manager.addPass(mlir::rlc::createLowerSubActionsPass());
+	manager.addPass(mlir::rlc::createSortActionsPass());
 	manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
 	manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 	manager.addPass(mlir::rlc::createTypeCheckPass());
