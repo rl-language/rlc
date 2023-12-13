@@ -875,3 +875,259 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	rewriter.eraseOp(*this);
 	return mlir::success();
 }
+
+void mlir::rlc::ActionsStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// every region can be executed at most one.
+	invocationBounds.append(getRegions().size(), mlir::InvocationBounds(0, 1));
+}
+
+mlir::MutableOperandRange mlir::rlc::Yield::getMutableSuccessorOperands(
+		std::optional<unsigned> index)
+{
+	return getArgumentsMutable().slice(0, 0);
+}
+
+void mlir::rlc::ActionsStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// from the op you can jump to any region
+	if (not index)
+		for (auto *region : getRegions())
+			regions.push_back(
+					mlir::RegionSuccessor(region, region->front().getArguments()));
+
+	// from any region you jump out
+	if (index)
+		regions.push_back(mlir::RegionSuccessor({}));
+}
+
+void mlir::rlc::ActionStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	if (not getPrecondition().empty())
+		invocationBounds.push_back(mlir::InvocationBounds(0, 1));
+}
+
+void mlir::rlc::ActionStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	if (not index)
+	{
+		if (not getPrecondition().empty())
+			regions.push_back(mlir::RegionSuccessor(
+					&getPrecondition(),
+					getPrecondition().front().getArguments().slice(0, 0)));
+	}
+
+	regions.push_back(mlir::RegionSuccessor({}));
+}
+
+void mlir::rlc::DeclarationStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::DeclarationStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a declaration you jump into the single body block
+	if (not index)
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	// when you are done with the region, you get out back to the statement
+	if (index)
+		regions.push_back(mlir::RegionSuccessor({}));
+}
+
+void mlir::rlc::StatementList::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::StatementList::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a statement you jump into the single body block
+	if (not index)
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	// when you are done with the region, you get out back to the statement
+	if (index)
+		regions.push_back(mlir::RegionSuccessor({}));
+}
+
+void mlir::rlc::Yield::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	if (not getOnEnd().empty())
+		invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::Yield::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a yield you jump into the single body block
+	if (not index and not getOnEnd().empty())
+		regions.push_back(
+				mlir::RegionSuccessor(&getOnEnd(), getOnEnd().front().getArguments()));
+
+	// when you are done with the region, you get out back to yield
+	if (index and not getOnEnd().empty())
+		regions.push_back(mlir::RegionSuccessor({}));
+}
+
+void mlir::rlc::ReturnStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::ReturnStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a return statement you jump into the single body block
+	if (not index)
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	// when you are done with the region, you get out back to ExpressionStatement
+	if (index)
+		regions.push_back(mlir::RegionSuccessor({}));
+}
+
+void mlir::rlc::ExpressionStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::ExpressionStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a expression statement you jump into the single body block
+	if (not index)
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	// when you are done with the region, you get out back to ExpressionStatement
+	if (index)
+		regions.push_back(mlir::RegionSuccessor({}));
+}
+
+void mlir::rlc::IfStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the precondition once
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+
+	// executes the then else blocks zero times or one time
+	invocationBounds.push_back(mlir::InvocationBounds(0, 1));
+	invocationBounds.push_back(mlir::InvocationBounds(0, 1));
+}
+
+void mlir::rlc::IfStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a if statement you jump into the precondition
+	if (not index)
+		regions.push_back(mlir::RegionSuccessor(
+				&getCondition(), getCondition().front().getArguments()));
+
+	// from the condition, you can jump to the then or else branch
+	if (index and *index == 0)
+	{
+		regions.push_back(mlir::RegionSuccessor(
+				&getTrueBranch(), getTrueBranch().front().getArguments()));
+		regions.push_back(mlir::RegionSuccessor(
+				&getElseBranch(), getElseBranch().front().getArguments()));
+	}
+
+	// from the then and else branch you go back out
+	if (index and (*index == 1 or *index == 2))
+	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+}
+
+void mlir::rlc::WhileStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a for statement you jump into the precondition
+	if (not index)
+		regions.push_back(mlir::RegionSuccessor(
+				&getCondition(), getCondition().front().getArguments()));
+
+	// from the condition, you can jump out or to the body
+	if (index and *index == 0)
+	{
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+
+	// from the body you jump to the condition
+	if (index and *index == 1)
+	{
+		regions.push_back(mlir::RegionSuccessor(
+				&getCondition(), getCondition().front().getArguments()));
+	}
+}
+
+mlir::SuccessorOperands mlir::rlc::Branch::getSuccessorOperands(unsigned index)
+{
+	return mlir::SuccessorOperands(
+			mlir::MutableOperandRange(getOperation(), 0, 0));
+}
+
+mlir::SuccessorOperands mlir::rlc::CondBranch::getSuccessorOperands(
+		unsigned index)
+{
+	return mlir::SuccessorOperands(
+			mlir::MutableOperandRange(getOperation(), 0, 0));
+}
+
+mlir::SuccessorOperands mlir::rlc::FlatActionStatement::getSuccessorOperands(
+		unsigned index)
+{
+	return mlir::SuccessorOperands(
+			mlir::MutableOperandRange(getOperation(), 0, 0));
+}
+
+mlir::SuccessorOperands mlir::rlc::SelectBranch::getSuccessorOperands(
+		unsigned index)
+{
+	return mlir::SuccessorOperands(
+			mlir::MutableOperandRange(getOperation(), 0, 0));
+}

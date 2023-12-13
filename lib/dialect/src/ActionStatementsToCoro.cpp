@@ -163,7 +163,7 @@ namespace mlir::rlc
 
 				llvm::SmallVector<mlir::Operation*, 2> ops;
 
-				for (auto& op : yield.getOnEnd().getOps())
+				for (auto& op : llvm::drop_end(yield.getOnEnd().front()))
 					ops.push_back(&op);
 
 				for (auto* op : ops)

@@ -20,7 +20,7 @@ def RLCPtrOrUnkownType : AnyTypeOf<[RLC_OwningPtrType, RLC_Unknown]>;
 
 def AnyFunctionType : AnyTypeOf<[RLC_Unknown, FunctionType]>;
 
-def RLC_ExpressionStatement : RLC_Dialect<"exp", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_ExpressionStatement : RLC_Dialect<"exp", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "expression.";
 
   let description = [{
@@ -78,7 +78,7 @@ def RLC_TraitDefinition : RLC_Dialect<"trait"> {
   }]>];
 }
 
-def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "expression.";
 
   let description = [{
@@ -115,7 +115,7 @@ def RLC_ForFieldStatement : RLC_Dialect<"for_field", [DeclareOpInterfaceMethods<
   }];
 }
 
-def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface>]> {
   let summary = "while.";
 
   let description = [{
@@ -132,7 +132,7 @@ def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeChe
   }];
 }
 
-def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>,  DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "return.";
 
   let description = [{
@@ -151,7 +151,7 @@ def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator, DeclareOpInterfaceM
 
 }
 
-def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>, NoTerminator]> {
+def RLC_Yield : RLC_Dialect<"yield", [ReturnLike, Terminator, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "ends statements";
 
   let arguments = (ins Variadic<AnyType>:$arguments);
@@ -239,7 +239,7 @@ def RLC_CopyOp : RLC_Dialect<"copy"> {
 }
 
 
-def RLC_StatementList : RLC_Dialect<"list", [SymbolTable, DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_StatementList : RLC_Dialect<"list", [SymbolTable, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
   let description = [{
@@ -441,7 +441,7 @@ def RLC_SubActionStatement : RLC_Dialect<"subaction"> {
   }];
 }
 
-def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
   let arguments = (ins StrAttr:$sym_name);
@@ -777,7 +777,7 @@ def RLC_CallOp : RLC_Dialect<"call",
 }
 
 
-def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
   let arguments = (ins StrAttr:$name, StrArrayAttr:$declared_names, I64Attr:$id, I64Attr:$resumption_point);
@@ -1428,7 +1428,7 @@ def RLC_NotEqualOp : RLC_RelationalOp<"_not_equal"> {
   }];
 }
 
-def RLC_Branch : RLC_Dialect<"br", [Terminator] > {
+def RLC_Branch : RLC_Dialect<"br", [Terminator, DeclareOpInterfaceMethods<BranchOpInterface>] > {
   let summary = "constant.";
 
   let description = [{
@@ -1443,7 +1443,7 @@ def RLC_Branch : RLC_Dialect<"br", [Terminator] > {
   }];
 }
 
-def RLC_CondBranch : RLC_Dialect<"crb", [Terminator]> {
+def RLC_CondBranch : RLC_Dialect<"crb", [Terminator, DeclareOpInterfaceMethods<BranchOpInterface>]> {
   let summary = "constant.";
 
   let description = [{
@@ -1460,7 +1460,7 @@ def RLC_CondBranch : RLC_Dialect<"crb", [Terminator]> {
   }];
 }
 
-def RLC_ActionsStatement : RLC_Dialect<"actions_statement", [NoRegionArguments, DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_ActionsStatement : RLC_Dialect<"actions_statement", [NoRegionArguments, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "constant.";
 
   let description = [{
@@ -1477,7 +1477,7 @@ def RLC_ActionsStatement : RLC_Dialect<"actions_statement", [NoRegionArguments, 
   }];
 }
 
-def RLC_FlatActionStatement : RLC_Dialect<"flat_actions_statement", [Terminator]> {
+def RLC_FlatActionStatement : RLC_Dialect<"flat_actions_statement", [Terminator, DeclareOpInterfaceMethods<BranchOpInterface>]> {
   let summary = "constant.";
 
   let description = [{
@@ -1492,7 +1492,7 @@ def RLC_FlatActionStatement : RLC_Dialect<"flat_actions_statement", [Terminator]
   }];
 }
 
-def RLC_SelectBranch : RLC_Dialect<"switch", [Terminator]> {
+def RLC_SelectBranch : RLC_Dialect<"switch", [Terminator, DeclareOpInterfaceMethods<BranchOpInterface>]> {
   let summary = "constant.";
 
   let description = [{

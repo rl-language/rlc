@@ -1,11 +1,12 @@
 act guess():
 	act p1_choise(Int secret)
+	let result : Int
 
 	while true:
 		act p2_choise(Int guess)	
 
 		if guess == secret:
-			let result = secret + guess
+			result = secret + guess
 			return
 
 fun main() -> Int:

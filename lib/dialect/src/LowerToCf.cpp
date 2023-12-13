@@ -23,7 +23,8 @@ static void mergeYieldsIntoSplittedBlock(
 		for (auto& child : yields.front().getOps())
 			toMove.push_back(&child);
 		for (auto& child : toMove)
-			child->moveBefore(yields.front());
+			if (not mlir::isa<mlir::rlc::Yield>(child))
+				child->moveBefore(yields.front());
 		rewriter.mergeBlocks(
 				successor, yields.front()->getBlock(), mlir::ValueRange());
 		yields.front().erase();
@@ -35,7 +36,8 @@ static void mergeYieldsIntoSplittedBlock(
 		rewriter.setInsertionPoint(yield);
 		llvm::SmallVector<mlir::Operation*> toMove;
 		for (auto& child : yield.getOps())
-			toMove.push_back(&child);
+			if (not mlir::isa<mlir::rlc::Yield>(child))
+				toMove.push_back(&child);
 		for (auto* op : toMove)
 			op->moveBefore(yield);
 		rewriter.create<mlir::rlc::Branch>(yield.getLoc(), successor);

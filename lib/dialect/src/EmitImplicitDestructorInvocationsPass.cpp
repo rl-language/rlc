@@ -396,8 +396,12 @@ namespace mlir::rlc
 				{
 					auto casted = mlir::cast<mlir::rlc::Yield>(yield);
 					if (casted.getOnEnd().empty())
+					{
 						rewriter.createBlock(&casted.getOnEnd(), casted.getOnEnd().begin());
-					rewriter.setInsertionPointToEnd(&*casted.getOnEnd().begin());
+						rewriter.create<mlir::rlc::Yield>(
+								casted.getLoc(), mlir::ValueRange({}));
+					}
+					rewriter.setInsertionPoint(casted.getOnEnd().front().getTerminator());
 					rewriter.create<mlir::rlc::DestroyOp>(value.getLoc(), value);
 				}
 			}

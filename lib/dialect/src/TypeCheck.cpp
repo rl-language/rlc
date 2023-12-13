@@ -1,4 +1,5 @@
 #include "llvm/ADT/TypeSwitch.h"
+#include "mlir/Analysis/Liveness.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Pass/Pass.h"
 #include "rlc/dialect/Operations.hpp"
@@ -441,8 +442,10 @@ static void deduceActionType(mlir::rlc::ActionFunction fun)
 		memberNames.push_back(name.cast<mlir::StringAttr>().str());
 	}
 
+	llvm::SmallVector<mlir::rlc::ActionStatement, 4> actions;
 	// add the variables "returned" by subactions to members
 	newAction.walk([&](mlir::rlc::ActionStatement statement) {
+		actions.push_back(statement);
 		for (auto [type, name] :
 				 llvm::zip(statement.getResults(), statement.getDeclaredNames()))
 		{
@@ -451,8 +454,14 @@ static void deduceActionType(mlir::rlc::ActionFunction fun)
 		}
 	});
 
-	// add all declared variables to members
+	// add all declared variables to members if they are alive across a subaction
+	mlir::Liveness liveness(newAction);
 	newAction.walk([&](mlir::rlc::DeclarationStatement statement) {
+		if (llvm::all_of(actions, [&](mlir::rlc::ActionStatement action) {
+					return liveness.isDeadAfter(statement.getResult(), action);
+				}))
+			return;
+
 		memberTypes.push_back(statement.getType());
 		memberNames.push_back(statement.getSymName().str());
 	});
