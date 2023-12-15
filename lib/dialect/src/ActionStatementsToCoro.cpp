@@ -4,7 +4,9 @@
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
-static llvm::DenseMap<int64_t, mlir::Block*> splitActionBlocks(
+// insert a store of -1 to the resumption index after every yield and every
+// return
+static void insertTerminatorResumptionIndexStore(
 		mlir::rlc::FlatFunctionOp fun,
 		mlir::IRRewriter& rewriter,
 		mlir::Value resumeIndex)
@@ -26,7 +28,13 @@ static llvm::DenseMap<int64_t, mlir::Block*> splitActionBlocks(
 		rewriter.create<mlir::rlc::BuiltinAssignOp>(
 				fun.getLoc(), resumeIndex, newResumeIndexValue);
 	}
+}
 
+static llvm::DenseMap<int64_t, mlir::Block*> splitActionBlocks(
+		mlir::rlc::FlatFunctionOp fun,
+		mlir::IRRewriter& rewriter,
+		mlir::Value resumeIndex)
+{
 	llvm::DenseMap<int64_t, mlir::Block*> resumePoints;
 	llvm::SmallVector<mlir::Block*, 4> blocksToAnalyze;
 
@@ -64,14 +72,11 @@ static llvm::DenseMap<int64_t, mlir::Block*> splitActionBlocks(
 	return resumePoints;
 }
 
-static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
+// redirects all uses of a variable introduced by a action to the variable in
+// the coroutine frame
+static void redirectActionArgumentsToFrame(mlir::rlc::FlatFunctionOp fun)
 {
 	mlir::IRRewriter rewriter(fun.getContext());
-
-	if (fun.getBody().getOps<mlir::rlc::ActionStatement>().empty())
-		return mlir::success();
-
-	mlir::IRRewriter builder(fun.getContext());
 	for (auto op : fun.getBody().getOps<mlir::rlc::ActionStatement>())
 	{
 		for (const auto& [res, name] :
@@ -100,6 +105,16 @@ static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
 			}
 		}
 	}
+}
+
+// rewrite action so that the resume index is loaded from the coroutine frame
+// and then jumps to the action with the given resume index
+static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
+{
+	mlir::IRRewriter rewriter(fun.getContext());
+
+	if (fun.getBody().getOps<mlir::rlc::ActionStatement>().empty())
+		return mlir::success();
 
 	mlir::Block& entry = *fun.getBlocks().begin();
 	auto* everythingElse = rewriter.splitBlock(&entry, entry.begin());
@@ -108,6 +123,7 @@ static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
 	auto routineIndex = rewriter.create<mlir::rlc::MemberAccess>(
 			fun.getLoc(), entry.getArgument(0), 0);
 
+	insertTerminatorResumptionIndexStore(fun, rewriter, routineIndex);
 	auto resumePoints = splitActionBlocks(fun, rewriter, routineIndex);
 	resumePoints[0] = everythingElse;
 	llvm::SmallVector<mlir::Block*, 2> sortedResumePoints(resumePoints.size());
@@ -135,6 +151,7 @@ namespace mlir::rlc
 		{
 			for (auto f : getOperation().getOps<mlir::rlc::FlatFunctionOp>())
 			{
+				redirectActionArgumentsToFrame(f);
 				if (actionsToBraches(f).failed())
 				{
 					signalPassFailure();

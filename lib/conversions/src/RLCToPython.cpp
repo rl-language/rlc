@@ -461,10 +461,17 @@ class ActionDeclToTNothing
 
 		emitActionContraints(op, f, rewriter);
 
+		using ActionKey = std::pair<std::string, const void*>;
+		std::set<ActionKey> alreadyAdded;
 		for (const auto& [type, action] :
 				 llvm::zip(op.getActions(), builder->actionStatementsOfAction(op)))
 		{
 			auto casted = mlir::cast<mlir::rlc::ActionStatement>(action);
+			ActionKey key(casted.getName(), type.getAsOpaquePointer());
+			if (alreadyAdded.contains(key))
+				continue;
+
+			alreadyAdded.insert(key);
 
 			llvm::SmallVector<llvm::StringRef, 2> arrayAttr;
 			arrayAttr.push_back("frame");

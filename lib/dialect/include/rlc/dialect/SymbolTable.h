@@ -174,7 +174,8 @@ namespace mlir::rlc
 			return actionDeclToActionNames[val];
 		}
 
-		mlir::Operation* actionFunctionValueToActionStatement(mlir::Value val)
+		llvm::ArrayRef<mlir::Operation*> actionFunctionValueToActionStatement(
+				mlir::Value val)
 		{
 			return actionFunctionResultToActionStement[val];
 		}
@@ -203,7 +204,7 @@ namespace mlir::rlc
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToInitFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> actionTypeToAction;
 		llvm::DenseMap<mlir::Value, mlir::Type> actionToActionType;
-		llvm::DenseMap<mlir::Value, mlir::Operation*>
+		llvm::DenseMap<mlir::Value, llvm::SmallVector<mlir::Operation*, 4>>
 				actionFunctionResultToActionStement;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<mlir::Operation*, 4>>
 				actionDeclToActionStatements;

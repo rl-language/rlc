@@ -1,5 +1,7 @@
 #include "rlc/dialect/SymbolTable.h"
 
+#include <set>
+
 #include "rlc/dialect/Operations.hpp"
 
 static void makeValueTable(mlir::ModuleOp op, mlir::rlc::ValueTable& table)
@@ -307,23 +309,35 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 
 		getSymbolTable().add("is_done", action.getIsDoneFunction());
 
-		size_t actionIndex = 0;
+		using ActionKey = std::pair<std::string, std::vector<const void*>>;
+		std::map<ActionKey, int> seenActionOverloads;
 		action.walk([&](mlir::rlc::ActionStatement statement) {
+			std::vector<const void*> types;
+			for (auto type : statement.getResultTypes())
+			{
+				types.push_back(type.getAsOpaquePointer());
+			}
+			ActionKey key(statement.getName().str(), types);
+
+			bool firstTimeSeen = not seenActionOverloads.contains(key);
+			if (firstTimeSeen)
+			{
+				seenActionOverloads[key] = seenActionOverloads.size();
+				actionDeclToActionNames[action.getResult()].push_back(
+						statement.getName().str());
+			}
 			// before we type checked we do not know what the generated sub
 			// actions of a actions are, so the list is empty.
 			if (not action.getActions().empty())
 			{
-				getSymbolTable().add(
-						statement.getName(), action.getActions()[actionIndex]);
-				actionFunctionResultToActionStement[action.getActions()[actionIndex]] =
-						statement;
+				auto resultValue = action.getActions()[seenActionOverloads[key]];
+				if (firstTimeSeen)
+					getSymbolTable().add(statement.getName(), resultValue);
+				actionFunctionResultToActionStement[resultValue].push_back(statement);
 			}
-			actionDeclToActionNames[action.getResult()].push_back(
-					statement.getName().str());
+
 			actionDeclToActionStatements[action.getResult()].push_back(
 					statement.getOperation());
-
-			actionIndex++;
 		});
 	}
 }

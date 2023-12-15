@@ -152,18 +152,21 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 #### missing for release
 * testing properly generated c
 * testing properly generated python
-* scalar type constraints for float
-* fix the bug about all loops being unrolled
-* allow to return by non copy
 * test error messages
-* inlining of actions
+
+* scalar type constraints for float
+
+* fix the bug about all loops being unrolled
+* fix subactions being broken when the reprequire of a subaction refers to a local variable
+
+* allow declarations to be explicitly refs
+* allow subactions to refer to any function? not sure it is actually implementable
 
 #### long term feature
 * require clauses out of line
 * require clauses on structs
 * inline initializers
 * string support
-* add array bound checks
 * proper support for different architectures
 * add "if x is Y as k:" to allow a way to dodge shadowing
 

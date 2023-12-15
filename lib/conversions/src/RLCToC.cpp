@@ -279,10 +279,18 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 		llvm::iterator_range<mlir::Operation**> actionsStatements =
 				builder.actionStatementsOfAction(fun);
+
+		using ActionKey = std::pair<std::string, const void*>;
+		std::set<ActionKey> alreadyAdded;
 		for (const auto& [action, type] :
 				 llvm::zip(actionsStatements, fun.getActions()))
 		{
 			auto casted = mlir::cast<mlir::rlc::ActionStatement>(action);
+			ActionKey key(casted.getName(), type.getAsOpaquePointer());
+			if (alreadyAdded.contains(key))
+				continue;
+
+			alreadyAdded.insert(key);
 
 			auto castedType = type.getType().cast<mlir::FunctionType>();
 			llvm::SmallVector<mlir::Attribute, 2> attrs(
@@ -334,7 +342,7 @@ static std::string unmangledName(
 
 		if (auto maybeStatement =
 						mlir::dyn_cast_or_null<mlir::rlc::ActionStatement>(
-								builder.actionFunctionValueToActionStatement(op));
+								builder.actionFunctionValueToActionStatement(op)[0]);
 				maybeStatement)
 			return maybeStatement.getName().str();
 

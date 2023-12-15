@@ -183,7 +183,7 @@ static int linkLibraries(
 	argSource.push_back("-o");
 	argSource.push_back(outputFile.str());
 	argSource.push_back("-lm");
-	argSource.push_back(shared ? "--shared" : "");
+	argSource.push_back(shared ? "--shared" : "-no-pie");
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
 

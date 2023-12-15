@@ -89,20 +89,16 @@ namespace mlir::rlc
 		}
 	}
 
-	static void addFrameArgumentToPrecondition(
+	// we have stolen the precondition from the actionStatement in the original
+	// function, we need to redirect all operands of all operations that still
+	// point to a argument of that original root function with the new frame
+	// argument
+	static void redirectAccessesToNewFrame(
 			mlir::rlc::ActionFunction root,
 			mlir::FunctionType actionType,
 			mlir::rlc::FunctionOp action,
 			mlir::rlc::ModuleBuilder& builder)
 	{
-		mlir::IRRewriter rewriter(action.getContext());
-		rewriter.setInsertionPoint(root);
-
-		action.getPrecondition().front().insertArgument(
-				static_cast<unsigned int>(0),
-				action.getArgumentTypes().front(),
-				action.getLoc());
-
 		for (auto& ins : action.getPrecondition().front().getOperations())
 		{
 			for (auto& operand : ins.getOpOperands())
@@ -116,17 +112,14 @@ namespace mlir::rlc
 	// add the precondition "actionEntity.resumptionPoint ==
 	// actionStatement.resumptionIndex" to the subActionFunction.
 	static void addResumptionPointPrecondition(
-			mlir::rlc::FunctionOp subactionFunction,
+			mlir::Block* block,
 			mlir::rlc::ActionStatement actionStatement,
 			mlir::IRRewriter& rewriter)
 	{
-		auto& yield =
-				subactionFunction.getPrecondition().getBlocks().front().back();
+		auto& yield = block->back();
 		rewriter.setInsertionPoint(&yield);
 		auto savedResumptionIndex = rewriter.create<MemberAccess>(
-				actionStatement.getLoc(),
-				subactionFunction.getPrecondition().getBlocks().front().getArgument(0),
-				0);
+				actionStatement.getLoc(), block->getArgument(0), 0);
 		auto expectedResumptionIndex = rewriter.create<Constant>(
 				actionStatement.getLoc(),
 				(int64_t) actionStatement.getResumptionPoint());
@@ -136,6 +129,191 @@ namespace mlir::rlc
 				expectedResumptionIndex);
 		yield.insertOperands(
 				yield.getNumOperands(), ValueRange({ eq.getResult() }));
+	}
+
+	static void emitActionArgsAssignsToFrame(
+			mlir::rlc::ActionFunction action,
+			mlir::rlc::ActionStatement subAction,
+			mlir::IRRewriter& rewriter,
+			mlir::rlc::EntityType entityType,
+			mlir::rlc::FunctionOp subF)
+	{
+		for (auto arg : llvm::enumerate(subAction.getDeclaredNames()))
+		{
+			size_t fieldIndex = std::distance(
+					entityType.getFieldNames().begin(),
+					llvm::find(
+							entityType.getFieldNames(),
+							arg.value().cast<mlir::StringAttr>().str()));
+
+			auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
+					action.getLoc(), subF.getBlocks().front().getArgument(0), fieldIndex);
+
+			rewriter.create<mlir::rlc::AssignOp>(
+					action.getLoc(),
+					addressOfArgInFrame,
+					subF.getBlocks().front().getArgument(arg.index() + 1));
+		}
+	}
+
+	// emits:
+	// if expected_resume_index == frame.resume_index:
+	//   frame.args... = actual_args...
+	//   frame.resumption_index = correct_resumptiom_index
+	static void emitDispatchToImpl(
+			mlir::rlc::ActionFunction action,
+			mlir::rlc::ActionStatement subAction,
+			mlir::IRRewriter& rewriter,
+			mlir::rlc::EntityType entityType,
+			mlir::rlc::FunctionOp subF)
+	{
+		auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(subF.getLoc());
+		auto* condition = rewriter.createBlock(&ifStatement.getCondition());
+
+		auto savedResumptionIndex = rewriter.create<MemberAccess>(
+				subF.getLoc(), subF.getBody().front().getArgument(0), 0);
+		auto expectedResumptionIndex = rewriter.create<Constant>(
+				subF.getLoc(), (int64_t) subAction.getResumptionPoint());
+		auto eq = rewriter.create<EqualOp>(
+				subF->getLoc(), savedResumptionIndex, expectedResumptionIndex);
+		rewriter.create<mlir::rlc::Yield>(subF.getLoc(), mlir::ValueRange({ eq }));
+
+		auto* trueBranch = rewriter.createBlock(&ifStatement.getTrueBranch());
+		emitActionArgsAssignsToFrame(action, subAction, rewriter, entityType, subF);
+
+		// the resumption point stored in the frame is not enough to discrimated
+		// among alternative resumption points, so we have to store the actual id
+		// of the selected action so it can resume
+		auto resumptionPointSelector = rewriter.create<mlir::rlc::Constant>(
+				subF.getLoc(), static_cast<int64_t>(subAction.getId()));
+		auto candidatesResumptionPoint = rewriter.create<mlir::rlc::MemberAccess>(
+				subF.getLoc(), subF.getBody().getArgument(0), 0);
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
+				subF.getLoc(), candidatesResumptionPoint, resumptionPointSelector);
+
+		rewriter.create<mlir::rlc::CallOp>(
+				subF.getLoc(),
+				mlir::TypeRange(),
+				action.getResult(),
+				mlir::Value({ subF.getBlocks().front().getArgument(0) }));
+		rewriter.create<mlir::rlc::Yield>(subF.getLoc());
+
+		auto* elseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
+		auto lastYield = rewriter.create<mlir::rlc::Yield>(subF.getLoc());
+		rewriter.setInsertionPoint(lastYield);
+	}
+
+	// all preconditions for all possible sub actions that can be executed for
+	// this wrapper are in their on basic blocks, this puts them in a or
+	// expression
+	void mergePreconditionBlocksIntoOne(mlir::rlc::FunctionOp subF)
+	{
+		mlir::IRRewriter rewriter(subF.getContext());
+		llvm::SmallVector<mlir::rlc::Yield, 4> yields;
+		for (auto yield : subF.getPrecondition().getOps<mlir::rlc::Yield>())
+		{
+			yields.push_back(yield);
+		}
+
+		llvm::SmallVector<mlir::Value, 4> singleActionPrerequirements;
+		// put all previous yieled requirements in a single and
+		for (auto yield : yields)
+		{
+			rewriter.setInsertionPoint(yield);
+
+			mlir::Value lastValue = yield.getOperand(0);
+			for (mlir::Value value : llvm::drop_begin(yield.getOperands()))
+				lastValue =
+						rewriter.create<mlir::rlc::AndOp>(yield.getLoc(), lastValue, value);
+
+			singleActionPrerequirements.push_back(lastValue);
+			yield.erase();
+		}
+
+		while (subF.getPrecondition().getBlocks().size() > 1)
+		{
+			rewriter.mergeBlocks(
+					&*(++subF.getPrecondition().begin()),
+					&subF.getPrecondition().front(),
+					subF.getPrecondition().front().getArguments());
+		}
+
+		rewriter.setInsertionPointToEnd(&subF.getPrecondition().front());
+		mlir::Value lastValue = singleActionPrerequirements[0];
+		for (mlir::Value value : llvm::drop_begin(singleActionPrerequirements))
+			lastValue =
+					rewriter.create<mlir::rlc::OrOp>(subF.getLoc(), lastValue, value);
+		rewriter.create<mlir::rlc::Yield>(
+				subF.getLoc(), mlir::ValueRange({ lastValue }));
+	}
+
+	// emits a function declaration such as
+	// def action(frame, args...):
+	//   for possible_resumption_point
+	//     if can_action(frame, args...):
+	//  		frame.resumption_index = action_resumption_index
+	//  		frame.args... = args...
+	//  		call action(frame)
+	static void emitSingleActionStatementWrapper(
+			mlir::rlc::ActionFunction action,
+			mlir::rlc::ModuleBuilder& builder,
+			mlir::ArrayRef<mlir::Operation*> subActions,
+			size_t subActionIndex)
+	{
+		mlir::IRRewriter rewriter(action.getContext());
+		rewriter.setInsertionPoint(action);
+		auto type = action.getActions()[subActionIndex]
+										.getType()
+										.cast<mlir::FunctionType>();
+		auto entityType =
+				builder.typeOfAction(action).cast<mlir::rlc::EntityType>();
+
+		auto firstStatement = llvm::cast<mlir::rlc::ActionStatement>(subActions[0]);
+		auto subF = rewriter.create<mlir::rlc::FunctionOp>(
+				action.getLoc(),
+				firstStatement.getName(),
+				type,
+				firstStatement.getDeclaredNames());
+		action.getActions()[subActionIndex].replaceAllUsesWith(subF);
+
+		// steals the precondition of all possible actions to be take from here and
+		// adds a frame argument to the new function and adds the requirement
+		// regarding the resumption index
+		for (auto* subAct : subActions)
+		{
+			auto subAction = mlir::cast<mlir::rlc::ActionStatement>(subAct);
+			rewriter.inlineRegionBefore(
+					subAction.getPrecondition(),
+					subF.getPrecondition(),
+					subF.getPrecondition().end());
+
+			subF.getPrecondition().back().insertArgument(
+					static_cast<unsigned int>(0),
+					subF.getArgumentTypes().front(),
+					subF.getLoc());
+			addResumptionPointPrecondition(
+					&subF.getPrecondition().back(), subAction, rewriter);
+		}
+
+		mergePreconditionBlocksIntoOne(subF);
+
+		redirectAccessesToNewFrame(action, type, subF, builder);
+
+		// creates a block to hold the dispatching mechanism
+		llvm::SmallVector<mlir::Location, 2> locs;
+		for (size_t i = 0; i < type.getInputs().size(); i++)
+			locs.push_back(action.getLoc());
+		rewriter.createBlock(
+				&subF.getBody(), subF.getBody().begin(), type.getInputs(), locs);
+
+		for (auto* subAct : subActions)
+		{
+			auto subAction = mlir::cast<mlir::rlc::ActionStatement>(subAct);
+			emitDispatchToImpl(action, subAction, rewriter, entityType, subF);
+		}
+
+		rewriter.setInsertionPointToEnd(&subF.getBody().front());
+		rewriter.create<mlir::rlc::Yield>(subF.getLoc());
 	}
 
 	static void emitActionWrapperCalls(
@@ -196,65 +374,13 @@ namespace mlir::rlc
 
 		rewriter.create<mlir::rlc::Yield>(f.getLoc(), mlir::Value({ frame }));
 
-		for (const auto& subAction :
-				 llvm::enumerate(builder.actionStatementsOfAction(action)))
+		for (const auto& subAction : llvm::enumerate(action.getActions()))
 		{
-			rewriter.setInsertionPoint(action);
-			auto subAct = mlir::cast<mlir::rlc::ActionStatement>(*subAction.value());
-			auto type = action.getActions()[subAction.index()]
-											.getType()
-											.cast<mlir::FunctionType>();
-			auto subF = rewriter.create<mlir::rlc::FunctionOp>(
-					action.getLoc(), subAct.getName(), type, subAct.getDeclaredNames());
-			subF.getPrecondition().takeBody(subAct.getPrecondition());
-			addFrameArgumentToPrecondition(action, type, subF, builder);
-
-			addResumptionPointPrecondition(subF, subAct, rewriter);
-
-			action.getActions()[subAction.index()].replaceAllUsesWith(subF);
-
-			llvm::SmallVector<mlir::Location, 2> locs;
-			for (size_t i = 0; i < type.getInputs().size(); i++)
-				locs.push_back(action.getLoc());
-
-			rewriter.createBlock(
-					&subF.getBody(), subF.getBody().begin(), type.getInputs(), locs);
-
-			for (auto arg : llvm::enumerate(subAct.getDeclaredNames()))
-			{
-				size_t fieldIndex = std::distance(
-						entityType.getFieldNames().begin(),
-						llvm::find(
-								entityType.getFieldNames(),
-								arg.value().cast<mlir::StringAttr>().str()));
-
-				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
-						action.getLoc(),
-						subF.getBlocks().front().getArgument(0),
-						fieldIndex);
-
-				rewriter.create<mlir::rlc::AssignOp>(
-						action.getLoc(),
-						addressOfArgInFrame,
-						subF.getBlocks().front().getArgument(arg.index() + 1));
-			}
-
-			// the resumption point stored in the frame is not enough to discrimated
-			// among alternative resumption points, so we have to store the actual id
-			// of the selected action so it can resume
-			auto resumptionPointSelector = rewriter.create<mlir::rlc::Constant>(
-					subF.getLoc(), static_cast<int64_t>(subAct.getId()));
-			auto candidatesResumptionPoint = rewriter.create<mlir::rlc::MemberAccess>(
-					subF.getLoc(), subF.getBody().getArgument(0), 0);
-			rewriter.create<mlir::rlc::BuiltinAssignOp>(
-					subF.getLoc(), candidatesResumptionPoint, resumptionPointSelector);
-
-			rewriter.create<mlir::rlc::CallOp>(
-					subF.getLoc(),
-					mlir::TypeRange(),
-					action.getResult(),
-					mlir::Value({ subF.getBlocks().front().getArgument(0) }));
-			rewriter.create<mlir::rlc::Yield>(subF.getLoc());
+			emitSingleActionStatementWrapper(
+					action,
+					builder,
+					builder.actionFunctionValueToActionStatement(subAction.value()),
+					subAction.index());
 		}
 	}
 

@@ -1,3 +1,5 @@
+#include <set>
+
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/Analysis/Liveness.h"
 #include "mlir/IR/BuiltinDialect.h"
@@ -372,6 +374,38 @@ static mlir::LogicalResult deduceTraitTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
+static llvm::SmallVector<mlir::Type, 3> getFunctionsTypesGeneratedByAction(
+		mlir::rlc::ModuleBuilder& builder, mlir::rlc::ActionFunction fun)
+{
+	auto funType = builder.typeOfAction(fun);
+	llvm::SmallVector<mlir::Type, 3> ToReturn;
+	using OverloadKey = std::pair<std::string, const void*>;
+	std::set<OverloadKey> added;
+	// for each subaction invoked by this action, add it to generatedFunctions
+	for (const auto& op : builder.actionStatementsOfAction(fun))
+	{
+		llvm::SmallVector<mlir::Type, 3> args({ funType });
+
+		for (auto type : op->getResultTypes())
+		{
+			auto converted = builder.getConverter().convertType(type);
+			args.push_back(converted);
+		}
+
+		auto ftype =
+				mlir::FunctionType::get(op->getContext(), args, mlir::TypeRange());
+		OverloadKey overloadKey(
+				llvm::cast<mlir::rlc::ActionStatement>(op).getName().str(),
+				ftype.getAsOpaquePointer());
+		if (added.contains(overloadKey))
+			continue;
+
+		ToReturn.emplace_back(ftype);
+		added.insert(overloadKey);
+	}
+	return ToReturn;
+}
+
 /*
 	Rewrites the Action Function operations in the module to include the type,
 	which contains information about
@@ -388,7 +422,6 @@ static void deduceActionType(mlir::rlc::ActionFunction fun)
 	auto op = fun->getParentOfType<mlir::ModuleOp>();
 	mlir::rlc::ModuleBuilder builder(op);
 	mlir::IRRewriter& rewriter = builder.getRewriter();
-	llvm::SmallVector<mlir::Type, 3> generatedFunctions;
 
 	auto funType = builder.typeOfAction(fun);
 
@@ -396,20 +429,7 @@ static void deduceActionType(mlir::rlc::ActionFunction fun)
 			builder.getConverter().convertType(mlir::FunctionType::get(
 					op.getContext(), fun.getFunctionType().getInputs(), { funType }));
 
-	// for each subaction invoked by this action, add it to generatedFunctions
-	for (const auto& op : builder.actionStatementsOfAction(fun))
-	{
-		llvm::SmallVector<mlir::Type, 3> args({ funType });
-
-		for (auto type : op->getResultTypes())
-		{
-			auto converted = builder.getConverter().convertType(type);
-			args.push_back(converted);
-		}
-
-		generatedFunctions.emplace_back(
-				mlir::FunctionType::get(op->getContext(), args, mlir::TypeRange()));
-	}
+	auto generatedFunctions = getFunctionsTypesGeneratedByAction(builder, fun);
 
 	// rewrite the Action Function Operation with the generatedFunctions.
 	rewriter.setInsertionPoint(fun);
