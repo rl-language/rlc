@@ -1,4 +1,4 @@
-act action_example(Int asd):
+act action_example(Int asd) -> Action:
 	let wasd = 4
 	asd = wasd + asd
 

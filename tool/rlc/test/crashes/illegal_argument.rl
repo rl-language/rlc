@@ -1,4 +1,4 @@
-act action():
+act action() -> Action:
 	act sub(Int x) {x == 0}
 
 fun main() -> Int:

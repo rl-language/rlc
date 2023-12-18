@@ -51,7 +51,7 @@ fun current_player(Board board) -> Int:
 fun next_turn(Board board):
 	board.playerTurn = !board.playerTurn
 
-act play():
+act play() -> Tris:
 	let board : Board
 	let score = 10
 	while !full(board):

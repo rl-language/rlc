@@ -1,6 +1,6 @@
 import collections.vector
 
-act play(Int seed):
+act play(Int seed) -> Play:
 	let board : Vector<Int>
 
 	let over = false

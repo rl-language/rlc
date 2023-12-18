@@ -1,4 +1,4 @@
-act action():
+act action() -> Action:
 	act first()	
 	act second()	
 

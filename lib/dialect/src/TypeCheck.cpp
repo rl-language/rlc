@@ -154,8 +154,7 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 	rewriter.setInsertionPointToEnd(op.getBody());
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
-		auto type = mlir::rlc::EntityType::getIdentified(
-				action.getContext(), (action.getUnmangledName() + "Entity").str(), {});
+		auto type = action.getEntityType();
 
 		auto entity = rewriter.create<mlir::rlc::EntityDeclaration>(
 				action.getLoc(),

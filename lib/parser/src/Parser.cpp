@@ -617,7 +617,7 @@ llvm::Expected<bool> Parser::requirementList()
 }
 
 /**
- * actionStatement : subaction (*)? (`ident` =)? expression \n
+ * subActionStatement: subaction (*)? (`ident` =)? expression \n
  * \n
  */
 llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
@@ -693,7 +693,7 @@ llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
  */
 llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 {
-	TRY(action, actionDeclaration());
+	TRY(action, actionDeclaration(false));
 	auto pos = builder.saveInsertionPoint();
 
 	llvm::SmallVector<std::string, 3> argNames;
@@ -1230,9 +1230,10 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
 
 /**
  * actionDeclaration : "act" identifier "(" [argDeclaration (","
- * argDeclaration)*] ")"
+ * argDeclaration)*] ")" -> Type
  */
-Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
+Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration(
+		bool needsReturnType)
 {
 	auto location = getCurrentSourcePos();
 
@@ -1250,7 +1251,14 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
 		argName.push_back(arg.first);
 	}
 
-	auto retType = mlir::rlc::ScalarUseType::get(ctx, "Void", 0, {});
+	std::string name;
+	if (needsReturnType)
+	{
+		EXPECT(Token::Arrow);
+		EXPECT(Token::Identifier);
+		name = lIdent;
+	}
+	auto retType = mlir::rlc::EntityType::getIdentified(ctx, name, {});
 	return builder.create<mlir::rlc::ActionFunction>(
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),
@@ -1265,7 +1273,7 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration()
  */
 Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 {
-	TRY(decl, actionDeclaration());
+	TRY(decl, actionDeclaration(true));
 	auto location = getCurrentSourcePos();
 
 	auto pos = builder.saveInsertionPoint();

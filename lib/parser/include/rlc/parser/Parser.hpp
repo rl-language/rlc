@@ -84,7 +84,8 @@ namespace rlc
 		llvm::Expected<FunctionDeclarationResult> functionDeclaration(
 				bool templateFunction = true);
 		llvm::Expected<FunctionDeclarationResult> externFunctionDeclaration();
-		llvm::Expected<mlir::rlc::ActionFunction> actionDeclaration();
+		llvm::Expected<mlir::rlc::ActionFunction> actionDeclaration(
+				bool needsReturnType);
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();
 

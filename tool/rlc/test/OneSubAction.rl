@@ -1,4 +1,4 @@
-act to_run():
+act to_run() -> ToRun:
 	let to_ret : Int
 	act dead_store(Int val)
 	to_ret = val 
@@ -7,12 +7,12 @@ act to_run():
 	act final(Int val3)
 	to_ret = val3
 
-fun frame_creator() -> to_runEntity:
+fun frame_creator() -> ToRun:
 	let frame = to_run()
 	frame.dead_store(1)
 	return frame
 
-act outer():
+act outer() -> Outer:
 	subaction frame = frame_creator()
 	frame.final(10)
 

@@ -1,7 +1,7 @@
-act outer():
+act outer() -> Outer:
 	subaction* inner_frame = inner()
 
-act inner():
+act inner() -> Inner:
 	let sum = 60
 	while sum != -3:
 		actions:

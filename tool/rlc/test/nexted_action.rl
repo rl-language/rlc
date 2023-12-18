@@ -1,4 +1,4 @@
-act guess():
+act guess() -> Guess:
 	act p1_choise(Int secret)
 	let result : Int
 

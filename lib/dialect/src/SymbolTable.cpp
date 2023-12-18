@@ -301,7 +301,7 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
 		auto type = getConverter().getTypes().getOne(
-				(action.getUnmangledName() + "Entity").str());
+				action.getResultTypes()[0].cast<mlir::rlc::EntityType>().getName());
 		actionToActionType[action.getResult()] = type;
 		actionTypeToAction[type] = action.getResult();
 		getSymbolTable().add(

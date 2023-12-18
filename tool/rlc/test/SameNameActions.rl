@@ -1,4 +1,4 @@
-act action():
+act action() -> Action:
 	let result = 5
 
 	act first(Int x)
@@ -7,7 +7,7 @@ act action():
 	act first(Int x)
 	result = x + x
 
-act outer():
+act outer() -> Outer:
 	subaction* frame1 = action()
 	subaction* frame2 = action()
 

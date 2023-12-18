@@ -1,4 +1,4 @@
-act example(Int X) {X < 4}: 
+act example(Int X) -> Example {X < 4}: 
 	X = X + 1
 	act sub_action(Int Y) {Y < X}
 

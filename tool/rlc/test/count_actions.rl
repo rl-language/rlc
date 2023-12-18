@@ -1,4 +1,4 @@
-act action():
+act action() -> Action:
 	let Counter = 0
 	while true:
 		act sub()
