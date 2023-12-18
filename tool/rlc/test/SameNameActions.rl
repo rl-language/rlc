@@ -8,8 +8,8 @@ act action():
 	result = x + x
 
 act outer():
-	subaction frame1 = action()
-	subaction frame2 = action()
+	subaction* frame1 = action()
+	subaction* frame2 = action()
 
 fun main() -> Int:
 	let frame = outer()

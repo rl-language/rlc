@@ -617,7 +617,7 @@ llvm::Expected<bool> Parser::requirementList()
 }
 
 /**
- * actionStatement : subaction `ident` = `ident` `(` argumentExpressionList `)`
+ * actionStatement : subaction (*)? (`ident` =)? expression \n
  * \n
  */
 llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
@@ -625,21 +625,24 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordSubAction);
 
-	EXPECT(Token::Identifier);
-	auto varName = lIdent;
+	bool runOnce = not accept<Token::Mult>();
 
-	EXPECT(Token::Equal);
+	std::string name;
+	if (accept<Token::Identifier>())
+	{
+		name = lIdent;
+		EXPECT(Token::Equal);
+	}
 
-	EXPECT(Token::Identifier);
-	auto name = lIdent;
-
-	EXPECT(Token::LPar);
-	TRY(args, argumentExpressionList());
-	EXPECT(Token::RPar);
+	auto operation =
+			builder.create<mlir::rlc::SubActionStatement>(location, name, runOnce);
+	builder.createBlock(&operation.getBody());
+	TRY(exp, expression());
 	EXPECT(Token::Newline);
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange(*exp));
+	builder.setInsertionPointAfter(operation);
 
-	return builder.create<mlir::rlc::SubActionStatement>(
-			location, varName, name, *args);
+	return operation;
 }
 
 llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()

@@ -376,8 +376,9 @@ namespace mlir::rlc
 							toEmitDestroy.push_back(result);
 				});
 			}
-			getOperation().walk([&](mlir::Operation* op) {
-				if (not mlir::isa<mlir::rlc::CallOp>(op))
+			getOperation().walk([&](mlir::rlc::CallOp op) {
+				if (op.getNumResults() == 0 or
+						op.getCalleeType().getResult(0).isa<mlir::rlc::ReferenceType>())
 					return;
 				for (mlir::Value result : op->getResults())
 					if (typeRequiresDestructor(

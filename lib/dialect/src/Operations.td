@@ -427,17 +427,20 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
   }];
 }
 
-def RLC_SubActionStatement : RLC_Dialect<"subaction"> {
+def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "subaction.";
 
-  let arguments = (ins StrAttr:$frame_name, StrAttr:$name, Variadic<AnyType>:$args);
+  let arguments = (ins DefaultValuedAttr<StrAttr, "\"\"">:$name, BoolAttr:$run_once);
   let description = [{
 	subaction.
   }];
 
+  let regions = (region
+  AnyRegion:$body
+  );
 
   let assemblyFormat = [{
-	$frame_name `=` $name `(` $args type($args) `)` attr-dict 
+	( $name^ `=` )? $body attr-dict 
   }];
 }
 

@@ -23,16 +23,101 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 	return toReturn;
 }
 
+::mlir::LogicalResult mlir::rlc::CallOp::verifySymbolUses(
+		::mlir::SymbolTableCollection &symbolTable)
+{
+	return LogicalResult::success();
+}
+
 ::mlir::LogicalResult mlir::rlc::ArrayCallOp::verifySymbolUses(
 		::mlir::SymbolTableCollection &symbolTable)
 {
 	return LogicalResult::success();
 }
 
-::mlir::LogicalResult mlir::rlc::CallOp::verifySymbolUses(
-		::mlir::SymbolTableCollection &symbolTable)
+mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
 {
-	return LogicalResult::success();
+	for (auto *child : ops(getBody()))
+	{
+		if (mlir::rlc::typeCheck(*child, builder).failed())
+			return mlir::failure();
+	}
+
+	mlir::rlc::Yield yield =
+			mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
+	mlir::Value frameVar = yield.getArguments()[0];
+	auto underlyingType = frameVar.getType().cast<mlir::rlc::EntityType>();
+	auto underlying = builder.getActionOf(underlyingType)
+												.getDefiningOp<mlir::rlc::ActionFunction>();
+
+	llvm::SmallVector<mlir::rlc::ActionStatement, 2> actionStatements;
+	underlying.walk([&](mlir::rlc::ActionStatement action) {
+		actionStatements.push_back(action);
+	});
+
+	mlir::IRRewriter &rewiter = builder.getRewriter();
+	rewiter.setInsertionPoint(*this);
+
+	if (not getName().empty())
+	{
+		auto decl = rewiter.create<mlir::rlc::DeclarationStatement>(
+				getLoc(), underlyingType, getName());
+		decl.getBody().takeBody(getBody());
+		builder.getSymbolTable().add(getName(), decl);
+		frameVar = decl;
+	}
+	else
+	{
+		yield.erase();
+		while (not getBody().front().empty())
+			getBody().front().front().moveBefore(*this);
+	}
+
+	rewiter.setInsertionPoint(*this);
+
+	if (not getRunOnce())
+	{
+		auto loop = rewiter.create<mlir::rlc::WhileStatement>(getLoc());
+		rewiter.createBlock(&loop.getCondition());
+
+		auto isDone =
+				builder.emitCall(*this, "is_done", mlir::ValueRange({ frameVar }))
+						->getResult(0);
+
+		auto isNotDone = rewiter.create<mlir::rlc::NotOp>(getLoc(), isDone);
+
+		rewiter.create<mlir::rlc::Yield>(getLoc(), mlir::ValueRange({ isNotDone }));
+
+		rewiter.createBlock(&loop.getBody());
+
+		auto finalYield = rewiter.create<mlir::rlc::Yield>(getLoc());
+		rewiter.setInsertionPoint(finalYield);
+	}
+
+	auto actions = rewiter.create<mlir::rlc::ActionsStatement>(
+			getLoc(), actionStatements.size());
+
+	for (size_t i = 0; i < actionStatements.size(); i++)
+	{
+		auto *bb = rewiter.createBlock(
+				&actions.getActions()[i], actions.getActions()[i].begin());
+		rewiter.setInsertionPoint(bb, bb->begin());
+		auto cloned = mlir::cast<mlir::rlc::ActionStatement>(
+				rewiter.clone(*actionStatements[i]));
+
+		llvm::SmallVector<mlir::Value, 4> args(
+				cloned.getResults().begin(), cloned.getResults().end());
+		args.insert(args.begin(), frameVar);
+
+		builder.emitCall(*this, actionStatements[i].getName(), args);
+
+		rewiter.create<mlir::rlc::Yield>(actions.getLoc());
+	}
+	rewiter.setInsertionPointAfter(*this);
+	rewiter.eraseOp(*this);
+
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::EnumUse::typeCheck(

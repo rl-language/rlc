@@ -314,48 +314,45 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
-static void assignActionsIndicies(mlir::ModuleOp op)
+static void assignActionIndicies(mlir::rlc::ActionFunction fun)
 {
-	mlir::IRRewriter rewriter(op.getContext());
-	for (auto fun : op.getOps<mlir::rlc::ActionFunction>())
+	mlir::IRRewriter rewriter(fun.getContext());
+
+	size_t lastId = 1;
+	int64_t lastResumePoint = 1;
+	llvm::SmallVector<mlir::rlc::ActionStatement, 2> statments;
+	fun.walk([&](mlir::rlc::ActionStatement statement) {
+		statments.push_back(statement);
+	});
+
+	llvm::DenseMap<mlir::rlc::ActionsStatement, int64_t> asctionsToResumePoint;
+
+	for (auto statement : statments)
 	{
-		size_t lastId = 1;
-		int64_t lastResumePoint = 1;
-		llvm::SmallVector<mlir::rlc::ActionStatement, 2> statments;
-		fun.walk([&](mlir::rlc::ActionStatement statement) {
-			statments.push_back(statement);
-		});
+		rewriter.setInsertionPoint(statement);
 
-		llvm::DenseMap<mlir::rlc::ActionsStatement, int64_t> asctionsToResumePoint;
-
-		for (auto statement : statments)
+		int64_t resumePoint;
+		if (auto parent = statement->getParentOfType<mlir::rlc::ActionsStatement>())
 		{
-			rewriter.setInsertionPoint(statement);
-
-			int64_t resumePoint;
-			if (auto parent =
-							statement->getParentOfType<mlir::rlc::ActionsStatement>())
-			{
-				if (asctionsToResumePoint.count(parent) == 0)
-					asctionsToResumePoint[parent] = lastResumePoint++;
-				resumePoint = asctionsToResumePoint[parent];
-			}
-			else
-			{
-				resumePoint = lastResumePoint++;
-			}
-
-			auto newOp = rewriter.create<mlir::rlc::ActionStatement>(
-					statement.getLoc(),
-					statement.getResultTypes(),
-					statement.getName(),
-					statement.getDeclaredNames(),
-					lastId,
-					resumePoint);
-			lastId++;
-			newOp.getPrecondition().takeBody(statement.getPrecondition());
-			rewriter.replaceOp(statement, newOp.getResults());
+			if (asctionsToResumePoint.count(parent) == 0)
+				asctionsToResumePoint[parent] = lastResumePoint++;
+			resumePoint = asctionsToResumePoint[parent];
 		}
+		else
+		{
+			resumePoint = lastResumePoint++;
+		}
+
+		auto newOp = rewriter.create<mlir::rlc::ActionStatement>(
+				statement.getLoc(),
+				statement.getResultTypes(),
+				statement.getName(),
+				statement.getDeclaredNames(),
+				lastId,
+				resumePoint);
+		lastId++;
+		newOp.getPrecondition().takeBody(statement.getPrecondition());
+		rewriter.replaceOp(statement, newOp.getResults());
 	}
 }
 
@@ -494,7 +491,6 @@ static void deduceActionType(mlir::rlc::ActionFunction fun)
 
 static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 {
-	assignActionsIndicies(op);
 	mlir::IRRewriter rewriter(op.getContext());
 
 	llvm::SmallVector<mlir::rlc::ActionFunction, 4> funs(
@@ -506,6 +502,7 @@ static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 		if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
 			return mlir::failure();
 
+		assignActionIndicies(fun);
 		deduceActionType(fun);
 	}
 	return mlir::success();

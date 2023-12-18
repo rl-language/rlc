@@ -160,9 +160,15 @@ namespace mlir::rlc
 			return typeToInitFunction[type];
 		}
 
-		bool isEntityOfAction(mlir::Type type)
+		bool isEntityOfAction(mlir::Type type) const
 		{
 			return actionTypeToAction.count(type) != 0;
+		}
+
+		mlir::Value getActionOf(mlir::Type type) const
+		{
+			assert(isEntityOfAction(type));
+			return actionTypeToAction.at(type);
 		}
 
 		mlir::Type typeOfAction(mlir::rlc::ActionFunction& f);

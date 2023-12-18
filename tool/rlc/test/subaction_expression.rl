@@ -1,5 +1,5 @@
 act outer():
-	subaction inner_frame = inner()
+	subaction* inner_frame = inner()
 
 act inner():
 	let sum = 60
