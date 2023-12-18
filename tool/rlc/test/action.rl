@@ -1,6 +1,9 @@
-act action_example(Int asd) -> Action:
+act action_example(Int x) -> Action:
 	let wasd = 4
-	asd = wasd + asd
+	let asd = wasd + x
+
+	act dont_care()
+	asd = asd
 
 fun main() -> Int:
 	let coroutine_frame = action_example(6)

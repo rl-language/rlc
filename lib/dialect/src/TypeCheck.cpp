@@ -1,9 +1,9 @@
 #include <set>
 
 #include "llvm/ADT/TypeSwitch.h"
-#include "mlir/Analysis/Liveness.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Pass/Pass.h"
+#include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
@@ -443,49 +443,8 @@ static void deduceActionType(mlir::rlc::ActionFunction fun)
 	newAction.getPrecondition().takeBody(fun.getPrecondition());
 	rewriter.eraseOp(fun);
 
-	llvm::SmallVector<mlir::Type, 4> memberTypes;
-	llvm::SmallVector<std::string, 4> memberNames;
-
-	// add the implicit local variable "resume_index" to members
-	memberTypes.push_back(mlir::rlc::IntegerType::getInt64(op.getContext()));
-	memberNames.push_back("resume_index");
-
-	// add args to members
-	for (auto [type, name] :
-			 llvm::zip(newAction.getArgumentTypes(), newAction.getArgNames()))
-	{
-		memberTypes.push_back(type);
-		memberNames.push_back(name.cast<mlir::StringAttr>().str());
-	}
-
-	llvm::SmallVector<mlir::rlc::ActionStatement, 4> actions;
-	// add the variables "returned" by subactions to members
-	newAction.walk([&](mlir::rlc::ActionStatement statement) {
-		actions.push_back(statement);
-		for (auto [type, name] :
-				 llvm::zip(statement.getResults(), statement.getDeclaredNames()))
-		{
-			memberTypes.push_back(type.getType());
-			memberNames.push_back(name.cast<mlir::StringAttr>().str());
-		}
-	});
-
-	// add all declared variables to members if they are alive across a subaction
-	mlir::Liveness liveness(newAction);
-	newAction.walk([&](mlir::rlc::DeclarationStatement statement) {
-		if (llvm::all_of(actions, [&](mlir::rlc::ActionStatement action) {
-					return liveness.isDeadAfter(statement.getResult(), action);
-				}))
-			return;
-
-		memberTypes.push_back(statement.getType());
-		memberNames.push_back(statement.getSymName().str());
-	});
-
-	// add the types of all named members to the action's type.
-	auto res =
-			funType.cast<mlir::rlc::EntityType>().setBody(memberTypes, memberNames);
-	assert(res.succeeded());
+	mlir::rlc::ActionLiveness liveness(newAction);
+	liveness.getFrameTypes();
 }
 
 static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)

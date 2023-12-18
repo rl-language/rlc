@@ -72,41 +72,6 @@ static llvm::DenseMap<int64_t, mlir::Block*> splitActionBlocks(
 	return resumePoints;
 }
 
-// redirects all uses of a variable introduced by a action to the variable in
-// the coroutine frame
-static void redirectActionArgumentsToFrame(mlir::rlc::FlatFunctionOp fun)
-{
-	mlir::IRRewriter rewriter(fun.getContext());
-	for (auto op : fun.getBody().getOps<mlir::rlc::ActionStatement>())
-	{
-		for (const auto& [res, name] :
-				 llvm::zip(op.getResults(), op.getDeclaredNames()))
-		{
-			llvm::SmallVector<mlir::OpOperand*, 4> uses;
-			for (auto& use : res.getUses())
-			{
-				uses.push_back(&use);
-			}
-			for (auto* use : uses)
-			{
-				rewriter.setInsertionPoint(use->getOwner());
-				auto frame = fun.getBlocks().front().getArgument(0);
-				auto entityType = frame.getType().cast<mlir::rlc::EntityType>();
-
-				size_t fieldIndex = std::distance(
-						entityType.getFieldNames().begin(),
-						llvm::find(
-								entityType.getFieldNames(),
-								name.cast<mlir::StringAttr>().str()));
-				auto ref = rewriter.create<mlir::rlc::MemberAccess>(
-						op.getLoc(), frame, fieldIndex);
-
-				use->set(ref);
-			}
-		}
-	}
-}
-
 // rewrite action so that the resume index is loaded from the coroutine frame
 // and then jumps to the action with the given resume index
 static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
@@ -151,7 +116,6 @@ namespace mlir::rlc
 		{
 			for (auto f : getOperation().getOps<mlir::rlc::FlatFunctionOp>())
 			{
-				redirectActionArgumentsToFrame(f);
 				if (actionsToBraches(f).failed())
 				{
 					signalPassFailure();

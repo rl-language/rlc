@@ -52,7 +52,7 @@ namespace mlir::rlc
 
 		void add(llvm::StringRef name, T value)
 		{
-			values[name].push_back(value);
+			values[name].insert(values[name].begin(), value);
 			reverseValues[value.getAsOpaquePointer()] = name.str();
 		}
 

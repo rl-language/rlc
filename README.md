@@ -160,8 +160,6 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 * fix subactions being broken when the reprequire of a subaction refers to a local variable
 
 * allow declarations to be explicitly refs
-* if actions arguments are not alive after any action except the one that defines them, do not copy them into the frame
-* action definition must include the type
 
 #### long term feature
 * require clauses out of line (just allow to call any function i guess?)

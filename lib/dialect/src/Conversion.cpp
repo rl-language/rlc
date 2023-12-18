@@ -241,6 +241,38 @@ class EntityDeclarationRewriter
 	}
 };
 
+class MakeRefRewriter: public mlir::OpConversionPattern<mlir::rlc::MakeRefOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::MakeRefOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::MakeRefOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto converted = getTypeConverter()->convertType(op.getResult().getType());
+		auto alloca = makeAlloca(rewriter, converted, op.getLoc());
+		makeAlignedStore(rewriter, adaptor.getRef(), alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+		return mlir::LogicalResult::success();
+	}
+};
+
+class DerefRewriter: public mlir::OpConversionPattern<mlir::rlc::DerefOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::DerefOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::DerefOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto res = makeAlignedLoad(rewriter, adaptor.getRef(), op.getLoc());
+		rewriter.replaceOp(op, res);
+		return mlir::LogicalResult::success();
+	}
+};
+
 class ExplicitConstructRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::ExplicitConstructOp>
 {
@@ -1582,6 +1614,8 @@ namespace mlir::rlc
 					.add<ToByteArrayRewriter>(converter, &getContext())
 					.add<SelectRewriter>(converter, &getContext())
 					.add<AssignRewriter>(converter, &getContext())
+					.add<DerefRewriter>(converter, &getContext())
+					.add<MakeRefRewriter>(converter, &getContext())
 					.add<InitRewriter>(converter, &getContext())
 					.add<LowerMalloc>(converter, &getContext(), malloc)
 					.add<LowerFree>(converter, &getContext(), free)

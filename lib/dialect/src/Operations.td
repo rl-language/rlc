@@ -11,7 +11,7 @@ include "mlir/Interfaces/ViewLikeInterface.td"
 class RLC_Dialect<string mnemonic, list<Trait> traits = []> :
     Op<RLC_Dialect, mnemonic, traits>;
 
-def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType, RLC_OwningPtrType, RLC_Unknown]>;
+def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType, RLC_OwningPtrType, RLC_ReferenceType, RLC_Unknown]>;
 
 def RLCIntegerOrUnkownType : AnyTypeOf<[RLC_IntegerType, RLC_Unknown]>;
 def RLCArrayOrUnkownType : AnyTypeOf<[RLC_ArrayType, RLC_OwningPtrType, RLC_Unknown]>;
@@ -221,6 +221,46 @@ def RLC_InitializerListOp : RLC_Dialect<"initializer_list", [DeclareOpInterfaceM
   let assemblyFormat = [{
 	$args `:` type($args) type($result) attr-dict 
   }];
+}
+
+def RLC_MakeRefOp : RLC_Dialect<"make_ref"> {
+  let summary = "dereference a reference";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$ref);
+  let results = (outs RLC_ReferenceType:$result);
+
+  let assemblyFormat = [{
+	$ref `:` type($ref) type($result) attr-dict 
+  }];
+
+   let builders = [
+        OpBuilder<(ins "mlir::Value":$ref), [{
+			build($_builder, $_state, mlir::rlc::ReferenceType::get(ref.getContext(), ref.getType()), ref);
+    }]>];
+}
+
+def RLC_DerefOp : RLC_Dialect<"deref"> {
+  let summary = "dereference a reference";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins RLC_ReferenceType:$ref);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$ref `:` type($ref) type($result) attr-dict 
+  }];
+
+   let builders = [
+        OpBuilder<(ins "mlir::Value":$ref), [{
+			build($_builder, $_state, ref.getType().cast<mlir::rlc::ReferenceType>().getUnderlying(), ref);
+    }]>];
 }
 
 def RLC_CopyOp : RLC_Dialect<"copy"> {
