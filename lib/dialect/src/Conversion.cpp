@@ -103,13 +103,20 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 												.cast<mlir::LLVM::LLVMPointerType>()
 												.getElementType();
 
+		auto baseSize = rewriter.getI64IntegerAttr(dl.getTypeSize(
+				baseType.cast<mlir::LLVM::LLVMPointerType>().getElementType()));
 		auto count = rewriter.create<mlir::LLVM::ConstantOp>(
-				op.getLoc(),
-				rewriter.getI64Type(),
-				rewriter.getI64IntegerAttr(dl.getTypeSize(
-						baseType.cast<mlir::LLVM::LLVMPointerType>().getElementType())));
-		auto loadedSize =
-				rewriter.create<mlir::LLVM::MulOp>(op.getLoc(), loadedCount, count);
+				op.getLoc(), rewriter.getI64Type(), baseSize);
+		auto loadedSizeAndOverflow =
+				rewriter.create<mlir::LLVM::UMulWithOverflowOp>(
+						op.getLoc(),
+						mlir::LLVM::LLVMStructType::getLiteral(
+								getContext(), { loadedCount.getType(), rewriter.getI1Type() }),
+						loadedCount,
+						count);
+
+		auto loadedSize = rewriter.create<mlir::LLVM::ExtractValueOp>(
+				op.getLoc(), loadedSizeAndOverflow, 0);
 
 		auto voidptr = rewriter.create<mlir::LLVM::CallOp>(
 				op.getLoc(),

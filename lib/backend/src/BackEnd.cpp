@@ -127,34 +127,77 @@ static void runOptimizer(llvm::Module &M, bool optimize)
 	}
 }
 
+struct mlir::rlc::TargetInfoImpl
+{
+	public:
+	TargetInfoImpl(std::string triple, bool shared, bool optimize)
+			: triple(triple),
+				optimize(optimize ? CodeGenOpt::Aggressive : CodeGenOpt::Default),
+				reloc(shared ? llvm::Reloc::PIC_ : llvm::Reloc::Static)
+	{
+		std::string Error;
+		target = llvm::TargetRegistry::lookupTarget("", this->triple, Error);
+		assert(target);
+		options = llvm::codegen::InitTargetOptionsFromCodeGenFlags(this->triple);
+
+		auto *Ptr = target->createTargetMachine(
+				this->triple.getTriple(),
+				"",
+				"",
+				options,
+				reloc,
+				llvm::CodeModel::Medium,
+				this->optimize);
+		targetMachine = unique_ptr<TargetMachine>(Ptr);
+
+		datalayout =
+				std::make_unique<llvm::DataLayout>(targetMachine->createDataLayout());
+	}
+
+	llvm::Triple triple;
+	llvm::CodeModel::Model model;
+	llvm::CodeGenOpt::Level optimize;
+	llvm::Reloc::Model reloc;
+	const llvm::Target *target;
+	llvm::TargetOptions options;
+	std::unique_ptr<llvm::TargetMachine> targetMachine;
+	std::unique_ptr<llvm::DataLayout> datalayout;
+};
+
+mlir::rlc::TargetInfo::TargetInfo(
+		std::string triple, bool shared, bool optimize)
+{
+	pimpl = new TargetInfoImpl(triple, shared, optimize);
+}
+
+mlir::rlc::TargetInfo::~TargetInfo() { delete pimpl; }
+
+const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
+{
+	return *pimpl->datalayout;
+}
+
+bool mlir::rlc::TargetInfo::optimize() const
+{
+	return pimpl->optimize != llvm::CodeGenOpt::Default;
+}
+
+bool mlir::rlc::TargetInfo::isShared() const
+{
+	return pimpl->reloc != llvm::Reloc::Static;
+}
+
 static void compile(
+		mlir::rlc::TargetInfo &info,
 		std::unique_ptr<llvm::Module> M,
-		llvm::raw_pwrite_stream &OS,
-		bool optimize,
-		bool shared)
+		llvm::raw_pwrite_stream &OS)
 {
 	std::string Error;
-	llvm::Triple triple(M->getTargetTriple());
-	const auto *TheTarget = llvm::TargetRegistry::lookupTarget("", triple, Error);
-	TargetOptions options =
-			llvm::codegen::InitTargetOptionsFromCodeGenFlags(triple);
 
-	CodeGenOpt::Level OLvl =
-			optimize ? CodeGenOpt::Aggressive : CodeGenOpt::Default;
-	auto *Ptr = TheTarget->createTargetMachine(
-			triple.getTriple(),
-			"",
-			"",
-			options,
-			shared ? llvm::Reloc::PIC_ : llvm::Reloc::Static,
-			M->getCodeModel(),
-			OLvl);
-	unique_ptr<TargetMachine> Target(Ptr);
-
-	M->setDataLayout(Target->createDataLayout());
+	M->setDataLayout(*info.pimpl->datalayout);
 	llvm::UpgradeDebugInfo(*M);
 
-	auto &LLVMTM = static_cast<LLVMTargetMachine &>(*Target);
+	auto &LLVMTM = static_cast<LLVMTargetMachine &>(*info.pimpl->targetMachine);
 	auto *MMIWP = new MachineModuleInfoWrapperPass(&LLVMTM);
 
 	llvm::legacy::PassManager manager;
@@ -163,7 +206,7 @@ static void compile(
 	manager.add(new TargetLibraryInfoWrapperPass(TLII));
 	manager.add(new TargetLibraryInfoWrapperPass(TLII));
 
-	bool Err = Target->addPassesToEmitFile(
+	bool Err = LLVMTM.addPassesToEmitFile(
 			manager, OS, nullptr, CGFT_ObjectFile, true, MMIWP);
 	assert(not Err);
 	manager.run(*M);
@@ -229,7 +272,7 @@ namespace mlir::rlc
 			Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
 
 			assert(Module);
-			runOptimizer(*Module, optimize);
+			runOptimizer(*Module, targetInfo->optimize());
 			if (dumpIR)
 			{
 				Module->print(*OS, nullptr);
@@ -251,7 +294,7 @@ namespace mlir::rlc
 				return;
 			}
 
-			compile(std::move(Module), library.os(), optimize, shared);
+			compile(*targetInfo, std::move(Module), library.os());
 
 			if (compileOnly)
 			{
@@ -260,7 +303,11 @@ namespace mlir::rlc
 			}
 
 			if (linkLibraries(
-							library, clangPath, outputFile, shared, *extraObjectFiles) != 0)
+							library,
+							clangPath,
+							outputFile,
+							targetInfo->isShared(),
+							*extraObjectFiles) != 0)
 				signalPassFailure();
 		}
 	};

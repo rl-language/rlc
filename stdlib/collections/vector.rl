@@ -1,3 +1,5 @@
+ext fun print(Int x)
+
 ent<T> Vector:
 	OwningPtr<T> data
 	Int size

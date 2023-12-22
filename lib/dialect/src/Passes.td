@@ -176,20 +176,18 @@ def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
   let options = [
     Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
            "output stream">,
-    Option<"optimize", "optimize", "bool", /*default=*/"false",
-           "optimize">,
     Option<"clangPath", "clang path", "std::string", /*default=*/"\"\"",
            "clang to use to link">,
     Option<"outputFile", "output file", "std::string", /*default=*/"\"\"",
            "output file">,
-    Option<"shared", "shared lib", "bool", /*default=*/"false",
-           "shared lib">,
     Option<"extraObjectFiles", "extra object files", "const std::vector<std::string>*", /*default=*/"nullptr",
            "extra object files">,
     Option<"dumpIR", "dump ir and stop", "bool", /*default=*/"false",
            "dump ir and stop">,
     Option<"compileOnly", "compile and stop", "bool", /*default=*/"false",
            "compile and stop">,
+    Option<"targetInfo", "info about the target", "mlir::rlc::TargetInfo*", /*default=*/"nullptr",
+           "info about the target">,
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

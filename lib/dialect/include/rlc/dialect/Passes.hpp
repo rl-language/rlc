@@ -5,6 +5,7 @@
 
 namespace mlir::rlc
 {
+	struct TargetInfo;
 #define GEN_PASS_DECL
 #include "rlc/dialect/Passes.inc"
 

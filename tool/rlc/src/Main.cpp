@@ -21,6 +21,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
 #include "rlc/backend/BackEnd.hpp"
@@ -172,7 +173,8 @@ static void configurePassManager(
 		const llvm::SmallVector<std::string, 4> &includeDirs,
 		const std::string &inputFile,
 		llvm::raw_ostream &OS,
-		mlir::PassManager &manager)
+		mlir::PassManager &manager,
+		mlir::rlc::TargetInfo &targetInfo)
 {
 	manager.addPass(mlir::rlc::createParseFilePass({ &includeDirs, inputFile }));
 	if (dumpUncheckedAST)
@@ -284,26 +286,30 @@ static void configurePassManager(
 	}
 	manager.addPass(mlir::rlc::createRLCBackEndPass(
 			mlir::rlc::RLCBackEndPassOptions{ &OS,
-																				Optimize,
 																				clangPath,
 																				outputFile,
-																				shared,
 																				&ExtraObjectFiles,
 																				dumpIR,
-																				compileOnly }));
+																				compileOnly,
+																				&targetInfo }));
 }
 
 static int run(
 		mlir::MLIRContext &context,
 		const llvm::SmallVector<std::string, 4> &includeDirs,
 		const std::string &inputFile,
-		llvm::raw_ostream &OS)
+		llvm::raw_ostream &OS,
+		mlir::rlc::TargetInfo &info)
 {
 	mlir::PassManager manager(&context);
-	configurePassManager(includeDirs, inputFile, OS, manager);
+	configurePassManager(includeDirs, inputFile, OS, manager, info);
 
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, inputFile, 0, 0), inputFile);
+
+	auto mlirDl = mlir::translateDataLayout(info.getDataLayout(), &context);
+	ast->setAttr("rlc.target_datalayout", mlirDl);
+
 	if (manager.run(ast).failed())
 	{
 		mlir::OpPrintingFlags flags;
@@ -331,7 +337,11 @@ int main(int argc, char *argv[])
 			mlir::BuiltinDialect,
 			mlir::memref::MemRefDialect,
 			mlir::rlc::RLCDialect,
+			mlir::DLTIDialect,
 			mlir::index::IndexDialect>();
+	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
+	mlir::rlc::TargetInfo targetInfo(targetTriple, shared, Optimize);
+
 	mlir::registerLLVMDialectTranslation(Registry);
 	context.appendDialectRegistry(Registry);
 	context.loadAllAvailableDialects();
@@ -360,5 +370,5 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	return run(context, includes, InputFilePath, OS);
+	return run(context, includes, InputFilePath, OS, targetInfo);
 }
