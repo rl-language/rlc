@@ -1,13 +1,16 @@
+#include "llvm/Support/Casting.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/PatternMatch.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 
-static void emitPreconditionFunction(mlir::rlc::FunctionOp fun)
+static mlir::rlc::FunctionMetadataOp emitPreconditionFunction(mlir::rlc::FunctionOp fun)
 {
 	mlir::IRRewriter rewriter(fun.getContext());
 	rewriter.setInsertionPoint(fun);
 	if (fun.getPrecondition().empty())
-		return;
+		return nullptr;
 
 	auto ftype = mlir::FunctionType::get(
 			fun.getContext(),
@@ -35,7 +38,7 @@ static void emitPreconditionFunction(mlir::rlc::FunctionOp fun)
 			&yieldedConditions, mlir::ValueRange({ lastOperand }));
 
 	rewriter.setInsertionPoint(validityFunction);
-	rewriter.create<mlir::rlc::FunctionMetadataOp>(
+	return rewriter.create<mlir::rlc::FunctionMetadataOp>(
 			fun.getLoc(), fun.getResult(), validityFunction.getResult());
 }
 
@@ -57,8 +60,28 @@ namespace mlir::rlc
 			llvm::SmallVector<mlir::rlc::FunctionOp, 2> ops(
 					range.begin(), range.end());
 
-			for (auto function : ops)
-				emitPreconditionFunction(function);
+			for (auto function : ops) {
+				auto metadata = emitPreconditionFunction(function);
+				if(metadata) {
+					for (auto *user :metadata.getSourceFunction().getUsers()) {
+						if(auto casted = mlir::dyn_cast<mlir::rlc::CanOp>(user))
+							casted.replaceAllUsesWith(metadata.getPreconditionFunction());
+					}
+				}
+			}
+
+			llvm::SmallVector<mlir::rlc::CanOp, 2> canOps;
+			getOperation()->walk([&](mlir::rlc::CanOp canOp) {
+				canOps.push_back(canOp);
+			});
+			for(auto canOp : canOps) {
+				if( not canOp->getUses().empty()) { // The CanOp's who still have users are those that referred to an empty precondition.
+					mlir::OpBuilder builder(canOp);
+					auto t = builder.create<mlir::rlc::Constant>(canOp->getLoc(), true);
+					canOp.replaceAllUsesWith(t.getResult());
+				}
+				canOp->erase();
+			}
 		}
 	};
 }	 // namespace mlir::rlc

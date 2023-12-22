@@ -1722,3 +1722,13 @@ def RLC_AssertOp : RLC_Dialect<"assert"> {
 
   let assemblyFormat = "$assertion type($assertion) attr-dict";
 }
+
+def RLC_CanOp : RLC_Dialect <"can", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let arguments = (ins AnyFunctionType:$callee);
+
+  let results = (outs FunctionType:$result);
+
+  let assemblyFormat = [{
+        $callee `:` type($callee) attr-dict `:` type($result)
+    }];
+}
