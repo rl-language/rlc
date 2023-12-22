@@ -115,7 +115,7 @@ def RLC_ForFieldStatement : RLC_Dialect<"for_field", [DeclareOpInterfaceMethods<
   }];
 }
 
-def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface>]> {
+def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "while.";
 
   let description = [{
@@ -470,7 +470,7 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
 def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "subaction.";
 
-  let arguments = (ins DefaultValuedAttr<StrAttr, "\"\"">:$name, BoolAttr:$run_once);
+  let arguments = (ins DefaultValuedAttr<StrAttr, "\"\"">:$name, BoolAttr:$run_once, Variadic<AnyType>:$forwarded_args);
   let description = [{
 	subaction.
   }];
@@ -480,7 +480,7 @@ def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods
   );
 
   let assemblyFormat = [{
-	( $name^ `=` )? $body attr-dict 
+	( $name^ `=` )? $body ( $forwarded_args^ `:` type($forwarded_args))? attr-dict 
   }];
 }
 
@@ -507,7 +507,7 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMe
 class RLC_FunctionBase<string mnemonic> :
 RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable]> {
 
-  let arguments = (ins StrAttr:$unmangledName, StrArrayAttr:$argNames);
+  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames);
   let description = [{
 	expression.
   }];
@@ -525,9 +525,10 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
     }]>];
 
   let assemblyFormat = [{
-	$unmangledName type($result) $argNames $precondition $body attr-dict 
+	$unmangled_name type($result) $argNames $precondition $body attr-dict 
   }];
     code extraBaseClassDeclaration = [{
+
         Region *getCallableRegion() {
             return isDeclaration() ? nullptr : &getBody();
         }
@@ -639,7 +640,7 @@ def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
-  let arguments = (ins StrAttr:$unmangledName, StrArrayAttr:$argNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let extraClassDeclaration = extraBaseClassDeclaration # [{
 	mlir::LogicalResult typeCheckFunctionDeclaration(
 		mlir::IRRewriter& rewriter,
@@ -652,7 +653,7 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
     }]>];
 
   let assemblyFormat = [{
-	$unmangledName ( $template_parameters^ )? type($result) $argNames $precondition $body attr-dict 
+	$unmangled_name( $template_parameters^ )? type($result) $argNames $precondition $body attr-dict 
   }];
 }
 
@@ -660,7 +661,7 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
   let results = (outs FunctionType:$result, AnyFunctionType:$is_done_function, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
-	$unmangledName type($result) type($actions) type($is_done_function) $argNames $precondition $body attr-dict 
+	$unmangled_name type($result) type($actions) type($is_done_function) $argNames $precondition $body attr-dict 
   }];
     let extraClassDeclaration = extraBaseClassDeclaration # [{
 
@@ -1458,7 +1459,7 @@ def RLC_NotEqualOp : RLC_RelationalOp<"_not_equal"> {
 	expression.
   }];
 
-  let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
+  let arguments = (ins AnyType:$lhs, AnyType:$rhs);
   let results = (outs RLCBoolOrUnkownType:$result);
 
   let builders = [
@@ -1731,4 +1732,13 @@ def RLC_CanOp : RLC_Dialect <"can", [DeclareOpInterfaceMethods<TypeCheckable>]> 
   let assemblyFormat = [{
         $callee `:` type($callee) attr-dict `:` type($result)
     }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$value), [{
+			auto resultType = mlir::FunctionType::get(
+					value.getContext(),
+					value.getType().cast<FunctionType>().getInputs(),
+					mlir::rlc::BoolType::get(value.getContext()));
+			build($_builder, $_state, resultType, value);
+  }]>];
 }

@@ -54,6 +54,12 @@ static cl::opt<bool> dumpTokens(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpDot(
+		"dot",
+		cl::desc("dump dot of actions"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpUncheckedAST(
 		"unchecked",
 		cl::desc("dumps the unchcked ast and exits"),
@@ -172,6 +178,12 @@ static void configurePassManager(
 	if (dumpUncheckedAST)
 	{
 		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
+		return;
+	}
+
+	if (dumpDot)
+	{
+		manager.addPass(mlir::rlc::createUncheckedAstToDotPass({ &OS }));
 		return;
 	}
 

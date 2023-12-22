@@ -121,6 +121,15 @@ def AddOutOfBoundsCheckPass : Pass<"rlc-add-out-of-bounds-check", "mlir::ModuleO
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def UncheckedAstToDotPass : Pass<"rlc-unchecked-ast-to-dot-pass", "mlir::ModuleOp"> {
+  let summary = "makes a dot graph of the various actions";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "stream on which to print the module">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def PrintIRPass : Pass<"rlc-print-ir-pass", "mlir::ModuleOp"> {
   let summary = "prints the ir on the provided stream";
   let options = [

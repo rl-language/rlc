@@ -53,7 +53,7 @@ fun<T> assign(Vector<T> lhs, Vector<T> rhs) -> Vector<T>:
 
 	return lhs
 
-fun<T> get(Vector<T> v, Int index) -> T:
+fun<T> get(Vector<T> v, Int index) -> ref T:
 	return v.data[index]
 
 fun<T> set(Vector<T> v, Int index, T value):

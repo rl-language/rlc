@@ -94,3 +94,4 @@ fun main() -> Int:
 	if game.board.full():
 		return 5
 	return int(game.board.three_in_a_line_player(1)) - 1
+

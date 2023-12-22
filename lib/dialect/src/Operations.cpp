@@ -52,10 +52,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	auto underlying = builder.getActionOf(underlyingType)
 												.getDefiningOp<mlir::rlc::ActionFunction>();
 
-	llvm::SmallVector<mlir::rlc::ActionStatement, 2> actionStatements;
-	underlying.walk([&](mlir::rlc::ActionStatement action) {
-		actionStatements.push_back(action);
-	});
+	llvm::SmallVector<mlir::Value, 2> actionValues = underlying.getActions();
 
 	mlir::IRRewriter &rewiter = builder.getRewriter();
 	rewiter.setInsertionPoint(*this);
@@ -97,21 +94,67 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	}
 
 	auto actions = rewiter.create<mlir::rlc::ActionsStatement>(
-			getLoc(), actionStatements.size());
+			getLoc(), actionValues.size());
 
-	for (size_t i = 0; i < actionStatements.size(); i++)
+	for (size_t i = 0; i < actionValues.size(); i++)
 	{
 		auto *bb = rewiter.createBlock(
 				&actions.getActions()[i], actions.getActions()[i].begin());
 		rewiter.setInsertionPoint(bb, bb->begin());
-		auto cloned = mlir::cast<mlir::rlc::ActionStatement>(
-				rewiter.clone(*actionStatements[i]));
+		mlir::Value toCall = actionValues[i];
+		mlir::rlc::ActionStatement referred =
+				mlir::cast<mlir::rlc::ActionStatement>(
+						*builder.actionFunctionValueToActionStatement(toCall)[0]);
+
+		llvm::SmallVector<mlir::Type, 4> resultTypes;
+		for (auto type :
+				 llvm::drop_begin(referred.getResultTypes(), getForwardedArgs().size()))
+			resultTypes.push_back(type);
+
+		llvm::SmallVector<mlir::Location, 4> resultLoc;
+		for (auto type :
+				 llvm::drop_begin(referred.getResultTypes(), getForwardedArgs().size()))
+			resultLoc.push_back(actions.getLoc());
+
+		llvm::SmallVector<mlir::Attribute> nameAttrs;
+		for (auto name : llvm::drop_begin(
+						 referred.getDeclaredNames(), getForwardedArgs().size()))
+			nameAttrs.push_back(name);
+
+		auto fixed = rewiter.create<mlir::rlc::ActionStatement>(
+				referred.getLoc(),
+				resultTypes,
+				referred.getName(),
+				rewiter.getArrayAttr(nameAttrs),
+				referred.getId(),
+				referred.getResumptionPoint());
+
+		auto *newBody = rewiter.createBlock(
+				&fixed.getPrecondition(),
+				fixed.getPrecondition().begin(),
+				resultTypes,
+				resultLoc);
+
+		llvm::SmallVector<mlir::Value, 4> canArgs(
+				getForwardedArgs().begin(), getForwardedArgs().end());
+		for (auto arg : newBody->getArguments())
+			canArgs.push_back(arg);
+		canArgs.insert(canArgs.begin(), frameVar);
+
+		auto casted = rewiter.create<mlir::rlc::CanOp>(actions.getLoc(), toCall);
+		auto result =
+				rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), casted, canArgs);
+		rewiter.create<mlir::rlc::Yield>(
+				actions.getLoc(), mlir::ValueRange({ result.getResult(0) }));
+		rewiter.setInsertionPointAfter(fixed);
 
 		llvm::SmallVector<mlir::Value, 4> args(
-				cloned.getResults().begin(), cloned.getResults().end());
+				getForwardedArgs().begin(), getForwardedArgs().end());
+		for (auto result : fixed.getResults())
+			args.push_back(result);
 		args.insert(args.begin(), frameVar);
 
-		builder.emitCall(*this, actionStatements[i].getName(), args);
+		rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, args);
 
 		rewiter.create<mlir::rlc::Yield>(actions.getLoc());
 	}
@@ -219,15 +262,6 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 		return mlir::success();
 	}
 	auto candidates = builder.getSymbolTable().get(getName());
-	if (candidates.size() > 2)
-	{
-		emitError("ambigous reference to " + getName());
-		for (auto candidate : candidates)
-		{
-			candidate.getDefiningOp()->emitRemark("candidate");
-		}
-		return mlir::failure();
-	}
 
 	if (candidates.empty())
 	{
@@ -479,12 +513,7 @@ mlir::LogicalResult mlir::rlc::CanOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	auto &rewriter = builder.getRewriter();
-	rewriter.replaceOpWithNewOp<CanOp>(
-		*this,
-		mlir::FunctionType::get(getContext(), getCallee().getType().cast<FunctionType>().getInputs(),
-		mlir::rlc::BoolType::get(getContext())),
-		getCallee()
-	);
+	rewriter.replaceOpWithNewOp<CanOp>(*this, getCallee());
 	return mlir::success();
 }
 
@@ -1002,7 +1031,7 @@ void mlir::rlc::ActionsStatement::getSuccessorRegions(
 
 	// from any region you jump out
 	if (index)
-		regions.push_back(mlir::RegionSuccessor({}));
+		regions.push_back(mlir::RegionSuccessor(getOperation()->getResults()));
 }
 
 void mlir::rlc::ActionStatement::getRegionInvocationBounds(
@@ -1024,9 +1053,13 @@ void mlir::rlc::ActionStatement::getSuccessorRegions(
 			regions.push_back(mlir::RegionSuccessor(
 					&getPrecondition(),
 					getPrecondition().front().getArguments().slice(0, 0)));
+		else
+			regions.push_back(mlir::RegionSuccessor(getResults().slice(0, 0)));
+
+		return;
 	}
 
-	regions.push_back(mlir::RegionSuccessor({}));
+	regions.push_back(mlir::RegionSuccessor(getResults().slice(0, 0)));
 }
 
 void mlir::rlc::DeclarationStatement::getRegionInvocationBounds(
@@ -1087,13 +1120,22 @@ void mlir::rlc::Yield::getSuccessorRegions(
 		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
 {
 	// When you hit a yield you jump into the single body block
-	if (not index and not getOnEnd().empty())
-		regions.push_back(
-				mlir::RegionSuccessor(&getOnEnd(), getOnEnd().front().getArguments()));
+	if (not index)
+	{
+		if (not getOnEnd().empty())
+		{
+			regions.push_back(mlir::RegionSuccessor(
+					&getOnEnd(), getOnEnd().front().getArguments()));
+		}
+		else
+		{
+			regions.push_back(mlir::RegionSuccessor());
+		}
+	}
 
 	// when you are done with the region, you get out back to yield
-	if (index and not getOnEnd().empty())
-		regions.push_back(mlir::RegionSuccessor({}));
+	if (index)
+		regions.push_back(mlir::RegionSuccessor());
 }
 
 void mlir::rlc::ReturnStatement::getRegionInvocationBounds(
@@ -1113,9 +1155,7 @@ void mlir::rlc::ReturnStatement::getSuccessorRegions(
 		regions.push_back(
 				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
 
-	// when you are done with the region, you get out back to ExpressionStatement
-	if (index)
-		regions.push_back(mlir::RegionSuccessor({}));
+	// when you are done with the region, you don't go anywhere!
 }
 
 void mlir::rlc::ExpressionStatement::getRegionInvocationBounds(
@@ -1137,7 +1177,7 @@ void mlir::rlc::ExpressionStatement::getSuccessorRegions(
 
 	// when you are done with the region, you get out back to ExpressionStatement
 	if (index)
-		regions.push_back(mlir::RegionSuccessor({}));
+		regions.push_back(mlir::RegionSuccessor());
 }
 
 void mlir::rlc::IfStatement::getRegionInvocationBounds(
@@ -1178,6 +1218,17 @@ void mlir::rlc::IfStatement::getSuccessorRegions(
 	}
 }
 
+void mlir::rlc::WhileStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the precondition once or more
+	invocationBounds.push_back(mlir::InvocationBounds(1, std::nullopt));
+
+	// executes the body any amount of time
+	invocationBounds.push_back(mlir::InvocationBounds(0, std::nullopt));
+}
+
 void mlir::rlc::WhileStatement::getSuccessorRegions(
 		std::optional<unsigned> index,
 		llvm::ArrayRef<::mlir::Attribute> operands,
@@ -1185,15 +1236,15 @@ void mlir::rlc::WhileStatement::getSuccessorRegions(
 {
 	// When you hit a for statement you jump into the precondition
 	if (not index)
-		regions.push_back(mlir::RegionSuccessor(
-				&getCondition(), getCondition().front().getArguments()));
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
 
 	// from the condition, you can jump out or to the body
 	if (index and *index == 0)
 	{
+		regions.push_back(mlir::RegionSuccessor({}));
 		regions.push_back(
 				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
-		regions.push_back(mlir::RegionSuccessor({}));
 	}
 
 	// from the body you jump to the condition

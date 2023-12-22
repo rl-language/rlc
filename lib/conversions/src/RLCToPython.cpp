@@ -463,10 +463,10 @@ class ActionDeclToTNothing
 
 		using ActionKey = std::pair<std::string, const void*>;
 		std::set<ActionKey> alreadyAdded;
-		for (const auto& [type, action] :
-				 llvm::zip(op.getActions(), builder->actionStatementsOfAction(op)))
+		for (auto type : op.getActions())
 		{
-			auto casted = mlir::cast<mlir::rlc::ActionStatement>(action);
+			auto casted = mlir::cast<mlir::rlc::ActionStatement>(
+					*builder->actionFunctionValueToActionStatement(type).begin());
 			ActionKey key(casted.getName(), type.getAsOpaquePointer());
 			if (alreadyAdded.contains(key))
 				continue;

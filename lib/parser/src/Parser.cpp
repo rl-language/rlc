@@ -333,6 +333,7 @@ Expected<mlir::Value> Parser::postFixExpression()
 								.create<mlir::rlc::CallOp>(
 										location, unkType(), ref->getResult(0), *arguments)
 								.getResult(0);
+			continue;
 		}
 		break;
 	}
@@ -617,8 +618,8 @@ llvm::Expected<bool> Parser::requirementList()
 }
 
 /**
- * subActionStatement: subaction (*)? (`ident` =)? expression \n
- * \n
+ * subActionStatement: subaction (*)? ("(" argumentExpressionList ")")?
+ * (`ident` =)? expression \n \n
  */
 llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 {
@@ -627,15 +628,21 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 
 	bool runOnce = not accept<Token::Mult>();
 
-	std::string name;
-	if (accept<Token::Identifier>())
+	llvm::SmallVector<mlir::Value, 3> expressions;
+	if (accept<Token::LPar>())
 	{
-		name = lIdent;
-		EXPECT(Token::Equal);
+		TRY(list, argumentExpressionList());
+		expressions = *list;
+		EXPECT(Token::RPar);
 	}
 
-	auto operation =
-			builder.create<mlir::rlc::SubActionStatement>(location, name, runOnce);
+	std::string name;
+	EXPECT(Token::Identifier);
+	name = lIdent;
+	EXPECT(Token::Equal);
+
+	auto operation = builder.create<mlir::rlc::SubActionStatement>(
+			location, name, runOnce, expressions);
 	builder.createBlock(&operation.getBody());
 	TRY(exp, expression());
 	EXPECT(Token::Newline);
@@ -915,6 +922,18 @@ Expected<mlir::Operation*> Parser::statement()
 
 	if (current == Token::KeywordDestroy)
 		return builtinDestroy();
+
+	if (current == Token::Indent)
+	{
+		auto location = getCurrentSourcePos();
+		auto list = builder.create<mlir::rlc::StatementList>(location);
+		builder.createBlock(&list.getBody());
+		builder.setInsertionPointToStart(&list.getBody().front());
+		TRY(dc, statementList());
+		emitYieldIfNeeded(location);
+		builder.setInsertionPointAfter(list);
+		return list;
+	}
 
 	return expressionStatement();
 }

@@ -143,6 +143,7 @@ namespace mlir::rlc
 		llvm::DenseMap<mlir::Value, bool> cache;
 		ActionFunction fun;
 		mlir::Liveness liveness;
+		mlir::DominanceInfo dominance;
 
 		std::optional<Partition<mlir::rlc::DeclarationStatement>> declsStatements =
 				std::nullopt;

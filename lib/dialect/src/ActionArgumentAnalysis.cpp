@@ -88,6 +88,7 @@ namespace mlir::rlc
 			return;
 
 		if (contraint->getOperand(0) == argument and
+				contraint->getOperand(1).getDefiningOp() and
 				mlir::isa<mlir::rlc::Constant>(
 						contraint->getOperand(1).getDefiningOp()))
 		{
@@ -101,7 +102,9 @@ namespace mlir::rlc
 							.getInt());
 			return;
 		}
+
 		if (contraint->getOperand(1) == argument and
+				contraint->getOperand(0).getDefiningOp() and
 				mlir::isa<mlir::rlc::Constant>(
 						contraint->getOperand(0).getDefiningOp()))
 		{

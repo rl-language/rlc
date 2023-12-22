@@ -14,6 +14,10 @@ namespace mlir::rlc
 			if (val.getDefiningOp() == subAction)
 				return;
 
+			// for some reason liveness gets confused if you ask it info about stuff
+			// not dominated by the definition
+			if (not dominance.dominates(val, subAction))
+				return;
 			if (not liveness.isDeadAfter(val, subAction))
 				isUsedAcrossActions = true;
 		});

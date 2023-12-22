@@ -471,25 +471,33 @@ Token Lexer::next()
 		return Token::End;
 	}
 
-	if (nestedParentesys == 0)
+	bool consumeLine = true;
+	while (consumeLine)
 	{
-		auto t = eatSpaces();
-		if (t.has_value())
-			return t.value();
-
-		if (deindentToEmit != 0)
+		consumeLine = false;
+		if (nestedParentesys == 0)
 		{
-			deindentToEmit--;
-			return Token::Deindent;
+			auto t = eatSpaces();
+			if (t.has_value())
+				return t.value();
+
+			if (deindentToEmit != 0)
+			{
+				deindentToEmit--;
+				return Token::Deindent;
+			}
+		}
+		else
+			while (isspace(*in) or *in == '\n')
+				eatChar();
+
+		if (*in == '#')	 // eat comments
+		{
+			consumeLine = true;
+			while (eatChar() != '\n')
+				;
 		}
 	}
-	else
-		while (isspace(*in) or *in == '\n')
-			eatChar();
-
-	if (*in == '#')	 // eat comments
-		while (eatChar() != '\n')
-			;
 
 	if (isdigit(*in) != 0)
 		return eatNumber();

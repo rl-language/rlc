@@ -128,7 +128,10 @@ static void runOptimizer(llvm::Module &M, bool optimize)
 }
 
 static void compile(
-		std::unique_ptr<llvm::Module> M, llvm::raw_pwrite_stream &OS, bool optimize)
+		std::unique_ptr<llvm::Module> M,
+		llvm::raw_pwrite_stream &OS,
+		bool optimize,
+		bool shared)
 {
 	std::string Error;
 	llvm::Triple triple(M->getTargetTriple());
@@ -143,7 +146,7 @@ static void compile(
 			"",
 			"",
 			options,
-			llvm::codegen::getRelocModel(),
+			shared ? llvm::Reloc::PIC_ : llvm::Reloc::Static,
 			M->getCodeModel(),
 			OLvl);
 	unique_ptr<TargetMachine> Target(Ptr);
@@ -183,7 +186,15 @@ static int linkLibraries(
 	argSource.push_back("-o");
 	argSource.push_back(outputFile.str());
 	argSource.push_back("-lm");
-	argSource.push_back(shared ? "--shared" : "-no-pie");
+	if (shared)
+	{
+		argSource.push_back("--shared");
+		argSource.push_back("-fPIE");
+	}
+	else
+	{
+		argSource.push_back("-no-pie");
+	}
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
 
@@ -240,7 +251,7 @@ namespace mlir::rlc
 				return;
 			}
 
-			compile(std::move(Module), library.os(), optimize);
+			compile(std::move(Module), library.os(), optimize, shared);
 
 			if (compileOnly)
 			{
