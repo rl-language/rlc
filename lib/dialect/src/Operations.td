@@ -467,7 +467,7 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
   }];
 }
 
-def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "subaction.";
 
   let arguments = (ins DefaultValuedAttr<StrAttr, "\"\"">:$name, BoolAttr:$run_once, Variadic<AnyType>:$forwarded_args);

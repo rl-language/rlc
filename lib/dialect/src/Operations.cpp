@@ -1218,6 +1218,31 @@ void mlir::rlc::IfStatement::getSuccessorRegions(
 	}
 }
 
+void mlir::rlc::SubActionStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	if (getRunOnce())
+		invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+	else
+		invocationBounds.push_back(mlir::InvocationBounds(0, std::nullopt));
+}
+
+void mlir::rlc::SubActionStatement::getSuccessorRegions(
+		std::optional<unsigned> index,
+		llvm::ArrayRef<::mlir::Attribute> operands,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	if (not index)
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	if (index)
+	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+}
+
 void mlir::rlc::WhileStatement::getRegionInvocationBounds(
 		llvm::ArrayRef<mlir::Attribute> operands,
 		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
@@ -1236,15 +1261,15 @@ void mlir::rlc::WhileStatement::getSuccessorRegions(
 {
 	// When you hit a for statement you jump into the precondition
 	if (not index)
-		regions.push_back(
-				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+		regions.push_back(mlir::RegionSuccessor(
+				&getCondition(), getCondition().front().getArguments()));
 
 	// from the condition, you can jump out or to the body
 	if (index and *index == 0)
 	{
-		regions.push_back(mlir::RegionSuccessor({}));
 		regions.push_back(
 				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+		regions.push_back(mlir::RegionSuccessor({}));
 	}
 
 	// from the body you jump to the condition
