@@ -167,6 +167,25 @@ def RLC_TypeType : RLC_Type<"Type", "type"> {
   }];
 }
 
+def RLC_UncheckedTemplateParameterType : RLC_Type<"UncheckedTemplateParameter", "unchecked_template_parameter"> {
+  let summary = "RLC type rappresenting a template paremeter before typechecking";
+  let description = [{
+	 rapresents template parameter before typecheckng
+  }];
+  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::StringAttr", "\"\"">:$trait);
+  let assemblyFormat = "`<`  $name (`:` $trait^ )?`>`";
+}
+
+
+def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter"> {
+  let summary = "RLC type rappresenting a template paremeter";
+  let description = [{
+	 rapresents template parameter
+  }];
+  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::rlc::TraitMetaType">:$trait, "bool":$is_int_literal);
+  let assemblyFormat = "`<`  $name (`:` $trait^ )? struct($is_int_literal) `>`";
+}
+
 def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
   let summary = "RLC type rappresenting a trait type";
   let description = [{
@@ -188,23 +207,20 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
   }];
 }
 
-def RLC_UncheckedTemplateParameterType : RLC_Type<"UncheckedTemplateParameter", "unchecked_template_parameter"> {
-  let summary = "RLC type rappresenting a template paremeter before typechecking";
+// this types is here to abuse the type converter when lowering llvm ir
+def RLC_ProxyType : RLC_Type<"Proxy", "proxy"> {
+  let summary = "RLC builtin integer type";
   let description = [{
-	 rapresents template parameter before typecheckng
+    Implementation agnostic integer type.
   }];
-  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::StringAttr", "\"\"">:$trait);
-  let assemblyFormat = "`<`  $name (`:` $trait^ )?`>`";
-}
 
-
-def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter"> {
-  let summary = "RLC type rappresenting a template paremeter";
-  let description = [{
-	 rapresents template parameter
-  }];
-  let parameters = (ins StringRefParameter<>:$name, OptionalParameter<"mlir::rlc::TraitMetaType">:$trait, "bool":$is_int_literal);
-  let assemblyFormat = "`<`  $name (`:` $trait^ )? struct($is_int_literal) `>`";
+  let parameters = (ins "Type":$underlying);
+  let assemblyFormat = "`<` $underlying`>`";
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins "mlir::Type":$underlying),[{
+		return mlir::rlc::ProxyType::get(underlying.getContext(), underlying);
+	  }]>,
+  ];
 }
 
 

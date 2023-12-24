@@ -56,7 +56,7 @@ namespace mlir::rlc
 		initializeTarget(Registry);
 		// For codegen passes, only passes that do IR to IR transformation are
 		// supported.
-		initializeExpandMemCmpPassPass(Registry);
+		initializeExpandMemCmpLegacyPassPass(Registry);
 		initializeCodeGenPreparePass(Registry);
 		initializeAtomicExpandPass(Registry);
 		initializeWinEHPreparePass(Registry);
@@ -64,7 +64,7 @@ namespace mlir::rlc
 		initializeSjLjEHPreparePass(Registry);
 		initializePreISelIntrinsicLoweringLegacyPassPass(Registry);
 		initializeGlobalMergePass(Registry);
-		initializeIndirectBrExpandPassPass(Registry);
+		initializeIndirectBrExpandLegacyPassPass(Registry);
 		initializeInterleavedLoadCombinePass(Registry);
 		initializeInterleavedAccessPass(Registry);
 		initializeUnreachableBlockElimLegacyPassPass(Registry);
@@ -132,7 +132,8 @@ struct mlir::rlc::TargetInfoImpl
 	public:
 	TargetInfoImpl(std::string triple, bool shared, bool optimize)
 			: triple(triple),
-				optimize(optimize ? CodeGenOpt::Aggressive : CodeGenOpt::Default),
+				optimize(
+						optimize ? CodeGenOptLevel::Aggressive : CodeGenOptLevel::Default),
 				reloc(shared ? llvm::Reloc::PIC_ : llvm::Reloc::Static)
 	{
 		std::string Error;
@@ -156,7 +157,7 @@ struct mlir::rlc::TargetInfoImpl
 
 	llvm::Triple triple;
 	llvm::CodeModel::Model model;
-	llvm::CodeGenOpt::Level optimize;
+	llvm::CodeGenOptLevel optimize;
 	llvm::Reloc::Model reloc;
 	const llvm::Target *target;
 	llvm::TargetOptions options;
@@ -179,7 +180,7 @@ const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
 
 bool mlir::rlc::TargetInfo::optimize() const
 {
-	return pimpl->optimize != llvm::CodeGenOpt::Default;
+	return pimpl->optimize != llvm::CodeGenOptLevel::Default;
 }
 
 bool mlir::rlc::TargetInfo::isShared() const
@@ -207,7 +208,7 @@ static void compile(
 	manager.add(new TargetLibraryInfoWrapperPass(TLII));
 
 	bool Err = LLVMTM.addPassesToEmitFile(
-			manager, OS, nullptr, CGFT_ObjectFile, true, MMIWP);
+			manager, OS, nullptr, llvm::CodeGenFileType::ObjectFile, true, MMIWP);
 	assert(not Err);
 	manager.run(*M);
 	OS.flush();

@@ -104,11 +104,12 @@ namespace mlir::rlc
 		};
 
 		class LastActionAnalysis
-				: public mlir::dataflow::DenseDataFlowAnalysis<LastActionsTakenLattice>
+				: public mlir::dataflow::DenseForwardDataFlowAnalysis<
+							LastActionsTakenLattice>
 		{
 			public:
-			using mlir::dataflow::DenseDataFlowAnalysis<
-					LastActionsTakenLattice>::DenseDataFlowAnalysis;
+			using mlir::dataflow::DenseForwardDataFlowAnalysis<
+					LastActionsTakenLattice>::DenseForwardDataFlowAnalysis;
 
 			private:
 			void visitOperation(

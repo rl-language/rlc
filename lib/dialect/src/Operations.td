@@ -1,6 +1,5 @@
 include "Types.td"
 include "Interfaces.td"
-include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
@@ -54,9 +53,7 @@ def RLC_UncheckedTraitDefinition : RLC_Dialect<"unckecked_trait", [DeclareOpInte
   }];
 
   let extraClassDeclaration = [{
-	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
-		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr, false);
-	  }
+	  mlir::rlc::TemplateParameterType getTemplateParameterType(); 
   }];
 }
 
@@ -151,7 +148,22 @@ def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator, DeclareOpInterfaceM
 
 }
 
-def RLC_Yield : RLC_Dialect<"yield", [ReturnLike, Terminator, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
+def RLC_YieldReference : RLC_Dialect<"yield_reference", [ReturnLike, Terminator, DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface>]> {
+  let summary = "ends statements";
+
+  let arguments = (ins AnyType:$argument);
+
+  let description = [{
+	expression.
+  }];
+
+
+  let assemblyFormat = [{
+	$argument `:` type($argument) attr-dict
+  }];
+}
+
+def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface, ["getMutableSuccessorOperands", "getSuccessorRegions"]>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "ends statements";
 
   let arguments = (ins Variadic<AnyType>:$arguments);
@@ -576,7 +588,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 
 
 		bool isInternal() {
-			return getUnmangledName().startswith("_");
+			return getUnmangledName().starts_with("_");
 		}
 
         bool isDeclaration() {
@@ -730,6 +742,9 @@ def RLC_ArrayCallOp : RLC_Dialect<"array_call",
 			return getCallee().getType().cast<mlir::FunctionType>();
 		}
 
+        MutableOperandRange getArgOperandsMutable() {
+            return MutableOperandRange(*this, 1, getArgs().size() );
+        }
 
         /// Get the argument operands to the called function.
         operand_range getArgOperands() {
@@ -799,6 +814,10 @@ def RLC_CallOp : RLC_Dialect<"call",
         /// Get the argument operands to the called function.
         operand_range getArgOperands() {
             return { arg_operand_begin(), arg_operand_end() };
+        }
+
+        MutableOperandRange getArgOperandsMutable() {
+            return MutableOperandRange(*this, 1, getArgs().size() );
         }
 
         operand_iterator arg_operand_begin() {

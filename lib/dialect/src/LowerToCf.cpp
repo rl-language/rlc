@@ -338,21 +338,6 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 	llvm::SmallVector<mlir::rlc::FunctionOp, 2> ops(
 			op.getOps<mlir::rlc::FunctionOp>());
 
-	for (auto f : ops)
-	{
-		rewriter.setInsertionPoint(f);
-		llvm::SmallVector<mlir::OpOperand*> operands;
-		for (auto& use : f.getResult().getUses())
-			operands.push_back(&use);
-
-		for (auto& use : operands)
-		{
-			rewriter.setInsertionPoint(use->getOwner());
-			auto ref = rewriter.create<mlir::rlc::Reference>(
-					use->getOwner()->getLoc(), f.getFunctionType(), f.getMangledName());
-			use->set(ref);
-		}
-	}
 	assert(op.verify().succeeded());
 	for (auto f : ops)
 	{
@@ -370,10 +355,32 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 		rewriter.cloneRegionBefore(
 				f.getBody(), newF.getBody(), newF.getBody().begin());
 
-		rewriter.eraseOp(f);
-
 		pruneUnrechableBlocks(newF.getBody(), rewriter);
+
+		rewriter.setInsertionPoint(f);
+		llvm::SmallVector<mlir::OpOperand*> operands;
+		for (auto& use : f.getResult().getUses())
+			operands.push_back(&use);
+
+		for (auto& use : operands)
+		{
+			if (mlir::isa<mlir::rlc::FunctionMetadataOp>(use->getOwner()))
+			{
+				use->set(newF);
+			}
+			else
+			{
+				rewriter.setInsertionPoint(use->getOwner());
+
+				auto ref = rewriter.create<mlir::rlc::Reference>(
+						use->getOwner()->getLoc(), f.getFunctionType(), f.getMangledName());
+				use->set(ref);
+			}
+		}
+
+		rewriter.eraseOp(f);
 	}
+
 	return mlir::LogicalResult::success();
 }
 

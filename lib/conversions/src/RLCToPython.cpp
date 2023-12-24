@@ -175,13 +175,13 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 		mlir::Location loc,
 		mlir::rlc::python::CTypesLoad* library,
 		mlir::ConversionPatternRewriter& rewriter,
-		mlir::TypeConverter* converter,
+		const mlir::TypeConverter* converter,
 		llvm::StringRef overloadName,
 		llvm::StringRef fName,
 		mlir::ArrayAttr argNames,
 		mlir::FunctionType fType)
 {
-	if (fName.startswith("_"))
+	if (fName.starts_with("_"))
 		return nullptr;
 
 	auto funType = converter->convertType(fType).cast<mlir::FunctionType>();
@@ -567,7 +567,7 @@ namespace mlir::python
 			mlir::Location loc,
 			mlir::Type type,
 			mlir::IRRewriter& rewriter,
-			mlir::TypeConverter& converter)
+			const mlir::TypeConverter& converter)
 	{
 		mlir::Type converted = converter.convertType(type);
 		llvm::SmallVector<std::string, 2> names;

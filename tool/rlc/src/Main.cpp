@@ -269,6 +269,7 @@ static void configurePassManager(
 	manager.addPass(mlir::rlc::createLowerToCfPass());
 	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 	manager.addPass(mlir::rlc::createStripFunctionMetadataPass());
+	manager.addPass(mlir::rlc::createRewriteCallSignaturesPass());
 	if (dumpFlatIR)
 	{
 		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));

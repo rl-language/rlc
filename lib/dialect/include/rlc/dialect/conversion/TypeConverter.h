@@ -9,21 +9,18 @@ namespace mlir::rlc
 {
 	inline std::optional<mlir::Type> boolToBuiltinBool(mlir::rlc::BoolType type)
 	{
-		return mlir::LLVM::LLVMPointerType::get(
-				mlir::IntegerType::get(type.getContext(), 8));
+		return mlir::IntegerType::get(type.getContext(), 8);
 	}
 
 	inline std::optional<mlir::Type> floatToBuiltinFloat(
 			mlir::rlc::FloatType type)
 	{
-		return mlir::LLVM::LLVMPointerType::get(
-				mlir::Float64Type::get(type.getContext()));
+		return mlir::Float64Type::get(type.getContext());
 	}
 
 	inline std::optional<mlir::Type> intToBuiltinInt(mlir::rlc::IntegerType type)
 	{
-		return mlir::LLVM::LLVMPointerType::get(
-				mlir::IntegerType::get(type.getContext(), type.getSize()));
+		return mlir::IntegerType::get(type.getContext(), type.getSize());
 	}
 
 	inline std::optional<mlir::Type> acceptPtrType(
@@ -76,32 +73,28 @@ namespace mlir::rlc
 		converter.addConversion(boolToBuiltinBool);
 		converter.addConversion(floatToBuiltinFloat);
 		converter.addConversion(intToBuiltinInt);
+		converter.addConversion(acceptPtrType);
 		converter.addConversion([&](mlir::rlc::OwningPtrType type) -> Type {
 			assert(type.getUnderlying() != nullptr);
-			auto newInner = converter.convertType(type.getUnderlying());
-			return mlir::LLVM::LLVMPointerType::get(newInner);
+			return mlir::LLVM::LLVMPointerType::get(type.getContext());
 		});
 		converter.addConversion([&](mlir::rlc::ArrayType type) -> Type {
-			auto newInner = converter.convertType(type.getUnderlying())
-													.cast<mlir::LLVM::LLVMPointerType>()
-													.getElementType();
+			auto newInner = converter.convertType(type.getUnderlying());
 			assert(type.getSize().isa<mlir::rlc::IntegerLiteralType>());
-			return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMArrayType::get(
+			return mlir::LLVM::LLVMArrayType::get(
 					newInner,
-					type.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()));
+					type.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue());
 		});
 		converter.addConversion(
 				[&converter, module](mlir::rlc::AlternativeType type) -> Type {
 					llvm::SmallVector<mlir::Type> innerTypes;
-					unsigned int size = 0;
+					llvm::TypeSize size(0, false);
 					unsigned int aligment = 0;
 					mlir::Type maxAligmentType = nullptr;
 					const auto& dataLayaout = mlir::DataLayout::closest(module);
 					for (auto subType : type.getUnderlying())
 					{
-						auto result = converter.convertType(subType)
-															.cast<mlir::LLVM::LLVMPointerType>()
-															.getElementType();
+						auto result = converter.convertType(subType);
 						assert(result != nullptr);
 						innerTypes.push_back(result);
 						size = std::max(size, dataLayaout.getTypeSize(result));
@@ -126,36 +119,32 @@ namespace mlir::rlc
 
 					auto result = mlir::LLVM::LLVMStructType::getLiteral(
 							type.getContext(), newBody);
-					return mlir::LLVM::LLVMPointerType::get(result);
+					return result;
 				});
 		converter.addConversion([&](mlir::FunctionType type) -> Type {
 			SmallVector<Type, 2> args;
 			for (auto arg : type.getResults())
 			{
 				if (not arg.isa<mlir::rlc::VoidType>())
-					args.push_back(converter.convertType(arg));
+					args.push_back(mlir::LLVM::LLVMPointerType::get(type.getContext()));
 			}
 
 			for (auto arg : type.getInputs())
-				args.push_back(converter.convertType(arg));
+				args.push_back(mlir::LLVM::LLVMPointerType::get(type.getContext()));
 
-			return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMFunctionType::get(
-					mlir::LLVM::LLVMVoidType::get(type.getContext()), args));
+			return mlir::LLVM::LLVMFunctionType::get(
+					mlir::LLVM::LLVMVoidType::get(type.getContext()), args);
 		});
 		converter.addConversion([&](mlir::rlc::ReferenceType type) -> Type {
-			auto underlying = converter.convertType(type.getUnderlying());
-			return mlir::LLVM::LLVMPointerType::get(underlying);
+			return mlir::LLVM::LLVMPointerType::get(type.getContext());
 		});
 		converter.addConversion([&](mlir::rlc::EntityType type) -> Type {
 			SmallVector<Type, 2> fields;
 			for (auto arg : type.getBody())
-				fields.push_back(converter.convertType(arg)
-														 .cast<mlir::LLVM::LLVMPointerType>()
-														 .getElementType());
+				fields.push_back(converter.convertType(arg));
 
-			return mlir::LLVM::LLVMPointerType::get(
-					mlir::LLVM::LLVMStructType::getNewIdentified(
-							type.getContext(), type.getName(), fields));
+			return mlir::LLVM::LLVMStructType::getNewIdentified(
+					type.getContext(), type.getName(), fields);
 		});
 		converter.addConversion(voidToVoid);
 	}

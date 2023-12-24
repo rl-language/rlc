@@ -158,7 +158,7 @@ namespace mlir::rlc
 				llvm::ArrayRef<std::string> fieldNames)
 		{
 			if (content.containedTypes.has_value() and
-					body == *content.containedTypes)
+					body == llvm::ArrayRef(*content.containedTypes))
 				return mlir::success();
 
 			// If the contained type has been initialized already, and the call tries

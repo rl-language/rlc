@@ -3,7 +3,6 @@
 #include <variant>
 
 #include "llvm/ADT/ArrayRef.h"
-#include "mlir/IR/FunctionInterfaces.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/SymbolTable.h"

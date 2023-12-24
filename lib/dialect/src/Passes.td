@@ -201,3 +201,8 @@ def AddPreconditionsCheckPass : Pass<"rlc-add-preconditions-check", "mlir::Modul
   let summary = "add bound checks for action preconditions";
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def RewriteCallSignaturesPass: Pass<"rlc-rewrite-call-signatures", "mlir::ModuleOp"> {
+  let summary = "rewrite call signatures";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

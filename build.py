@@ -187,6 +187,10 @@ def main():
     rlc_build_dir = try_make_dir("rlc-debug")
     rlc_release_dir = try_make_dir("rlc-release")
 
+    # build debug llvm
+    llvm_install_debug_dir = path.abspath("llvm-install-debug")
+    llvm_install_release_dir = path.abspath("llvm-install-release")
+
     # clone llvm
     if not exists(llvm_source_dir) and args.llvm_dir == "":
         assert_run_program(
@@ -197,12 +201,14 @@ def main():
             "--depth",
             "1",
             "-b",
-            "release/17.x",
+            "main",
         )
-
-    # build debug llvm
-    llvm_install_debug_dir = path.abspath("llvm-install-debug")
-    llvm_install_release_dir = path.abspath("llvm-install-release")
+        assert_run_program(
+            llvm_source_dir,
+            git,
+            "checkout",
+            "acacec3bbf4586ef9bc6c4f31707d3515d5215a1",
+        )
 
     if debug_llvm and not exists(llvm_install_debug_dir) and args.llvm_dir == "":
         llvm_build_debug_dir = try_make_dir(rlc_infrastructure + "/llvm-debug")

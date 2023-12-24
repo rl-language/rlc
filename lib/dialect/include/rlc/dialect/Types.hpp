@@ -32,7 +32,8 @@ namespace mlir::rlc
 		/// Inherit base constructors.
 		using Base::Base;
 
-		static llvm::StringRef getMnemonic() { return "entity"; }
+		static llvm::StringRef getMnemonic() { return name; }
+		constexpr static const char *name = "entity";
 
 		/// Gets or creates an identified struct with the given name in the provided
 		/// context. Note that unlike llvm::StructType::create, this function will

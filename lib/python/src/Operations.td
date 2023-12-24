@@ -1,6 +1,5 @@
 include "Types.td"
 include "Interfaces.td"
-include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
@@ -141,7 +140,7 @@ def RLC_PythonFun : RLC_PythonOp<"fun", [Symbol, CallableOpInterface, AutomaticA
         }
 
 		bool isInternal() {
-			return getName().startswith("_");
+			return getName().starts_with("_");
 		}
 
         bool isDeclaration() {
@@ -183,6 +182,10 @@ def RLC_PythonCall : RLC_PythonOp<"call", [CallOpInterface, DeclareOpInterfaceMe
         /// Get the argument operands to the called function.
         operand_range getArgOperands() {
             return { arg_operand_begin(), arg_operand_end() };
+        }
+
+        MutableOperandRange getArgOperandsMutable() {
+            return MutableOperandRange(*this, 1, getArgs().size() );
         }
 
         operand_iterator arg_operand_begin() {
