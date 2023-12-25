@@ -1038,7 +1038,7 @@ void mlir::rlc::ActionStatement::getRegionInvocationBounds(
 		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
 {
 	if (not getPrecondition().empty())
-		invocationBounds.push_back(mlir::InvocationBounds(0, 1));
+		invocationBounds.push_back(mlir::InvocationBounds(1, 1));
 }
 
 void mlir::rlc::ActionStatement::getSuccessorRegions(

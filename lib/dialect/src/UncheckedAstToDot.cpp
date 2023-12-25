@@ -23,24 +23,13 @@ namespace mlir::rlc
 			explicit LastActionsTakenLattice(mlir::ProgramPoint point)
 					: mlir::dataflow::AbstractDenseLattice(point)
 			{
-				// by default the last action executed in this node is none, we
-				// rapresent it with nullptr
-				// content.insert(nullptr);
 			}
 
 			mlir::ChangeResult meet(
 					const mlir::dataflow::AbstractDenseLattice& val) override
 			{
 				assert(false);
-				const auto& r = *static_cast<const LastActionsTakenLattice*>(&val);
-
-				auto copy = content;
-				for (auto entry : r.content)
-					content.insert(entry);
-
-				if (content == copy)
-					return mlir::ChangeResult::NoChange;
-				return mlir::ChangeResult::Change;
+				return mlir::ChangeResult::NoChange;
 			}
 
 			mlir::ChangeResult join(
@@ -137,7 +126,7 @@ namespace mlir::rlc
 					const LastActionsTakenLattice& before,
 					LastActionsTakenLattice* after) final
 			{
-				abort();
+				propagateIfChanged(after, after->copy(before));
 			}
 
 			void visitRegionBranchControlFlowTransfer(
@@ -275,14 +264,23 @@ namespace mlir::rlc
 			public:
 			explicit ActionFlowGraph(mlir::rlc::ActionFunction action): entry(action)
 			{
-				DataFlowSolver solver;
+				mlir::IRRewriter rewriter(action.getContext());
+				rewriter.setInsertionPointToStart(&action.getBody().front());
+				auto proxyEntry = rewriter.create<mlir::rlc::ActionStatement>(
+						action.getLoc(),
+						mlir::TypeRange({}),
+						"proxy",
+						llvm::ArrayRef<std::string>({}),
+						0,
+						0);
+
+				DataFlowConfig config;
+				config.setInterprocedural(false);
+				DataFlowSolver solver(config);
 				solver.load<mlir::dataflow::DeadCodeAnalysis>();
 				solver.load<mlir::dataflow::SparseConstantPropagation>();
 				auto* analsyis = solver.load<mlir::rlc::LastActionAnalysis>();
 				auto res = solver.initializeAndRun(action);
-
-				// ToDO, rework when updating llvm
-				auto* proxyEntry = &action.getBody().front().front();
 
 				action.walk([&](mlir::Operation* op) {
 					if (mlir::isa<mlir::rlc::ActionStatement>(op) or
@@ -325,6 +323,7 @@ namespace mlir::rlc
 				}
 
 				eraseNode(proxyEntry);
+				proxyEntry.erase();
 			}
 
 			void eraseNode(mlir::Operation* op)
@@ -384,28 +383,10 @@ namespace mlir::rlc
 					llvm::SmallVector<mlir::rlc::ActionStatement, 4>>
 					dependencies;
 
-			mlir::IRRewriter rewriter(&getContext());
-			getOperation().walk([&](mlir::rlc::CallOp op) {
-				rewriter.setInsertionPoint(op);
-				for (auto result : op.getResults())
-					result.replaceAllUsesWith(
-							rewriter.create<mlir::rlc::UninitializedConstruct>(
-									op.getLoc(), result.getType()));
-				op.erase();
-			});
-
 			*OS << " digraph g {\n";
 
 			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
 			{
-				rewriter.setInsertionPointToStart(&op.getBody().front());
-				rewriter.create<mlir::rlc::ActionStatement>(
-						op.getLoc(),
-						mlir::TypeRange({}),
-						"proxy",
-						llvm::ArrayRef<std::string>({}),
-						0,
-						0);
 				ActionFlowGraph graph(op);
 				for (auto& node : graph)
 					node.second->print(*OS);

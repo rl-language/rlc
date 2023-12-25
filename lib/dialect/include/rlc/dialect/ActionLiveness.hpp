@@ -5,6 +5,22 @@
 
 namespace mlir::rlc
 {
+	namespace detail
+	{
+		class ActionValueLivenessImpl;
+	};
+
+	class ActionValueLiveness
+	{
+		public:
+		ActionValueLiveness(mlir::rlc::ActionFunction action);
+		~ActionValueLiveness();
+
+		bool isDeadAfter(mlir::Value value, mlir::rlc::ActionStatement statements);
+
+		private:
+		detail::ActionValueLivenessImpl* impl;
+	};
 
 	class ActionLiveness
 	{
@@ -142,8 +158,7 @@ namespace mlir::rlc
 		private:
 		llvm::DenseMap<mlir::Value, bool> cache;
 		ActionFunction fun;
-		mlir::Liveness liveness;
-		mlir::DominanceInfo dominance;
+		ActionValueLiveness liveness;
 
 		std::optional<Partition<mlir::rlc::DeclarationStatement>> declsStatements =
 				std::nullopt;
