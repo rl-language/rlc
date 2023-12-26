@@ -33,10 +33,11 @@ namespace rlc
 			if (emitted.contains(topLevelType))
 				continue;
 
-			subElements.push_back(topLevelType);
 			emitted.insert(topLevelType);
 
 			topLevelType.walk(visit);
+
+			subElements.push_back(topLevelType);
 		}
 
 		for (auto f : module.getOps<mlir::rlc::FunctionOp>())
@@ -44,10 +45,11 @@ namespace rlc
 			if (emitted.contains(f.getType()))
 				continue;
 
-			subElements.push_back(f.getType());
 			emitted.insert(f.getType());
 
 			f.getType().walk(visit);
+
+			subElements.push_back(f.getType());
 		}
 
 		return subElements;
