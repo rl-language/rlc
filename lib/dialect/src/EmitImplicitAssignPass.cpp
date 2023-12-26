@@ -216,10 +216,15 @@ namespace mlir::rlc
 		{
 			auto casted = rewriter.create<mlir::rlc::ValueUpcastOp>(
 					fun.getLoc(), toAssignType, block->getArgument(1));
-			builder.emitCall(
+			auto contructed = rewriter.create<mlir::rlc::ConstructOp>(
+					fun.getLoc(), casted.getResult().getType());
+			assert(isTemplateType(contructed.getType()).failed());
+			auto* call = builder.emitCall(
 					fun,
-					mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
-					mlir::ValueRange({ casted }));
+					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
+					mlir::ValueRange({ casted, contructed }));
+			if (call == nullptr)
+				abort();
 		}
 
 		rewriter.create<mlir::rlc::Yield>(fun.getLoc());

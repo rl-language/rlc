@@ -149,19 +149,21 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 	if (not matching.empty())
 		return matching.front();
 
-	std::string error;
-	llvm::raw_string_ostream stream(error);
-	stream << "could not find matching function " << name << "(";
-	for (auto argument : arguments)
-	{
-		argument.print(stream);
-		stream << ",";
-	}
-	stream << ")";
-	stream.flush();
-
 	if (errorEmitter)
+	{
+		std::string error;
+		llvm::raw_string_ostream stream(error);
+		stream << "could not find matching function " << name << "(";
+		for (auto argument : arguments)
+		{
+			argument.print(stream);
+			stream << ",";
+		}
+		stream << ")";
+		stream.flush();
+
 		errorEmitter->emitError(error);
+	}
 
 	for (auto candidate : symbolTable->get(name))
 	{

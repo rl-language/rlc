@@ -200,7 +200,8 @@ namespace mlir::rlc
 		mlir::Operation* emitCall(
 				mlir::Operation* callSite,
 				llvm::StringRef name,
-				mlir::ValueRange arguments);
+				mlir::ValueRange arguments,
+				bool log = true);
 
 		private:
 		mlir::ModuleOp op;

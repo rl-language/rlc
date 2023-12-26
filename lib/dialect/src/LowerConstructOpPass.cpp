@@ -29,6 +29,8 @@ namespace mlir::rlc
 		if (not overload)
 			return;
 
+		assert(isTemplateType(overload.getType()).failed());
+
 		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ExplicitConstructOp>(
 				op, overload);
 	}

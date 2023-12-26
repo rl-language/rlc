@@ -456,7 +456,10 @@ static mlir::rlc::CastOp emitCast(
 }
 
 mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
-		mlir::Operation* callSite, llvm::StringRef name, mlir::ValueRange arguments)
+		mlir::Operation* callSite,
+		llvm::StringRef name,
+		mlir::ValueRange arguments,
+		bool emitLog)
 {
 	if (auto maybeCast = emitCast(rewriter, callSite, name, arguments))
 		return maybeCast;
@@ -465,7 +468,8 @@ mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
 		return maybeCast;
 
 	auto argTypes = arguments.getType();
-	auto overload = resolveFunctionCall(callSite, name, arguments);
+	auto overload =
+			resolveFunctionCall(emitLog ? callSite : nullptr, name, arguments);
 
 	if (overload == nullptr)
 	{

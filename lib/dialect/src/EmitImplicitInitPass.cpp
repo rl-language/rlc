@@ -122,6 +122,19 @@ namespace mlir::rlc
 			rewriter.setInsertionPoint(init);
 			auto toCall = typeToFunction[init.getType()];
 			assert(toCall);
+
+			if (isTemplateType(toCall.getType()).succeeded())
+			{
+				auto castedType = toCall.getType().cast<mlir::FunctionType>();
+				toCall = rewriter.create<mlir::rlc::TemplateInstantiationOp>(
+						init.getLoc(),
+						mlir::FunctionType::get(
+								toCall.getContext(),
+								{ init.getType() },
+								castedType.getResults()),
+						toCall);
+			}
+
 			auto newOp = rewriter.create<mlir::rlc::ExplicitConstructOp>(
 					init.getLoc(), toCall);
 			init.replaceAllUsesWith(newOp.getResult());
@@ -144,10 +157,12 @@ namespace mlir::rlc
 			return;
 		}
 
-		builder.emitCall(
+		auto op = builder.emitCall(
 				lhs.getDefiningOp(),
 				builtinOperatorName<mlir::rlc::InitOp>(),
 				mlir::ValueRange({ lhs }));
+		if (not op)
+			abort();
 	}
 
 	static void emitEntityImplicitInit(
