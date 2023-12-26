@@ -19,8 +19,9 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
+			assert(srcManager != nullptr);
 			::rlc::MultiFileParser parser(
-					&getContext(), *includeDirs, getOperation());
+					&getContext(), *includeDirs, srcManager, getOperation());
 			const auto inputFileName = llvm::sys::path::filename(input);
 
 			auto maybeAst = parser.parse(input);
@@ -28,10 +29,14 @@ namespace mlir::rlc
 			{
 				llvm::handleAllErrors(
 						maybeAst.takeError(), [&](const ::rlc::RlcError& e) {
-							parser.getDiagnostic().emitDiagnostic(
-									e.getPosition(),
-									e.getText(),
-									mlir::DiagnosticSeverity::Error);
+							getContext().getDiagEngine().emit(
+									e.getPosition(), mlir::DiagnosticSeverity::Error)
+									<< e.getText();
+
+							//.emitDiagnostic(
+							// e.getPosition(),
+							// e.getText(),
+							// mlir::DiagnosticSeverity::Error);
 						});
 				signalPassFailure();
 			}

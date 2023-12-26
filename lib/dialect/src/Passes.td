@@ -166,7 +166,9 @@ def ParseFilePass : Pass<"rlc-parse-file-pass", "mlir::ModuleOp"> {
     Option<"includeDirs", "include dirs", "const llvm::SmallVector<std::string, 4>*", /*default=*/"nullptr",
            "include dirs">,
     Option<"input", "input file", "std::string", /*default=*/"\"\"",
-           "input file">
+           "input file">,
+    Option<"srcManager", "source manager", "llvm::SourceMgr*", /*default=*/"nullptr",
+           "source manager">
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

@@ -33,6 +33,12 @@
 #include "rlc/python/Passes.hpp"
 #include "rlc/utils/Error.hpp"
 
+#if NDEBUG
+static constexpr const bool isDebug = false;
+#else
+static constexpr const bool isDebug = true;
+#endif
+
 using namespace rlc;
 using namespace llvm;
 using namespace std;
@@ -101,6 +107,12 @@ static cl::opt<bool> dumpGodotWrapper(
 		"godot",
 		cl::desc("dumps the godot wrapper and exits"),
 		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> printIROnFailure(
+		"print-ir-on-failure",
+		cl::desc("prints ir on failure"),
+		cl::init(isDebug),
 		cl::cat(astDumperCategory));
 
 static cl::opt<bool> dumpCWrapper(
@@ -174,9 +186,11 @@ static void configurePassManager(
 		const std::string &inputFile,
 		llvm::raw_ostream &OS,
 		mlir::PassManager &manager,
-		mlir::rlc::TargetInfo &targetInfo)
+		mlir::rlc::TargetInfo &targetInfo,
+		llvm::SourceMgr &srcManager)
 {
-	manager.addPass(mlir::rlc::createParseFilePass({ &includeDirs, inputFile }));
+	manager.addPass(
+			mlir::rlc::createParseFilePass({ &includeDirs, inputFile, &srcManager }));
 	if (dumpUncheckedAST)
 	{
 		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
@@ -299,11 +313,12 @@ static int run(
 		mlir::MLIRContext &context,
 		const llvm::SmallVector<std::string, 4> &includeDirs,
 		const std::string &inputFile,
+		llvm::SourceMgr &srcManager,
 		llvm::raw_ostream &OS,
 		mlir::rlc::TargetInfo &info)
 {
 	mlir::PassManager manager(&context);
-	configurePassManager(includeDirs, inputFile, OS, manager, info);
+	configurePassManager(includeDirs, inputFile, OS, manager, info, srcManager);
 
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, inputFile, 0, 0), inputFile);
@@ -313,11 +328,13 @@ static int run(
 
 	if (manager.run(ast).failed())
 	{
-		mlir::OpPrintingFlags flags;
-		if (not hidePosition)
-			flags.enableDebugInfo(true);
-		ast.print(llvm::errs(), flags);
-
+		if (printIROnFailure)
+		{
+			mlir::OpPrintingFlags flags;
+			if (not hidePosition)
+				flags.enableDebugInfo(true);
+			ast.print(llvm::errs(), flags);
+		}
 		return -1;
 	}
 	return 0;
@@ -332,6 +349,9 @@ int main(int argc, char *argv[])
 	mlir::registerAllTranslations();
 
 	mlir::MLIRContext context(mlir::MLIRContext::Threading::DISABLED);
+	llvm::SourceMgr sourceManager;
+	mlir::SourceMgrDiagnosticHandler diagnostic(
+			sourceManager, &context, [](mlir::Location) { return true; });
 	mlir::registerBuiltinDialectTranslation(context);
 	mlir::DialectRegistry Registry;
 	Registry.insert<
@@ -364,12 +384,11 @@ int main(int argc, char *argv[])
 	if (dumpTokens)
 	{
 		std::string fullPath;
-		::rlc::MultiFileParser parser(&context, includes);
-		parser.getSourceMgr().AddIncludeFile(InputFilePath, SMLoc(), fullPath);
-		Lexer lexer(parser.getSourceMgr().getMemoryBuffer(1)->getBuffer().data());
+		sourceManager.AddIncludeFile(InputFilePath, SMLoc(), fullPath);
+		Lexer lexer(sourceManager.getMemoryBuffer(1)->getBuffer().data());
 		lexer.print(OS);
 		return 0;
 	}
 
-	return run(context, includes, InputFilePath, OS, targetInfo);
+	return run(context, includes, InputFilePath, sourceManager, OS, targetInfo);
 }

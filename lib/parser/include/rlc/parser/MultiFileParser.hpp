@@ -14,10 +14,11 @@ namespace rlc
 		MultiFileParser(
 				mlir::MLIRContext* context,
 				llvm::ArrayRef<std::string> includeDirs,
+				llvm::SourceMgr* srcManager,
 				mlir::ModuleOp module = nullptr)
-				: context(context), diagnostic(sourceManager, context), module(module)
+				: sourceManager(srcManager), context(context), module(module)
 		{
-			sourceManager.setIncludeDirs(includeDirs);
+			sourceManager->setIncludeDirs(includeDirs);
 			if (module == nullptr)
 				this->module =
 						mlir::ModuleOp::create(mlir::UnknownLoc::get(context), "unknown");
@@ -36,7 +37,7 @@ namespace rlc
 
 				std::string AbslutePath;
 				auto id =
-						sourceManager.AddIncludeFile(current, llvm::SMLoc(), AbslutePath);
+						sourceManager->AddIncludeFile(current, llvm::SMLoc(), AbslutePath);
 				if (id == 0)
 					return llvm::createStringError(
 							llvm::inconvertibleErrorCode(),
@@ -48,7 +49,7 @@ namespace rlc
 				alreadyLoaded.insert(AbslutePath);
 				Parser parser(
 						context,
-						sourceManager.getMemoryBuffer(id)->getBuffer().str(),
+						sourceManager->getMemoryBuffer(id)->getBuffer().str(),
 						AbslutePath);
 				auto maybeAst = parser.system(module);
 				if (not maybeAst)
@@ -59,19 +60,9 @@ namespace rlc
 			return module;
 		}
 
-		llvm::SourceMgr& getSourceMgr() { return sourceManager; }
-		const llvm::SourceMgr& getSourceMgr() const { return sourceManager; }
-
-		mlir::SourceMgrDiagnosticHandler& getDiagnostic() { return diagnostic; }
-		const mlir::SourceMgrDiagnosticHandler& getDiagnostic() const
-		{
-			return diagnostic;
-		}
-
 		private:
-		llvm::SourceMgr sourceManager;
+		llvm::SourceMgr* sourceManager;
 		mlir::MLIRContext* context;
-		mlir::SourceMgrDiagnosticHandler diagnostic;
 		mlir::ModuleOp module;
 	};
 
