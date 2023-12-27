@@ -181,6 +181,12 @@ static cl::opt<bool> Optimize(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> ExpectFail(
+		"expect-fail",
+		cl::desc("return error code 0 on failure and error code 1 on success"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static void configurePassManager(
 		const llvm::SmallVector<std::string, 4> &includeDirs,
 		const std::string &inputFile,
@@ -340,6 +346,15 @@ static int run(
 	return 0;
 }
 
+static int errorCode(int error_code)
+{
+	if (ExpectFail and error_code != 0)
+		return 0;
+	if (ExpectFail and error_code == 0)
+		return -1;
+	return error_code;
+}
+
 int main(int argc, char *argv[])
 {
 	llvm::cl::HideUnrelatedOptions(astDumperCategory);
@@ -378,7 +393,7 @@ int main(int argc, char *argv[])
 	if (error)
 	{
 		errs() << error.message();
-		return -1;
+		return errorCode(-1);
 	}
 
 	if (dumpTokens)
@@ -387,8 +402,9 @@ int main(int argc, char *argv[])
 		sourceManager.AddIncludeFile(InputFilePath, SMLoc(), fullPath);
 		Lexer lexer(sourceManager.getMemoryBuffer(1)->getBuffer().data());
 		lexer.print(OS);
-		return 0;
+		return errorCode(0);
 	}
 
-	return run(context, includes, InputFilePath, sourceManager, OS, targetInfo);
+	return errorCode(
+			run(context, includes, InputFilePath, sourceManager, OS, targetInfo));
 }

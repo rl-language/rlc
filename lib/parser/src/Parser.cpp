@@ -18,7 +18,7 @@ void Parser::next()
 			ctx,
 			fileName,
 			lexer.getCurrentLine(),
-			std::max<int64_t>(1, lexer.getCurrentColumn() - 1));
+			std::max<int64_t>(1, lexer.getCurrentColumn() + 1));
 	if (current == Token::Identifier)
 		lIdent = lexer.lastIndent();
 	if (current == Token::Int64)

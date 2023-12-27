@@ -15,6 +15,14 @@ void mlir::rlc::RLCDialect::registerOperations()
 			>();
 }
 
+static mlir::LogicalResult logError(mlir::Operation *op, llvm::Twine twine)
+{
+	op->getContext()->getDiagEngine().emit(
+			op->getLoc(), mlir::DiagnosticSeverity::Error)
+			<< twine;
+	return mlir::failure();
+}
+
 static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 {
 	llvm::SmallVector<mlir::Operation *, 4> toReturn;
@@ -264,11 +272,7 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 	auto candidates = builder.getSymbolTable().get(getName());
 
 	if (candidates.empty())
-	{
-		emitError("no known value " + getName());
-
-		return mlir::failure();
-	}
+		return logError(*this, "No known value " + getName());
 
 	replaceAllUsesWith(candidates.front());
 	builder.getRewriter().eraseOp(*this);
