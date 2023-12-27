@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 ent Inner:
 	Int x2
 	Int y2

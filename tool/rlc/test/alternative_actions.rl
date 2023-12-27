@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 act play() -> Play:
 	let z = 0
 	actions:

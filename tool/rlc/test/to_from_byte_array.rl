@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun main() -> Int:
 	let converted = __builtin_to_array(6)
 	let unconverted = __builtin_from_array<Int>(converted)

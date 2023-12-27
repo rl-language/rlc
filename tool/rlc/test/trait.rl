@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 trait<T> Trait:
 	fun wasd(T x, Int y) -> Int
 	fun rasd(T K)

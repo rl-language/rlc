@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun return_true() -> Bool:
 	return 4 * 12 == 48
 

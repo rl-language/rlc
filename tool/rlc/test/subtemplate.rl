@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun<T> identity(T asd) -> T:
 	return asd
 

@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 act inner(Int arg) -> Inner:
     arg = 2
     act set_to_5(Int arg)

@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun<T> counter(T dc, Int x) -> Int:
 	x = x + 1	
 	if x == 5:

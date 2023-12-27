@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 import collections.vector
 import serialization.to_byte_vector
 

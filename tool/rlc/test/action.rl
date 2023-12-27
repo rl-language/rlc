@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 act action_example(Int x) -> Action:
 	let wasd = 4
 	let asd = wasd + x

@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun<X, Int T> f(X[T] x) -> X:
 	if x is Int[T]:
 		return x[0] + T

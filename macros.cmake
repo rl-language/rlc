@@ -48,21 +48,10 @@ target_include_directories(${target}
 target_compile_features(${target} PUBLIC cxx_std_20)
 target_compile_definitions(${target} PUBLIC ${LLVM_DEFINITIONS})
 
-#if (BUILD_FUZZER)
-	#target_compile_options(${target} PRIVATE -fsanitize=fuzzer)
-	#target_link_libraries(${target} PRIVATE -fsanitize=fuzzer)
-#endif()
 rlcInstall(${target})
 
 if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test)
 	add_subdirectory(test)
-	if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/filecheck)
-		file(GLOB files "${CMAKE_CURRENT_SOURCE_DIR}/test/filecheck/*.ll")
-		foreach(file ${files})
-			get_filename_component(file_name ${file} NAME)
-			add_test(NAME ${target}_${file_name}_test COMMAND bash -c "$<TARGET_FILE:rlc-opt> `cat ${file} | head -n 1 | cut -c9-` ${file} | FileCheck ${file}")
-		endforeach()
-	endif()
 endif()
 
 
@@ -75,7 +64,32 @@ endmacro(rlcAddLibrary)
 
 
 ##############################
-### rlcAddTestMacro   ###
+###   rlcAddLitTestMacro   ###
+##############################
+macro(rlcAddLitTest target)
+   find_program(LIT NAMES "lit")
+
+   configure_lit_site_cfg(
+     ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
+     ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py
+     MAIN_CONFIG
+     ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py)
+
+   set(${target}_lit_dependencies
+     rlc
+     rlc-opt)
+
+   add_test(
+     NAME lit-${target}
+     COMMAND ${LIT} ${CMAKE_CURRENT_BINARY_DIR} 
+   )
+
+   set_tests_properties(lit-${target} PROPERTIES DEPENDS "${${target}_lit_dependencies}")
+
+endMacro(rlcAddLitTest)
+
+##############################
+###    rlcAddTestMacro     ###
 ##############################
 macro(rlcAddTest target)
 	include(GoogleTest)
@@ -90,6 +104,10 @@ macro(rlcAddTest target)
 					TEST_SUFFIX .noArgs
 					TEST_LIST   noArgsTests
 	)
+
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in)
+        rlcAddLitTest(${target})
+    endif()
 
 endmacro(rlcAddTest)
 

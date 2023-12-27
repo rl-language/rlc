@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 act guess() -> Guess:
 	act p1_choise(Int secret)
 	let result : Int

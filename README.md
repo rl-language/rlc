@@ -156,10 +156,7 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 
 * scalar type constraints for float
 
-* fix the bug about all loops being unrolled
-* fix subactions being broken when the reprequire of a subaction refers to a local variable
-
-* allow declarations to be explicitly refs
+* allow declarations to be explicitly refs, in general require the user to specify this stuff and the emits error if its is wrong
 
 #### long term feature
 * require clauses out of line (just allow to call any function i guess?)

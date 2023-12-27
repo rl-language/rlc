@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 trait<T> Addable:
 	fun add(T i, T i2) -> T
 

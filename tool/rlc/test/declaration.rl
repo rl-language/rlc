@@ -1,4 +1,5 @@
-system call
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
 
 fun a() -> Int:
 	let a = 0

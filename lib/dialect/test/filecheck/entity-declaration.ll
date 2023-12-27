@@ -1,4 +1,4 @@
-// COM: -rlc-type-check-entities
+// RUN: rlc-opt -rlc-type-check-entities %s | FileCheck %s
 // CHECK-LABEL: !Asd_0_ = !rlc.entity<Asd {rsd: !rlc.int<64>, tasd: !rlc.int<64>, }>
 
 // CHECK-LABEL: module @unknown 

@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 import collections.vector
 
 act play(Int seed) -> Play:

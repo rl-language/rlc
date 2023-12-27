@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun with_if_else() -> Int:
 	if 4 == 4:
 		return 0

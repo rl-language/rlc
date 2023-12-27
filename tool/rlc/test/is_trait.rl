@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 trait<T> SummableToInt:
 	fun addInt(T x, Int y) -> Int
 

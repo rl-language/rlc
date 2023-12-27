@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 ent<T> TemplatedEntity:
 	T asd
 

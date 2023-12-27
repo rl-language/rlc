@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun main() -> Int:
 	let list = [[1, 1], 
 				[2, 2], 

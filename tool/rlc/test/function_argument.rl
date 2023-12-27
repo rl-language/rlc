@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun fun_with_arg(Int arg, Float f, Bool b) -> Int:
 	let a = arg - 4
 	return a

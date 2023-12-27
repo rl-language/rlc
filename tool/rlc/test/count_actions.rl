@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 act action() -> Action:
 	let Counter = 0
 	while true:

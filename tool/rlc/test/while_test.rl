@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun while_function(Int a) -> Int:
 	while (4 > 5):
 		let b = 8

@@ -1,3 +1,6 @@
+# RUN: rlc %s -o %t -i %stdlib 
+# RUN: %t
+
 fun main() -> Int:
 	let array : Int[10]
 	let i = 0
