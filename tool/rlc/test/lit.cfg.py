@@ -41,6 +41,7 @@ tool_dirs = [
 ]
 
 tools = [
+    "clang"
     "rlc",
     "rlc-opt"
 ]
