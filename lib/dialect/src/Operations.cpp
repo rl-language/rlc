@@ -15,6 +15,14 @@ void mlir::rlc::RLCDialect::registerOperations()
 			>();
 }
 
+static mlir::LogicalResult logNote(mlir::Operation *op, llvm::Twine twine)
+{
+	op->getContext()->getDiagEngine().emit(
+			op->getLoc(), mlir::DiagnosticSeverity::Note)
+			<< twine;
+	return mlir::failure();
+}
+
 static mlir::LogicalResult logError(mlir::Operation *op, llvm::Twine twine)
 {
 	op->getContext()->getDiagEngine().emit(
@@ -216,9 +224,11 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 	if (not getValue().getType().isa<mlir::rlc::ArrayType>() and
 			not getValue().getType().isa<mlir::rlc::OwningPtrType>())
 	{
-		emitError("argument of array access expression is not a array or a owning "
-							"pointer");
-		return mlir::failure();
+		return logError(
+				*this,
+				"Type of argument of array access expression must be a array or a "
+				"owning "
+				"pointer");
 	}
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());
@@ -439,7 +449,7 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 							.getType()
 							.isa<mlir::rlc::BoolType>())
 	{
-		emitError("while loop condition is not boolean");
+		return logError(*this, "While loop condition type must be Bool");
 		return mlir::failure();
 	}
 
@@ -491,8 +501,7 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 	{
 		if (not getCallee().getType().isa<mlir::FunctionType>())
 		{
-			emitError("cannot call non function type");
-			return LogicalResult::failure();
+			return logError(*this, "Cannot call non function type");
 		}
 
 		newCall =
@@ -533,19 +542,19 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 			getCondition().getBlocks().back().getTerminator());
 	if (yield.getArguments().size() != getNames().size())
 	{
-		emitError(
-				"missmatched count between for induction variables and for arguments");
-		return mlir::failure();
+		return logError(
+				*this,
+				"Missmatched count between for induction variables and for arguments");
 	}
 
 	for (auto argument : yield.getArguments())
 	{
 		if (argument.getType() != yield.getArguments()[0].getType())
 		{
-			emitError("for field statement does not support expressions with "
-								"different types");
-			argument.getDefiningOp()->emitRemark("one argument is:");
-			yield.getArguments()[0].getDefiningOp()->emitRemark("one argument is:");
+			auto _ = logError(
+					*this,
+					"for field statement does not support expressions with "
+					"different types");
 			return mlir::failure();
 		}
 	}
@@ -592,8 +601,7 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 							.getType()
 							.isa<mlir::rlc::BoolType>())
 	{
-		emitError("while loop condition is not boolean");
-		return mlir::failure();
+		return logError(*this, "While loop condition is not boolean");
 	}
 
 	auto _ = builder.addSymbolTable();
@@ -705,8 +713,7 @@ mlir::LogicalResult mlir::rlc::AsByteArrayOp::typeCheck(
 	}
 	else
 	{
-		emitError("input of to_byte_array must be a primitive type");
-		return mlir::failure();
+		return logError(*this, "Input of to_byte_array must be a primitive type");
 	}
 
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::AsByteArrayOp>(
@@ -722,15 +729,16 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 {
 	if (not getLhs().getType().isa<mlir::rlc::ArrayType>())
 	{
-		emitError("builtin from byte array argument must be a byte array");
+		return logError(
+				*this, "Builtin from byte_array_argument must be a byte array");
 		return mlir::failure();
 	}
 	auto castedInput = getLhs().getType().cast<mlir::rlc::ArrayType>();
 	if (castedInput.getUnderlying() !=
 			mlir::rlc::IntegerType::getInt8(getContext()))
 	{
-		emitError("builtin from byte array argument must be a byte array");
-		return mlir::failure();
+		return logError(
+				*this, "builtin from_byte_array argument must be a byte array");
 	}
 
 	auto converted = builder.getConverter().convertType(getResult().getType());
@@ -739,9 +747,10 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 	{
 		if (castedInput.getArraySize() != 8)
 		{
-			emitError("builtin from byte array to float must have a array of 8 bytes "
-								"as input");
-			return mlir::failure();
+			return logError(
+					*this,
+					"Builtin from_byte_array to float must have a array of 8 bytes "
+					"as input");
 		}
 		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
 				*this, converted, getLhs());
@@ -752,9 +761,10 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 	{
 		if (castedInput.getArraySize() != 1)
 		{
-			emitError("builtin from byte array to bool must have a array of 1 bytes "
-								"as input");
-			return mlir::failure();
+			return logError(
+					*this,
+					"Builtin from_byte_array to bool must have a array of 1 bytes "
+					"as input");
 		}
 		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
 				*this, converted, getLhs());
@@ -765,17 +775,21 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 	{
 		if (castedInput.getArraySize() != casted.getSize() / 8)
 		{
-			emitError(
-					std::string("builtin from byte array to bool must have a array of ") +
-					llvm::Twine((casted.getSize() / 8)) + std::string(" bytes as input"));
-			return mlir::failure();
+			return logError(
+					*this,
+					std::string(
+							"Builtin from_byte_array to integer must have a array of ") +
+							llvm::Twine((casted.getSize() / 8)) +
+							std::string(" bytes as input"));
 		}
 		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
 				*this, casted, getLhs());
 		return mlir::success();
 	}
-	emitError("cannot convert byte array to desiderated output");
-	return mlir::failure();
+	return logError(
+			*this,
+			"Cannot convert byte array to desiderated output, only primitive types "
+			"are supported");
 }
 
 mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
@@ -910,8 +924,9 @@ mlir::LogicalResult mlir::rlc::IntegerLiteralUse::typeCheck(
 							.cast<mlir::rlc::TemplateParameterType>()
 							.getIsIntLiteral())
 	{
-		return emitError(
-				"input type of int literal must be a template parameter literal");
+		return logError(
+				*this,
+				"Input type of int literal must be a template parameter literal");
 	}
 	return mlir::success();
 }
@@ -922,8 +937,7 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 	auto structType = getValue().getType().dyn_cast<mlir::rlc::EntityType>();
 	if (structType == nullptr)
 	{
-		emitError("tried access member of non-entity type");
-		return mlir::failure();
+		return logError(*this, "Members of non-entity types cannot be accessed");
 	}
 
 	for (const auto &index : llvm::enumerate(structType.getFieldNames()))
@@ -936,10 +950,10 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		return mlir::success();
 	}
 
-	emitError(
+	return logError(
+			*this,
 			"no known member " + getMemberName() + " in struct " +
-			structType.getName());
-	return mlir::failure();
+					structType.getName());
 }
 
 mlir::LogicalResult mlir::rlc::IsAlternativeTypeOp::typeCheck(

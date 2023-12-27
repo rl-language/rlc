@@ -18,7 +18,6 @@ def main():
 
         for overload in overloads:
             if len(sim.module.signatures[overload]) == 1 and sim.module.signatures[overload][0] == bool:
-                print("")
                 print(f"  RUN: {name}")
                 result = overload()
                 if result:
@@ -26,6 +25,7 @@ def main():
                 else:
                     print(f"  KO:  {name}")
                     failed.append(name)
+                print("")
 
     if len(failed) != 0:
         print("\nFAILURES:")
