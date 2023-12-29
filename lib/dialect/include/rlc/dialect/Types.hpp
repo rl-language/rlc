@@ -24,6 +24,8 @@ namespace mlir::rlc
 	std::string mangledName(
 			llvm::StringRef functionName, mlir::FunctionType type);
 
+	std::string prettyType(mlir::Type type);
+
 	class EntityType
 			: public Type::
 						TypeBase<EntityType, Type, StructTypeStorage, TypeTrait::IsMutable>

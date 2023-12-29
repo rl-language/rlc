@@ -37,6 +37,14 @@ bool Parser::accept(Token t)
 	return true;
 }
 
+static llvm::Error makeRLCerror(mlir::Location loc, llvm::Twine text)
+{
+	return make_error<RlcError>(
+			text.str(),
+			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
+			loc);
+}
+
 Expected<Token> Parser::expect(Token t)
 {
 	if (accept(t))
@@ -313,8 +321,18 @@ Expected<mlir::Value> Parser::postFixExpression()
 
 		if (accept<Token::Dot>())
 		{
-			EXPECT(Token::Identifier);
+			// if the member name is missing emit the access anyway and so that the
+			// lsp still knows there is a member access and can autocomplete. Then ,
+			// emit a custom error,
+			if (not accept<Token::Identifier>())
+			{
+				exp = builder.create<mlir::rlc::UnresolvedMemberAccess>(
+						location, unkType(), exp, "");
+				return makeRLCerror(
+						location, "Expected member name after member access");
+			}
 			auto memberName = lIdent;
+			auto callLoc = getCurrentSourcePos();
 			if (not accept<Token::LPar>())
 			{
 				exp = builder.create<mlir::rlc::UnresolvedMemberAccess>(
@@ -331,7 +349,7 @@ Expected<mlir::Value> Parser::postFixExpression()
 
 			exp = builder
 								.create<mlir::rlc::CallOp>(
-										location, unkType(), ref->getResult(0), *arguments)
+										callLoc, unkType(), ref->getResult(0), *arguments)
 								.getResult(0);
 			continue;
 		}
@@ -585,9 +603,13 @@ llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
 
 	auto pos = builder.saveInsertionPoint();
 	builder.createBlock(&expStatement.getBody());
-	TRY(exp, expression());
-	builder.create<mlir::rlc::Yield>(location);
+	// even if we fail, emit the yield anyway, so that the lsp knows what is the
+	// boundary of this expression
+	auto exp = expression();
+	builder.create<mlir::rlc::Yield>(getCurrentSourcePos());
 	builder.restoreInsertionPoint(pos);
+	if (not exp)
+		return exp.takeError();
 
 	EXPECT(Token::Newline);
 
@@ -871,16 +893,18 @@ Expected<mlir::rlc::ReturnStatement> Parser::returnStatement()
 	builder.createBlock(&expStatement.getBody());
 
 	EXPECT(Token::KeywordReturn);
+	auto yieldLoc = getCurrentSourcePos();
 	if (accept(Token::Newline))
 	{
-		builder.create<mlir::rlc::Yield>(location, mlir::ValueRange());
+		builder.create<mlir::rlc::Yield>(yieldLoc, mlir::ValueRange());
 		builder.restoreInsertionPoint(pos);
 		return expStatement;
 	}
 
 	TRY(exp, expression());
+	yieldLoc = getCurrentSourcePos();
 	EXPECT(Token::Newline);
-	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
+	builder.create<mlir::rlc::Yield>(yieldLoc, mlir::ValueRange({ *exp }));
 	builder.restoreInsertionPoint(pos);
 	return expStatement;
 }
@@ -952,9 +976,9 @@ void Parser::emitYieldIfNeeded(mlir::Location loc)
  */
 Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 {
+	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordLet);
 	EXPECT(Token::Identifier);
-	auto location = getCurrentSourcePos();
 	auto name = lIdent;
 
 	auto expStatement = builder.create<mlir::rlc::DeclarationStatement>(
@@ -966,19 +990,21 @@ Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 	if (accept<Token::Equal>())
 	{
 		TRY(exp, expression());
+		auto yieldLoc = getCurrentSourcePos();
 		EXPECT(Token::Newline);
 
-		builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
+		builder.create<mlir::rlc::Yield>(yieldLoc, mlir::ValueRange({ *exp }));
 		builder.restoreInsertionPoint(pos);
 		return expStatement;
 	}
 
 	EXPECT(Token::Colons);
 	TRY(use, singleTypeUse());
+	auto typeLoc = getCurrentSourcePos();
 	EXPECT(Token::Newline);
 
-	auto exp = builder.create<mlir::rlc::ConstructOp>(location, *use);
-	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ exp }));
+	auto exp = builder.create<mlir::rlc::ConstructOp>(typeLoc, *use);
+	builder.create<mlir::rlc::Yield>(typeLoc, mlir::ValueRange({ exp }));
 
 	builder.restoreInsertionPoint(pos);
 	return expStatement;

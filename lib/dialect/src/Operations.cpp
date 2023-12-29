@@ -493,7 +493,8 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 	if (unresolvedCallee)
 	{
 		rewriter.setInsertionPoint(getOperation());
-		newCall = builder.emitCall(*this, unresolvedCallee.getName(), getArgs());
+		newCall = builder.emitCall(
+				unresolvedCallee, unresolvedCallee.getName(), getArgs());
 		if (newCall == nullptr)
 			return mlir::failure();
 	}

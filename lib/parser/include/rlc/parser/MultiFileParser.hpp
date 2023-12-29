@@ -24,12 +24,40 @@ namespace rlc
 						mlir::ModuleOp::create(mlir::UnknownLoc::get(context), "unknown");
 		}
 
-		llvm::Expected<mlir::ModuleOp> parse(const std::string& fileName)
+		llvm::Error parseOneFile(
+				llvm::StringRef content,
+				llvm::StringRef fileName,
+				llvm::SmallVector<std::string>& fileToLoad)
+		{
+			Parser parser(context, content.str(), fileName.str());
+			auto maybeAst = parser.system(module);
+			if (not maybeAst)
+				return maybeAst.takeError();
+			for (auto file : parser.getImportedFiles())
+				fileToLoad.push_back(file);
+			return llvm::Error::success();
+		}
+
+		llvm::Expected<mlir::ModuleOp> parseFromBuffer(llvm::StringRef content)
 		{
 			mlir::IRRewriter rewriter(context);
 			std::set<std::string> alreadyLoaded;
-			llvm::SmallVector<std::string> fileToLoad = { fileName };
+			llvm::SmallVector<std::string> fileToLoad;
 
+			if (llvm::Error error = parseOneFile(content, "-", fileToLoad))
+				return std::move(error);
+
+			if (llvm::Error error = recursiveParseFile(alreadyLoaded, fileToLoad))
+				return std::move(error);
+
+			return module;
+		}
+
+		llvm::Error recursiveParseFile(
+				std::set<std::string>& alreadyLoaded,
+				llvm::SmallVector<std::string>& fileToLoad)
+		{
+			mlir::IRRewriter rewriter(context);
 			while (not fileToLoad.empty())
 			{
 				std::string current = fileToLoad.back();
@@ -47,16 +75,22 @@ namespace rlc
 					continue;
 
 				alreadyLoaded.insert(AbslutePath);
-				Parser parser(
-						context,
-						sourceManager->getMemoryBuffer(id)->getBuffer().str(),
-						AbslutePath);
-				auto maybeAst = parser.system(module);
-				if (not maybeAst)
-					return maybeAst.takeError();
-				for (auto file : parser.getImportedFiles())
-					fileToLoad.push_back(file);
+				if (auto error = parseOneFile(
+								sourceManager->getMemoryBuffer(id)->getBuffer().str(),
+								AbslutePath,
+								fileToLoad))
+					return error;
 			}
+			return llvm::Error::success();
+		}
+
+		llvm::Expected<mlir::ModuleOp> parse(const std::string& fileName)
+		{
+			mlir::IRRewriter rewriter(context);
+			std::set<std::string> alreadyLoaded;
+			llvm::SmallVector<std::string> fileToLoad = { fileName };
+			if (auto error = recursiveParseFile(alreadyLoaded, fileToLoad))
+				return std::move(error);
 			return module;
 		}
 

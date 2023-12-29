@@ -277,6 +277,170 @@ void RLCDialect::printType(
 	}
 }
 
+static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
+{
+	if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
+	{
+		OS << maybeType.getName();
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+	{
+		OS << maybeType.getName();
+		if (maybeType.getTrait() != nullptr)
+		{
+			OS << ":";
+			typeToPretty(OS, maybeType.getTrait());
+		}
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
+	{
+		if (maybeType.getSize() == 64)
+			OS << "Int";
+		else if (maybeType.getSize() == 8)
+			OS << "Byte";
+		else
+			abort();
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
+	{
+		OS << "Float";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::BoolType>())
+	{
+		OS << "Bool";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::VoidType>())
+	{
+		OS << "Void";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::EntityType>())
+	{
+		OS << maybeType.getName();
+		if (not maybeType.getExplicitTemplateParameters().empty())
+		{
+			OS << "<";
+			for (auto t : llvm::drop_end(maybeType.getExplicitTemplateParameters()))
+			{
+				typeToPretty(OS, t);
+				OS << ", ";
+			}
+			typeToPretty(OS, maybeType.getExplicitTemplateParameters().back());
+			OS << ">";
+		}
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
+	{
+		size_t i = 0;
+		for (auto input : maybeType.getUnderlying())
+		{
+			i++;
+			typeToPretty(OS, input);
+
+			if (i != maybeType.getUnderlying().size())
+				OS << " | ";
+		}
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
+	{
+		typeToPretty(OS, maybeType.getUnderlying());
+		OS << "[";
+		OS << maybeType.getArraySize();
+		OS << "]";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ReferenceType>())
+	{
+		OS << "Ref ";
+		typeToPretty(OS, maybeType.getUnderlying());
+		return;
+	}
+
+	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerLiteralType>())
+	{
+		OS << maybeType.getValue();
+		return;
+	}
+
+	if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+	{
+		OS << maybeType.getName();
+		if (maybeType.getTrait() != nullptr)
+		{
+			OS << ": ";
+			typeToPretty(OS, maybeType.getTrait());
+		}
+		return;
+	}
+
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ScalarUseType>())
+	{
+		OS << maybeType.getReadType();
+		if (maybeType.getExplicitTemplateParameters().size() != 0)
+		{
+			OS << "<";
+			for (auto t : llvm::drop_end(maybeType.getExplicitTemplateParameters()))
+			{
+				typeToPretty(OS, t);
+				OS << ", ";
+			}
+			typeToPretty(OS, maybeType.getExplicitTemplateParameters().back());
+			OS << ">";
+		}
+		if (maybeType.getSize() != nullptr and
+				maybeType.getSize() !=
+						mlir::rlc::IntegerLiteralType::get(maybeType.getContext(), 0))
+		{
+			OS << "[";
+			typeToPretty(OS, maybeType.getSize());
+			OS << "]";
+		}
+		return;
+	}
+
+	if (auto maybeType = t.dyn_cast<mlir::rlc::OwningPtrType>())
+	{
+		OS << "OwningPtr<";
+		typeToPretty(OS, maybeType.getUnderlying());
+		OS << ">";
+		return;
+	}
+
+	if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
+	{
+		assert(maybeType.getResults().size() <= 1);
+
+		OS << "(";
+		for (size_t index = 0; index < maybeType.getNumInputs(); index++)
+		{
+			typeToPretty(OS, maybeType.getInput(index));
+			if (index < maybeType.getNumInputs() - 1)
+				OS << ", ";
+		}
+		OS << ")";
+		OS << " -> ";
+		if (not maybeType.getResults().empty())
+		{
+			typeToPretty(OS, maybeType.getResult(0));
+		}
+		else
+		{
+			OS << "Void";
+		}
+		return;
+	}
+
+	t.dump();
+	assert(false && "unrechable");
+}
+
 static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 {
 	if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
@@ -412,6 +576,17 @@ std::string mlir::rlc::mangledName(
 
 	OS << functionName;
 	typeToMangled(OS, type);
+	OS.flush();
+
+	return s;
+}
+
+std::string mlir::rlc::prettyType(mlir::Type type)
+{
+	std::string s;
+	llvm::raw_string_ostream OS(s);
+
+	typeToPretty(OS, type);
 	OS.flush();
 
 	return s;
