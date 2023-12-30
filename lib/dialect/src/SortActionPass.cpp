@@ -62,8 +62,10 @@ namespace mlir::rlc
 				// there was a loop.
 				if (not foundOne)
 				{
-					dependencies.begin()->first->emitError(
-							"Found circular dependency in actions");
+					auto _ = logError(
+							dependencies.begin()->first,
+							"Found circular dependency in actions. This is now allowed since "
+							"their scopes cannot mutually contain each other.");
 					signalPassFailure();
 					return;
 				}

@@ -197,6 +197,13 @@ llvm::StringRef rlc::tokenToString(Token t)
 	return "";
 }
 
+void Lexer::consumeWhiteSpaceUntilNextMeaningfullChar()
+{
+	while (isspace(*in) != 0 and *in != '\n' and *in != '\0')
+		eatChar();
+	eatComment();
+}
+
 optional<Token> Lexer::eatSpaces()
 {
 	bool beginOfLine = newLine;
@@ -461,6 +468,29 @@ Token Lexer::eatIdent()
 
 Token Lexer::next()
 {
+	auto result = nextWithoutTrailingConsume();
+
+	// unless we are at the start of line, we skip over the next white space
+	// characters, so that they don't show up in the locations
+	if (not newLine or nestedParentesys != 0)
+		consumeWhiteSpaceUntilNextMeaningfullChar();
+	return result;
+}
+
+// returns true if there was indeed a comment at the current character
+bool Lexer::eatComment()
+{
+	if (*in == '#')
+	{
+		while (*in != '\n')
+			eatChar();
+		return true;
+	}
+	return false;
+}
+
+Token Lexer::nextWithoutTrailingConsume()
+{
 	if (*in == '\0')
 	{
 		while (indentStack.size() > 1)
@@ -491,12 +521,7 @@ Token Lexer::next()
 			while (isspace(*in) or *in == '\n')
 				eatChar();
 
-		if (*in == '#')	 // eat comments
-		{
-			consumeLine = true;
-			while (eatChar() != '\n')
-				;
-		}
+		consumeLine = eatComment();
 	}
 
 	if (isdigit(*in) != 0)

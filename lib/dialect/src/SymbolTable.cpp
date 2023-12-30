@@ -123,18 +123,12 @@ static void registerConversions(
 				auto maybeType = types.getOne(use.getReadType());
 				if (maybeType == nullptr)
 				{
-					mlir::emitError(
-							mlir::UnknownLoc::get(use.getContext()),
-							"type " + use.getReadType() + " not found");
 					return std::nullopt;
 				}
 				maybeType =
 						instantiateStructType(maybeType, explicitTemplateParameters);
 				if (maybeType == nullptr)
 				{
-					mlir::emitError(
-							mlir::UnknownLoc::get(use.getContext()),
-							"in type " + use.getReadType());
 					return std::nullopt;
 				}
 
@@ -246,14 +240,8 @@ static void registerConversions(
 						return mlir::rlc::TemplateParameterType::get(
 								t.getContext(), t.getName(), trait, false);
 
-					mlir::emitError(
-							mlir::UnknownLoc::get(t.getContext()),
-							t.getTrait().str() + " is not a trait");
 					return std::nullopt;
 				}
-				mlir::emitError(
-						mlir::UnknownLoc::get(t.getContext()),
-						"trait" + t.getTrait().str() + " not found");
 				return std::nullopt;
 			});
 }

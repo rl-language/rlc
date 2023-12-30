@@ -14,11 +14,10 @@ static mlir::LogicalResult findEntityDecls(
 	{
 		if (auto prevDef = out.find(entityDecl.getName()); prevDef != out.end())
 		{
-			entityDecl.emitOpError(
-					"multiple definition of entity" + entityDecl.getName());
+			auto _ = mlir::rlc::logError(
+					entityDecl, "Multiple definition of entity " + entityDecl.getName());
 
-			prevDef->second.emitRemark("previous definition");
-			return mlir::failure();
+			return mlir::rlc::logRemark(prevDef->second, "Previous definition");
 		}
 
 		out[entityDecl.getName()] = entityDecl;
@@ -52,6 +51,12 @@ static void collectEntityUsedTyepNames(
 	if (auto casted = type.dyn_cast<mlir::rlc::OwningPtrType>())
 	{
 		collectEntityUsedTyepNames(casted.getUnderlying(), out);
+		return;
+	}
+	if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+	{
+		for (auto subType : casted.getUnderlying())
+			collectEntityUsedTyepNames(subType, out);
 		return;
 	}
 	llvm_unreachable("unrechable");
@@ -109,8 +114,9 @@ static mlir::LogicalResult getEntityDeclarationSortedByDependencies(
 
 		if (justEmitted.empty() and not EntityToUsedEntities.empty())
 		{
-			EntityToUsedEntities.begin()->second.begin()->emitError(
-					"forbidden mutual dependency in entities");
+			return mlir::rlc::logError(
+					*EntityToUsedEntities.begin()->second.begin(),
+					"Forbidden mutual dependency in entities");
 		}
 	}
 
@@ -166,11 +172,11 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 
 		if (decls.count(type.getName()) != 0)
 		{
-			mlir::emitError(
-					decls[type.getName()].getLoc(),
-					"user defined type clashes with implicit action type" +
+			auto _ = mlir::rlc::logError(
+					decls[type.getName()],
+					"User defined type clashes with implicit action type" +
 							type.getName());
-			mlir::emitRemark(action.getLoc(), "action defined here");
+			return mlir::rlc::logRemark(action, "Action defined here");
 		}
 
 		decls.try_emplace(type.getName(), entity);
@@ -211,8 +217,9 @@ static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 			auto checkedParameterType = scopedConverter.convertType(unchecked);
 			if (not checkedParameterType)
 			{
-				decl.emitRemark("in entity declaration");
-				return mlir::failure();
+				auto _ = mlir::rlc::logError(
+						decl, "No known type named " + mlir::rlc::prettyType(unchecked));
+				return mlir::rlc::logRemark(decl, "In entity declaration");
 			}
 			checkedTemplateParameters.push_back(checkedParameterType);
 			auto actualType =
@@ -223,12 +230,15 @@ static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 		for (const auto& [field, name] :
 				 llvm::zip(decl.getMemberTypes(), decl.getMemberNames()))
 		{
-			auto converted =
-					scopedConverter.convertType(field.cast<mlir::TypeAttr>().getValue());
+			auto fieldType = field.cast<mlir::TypeAttr>().getValue();
+			auto converted = scopedConverter.convertType(fieldType);
 			if (!converted)
 			{
-				decl.emitRemark("in field of entity " + decl.getName());
-				return mlir::failure();
+				return mlir::rlc::logError(
+						decl,
+						"No known type named " + mlir::rlc::prettyType(fieldType) +
+								" used in field " + name.cast<mlir::StringAttr>().strref() +
+								" in entity declaration.");
 			}
 
 			types.push_back(converted);

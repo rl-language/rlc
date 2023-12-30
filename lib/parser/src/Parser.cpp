@@ -18,7 +18,7 @@ void Parser::next()
 			ctx,
 			fileName,
 			lexer.getCurrentLine(),
-			std::max<int64_t>(1, lexer.getCurrentColumn() + 1));
+			std::max<int64_t>(1, lexer.getCurrentColumn()));
 	if (current == Token::Identifier)
 		lIdent = lexer.lastIndent();
 	if (current == Token::Int64)
@@ -50,10 +50,11 @@ Expected<Token> Parser::expect(Token t)
 	if (accept(t))
 		return t;
 
-	std::string errorMessage = "\nunexpected token ";
+	std::string errorMessage = "Unexpected token: \'";
 	errorMessage += tokenToString(current);
-	errorMessage += " expected ";
+	errorMessage += "\', expected \'";
 	errorMessage += tokenToString(t);
+	errorMessage += "\'";
 	return make_error<RlcError>(
 			std::move(errorMessage),
 			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),

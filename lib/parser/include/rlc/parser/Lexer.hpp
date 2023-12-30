@@ -105,7 +105,10 @@ namespace rlc
 		void dump();
 
 		private:
+		Token nextWithoutTrailingConsume();
 		char eatChar();
+		bool eatComment();
+		void consumeWhiteSpaceUntilNextMeaningfullChar();
 		std::optional<Token> eatSpaces();
 		std::optional<Token> eatSymbol();
 		std::optional<Token> twoSymbols(char current);

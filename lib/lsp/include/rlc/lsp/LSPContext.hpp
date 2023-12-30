@@ -10,6 +10,13 @@ namespace mlir::rlc::lsp
 	class LSPContext
 	{
 		public:
+		struct Diagnostic
+		{
+			std::string text;
+			mlir::Location location;
+			mlir::DiagnosticSeverity severity;
+		};
+
 		LSPContext();
 
 		void addInclude(llvm::StringRef include)
@@ -17,7 +24,7 @@ namespace mlir::rlc::lsp
 			includes.push_back(include.str());
 		}
 
-		llvm::Expected<mlir::ModuleOp> loadFile(
+		void loadFile(
 				llvm::StringRef path,
 				llvm::StringRef contents,
 				int64_t version,
@@ -25,8 +32,14 @@ namespace mlir::rlc::lsp
 
 		mlir::MLIRContext* getContext() { return &context; }
 
+		llvm::ArrayRef<Diagnostic> getDiagnostics() const { return diagnostics; }
+
+		void clearDiagnostics() { diagnostics.clear(); }
+
 		private:
+		llvm::SmallVector<Diagnostic> diagnostics;
 		mlir::MLIRContext context;
+		mlir::ScopedDiagnosticHandler diagnosticHandler;
 		llvm::SourceMgr sourceManager;
 		mlir::DialectRegistry Registry;
 		llvm::SmallVector<std::string, 4> includes;

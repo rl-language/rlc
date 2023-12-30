@@ -44,7 +44,7 @@ namespace mlir::rlc
 				rewriter.setInsertionPoint(use);
 				if (enums.count(use.getEnumName()) == 0)
 				{
-					use.emitError("enum use does not name a declared enum");
+					auto _ = logError(use, "Enum use does not name a declared enum");
 					signalPassFailure();
 					return;
 				}
@@ -65,9 +65,10 @@ namespace mlir::rlc
 				}
 				if (failed)
 				{
-					use.emitError(
-							"cannot find member " + use.getEnumValue() + " in enum " +
-							use.getEnumName());
+					auto _ = logError(
+							use,
+							"Cannot find member " + use.getEnumValue() + " in enum " +
+									use.getEnumName());
 					signalPassFailure();
 				}
 			}

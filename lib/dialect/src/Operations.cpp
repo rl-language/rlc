@@ -15,22 +15,6 @@ void mlir::rlc::RLCDialect::registerOperations()
 			>();
 }
 
-static mlir::LogicalResult logNote(mlir::Operation *op, llvm::Twine twine)
-{
-	op->getContext()->getDiagEngine().emit(
-			op->getLoc(), mlir::DiagnosticSeverity::Note)
-			<< twine;
-	return mlir::failure();
-}
-
-static mlir::LogicalResult logError(mlir::Operation *op, llvm::Twine twine)
-{
-	op->getContext()->getDiagEngine().emit(
-			op->getLoc(), mlir::DiagnosticSeverity::Error)
-			<< twine;
-	return mlir::failure();
-}
-
 static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 {
 	llvm::SmallVector<mlir::Operation *, 4> toReturn;

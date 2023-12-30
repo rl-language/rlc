@@ -56,3 +56,19 @@ mlir::Operation *mlir::rlc::RLCDialect::materializeConstant(
 
 	return nullptr;
 }
+
+mlir::LogicalResult mlir::rlc::logRemark(mlir::Operation *op, llvm::Twine twine)
+{
+	op->getContext()->getDiagEngine().emit(
+			op->getLoc(), mlir::DiagnosticSeverity::Remark)
+			<< twine;
+	return mlir::failure();
+}
+
+mlir::LogicalResult mlir::rlc::logError(mlir::Operation *op, llvm::Twine twine)
+{
+	op->getContext()->getDiagEngine().emit(
+			op->getLoc(), mlir::DiagnosticSeverity::Error)
+			<< twine;
+	return mlir::failure();
+}

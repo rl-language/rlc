@@ -6,6 +6,41 @@
 
 using namespace mlir::rlc::lsp;
 
+static mlir::lsp::Position locToPos(mlir::Location location)
+{
+	auto castedBegin = location.cast<mlir::FileLineColLoc>();
+	return mlir::lsp::Position(
+			static_cast<int>(castedBegin.getLine()) - 1,
+			static_cast<int>(castedBegin.getColumn()) - 1);
+}
+
+static mlir::lsp::Range locsToRange(mlir::Location begin, mlir::Location end)
+{
+	return mlir::lsp::Range(locToPos(begin), locToPos(end));
+}
+
+static mlir::lsp::Diagnostic rlcDiagToLSPDiag(
+		const LSPContext::Diagnostic &diag)
+{
+	mlir::lsp::Diagnostic toReturn;
+
+	toReturn.message = diag.text;
+	if (diag.severity == mlir::DiagnosticSeverity::Error)
+		toReturn.severity = mlir::lsp::DiagnosticSeverity::Error;
+	else if (diag.severity == mlir::DiagnosticSeverity::Warning)
+		toReturn.severity = mlir::lsp::DiagnosticSeverity::Warning;
+	else if (diag.severity == mlir::DiagnosticSeverity::Note)
+		toReturn.severity = mlir::lsp::DiagnosticSeverity::Information;
+	else if (diag.severity == mlir::DiagnosticSeverity::Remark)
+		toReturn.severity = mlir::lsp::DiagnosticSeverity::Hint;
+
+	auto endPos = locToPos(diag.location);
+	endPos.character = endPos.character + 1;
+	toReturn.range = mlir::lsp::Range(locToPos(diag.location), endPos);
+
+	return toReturn;
+}
+
 class mlir::rlc::lsp::LSPModuleInfoImpl
 {
 	public:
@@ -165,19 +200,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	}
 
 	private:
-	static mlir::lsp::Range locsToRange(mlir::Location begin, mlir::Location end)
-	{
-		auto castedBegin = begin.cast<mlir::FileLineColLoc>();
-		auto castedEnd = end.cast<mlir::FileLineColLoc>();
-
-		return mlir::lsp::Range(
-				mlir::lsp::Position(
-						static_cast<int>(castedBegin.getLine()) - 1,
-						static_cast<int>(castedBegin.getColumn()) - 1),
-				mlir::lsp::Position(
-						static_cast<int>(castedEnd.getLine()) - 1,
-						static_cast<int>(castedEnd.getColumn()) - 1));
-	}
 	mlir::ModuleOp module;
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
 			declarations;
@@ -309,42 +331,12 @@ void RLCServer::addOrUpdateDocument(
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(context->getContext(), uri.file(), 0, 0),
 			uri.file());
-	auto maybeModule = context->loadFile(uri.file(), contents, version, ast);
-	if (not maybeModule)
-	{
-		auto error = llvm::handleErrors(
-				maybeModule.takeError(),
-				[&](const llvm::StringError &error) {
-					mlir::lsp::Diagnostic diag;
-					diag.severity = mlir::lsp::DiagnosticSeverity::Error;
-					diag.range = mlir::lsp::Range(
-							mlir::lsp::Position(0, 0), mlir::lsp::Position(0, 1));
-					diag.message = error.getMessage();
-					diagnostics.push_back(diag);
-				},
-				[&](const ::rlc::RlcError &error) {
-					mlir::lsp::Diagnostic diag;
-					diag.severity = mlir::lsp::DiagnosticSeverity::Error;
-					auto casted = error.getPosition().cast<mlir::FileLineColLoc>();
-					diag.range = mlir::lsp::Range(
-							mlir::lsp::Position(casted.getLine() - 1, casted.getColumn() - 1),
-							mlir::lsp::Position(
-									casted.getLine() - 1, casted.getColumn() - 1));
-					diag.message = error.getText();
-					diagnostics.push_back(diag);
-				});
-		if (error)
-		{
-			mlir::lsp::Diagnostic diag;
-			diag.message = "lsp: unkown llvm error";
-			diag.severity = mlir::lsp::DiagnosticSeverity::Error;
-			diag.range = mlir::lsp::Range(
-					mlir::lsp::Position(0, 0), mlir::lsp::Position(0, 1));
-			diagnostics.push_back(diag);
-			llvm::consumeError(std::move(error));
-		}
-	}
+	context->loadFile(uri.file(), contents, version, ast);
 	fileToModule.try_emplace(uri.uri(), LSPModuleInfo(ast, version));
+
+	for (const auto &diag : context->getDiagnostics())
+		diagnostics.push_back(rlcDiagToLSPDiag(diag));
+	context->clearDiagnostics();
 }
 
 mlir::lsp::CompletionList RLCServer::getCodeCompletion(

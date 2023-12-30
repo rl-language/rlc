@@ -4,19 +4,27 @@
 #include "mlir/Pass/PassManager.h"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/parser/MultiFileParser.hpp"
+#include "rlc/utils/Error.hpp"
 
 using namespace mlir::rlc::lsp;
 
-LSPContext::LSPContext(): context(mlir::MLIRContext::Threading::DISABLED)
+LSPContext::LSPContext()
+		: context(mlir::MLIRContext::Threading::DISABLED),
+			diagnosticHandler(&context, [this](mlir::Diagnostic &diagnostic) {
+				std::string text;
+				llvm::raw_string_ostream stream(text);
+				diagnostic.print(stream);
+				stream.flush();
+				diagnostics.emplace_back(Diagnostic{
+						text, diagnostic.getLocation(), diagnostic.getSeverity() });
+			})
 {
-	mlir::SourceMgrDiagnosticHandler diagnostic(
-			sourceManager, &context, [](mlir::Location) { return true; });
 	Registry.insert<mlir::BuiltinDialect, mlir::rlc::RLCDialect>();
 	context.appendDialectRegistry(Registry);
 	context.loadAllAvailableDialects();
 }
 
-llvm::Expected<mlir::ModuleOp> LSPContext::loadFile(
+void LSPContext::loadFile(
 		llvm::StringRef path,
 		llvm::StringRef contents,
 		int64_t version,
@@ -25,6 +33,32 @@ llvm::Expected<mlir::ModuleOp> LSPContext::loadFile(
 	::rlc::MultiFileParser parser(&context, includes, &sourceManager, op);
 	auto res = parser.parseFromBuffer(contents);
 
+	if (!res)
+	{
+		auto error = llvm::handleErrors(
+				res.takeError(),
+				[&](const llvm::StringError &error) {
+					diagnostics.emplace_back(
+							error.getMessage(),
+							mlir::FileLineColLoc::get(&context, "-", 1, 1),
+							mlir::DiagnosticSeverity::Error);
+				},
+				[&](const ::rlc::RlcError &error) {
+					diagnostics.emplace_back(
+							error.getText(),
+							error.getPosition(),
+							mlir::DiagnosticSeverity::Error);
+				});
+		if (error)
+		{
+			diagnostics.emplace_back(
+					"lsp: unkown llvm error",
+					mlir::FileLineColLoc::get(&context, "-", 1, 1),
+					mlir::DiagnosticSeverity::Error);
+			llvm::consumeError(std::move(error));
+		}
+	}
+
 	mlir::PassManager manager(&context);
 	manager.addPass(mlir::rlc::createSortActionsPass());
 	manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
@@ -32,12 +66,4 @@ llvm::Expected<mlir::ModuleOp> LSPContext::loadFile(
 	manager.addPass(mlir::rlc::createTypeCheckPass());
 	manager.enableVerifier(false);
 	auto typeCheckResult = manager.run(op);
-
-	if (!res)
-		return res.takeError();
-
-	if (typeCheckResult.failed())
-		return llvm::createStringError(
-				llvm::inconvertibleErrorCode(), "failed to parse");
-	return op;
 }
