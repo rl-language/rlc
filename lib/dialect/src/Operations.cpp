@@ -925,6 +925,11 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		return logError(*this, "Members of non-entity types cannot be accessed");
 	}
 
+	if (getMemberName().empty())
+	{
+		return logError(*this, "Member accesses cannot refer to a empty name");
+	}
+
 	for (const auto &index : llvm::enumerate(structType.getFieldNames()))
 	{
 		if (index.value() != getMemberName())

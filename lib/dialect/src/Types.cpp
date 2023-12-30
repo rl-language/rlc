@@ -352,7 +352,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 	{
 		typeToPretty(OS, maybeType.getUnderlying());
 		OS << "[";
-		OS << maybeType.getArraySize();
+		typeToPretty(OS, maybeType.getSize());
 		OS << "]";
 		return;
 	}

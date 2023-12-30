@@ -64,6 +64,5 @@ void LSPContext::loadFile(
 	manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
 	manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 	manager.addPass(mlir::rlc::createTypeCheckPass());
-	manager.enableVerifier(false);
 	auto typeCheckResult = manager.run(op);
 }

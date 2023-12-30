@@ -51,9 +51,9 @@ static cl::opt<string> InputFilePath(
 		cl::init("-"),
 		cl::cat(astDumperCategory));
 
-cl::list<std::string> ExtraObjectFiles(
+static cl::list<std::string> ExtraObjectFiles(
 		cl::Positional, cl::desc("<extra-object-files>"));
-cl::list<std::string> IncludeDirs("i", cl::desc("<include dirs>"));
+static cl::list<std::string> IncludeDirs("i", cl::desc("<include dirs>"));
 
 static cl::opt<bool> dumpTokens(
 		"token",

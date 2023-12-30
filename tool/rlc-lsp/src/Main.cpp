@@ -8,6 +8,34 @@
 
 #define DEBUG_TYPE "rlc-lsp-server"
 
+static llvm::cl::OptionCategory Category("rlc-lsp options");
+static llvm::cl::opt<bool> UseSTDIO(
+		"stdio",
+		llvm::cl::desc("use standard input and output to communicate"),
+		llvm::cl::init(true),
+		llvm::cl::cat(Category));
+
+static llvm::cl::opt<bool> DelimitedJSONStyle(
+		"delimited-json-style",
+		llvm::cl::desc("use delimited json style"),
+		llvm::cl::init(false),
+		llvm::cl::cat(Category));
+
+static llvm::cl::opt<bool> PrettyPrint(
+		"pretty",
+		llvm::cl::desc("pretty print output"),
+		llvm::cl::init(false),
+		llvm::cl::cat(Category));
+
+static llvm::cl::opt<std::string> IPC(
+		"socket",
+		llvm::cl::desc("socket to read and write to"),
+		llvm::cl::init(""),
+		llvm::cl::cat(Category));
+
+static llvm::cl::list<std::string> IncludeDirs(
+		"i", llvm::cl::desc("<include dirs>"), llvm::cl::cat(Category));
+
 namespace mlir::rlc::lsp
 {
 
@@ -207,6 +235,7 @@ namespace mlir::rlc::lsp
 int main(int argc, char *argv[])
 {
 	using namespace mlir::rlc::lsp;
+	llvm::cl::HideUnrelatedOptions(Category);
 	llvm::cl::ParseCommandLineOptions(argc, argv);
 	LSPContext context;
 	llvm::InitLLVM X(argc, argv);
@@ -215,11 +244,15 @@ int main(int argc, char *argv[])
 			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
 	context.addInclude(rlcDirectory);
 
+	for (auto include : IncludeDirs)
+		context.addInclude(include);
+
 	mlir::lsp::JSONTransport transport(
 			stdin,
 			llvm::outs(),
-			/*inputStyle*/ mlir::lsp::JSONStreamStyle::Standard,
-			/*prettyPrint*/ false);
+			DelimitedJSONStyle ? mlir::lsp::JSONStreamStyle::Delimited
+												 : mlir::lsp::JSONStreamStyle::Standard,
+			PrettyPrint);
 	RLCServer server(context);
 	mlir::lsp::MessageHandler handler(transport);
 	LSPServer lsp(server);

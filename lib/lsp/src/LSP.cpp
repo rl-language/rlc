@@ -16,7 +16,8 @@ static mlir::lsp::Position locToPos(mlir::Location location)
 
 static mlir::lsp::Range locsToRange(mlir::Location begin, mlir::Location end)
 {
-	return mlir::lsp::Range(locToPos(begin), locToPos(end));
+	auto toReturn = mlir::lsp::Range(locToPos(begin), locToPos(end));
+	return toReturn;
 }
 
 static mlir::lsp::Diagnostic rlcDiagToLSPDiag(
@@ -65,6 +66,10 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
 			declarations.emplace_back(
 					locsToRange(loc, firstInstructionLoc), decl.getOperation());
+			auto yieldLoc =
+					decl.getBody().front().back().getLoc().cast<mlir::FileLineColLoc>();
+			functionAndActionFunctions.emplace_back(
+					locsToRange(loc, yieldLoc), decl.getOperation());
 		});
 		module.walk([this](mlir::rlc::ActionFunction decl) {
 			if (decl.getBody().empty())
@@ -74,6 +79,10 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
 			declarations.emplace_back(
 					locsToRange(loc, firstInstructionLoc), decl.getOperation());
+			auto yieldLoc =
+					decl.getBody().front().back().getLoc().cast<mlir::FileLineColLoc>();
+			functionAndActionFunctions.emplace_back(
+					locsToRange(loc, yieldLoc), decl.getOperation());
 		});
 		module.walk([this](mlir::rlc::ActionStatement decl) {
 			if (decl->getNextNode() == nullptr)
@@ -102,6 +111,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
 			memberAcceses.emplace_back(
 					locsToRange(loc, nextInst), decl.getOperation());
+			memberAcceses.back().first.end.character++;
 		});
 
 		module.walk([this](mlir::rlc::MemberAccess decl) {
@@ -112,6 +122,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
 			memberAcceses.emplace_back(
 					locsToRange(loc, nextInst), decl.getOperation());
+			memberAcceses.back().first.end.character++;
 		});
 	}
 
@@ -138,6 +149,38 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				return pair.second;
 		}
 		return nullptr;
+	}
+
+	mlir::Operation *getEnclosingFunction(const mlir::lsp::Position &pos)
+	{
+		for (const auto &pair : llvm::make_range(
+						 functionAndActionFunctions.rbegin(),
+						 functionAndActionFunctions.rend()))
+		{
+			if (pair.first.contains(pos))
+				return pair.second;
+		}
+		return nullptr;
+	}
+
+	mlir::LogicalResult getCompleteFunction(
+			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
+	{
+		auto *fun = getEnclosingFunction(completePos);
+		if (fun == nullptr)
+		{
+			return mlir::failure();
+		}
+
+		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
+			mlir::lsp::CompletionItem item;
+			item.label = statement.getName();
+			item.kind = mlir::lsp::CompletionItemKind::Variable;
+			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
+			item.detail = prettyType(statement.getType());
+			list.items.push_back(item);
+		});
+		return mlir::success();
 	}
 
 	mlir::LogicalResult getCompleteAccessMember(
@@ -169,8 +212,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (fun.getType().getNumInputs() == 0)
 				continue;
 
-			if (fun.getType().getInput(0) == type or
-					isTemplateType(fun.getType().getInput(0)).succeeded())
+			if (fun.getType().getInput(0) == type)
 			{
 				mlir::lsp::CompletionItem item;
 				item.label = (fun.getUnmangledName() + "()").str();
@@ -183,7 +225,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 		for (auto fun : module.getOps<mlir::rlc::ActionFunction>())
 		{
-			if (fun.getMainActionType() == type)
+			if (fun.getMainActionType().getResult(0) != type)
 				continue;
 
 			fun.walk([&](mlir::rlc::ActionStatement statemet) {
@@ -206,11 +248,21 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
 			memberAcceses;
+
+	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
+			functionAndActionFunctions;
 };
 
 LSPModuleInfo::LSPModuleInfo(mlir::ModuleOp op, int64_t version)
 		: impl(new LSPModuleInfoImpl(op)), version(version)
 {
+}
+
+mlir::LogicalResult LSPModuleInfo::getCompleteFunction(
+		const mlir::lsp::Position &completePos,
+		mlir::lsp::CompletionList &list) const
+{
+	return impl->getCompleteFunction(completePos, list);
 }
 
 mlir::LogicalResult LSPModuleInfo::getCompleteAccessMember(
@@ -349,6 +401,11 @@ mlir::lsp::CompletionList RLCServer::getCodeCompletion(
 		return list;
 
 	if (maybeInfo->getCompleteAccessMember(completePos, list).succeeded())
+	{
+		return list;
+	}
+
+	if (maybeInfo->getCompleteFunction(completePos, list).succeeded())
 	{
 		return list;
 	}

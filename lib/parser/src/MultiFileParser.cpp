@@ -32,11 +32,6 @@ namespace mlir::rlc
 							getContext().getDiagEngine().emit(
 									e.getPosition(), mlir::DiagnosticSeverity::Error)
 									<< e.getText();
-
-							//.emitDiagnostic(
-							// e.getPosition(),
-							// e.getText(),
-							// mlir::DiagnosticSeverity::Error);
 						});
 				signalPassFailure();
 			}
