@@ -304,6 +304,11 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 			abort();
 		return;
 	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::UnknownType>())
+	{
+		OS << "Unkown";
+		return;
+	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
 	{
 		OS << "Float";

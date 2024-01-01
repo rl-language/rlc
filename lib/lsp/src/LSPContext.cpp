@@ -31,7 +31,7 @@ void LSPContext::loadFile(
 		mlir::ModuleOp op)
 {
 	::rlc::MultiFileParser parser(&context, includes, &sourceManager, op);
-	auto res = parser.parseFromBuffer(contents);
+	auto res = parser.parseFromBuffer(contents, path);
 
 	if (!res)
 	{

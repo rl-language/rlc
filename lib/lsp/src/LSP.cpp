@@ -14,6 +14,20 @@ static mlir::lsp::Position locToPos(mlir::Location location)
 			static_cast<int>(castedBegin.getColumn()) - 1);
 }
 
+static llvm::Expected<mlir::lsp::Location> locToLoc(mlir::Location location)
+{
+	auto castedBegin = location.cast<mlir::FileLineColLoc>();
+	llvm::errs() << castedBegin.getFilename().str();
+	auto uri = mlir::lsp::URIForFile::fromFile(castedBegin.getFilename().str());
+	if (not uri)
+	{
+		llvm::cantFail(uri.takeError());
+	}
+
+	return mlir::lsp::Location(
+			*uri, mlir::lsp::Range(locToPos(location), locToPos(location)));
+}
+
 static mlir::lsp::Range locsToRange(mlir::Location begin, mlir::Location end)
 {
 	auto toReturn = mlir::lsp::Range(locToPos(begin), locToPos(end));
@@ -241,6 +255,52 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return mlir::success();
 	}
 
+	void getLocationsOf(
+			const mlir::lsp::Position &defPos,
+			std::vector<mlir::lsp::Location> &locations)
+	{
+		auto *nearestDecl = getOperation(defPos);
+
+		auto casted = mlir::dyn_cast<mlir::rlc::CallOp>(nearestDecl);
+		if (not casted)
+			return;
+
+		auto templateInst =
+				mlir::dyn_cast<mlir::rlc::TemplateInstantiationOp>(nearestDecl);
+		if (templateInst)
+		{
+			auto maybeLoc = locToLoc(templateInst.getInputTemplate().getLoc());
+			if (maybeLoc)
+				locations.push_back(*maybeLoc);
+			else
+				llvm::consumeError(maybeLoc.takeError());
+			return;
+		};
+		auto maybeLoc = locToLoc(casted.getCallee().getLoc());
+		if (maybeLoc)
+			locations.push_back(*maybeLoc);
+		else
+			llvm::consumeError(maybeLoc.takeError());
+	}
+
+	void findReferencesOf(
+			const mlir::lsp::Position &pos,
+			std::vector<mlir::lsp::Location> &references)
+	{
+		auto *nearestDecl = getOperation(pos);
+		for (auto result : nearestDecl->getResults())
+		{
+			for (const auto &use : result.getUsers())
+			{
+				auto maybeLoc = locToLoc(use->getLoc());
+				if (maybeLoc)
+					references.push_back(*maybeLoc);
+				else
+					llvm::consumeError(maybeLoc.takeError());
+			}
+		}
+	}
+
 	private:
 	mlir::ModuleOp module;
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
@@ -273,6 +333,20 @@ mlir::LogicalResult LSPModuleInfo::getCompleteAccessMember(
 }
 
 mlir::ModuleOp LSPModuleInfo::getModule() const { return impl->getModule(); }
+
+void LSPModuleInfo::getLocationsOf(
+		const mlir::lsp::Position &defPos,
+		std::vector<mlir::lsp::Location> &locations) const
+{
+	impl->getLocationsOf(defPos, locations);
+}
+
+void LSPModuleInfo::findReferencesOf(
+		const mlir::lsp::Position &pos,
+		std::vector<mlir::lsp::Location> &references) const
+{
+	impl->findReferencesOf(pos, references);
+}
 
 LSPModuleInfo &LSPModuleInfo::operator=(LSPModuleInfo &&other)
 {
@@ -435,4 +509,28 @@ std::optional<int64_t> RLCServer::removeDocument(
 	}
 
 	return std::nullopt;
+}
+
+void RLCServer::getLocationsOf(
+		const mlir::lsp::URIForFile &uri,
+		const mlir::lsp::Position &defPos,
+		std::vector<mlir::lsp::Location> &locations)
+{
+	const auto *maybeInfo = getModuleFromUri(uri);
+	if (maybeInfo == nullptr)
+		return;
+
+	maybeInfo->getLocationsOf(defPos, locations);
+}
+
+void RLCServer::findReferencesOf(
+		const mlir::lsp::URIForFile &uri,
+		const mlir::lsp::Position &pos,
+		std::vector<mlir::lsp::Location> &references)
+{
+	const auto *maybeInfo = getModuleFromUri(uri);
+	if (maybeInfo == nullptr)
+		return;
+
+	maybeInfo->findReferencesOf(pos, references);
 }

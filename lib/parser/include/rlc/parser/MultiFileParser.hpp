@@ -38,13 +38,14 @@ namespace rlc
 			return llvm::Error::success();
 		}
 
-		llvm::Expected<mlir::ModuleOp> parseFromBuffer(llvm::StringRef content)
+		llvm::Expected<mlir::ModuleOp> parseFromBuffer(
+				llvm::StringRef content, llvm::StringRef fileName)
 		{
 			mlir::IRRewriter rewriter(context);
 			std::set<std::string> alreadyLoaded;
 			llvm::SmallVector<std::string> fileToLoad;
 
-			if (llvm::Error error = parseOneFile(content, "-", fileToLoad))
+			if (llvm::Error error = parseOneFile(content, fileName, fileToLoad))
 				return std::move(error);
 
 			if (llvm::Error error = recursiveParseFile(alreadyLoaded, fileToLoad))

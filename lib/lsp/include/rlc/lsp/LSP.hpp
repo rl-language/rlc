@@ -31,6 +31,14 @@ namespace mlir::rlc::lsp
 				const mlir::lsp::Position &completePos,
 				mlir::lsp::CompletionList &list) const;
 
+		void getLocationsOf(
+				const mlir::lsp::Position &defPos,
+				std::vector<mlir::lsp::Location> &locations) const;
+
+		void findReferencesOf(
+				const mlir::lsp::Position &pos,
+				std::vector<mlir::lsp::Location> &references) const;
+
 		[[nodiscard]] int64_t getVersion() const { return version; }
 
 		private:
@@ -60,13 +68,13 @@ namespace mlir::rlc::lsp
 		void getLocationsOf(
 				const mlir::lsp::URIForFile &uri,
 				const mlir::lsp::Position &defPos,
-				std::vector<Location> &locations);
+				std::vector<mlir::lsp::Location> &locations);
 
 		/// Find all references of the object pointed at by the given position.
 		void findReferencesOf(
 				const mlir::lsp::URIForFile &uri,
 				const mlir::lsp::Position &pos,
-				std::vector<Location> &references);
+				std::vector<mlir::lsp::Location> &references);
 
 		/// Find all of the document symbols within the given file.
 		void findDocumentSymbols(

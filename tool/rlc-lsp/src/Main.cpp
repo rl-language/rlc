@@ -114,6 +114,26 @@ namespace mlir::rlc::lsp
 
 		void onInitialized(const mlir::lsp::InitializedParams &) {}
 
+		void onGoToDefinition(
+				const mlir::lsp::TextDocumentPositionParams &params,
+				mlir::lsp::Callback<std::vector<mlir::lsp::Location>> reply)
+		{
+			std::vector<mlir::lsp::Location> locations;
+			server->getLocationsOf(
+					params.textDocument.uri, params.position, locations);
+			reply(std::move(locations));
+		}
+
+		void onReference(
+				const mlir::lsp::ReferenceParams &params,
+				mlir::lsp::Callback<std::vector<mlir::lsp::Location>> reply)
+		{
+			std::vector<mlir::lsp::Location> locations;
+			server->findReferencesOf(
+					params.textDocument.uri, params.position, locations);
+			reply(std::move(locations));
+		}
+
 		void onShutdown(
 				const mlir::lsp::NoParams &, mlir::lsp::Callback<std::nullptr_t> reply)
 		{
@@ -276,6 +296,9 @@ int main(int argc, char *argv[])
 			handler.outgoingNotification<mlir::lsp::PublishDiagnosticsParams>(
 					"textDocument/publishDiagnostics");
 	handler.method("textDocument/completion", &lsp, &LSPServer::onCompletion);
+
+	handler.method("textDocument/references", &lsp, &LSPServer::onReference);
+	handler.method("textDocument/definition", &lsp, &LSPServer::onGoToDefinition);
 
 	mlir::LogicalResult result = mlir::success();
 	if (llvm::Error error = transport.run(handler))
