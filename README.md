@@ -4,6 +4,8 @@
 
 The RuleBook Compiler (RLC) is a MLIR-based compiler for a domain specific language aimed at simplifying the complexity of developing multiagent simulations at all stages of development.
 
+Read the language rationale [here](./docs/rationale.md)
+
 Given a RuleBook file that describes a simulation, it will be able to produce:
 * a compiled library implementing such simulation
 * a serialization and deserialization mechanism both in textual and binary format
@@ -150,13 +152,9 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 ### Features  to develop next
 
 #### missing for release
-* testing properly generated c
-* testing properly generated python
-* test error messages
+* allow declarations to be explicitly refs, in general require the user to specify this stuff and the emits error if its is wrong
 
 * scalar type constraints for float
-
-* allow declarations to be explicitly refs, in general require the user to specify this stuff and the emits error if its is wrong
 
 #### long term feature
 * require clauses out of line (just allow to call any function i guess?)
