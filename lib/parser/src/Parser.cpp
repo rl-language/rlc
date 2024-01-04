@@ -620,7 +620,6 @@ llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
  */
 llvm::Expected<bool> Parser::requirementList()
 {
-	auto location = getCurrentSourcePos();
 	llvm::SmallVector<mlir::Value, 4> values;
 
 	auto onExit = [&, this]() {
@@ -1381,19 +1380,19 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration(
 Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 {
 	TRY(decl, actionDeclaration(true));
-	auto location = getCurrentSourcePos();
 
 	auto pos = builder.saveInsertionPoint();
 	llvm::SmallVector<mlir::Location> locs;
 	for (size_t i = 0; i < decl->getFunctionType().getInputs().size(); i++)
 		locs.push_back(decl->getLoc());
 
-	auto block = builder.createBlock(
+	auto* block = builder.createBlock(
 			&decl->getBody(), {}, decl->getFunctionType().getInputs(), locs);
 	auto* condB = builder.createBlock(
 			&decl->getPrecondition(), {}, decl->getFunctionType().getInputs(), locs);
 
 	auto onExit = [&, this]() {
+		builder.setInsertionPointToEnd(block);
 		emitYieldIfNeeded(getCurrentSourcePos());
 		builder.restoreInsertionPoint(pos);
 	};
@@ -1491,9 +1490,9 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 
 	while (current != Token::End)
 	{
-		while (accept<Token::Newline>() or accept<Token::Indent>() or
-					 accept<Token::Deindent>())
-			;
+		if (accept<Token::Newline>() or accept<Token::Indent>() or
+				accept<Token::Deindent>())
+			continue;
 
 		if (current == Token::KeywordExtern)
 		{

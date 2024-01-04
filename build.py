@@ -197,17 +197,11 @@ def main():
             rlc_infrastructure,
             git,
             "clone",
-            "git@github.com:llvm/llvm-project.git",
+            "git@github.com:drblallo/llvm.git"
             "--depth",
             "1",
             "-b",
             "main",
-        )
-        assert_run_program(
-            llvm_source_dir,
-            git,
-            "checkout",
-            "acacec3bbf4586ef9bc6c4f31707d3515d5215a1",
         )
 
     if debug_llvm and not exists(llvm_install_debug_dir) and args.llvm_dir == "":

@@ -7,16 +7,28 @@ namespace mlir::rlc::lsp
 {
 	class LSPModuleInfoImpl;
 
+	struct Diagnostic
+	{
+		std::string text;
+		mlir::Location location;
+		mlir::DiagnosticSeverity severity;
+	};
+
 	class LSPModuleInfo
 	{
 		public:
-		explicit LSPModuleInfo(mlir::ModuleOp module, std::int64_t version);
+		explicit LSPModuleInfo(
+				llvm::StringRef path,
+				llvm::StringRef content,
+				int64_t version,
+				LSPContext &context);
 		~LSPModuleInfo();
 
 		LSPModuleInfo(const LSPModuleInfoImpl &other) = delete;
 		LSPModuleInfo(LSPModuleInfo &&other): impl(other.impl)
 		{
 			other.impl = nullptr;
+			version = other.version;
 		}
 		LSPModuleInfo &operator=(const LSPModuleInfoImpl &other) = delete;
 		LSPModuleInfo &operator=(LSPModuleInfo &&other);
@@ -40,6 +52,9 @@ namespace mlir::rlc::lsp
 				std::vector<mlir::lsp::Location> &references) const;
 
 		[[nodiscard]] int64_t getVersion() const { return version; }
+
+		llvm::ArrayRef<mlir::rlc::lsp::Diagnostic> getDiagnostics() const;
+		void clearDiagnostics();
 
 		private:
 		LSPModuleInfoImpl *impl;

@@ -1,7 +1,11 @@
 #include "rlc/lsp/LSP.hpp"
 
+#include "llvm/Support/Error.h"
+#include "mlir/Pass/PassManager.h"
 #include "rlc/dialect/Operations.hpp"
+#include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/Types.hpp"
+#include "rlc/parser/MultiFileParser.hpp"
 #include "rlc/utils/Error.hpp"
 
 using namespace mlir::rlc::lsp;
@@ -35,7 +39,7 @@ static mlir::lsp::Range locsToRange(mlir::Location begin, mlir::Location end)
 }
 
 static mlir::lsp::Diagnostic rlcDiagToLSPDiag(
-		const LSPContext::Diagnostic &diag)
+		const mlir::rlc::lsp::Diagnostic &diag)
 {
 	mlir::lsp::Diagnostic toReturn;
 
@@ -60,8 +64,26 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 {
 	public:
 	~LSPModuleInfoImpl() { module->erase(); }
-	explicit LSPModuleInfoImpl(mlir::ModuleOp module): module(module)
+	explicit LSPModuleInfoImpl(
+			llvm::StringRef path, llvm::StringRef contents, LSPContext &lspContext)
+			: context(mlir::MLIRContext::Threading::DISABLED),
+				diagnosticHandler(
+						&context,
+						[this](mlir::Diagnostic &diagnostic) {
+							std::string text;
+							llvm::raw_string_ostream stream(text);
+							diagnostic.print(stream);
+							stream.flush();
+							diagnostics.emplace_back(mlir::rlc::lsp::Diagnostic{
+									text, diagnostic.getLocation(), diagnostic.getSeverity() });
+						}),
+				module(mlir::ModuleOp::create(
+						mlir::FileLineColLoc::get(&context, path, 0, 0), path))
 	{
+		Registry.insert<mlir::BuiltinDialect, mlir::rlc::RLCDialect>();
+		context.appendDialectRegistry(Registry);
+		context.loadAllAvailableDialects();
+		loadFile(path, contents, lspContext);
 		module.walk([this](mlir::rlc::DeclarationStatement decl) {
 			auto yieldLoc = decl.getBody()
 													.back()
@@ -185,15 +207,55 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		{
 			return mlir::failure();
 		}
+        using KeyType = std::pair<std::string, const void*>;
+        std::set<KeyType> alreadyEmitted;
+		auto registerArgument = [&](llvm::StringRef name, mlir::Type t) {
+            KeyType key(name.str(), t.getAsOpaquePointer());
+            if (alreadyEmitted.contains(key))
+                return;
 
-		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
+            alreadyEmitted.insert(key);
 			mlir::lsp::CompletionItem item;
-			item.label = statement.getName();
+			item.label = name.str();
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-			item.detail = prettyType(statement.getType());
+			item.detail = prettyType(t);
 			list.items.push_back(item);
+		};
+		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
+				casted and not casted.getBody().empty())
+		{
+			for (auto arg :
+					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
+			{
+				registerArgument(
+						std::get<0>(arg).cast<mlir::StringAttr>(), std::get<1>(arg));
+			}
+		}
+
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ActionFunction>(fun);
+				casted and not casted.getBody().empty())
+		{
+			for (auto arg :
+					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
+			{
+				registerArgument(
+						std::get<0>(arg).cast<mlir::StringAttr>(), std::get<1>(arg));
+			}
+		}
+
+		fun->walk([&](mlir::rlc::ActionStatement action) {
+			for (auto arg :
+					 llvm::zip(action.getDeclaredNames(), action.getResults().getTypes()))
+			{
+				registerArgument(
+						std::get<0>(arg).cast<mlir::StringAttr>(), std::get<1>(arg));
+			}
 		});
+		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
+            registerArgument(statement.getName(), statement.getType());
+		});
+        
 		return mlir::success();
 	}
 
@@ -221,12 +283,20 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			}
 		}
 
+		mlir::rlc::ValueTable table;
+		mlir::rlc::OverloadResolver resolver(table);
+
 		for (auto fun : module.getOps<mlir::rlc::FunctionOp>())
 		{
 			if (fun.getType().getNumInputs() == 0)
 				continue;
 
-			if (fun.getType().getInput(0) == type)
+			llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type>
+					substitutions;
+			if (resolver
+							.deduceSubstitutions(
+									substitutions, fun.getType().getInput(0), type)
+							.succeeded())
 			{
 				mlir::lsp::CompletionItem item;
 				item.label = (fun.getUnmangledName() + "()").str();
@@ -242,13 +312,21 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (fun.getMainActionType().getResult(0) != type)
 				continue;
 
+			using KeyType = std::pair<std::string, const void *>;
+			std::set<KeyType> alreadyEmitted;
 			fun.walk([&](mlir::rlc::ActionStatement statemet) {
+				auto fType = mlir::FunctionType::get(
+						fun.getContext(), statemet.getResultTypes(), {});
+				KeyType key(statemet.getName().str(), fType.getAsOpaquePointer());
+				if (alreadyEmitted.contains(key))
+					return;
+
+				alreadyEmitted.insert(key);
 				mlir::lsp::CompletionItem item;
 				item.label = (statemet.getName() + "()").str();
 				item.kind = mlir::lsp::CompletionItemKind::Function;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-				item.detail = prettyType(mlir::FunctionType::get(
-						fun.getContext(), statemet.getResultTypes(), {}));
+				item.detail = prettyType(fType);
 				list.items.push_back(item);
 			});
 		}
@@ -260,6 +338,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			std::vector<mlir::lsp::Location> &locations)
 	{
 		auto *nearestDecl = getOperation(defPos);
+		if (nearestDecl == nullptr)
+			return;
 
 		auto casted = mlir::dyn_cast<mlir::rlc::CallOp>(nearestDecl);
 		if (not casted)
@@ -288,6 +368,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			std::vector<mlir::lsp::Location> &references)
 	{
 		auto *nearestDecl = getOperation(pos);
+		if (nearestDecl == nullptr)
+			return;
 		for (auto result : nearestDecl->getResults())
 		{
 			for (const auto &use : result.getUsers())
@@ -301,8 +383,58 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 	}
 
+	void loadFile(
+			llvm::StringRef path, llvm::StringRef contents, LSPContext &lspContext)
+	{
+		::rlc::MultiFileParser parser(
+				&context,
+				lspContext.getIncludePaths(),
+				&lspContext.getSourceManager(),
+				module);
+		auto res = parser.parseFromBuffer(contents, path);
+
+		if (!res)
+		{
+			auto error = llvm::handleErrors(
+					res.takeError(),
+					[&](const llvm::StringError &error) {
+						diagnostics.emplace_back(
+								error.getMessage(),
+								mlir::FileLineColLoc::get(&context, "-", 1, 1),
+								mlir::DiagnosticSeverity::Error);
+					},
+					[&](const ::rlc::RlcError &error) {
+						diagnostics.emplace_back(
+								error.getText(),
+								error.getPosition(),
+								mlir::DiagnosticSeverity::Error);
+					});
+			if (error)
+			{
+				diagnostics.emplace_back(
+						"lsp: unkown llvm error",
+						mlir::FileLineColLoc::get(&context, "-", 1, 1),
+						mlir::DiagnosticSeverity::Error);
+				llvm::consumeError(std::move(error));
+			}
+		}
+
+		mlir::PassManager manager(&context);
+		manager.addPass(mlir::rlc::createSortActionsPass());
+		manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
+		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
+		manager.addPass(mlir::rlc::createTypeCheckPass());
+		auto typeCheckResult = manager.run(module);
+	}
+
+	llvm::ArrayRef<mlir::rlc::lsp::Diagnostic> getDiagnostics() const
+	{
+		return diagnostics;
+	}
+
+	void clearDiagnostics() { diagnostics.clear(); }
+
 	private:
-	mlir::ModuleOp module;
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
 			declarations;
 
@@ -311,10 +443,20 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
 			functionAndActionFunctions;
+
+	llvm::SmallVector<mlir::rlc::lsp::Diagnostic> diagnostics;
+	mlir::DialectRegistry Registry;
+	mlir::MLIRContext context;
+	mlir::ScopedDiagnosticHandler diagnosticHandler;
+	mlir::ModuleOp module;
 };
 
-LSPModuleInfo::LSPModuleInfo(mlir::ModuleOp op, int64_t version)
-		: impl(new LSPModuleInfoImpl(op)), version(version)
+LSPModuleInfo::LSPModuleInfo(
+		llvm::StringRef path,
+		llvm::StringRef content,
+		int64_t version,
+		LSPContext &context)
+		: impl(new LSPModuleInfoImpl(path, content, context)), version(version)
 {
 }
 
@@ -348,6 +490,13 @@ void LSPModuleInfo::findReferencesOf(
 	impl->findReferencesOf(pos, references);
 }
 
+llvm::ArrayRef<mlir::rlc::lsp::Diagnostic> LSPModuleInfo::getDiagnostics() const
+{
+	return impl->getDiagnostics();
+}
+
+void LSPModuleInfo::clearDiagnostics() { impl->clearDiagnostics(); }
+
 LSPModuleInfo &LSPModuleInfo::operator=(LSPModuleInfo &&other)
 {
 	if (this == &other)
@@ -356,6 +505,7 @@ LSPModuleInfo &LSPModuleInfo::operator=(LSPModuleInfo &&other)
 	delete impl;
 	impl = other.impl;
 	other.impl = nullptr;
+	version = other.version;
 	return *this;
 }
 
@@ -454,15 +604,12 @@ void RLCServer::addOrUpdateDocument(
 	if (fileToModule.contains(uri.uri()))
 		fileToModule.erase(uri.uri());
 
-	auto ast = mlir::ModuleOp::create(
-			mlir::FileLineColLoc::get(context->getContext(), uri.file(), 0, 0),
-			uri.file());
-	context->loadFile(uri.file(), contents, version, ast);
-	fileToModule.try_emplace(uri.uri(), LSPModuleInfo(ast, version));
+	auto result = fileToModule.try_emplace(
+			uri.uri(), LSPModuleInfo(uri.file(), contents, version, *context));
 
-	for (const auto &diag : context->getDiagnostics())
+	for (const auto &diag : result.first->second.getDiagnostics())
 		diagnostics.push_back(rlcDiagToLSPDiag(diag));
-	context->clearDiagnostics();
+	result.first->second.clearDiagnostics();
 }
 
 mlir::lsp::CompletionList RLCServer::getCodeCompletion(
@@ -485,15 +632,6 @@ mlir::lsp::CompletionList RLCServer::getCodeCompletion(
 	}
 
 	list.isIncomplete = true;
-	for (auto global : maybeInfo->getModule().getOps<mlir::rlc::FunctionOp>())
-	{
-		mlir::lsp::CompletionItem item;
-		item.label = global.getUnmangledName();
-		item.kind = mlir::lsp::CompletionItemKind::Function;
-		item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-		item.detail = prettyType(global.getType());
-		list.items.push_back(item);
-	}
 
 	return list;
 }

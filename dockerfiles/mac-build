@@ -1,0 +1,5 @@
+FROM sickcodes/docker-osx:auto
+
+COPY ~/.ssh/mac-build-machine ./.ssh/
+
+RUN softwareupdate -i "Command Line Tools for Xcode-12.4" --verbose && ssh-add ./.ssh/mac-build-machine && git clone git@github.com:drblallo/rlc.git && cd rlc && ./setup.sh && echo alpine | sudo --stdin /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile && brew install ninja && brew install cmake && rlc-infrastructure/rlc && source environment.sh && cd .. && python ./rlc/build.py --no-use-lld

@@ -153,16 +153,19 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 	{
 		std::string error;
 		llvm::raw_string_ostream stream(error);
-		stream << "could not find matching function " << name << "(";
+		stream << "Could not find matching function " << name << "(";
+		size_t index = 1;
 		for (auto argument : arguments)
 		{
-			argument.print(stream);
-			stream << ",";
+			stream << prettyType(argument);
+			if (index != arguments.size())
+				stream << ",";
+			index++;
 		}
 		stream << ")";
 		stream.flush();
 
-		errorEmitter->emitError(error);
+		auto _ = logError(errorEmitter, error);
 	}
 
 	for (auto candidate : symbolTable->get(name))
@@ -170,7 +173,9 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 		if (not candidate.getType().isa<mlir::FunctionType>())
 			continue;
 		if (errorEmitter)
-			candidate.getDefiningOp()->emitRemark("candidate");
+			auto _ = logRemark(
+					candidate.getDefiningOp(),
+					("Candidate: " + prettyType(candidate.getType())));
 	}
 	return nullptr;
 }
@@ -178,10 +183,14 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 		llvm::StringRef name, mlir::TypeRange arguments)
 {
-	llvm::SmallVector<mlir::Value> matching;
+	llvm::SmallVector<mlir::Value, 2> matching;
 	for (auto candidate : symbolTable->get(name))
 	{
-		if (not candidate.getType().isa<mlir::FunctionType>())
+		auto casted = candidate.getType().dyn_cast<mlir::FunctionType>();
+		if (not casted)
+			continue;
+
+		if (casted.getNumInputs() != arguments.size())
 			continue;
 
 		if (deduceTemplateCallSiteType(

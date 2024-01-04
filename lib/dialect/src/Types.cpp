@@ -665,10 +665,13 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 
 	if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
 	{
-		for (auto child : casted.getBody())
+		for (auto child : casted.getExplicitTemplateParameters())
 			if (isTemplateType(child).succeeded())
 				return mlir::success();
-		for (auto child : casted.getExplicitTemplateParameters())
+        if (not casted.isInitialized())
+            return mlir::success();
+
+		for (auto child : casted.getBody())
 			if (isTemplateType(child).succeeded())
 				return mlir::success();
 		return mlir::failure();

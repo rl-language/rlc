@@ -460,14 +460,11 @@ mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
 			resolveFunctionCall(emitLog ? callSite : nullptr, name, arguments);
 
 	if (overload == nullptr)
-	{
-		callSite->emitRemark("while calling");
 		return nullptr;
-	}
 
 	if (not overload.getType().isa<mlir::FunctionType>())
 	{
-		callSite->emitError("cannot call non function type");
+		auto _ = logRemark(callSite, "Cannot call non function type");
 		return nullptr;
 	}
 

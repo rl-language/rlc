@@ -55,6 +55,23 @@ function! s:Rebuild()
 	call s:updateCmake()
 endfunction
 
+function! s:RunLIT(file)
+	let l:t = s:silentBuild("rlc")
+	call AQAppendOpen(0, l:t)
+	call AQAppendCond("call ParseClangOutput()", 0, l:t)
+
+	let l:t2 = AQAppendCond("!lit " . g:BUILD_DIRECTORY . "/tool/rlc/test --verbose --filter=".a:file, 1, l:t)
+	call AQAppendOpen(-1, l:t2)
+endfunction
+
+function! s:RunCompileAndExecute(file)
+	let l:t = s:SilentRun("rlc", "tool/rlc/rlc", a:file . " -o /tmp/compiled")
+	call AQAppendOpenError(0, l:t[0])
+	call AQAppendOpenError(0, l:t[1])
+	call AQAppendCond("call ParseClangOutput()", 0, l:t[1])
+	let l:t2 = AQAppendCond("!/tmp/compiled", 1, l:t[1])
+endfunction
+
 function! s:RunTest(param, executible, args)
 	let l:t = s:SilentRun(a:param, a:executible, a:args)
 	call AQAppendOpen(0, l:t[0])
@@ -68,7 +85,7 @@ function! s:RunTest(param, executible, args)
 endfunction
 
 function! s:silentBuild(target)
-	let s:build = "!cmake --build " . g:BUILD_DIRECTORY . " --target " . a:target . " -- -j 4"
+	let s:build = "!cmake --build " . g:BUILD_DIRECTORY . " --target " . a:target 
 	call AQAppendOpen(0)
 	return AQAppend(s:build)
 endfunction
@@ -155,11 +172,12 @@ command! -nargs=0 REBUILD call s:Rebuild()
 command! -nargs=0 TALL call s:RunTest(g:TARGET . "Test", "lib/".g:TARGET . "/test/" . g:TEST, "")
 command! -nargs=0 TSUIT call s:RunTest(g:TARGET . "Test", "lib/".g:TARGET . "/test/" . g:TEST, GTestOption(1))
 command! -nargs=0 TONE call s:RunTest(g:TARGET . "Test", "lib/".g:TARGET . "/test/" . g:TEST, GTestOption(0))
-command! -nargs=0 RUN call s:Run(g:TARGET, "tool/".g:TARGET . "/" . g:TARGET, g:RUN_ARGS)
+command! -nargs=0 LIT call s:RunLIT(expand("%:t"))
+command! -nargs=0 RUN call s:RunCompileAndExecute(expand("%:p"))
 command! -nargs=0 DTALL call s:RunD(g:TARGET . "Test", "lib/".g:TARGET . "/test/" . g:TEST, "")
 command! -nargs=0 DTSUIT call s:RunD(g:TARGET . "Test", "lib/".g:TARGET . "/test/" . g:TEST, GTestOption(1))
 command! -nargs=0 DTONE call s:RunD(g:TARGET . "Test", "lib/".g:TARGET . "/test/" . g:TEST, GTestOption(0))
-command! -nargs=0 DRUN call s:RunD(g:TARGET, "tool/".g:TARGET . "/" . g:TARGET, g:RUN_ARGS)
+command! -nargs=0 DRUN call s:RunD("rlc", "tool/rlc/rlc", expand("%:p") . " -o /tmp/compiled")
 command! -nargs=0 GOTOTEST call s:goToTest(expand("<cword>"))
 command! -nargs=1 SETTARGET call s:setTarget(<f-args>)
 command! -nargs=1 SETARGS call s:setTargetArgs(<f-args>)
@@ -170,6 +188,7 @@ command! -nargs=0 COVERAGE call s:genCoverage()
 nnoremap <leader><leader>gt :vsp<cr>:GOTOTEST<cr>
 nnoremap <leader><leader>b :REBUILD<cr>
 nnoremap <leader><leader>r :RUN<cr>
+nnoremap <leader><leader>l :LIT<cr>
 nnoremap <leader><leader>dr :DRUN<cr>
 nnoremap <leader><leader>ta :TALL<cr>
 nnoremap <leader><leader>dta :DTALL<cr>
@@ -198,3 +217,4 @@ function! s:clangRename(newName)
 	call AQAppend(command)
 	call AQAppendCond("checktime", 1)
 endfunction
+
