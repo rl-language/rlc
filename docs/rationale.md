@@ -4,9 +4,9 @@ The `Rulebook` (or `rl` for short) is a domain specific language that tries to r
 
 If you want to jump directly into the code, try it out [here](no_link_yet) instead.
 
-### The Complexity of writing simulations.
+### The Complexity of writing games and rule heavy simulations.
 
-Consider the game Tic Tac Toe, Wikipedia specifies the rules of the game as the following:
+Most games and many simulations have a very programmatic nature, yet they rarely are implemented in a way that resemble their procedural essence. Consider the game Tic Tac Toe, Wikipedia specifies the rules of the game as the following:
 > Tic-tac-toe [...] is a paper-and-pencil game for two players who take turns marking the spaces in a three-by-three grid with X or O. The player who succeeds in placing three of their marks in a horizontal, vertical, or diagonal row is the winner.
 
 How would you implement it in your favorite language?
@@ -29,7 +29,7 @@ def tic_tac_toe() -> Winner:
 
 This implementation closely mirrors the `Wikipedia` description, and is very straightforward for a human being to reason about it.
 
-Yet, as is it written right now, it is almost useless.
+As is it written right now, it is almost useless.
 
 Maybe you are a reinforcement learning engineer, and wish to use that function to let a AI system learn how to play it. Maybe you are a game programmer and you want to integrate it into your game.
 Let us ignore the low hanging fruit of performances that would push you to rewrite the code in another language, and focus instead on the issue that would be common to all languages:
@@ -63,11 +63,11 @@ class TicTacToe:
     assert self.can_mark(x, y)
     self.board.set_marked_by_current_player(x, y)
 
-	if self.board.three_in_a_line():
-	  self.next_resumption_point == Ended
-	  self.winner = self.current_player
-	else:
-	  self.current_player = (self.current_player + 1) % 2
+    if self.board.three_in_a_line():
+      self.next_resumption_point == Ended
+      self.winner = self.current_player
+    else:
+      self.current_player = (self.current_player + 1) % 2
 ```
 
 Now we have a usable implementation!
@@ -77,8 +77,10 @@ Now we have a usable implementation!
 * you retain control over the main loop and can use this class as follow
 ```python
 state = TicTacToe()
+
 if state.can_mark(1, 2):
   state.mark(1, 2)
+
 if state.is_done():
   print "the game is over"
 ```
@@ -228,12 +230,12 @@ class TicTacToe:
 This is it, the whole Raison d'etre of the `rl` language is just that, to automatize the tedious and error prone process of translating a procedure-like description of a simulation into a class-like description. It may look not a lot, but it took more than 30.000 lines of code to have it working and easy to use.
 
 ## Building on top of it
-We saw that `rl` has been created to solve the 4 issues of `inspectability`, `serializability`, `precondition checkability` and `no main loop ownership` described earlier.  Of course, having a tool able to perform this transformation is not the end of the story. There are many benefits obtained from it. Since that simple description of `TicTacToe` describes in a compact way
+We saw that `rl` has been created to solve the 4 issues of `inspectability`, `serializability`, `precondition checkability` and `no main loop ownership` described earlier.  Of course, having a tool able to perform this transformation is not the end of the story. Since that simple description of `TicTacToe` describes in a compact way
 * Initial condition
 * Terminal conditions
 * Actions, and actions parameters and actions preconditions
 
-Then the compiler knows everything about how that simulation may evolve an without human intervention we can:
+then instrumentation can be written to generically exploint one or more of these elements. For example, since the compiler knows everything about how that simulation may evolve, even without human intervention, we can:
 * generate the wrapper for the simulation in different languages and for different frameworks (C and python currently supported)
 * generate fuzzers that try random valid moves and look for bugs (currently being developed)
 * generate the network layer that allows to remotely interact with the simulation (future work)
@@ -258,7 +260,7 @@ In this document we described the issue `rl` is trying to tackle, how `rl` does 
 No, we emit destructors similarly to `cpp` and `rust`. We are considering if and how to adopt a full borrow checker such as the `rust`.
 
 ##### But is it safe?
-`Rl` is fully type checked, consider it as safe as `C#` or `Java`, indeed it can only work because it is type checked. If the compiler did no had a understanding of the types involved in actions it could not rewrite them without leaking memory and so on.
+`Rl` is fully type checked, consider it as safe as `C#` or `Java`, indeed it can only work because it is type checked. If the compiler did not had a understanding of the types involved in actions it could not rewrite them without leaking memory and so on.
 
 ##### But is it portable?
 The language is designed to behave the same independently from the underlying machine, furthermore since it is based on `LLVM` it is trivial to make it work on all machines where `LLVM` is supported(which is most).

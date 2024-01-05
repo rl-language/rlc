@@ -207,14 +207,14 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		{
 			return mlir::failure();
 		}
-        using KeyType = std::pair<std::string, const void*>;
-        std::set<KeyType> alreadyEmitted;
+		using KeyType = std::pair<std::string, const void *>;
+		std::set<KeyType> alreadyEmitted;
 		auto registerArgument = [&](llvm::StringRef name, mlir::Type t) {
-            KeyType key(name.str(), t.getAsOpaquePointer());
-            if (alreadyEmitted.contains(key))
-                return;
+			KeyType key(name.str(), t.getAsOpaquePointer());
+			if (alreadyEmitted.contains(key))
+				return;
 
-            alreadyEmitted.insert(key);
+			alreadyEmitted.insert(key);
 			mlir::lsp::CompletionItem item;
 			item.label = name.str();
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
@@ -253,9 +253,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			}
 		});
 		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
-            registerArgument(statement.getName(), statement.getType());
+			registerArgument(statement.getName(), statement.getType());
 		});
-        
+
 		return mlir::success();
 	}
 
@@ -420,7 +420,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 
 		mlir::PassManager manager(&context);
-		manager.addPass(mlir::rlc::createSortActionsPass());
 		manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckPass());

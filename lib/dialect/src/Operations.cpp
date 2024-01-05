@@ -1,7 +1,10 @@
 #include "rlc/dialect/Operations.hpp"
 
+#include <set>
+
 #include "llvm/ADT/StringExtras.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/utils/IRange.hpp"
 #define GET_OP_CLASSES
@@ -13,6 +16,143 @@ void mlir::rlc::RLCDialect::registerOperations()
 #define GET_OP_LIST
 #include "./Operations.inc"
 			>();
+}
+
+static void assignActionIndicies(mlir::rlc::ActionFunction fun)
+{
+	mlir::IRRewriter rewriter(fun.getContext());
+
+	size_t lastId = 1;
+	int64_t lastResumePoint = 1;
+	llvm::SmallVector<mlir::rlc::ActionStatement, 2> statments;
+	fun.walk([&](mlir::rlc::ActionStatement statement) {
+		statments.push_back(statement);
+	});
+
+	llvm::DenseMap<mlir::rlc::ActionsStatement, int64_t> asctionsToResumePoint;
+
+	for (auto statement : statments)
+	{
+		rewriter.setInsertionPoint(statement);
+
+		int64_t resumePoint;
+		if (auto parent = statement->getParentOfType<mlir::rlc::ActionsStatement>())
+		{
+			if (asctionsToResumePoint.count(parent) == 0)
+				asctionsToResumePoint[parent] = lastResumePoint++;
+			resumePoint = asctionsToResumePoint[parent];
+		}
+		else
+		{
+			resumePoint = lastResumePoint++;
+		}
+
+		auto newOp = rewriter.create<mlir::rlc::ActionStatement>(
+				statement.getLoc(),
+				statement.getResultTypes(),
+				statement.getName(),
+				statement.getDeclaredNames(),
+				lastId,
+				resumePoint);
+		lastId++;
+		newOp.getPrecondition().takeBody(statement.getPrecondition());
+		rewriter.replaceOp(statement, newOp.getResults());
+	}
+}
+
+static llvm::SmallVector<mlir::Type, 3> getFunctionsTypesGeneratedByAction(
+		mlir::rlc::ModuleBuilder &builder, mlir::rlc::ActionFunction fun)
+{
+	auto funType = builder.typeOfAction(fun);
+	llvm::SmallVector<mlir::Type, 3> ToReturn;
+	using OverloadKey = std::pair<std::string, const void *>;
+	std::set<OverloadKey> added;
+	// for each subaction invoked by this action, add it to generatedFunctions
+	for (const auto &op : builder.actionStatementsOfAction(fun))
+	{
+		llvm::SmallVector<mlir::Type, 3> args({ funType });
+
+		for (auto type : op->getResultTypes())
+		{
+			auto converted = builder.getConverter().convertType(type);
+			args.push_back(converted);
+		}
+
+		auto ftype =
+				mlir::FunctionType::get(op->getContext(), args, mlir::TypeRange());
+		OverloadKey overloadKey(
+				llvm::cast<mlir::rlc::ActionStatement>(op).getName().str(),
+				ftype.getAsOpaquePointer());
+		if (added.contains(overloadKey))
+			continue;
+
+		ToReturn.emplace_back(ftype);
+		added.insert(overloadKey);
+	}
+	return ToReturn;
+}
+
+/*
+	Rewrites the Action Function operations in the module to include the type,
+	which contains information about
+	- Arguments
+	- Members (arguments, declared variables, variables provided by subactions,
+	resume_index)
+	- Subactions
+	- Preconditions
+	- Body
+*/
+
+static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
+{
+	auto op = fun->getParentOfType<mlir::ModuleOp>();
+	mlir::rlc::ModuleBuilder builder(op);
+	mlir::IRRewriter &rewriter = builder.getRewriter();
+
+	auto funType = builder.typeOfAction(fun);
+
+	mlir::Type actionType = fun.getType();
+
+	auto generatedFunctions = getFunctionsTypesGeneratedByAction(builder, fun);
+
+	// rewrite the Action Function Operation with the generatedFunctions.
+	rewriter.setInsertionPoint(fun);
+	auto newAction = rewriter.create<mlir::rlc::ActionFunction>(
+			fun.getLoc(),
+			actionType,
+			mlir::FunctionType::get(
+					rewriter.getContext(),
+					mlir::TypeRange({ funType }),
+					mlir::TypeRange({ mlir::rlc::BoolType::get(rewriter.getContext()) })),
+			generatedFunctions,
+			fun.getUnmangledName(),
+			fun.getArgNames());
+	newAction.getBody().takeBody(fun.getBody());
+	newAction.getPrecondition().takeBody(fun.getPrecondition());
+	fun.getResult().replaceAllUsesWith(newAction.getResult());
+	rewriter.eraseOp(fun);
+
+	mlir::rlc::ActionLiveness liveness(newAction);
+	liveness.getFrameTypes();
+	return newAction;
+}
+
+mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
+		mlir::rlc::ActionFunction fun, ValueTable *parentSymbolTable)
+{
+	mlir::rlc::ModuleBuilder builder(
+			fun->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
+
+	if (builder.typeOfAction(fun).cast<mlir::rlc::EntityType>().isInitialized())
+		return fun;
+
+	auto _ = builder.addSymbolTable();
+	if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
+		return nullptr;
+
+	assignActionIndicies(fun);
+	auto newF = deduceActionType(fun);
+	return newF;
 }
 
 static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
@@ -79,9 +219,10 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		auto loop = rewiter.create<mlir::rlc::WhileStatement>(getLoc());
 		rewiter.createBlock(&loop.getCondition());
 
-		auto isDone =
-				builder.emitCall(*this, "is_done", mlir::ValueRange({ frameVar }))
-						->getResult(0);
+		auto *call =
+				builder.emitCall(*this, "is_done", mlir::ValueRange({ frameVar }));
+		assert(call);
+		auto isDone = call->getResult(0);
 
 		auto isNotDone = rewiter.create<mlir::rlc::NotOp>(getLoc(), isDone);
 
@@ -466,6 +607,26 @@ mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
 	return mlir::success();
 }
 
+static mlir::LogicalResult maybeInstantiateAction(
+		mlir::rlc::ModuleBuilder &builder, mlir::Value maybeActionEntity)
+{
+	auto casted = dyn_cast<mlir::rlc::EntityType>(maybeActionEntity.getType());
+	if (not casted or not builder.isEntityOfAction(casted))
+		return mlir::success();
+
+	auto actionFunction =
+			builder.getActionOf(casted).getDefiningOp<mlir::rlc::ActionFunction>();
+
+	builder.removeActionFromRootTable(actionFunction);
+	builder.removeAction(actionFunction);
+	auto newF = mlir::rlc::detail::typeCheckAction(
+			actionFunction, &builder.getRootTable());
+
+	builder.addActionToRootTable(newF);
+	builder.registerAction(newF);
+	return mlir::success(newF != nullptr);
+}
+
 mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -498,7 +659,8 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 		rewriter.replaceOp(*this, newCall->getResults());
 		if (unresolvedCallee)
 			rewriter.eraseOp(unresolvedCallee);
-		return mlir::success();
+
+		return maybeInstantiateAction(builder, newCall->getResults()[0]);
 	}
 
 	rewriter.eraseOp(*this);

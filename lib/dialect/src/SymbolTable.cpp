@@ -259,12 +259,139 @@ mlir::rlc::RLCTypeConverter::RLCTypeConverter(
 	registerConversions(converter, types);
 }
 
-mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
+static llvm::SmallVector<std::pair<int, mlir::rlc::ActionStatement>, 4>
+distinctActionStatements(
+		mlir::rlc::ActionFunction action, bool keeOnlyFirst = true)
+{
+	llvm::SmallVector<std::pair<int, mlir::rlc::ActionStatement>, 4> toReturn;
+	using ActionKey = std::pair<std::string, std::vector<const void*>>;
+	std::map<ActionKey, int> seenActionOverloads;
+
+	action.walk([&](mlir::rlc::ActionStatement statement) {
+		std::vector<const void*> types;
+		for (auto type : statement.getResultTypes())
+			types.push_back(type.getAsOpaquePointer());
+
+		ActionKey key(statement.getName().str(), types);
+
+		if (seenActionOverloads.contains(key) and keeOnlyFirst)
+			return;
+
+		if (not seenActionOverloads.contains(key))
+			seenActionOverloads[key] = seenActionOverloads.size();
+
+		toReturn.emplace_back(seenActionOverloads[key], statement);
+	});
+
+	return toReturn;
+}
+
+void mlir::rlc::ModuleBuilder::removeActionFromRootTable(mlir::Operation* op)
+{
+	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
+	getRootTable().erase(
+			action.getUnmangledName(), action.getOperation()->getOpResult(0));
+
+	getRootTable().erase("is_done", action.getIsDoneFunction());
+
+	if (action.getActions().empty())
+		return;
+
+	using ActionKey = std::pair<std::string, std::vector<const void*>>;
+	std::map<ActionKey, int> seenActionOverloads;
+	for (auto statement : distinctActionStatements(action))
+	{
+		auto resultValue = action.getActions()[statement.first];
+		getRootTable().erase(statement.second.getName(), resultValue);
+	}
+}
+
+void mlir::rlc::ModuleBuilder::addActionToRootTable(mlir::Operation* op)
+{
+	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
+	getRootTable().add(
+			action.getUnmangledName(), action.getOperation()->getOpResult(0));
+
+	getRootTable().add("is_done", action.getIsDoneFunction());
+
+	if (action.getActions().empty())
+		return;
+
+	using ActionKey = std::pair<std::string, std::vector<const void*>>;
+	std::map<ActionKey, int> seenActionOverloads;
+	for (auto statement : distinctActionStatements(action))
+	{
+		auto resultValue = action.getActions()[statement.first];
+		getRootTable().add(statement.second.getName(), resultValue);
+	}
+}
+
+void mlir::rlc::ModuleBuilder::removeAction(mlir::Operation* op)
+{
+	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
+
+	auto type = action.getResultTypes()[0].cast<mlir::rlc::EntityType>();
+
+	actionToActionType.erase(action.getResult());
+	actionTypeToAction.erase(type);
+	if (actionDeclToActionStatements.contains(action.getResult()))
+		actionDeclToActionStatements.erase(action.getResult());
+
+	if (action.getActions().empty())
+		return;
+
+	for (auto statement : distinctActionStatements(action, false))
+	{
+		auto resultValue = action.getActions()[statement.first];
+		actionFunctionResultToActionStement.erase(resultValue);
+	}
+
+	for (auto statement : distinctActionStatements(action))
+	{
+		actionDeclToActionNames.erase(action.getResult());
+	}
+}
+
+void mlir::rlc::ModuleBuilder::registerAction(mlir::Operation* op)
+{
+	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
+
+	auto type = getConverter().getTypes().getOne(
+			action.getResultTypes()[0].cast<mlir::rlc::EntityType>().getName());
+	actionToActionType[action.getResult()] = type;
+	actionTypeToAction[type] = action.getResult();
+
+	action.walk([&](mlir::rlc::ActionStatement statement) {
+		actionDeclToActionStatements[action.getResult()].push_back(
+				statement.getOperation());
+	});
+
+	// stuff that we do only if we have already type checked
+	if (action.getActions().empty())
+		return;
+
+	for (auto statement : distinctActionStatements(action, false))
+	{
+		auto resultValue = action.getActions()[statement.first];
+		actionFunctionResultToActionStement[resultValue].push_back(
+				statement.second);
+	}
+
+	for (auto statement : distinctActionStatements(action))
+	{
+		actionDeclToActionNames[action.getResult()].push_back(
+				statement.second.getName().str());
+	}
+}
+
+mlir::rlc::ModuleBuilder::ModuleBuilder(
+		mlir::ModuleOp op, ValueTable* parentSymbolTable)
 		: op(op), rewriter(op.getContext())
 {
-	values.emplace_back(std::make_unique<ValueTable>());
+	values.emplace_back(std::make_unique<ValueTable>(parentSymbolTable));
 	converter.emplace_back(std::make_unique<RLCTypeConverter>(op));
-	::makeValueTable(op, getSymbolTable());
+	if (parentSymbolTable == nullptr)
+		::makeValueTable(op, getSymbolTable());
 	for (auto trait : op.getOps<mlir::rlc::TraitDefinition>())
 	{
 		auto result = traits.try_emplace(trait.getMetaType(), trait);
@@ -288,45 +415,9 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(mlir::ModuleOp op)
 
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
-		auto type = getConverter().getTypes().getOne(
-				action.getResultTypes()[0].cast<mlir::rlc::EntityType>().getName());
-		actionToActionType[action.getResult()] = type;
-		actionTypeToAction[type] = action.getResult();
-		getSymbolTable().add(
-				action.getUnmangledName(), action.getOperation()->getOpResult(0));
-
-		getSymbolTable().add("is_done", action.getIsDoneFunction());
-
-		using ActionKey = std::pair<std::string, std::vector<const void*>>;
-		std::map<ActionKey, int> seenActionOverloads;
-		action.walk([&](mlir::rlc::ActionStatement statement) {
-			std::vector<const void*> types;
-			for (auto type : statement.getResultTypes())
-			{
-				types.push_back(type.getAsOpaquePointer());
-			}
-			ActionKey key(statement.getName().str(), types);
-
-			bool firstTimeSeen = not seenActionOverloads.contains(key);
-			if (firstTimeSeen)
-			{
-				seenActionOverloads[key] = seenActionOverloads.size();
-				actionDeclToActionNames[action.getResult()].push_back(
-						statement.getName().str());
-			}
-			// before we type checked we do not know what the generated sub
-			// actions of a actions are, so the list is empty.
-			if (not action.getActions().empty())
-			{
-				auto resultValue = action.getActions()[seenActionOverloads[key]];
-				if (firstTimeSeen)
-					getSymbolTable().add(statement.getName(), resultValue);
-				actionFunctionResultToActionStement[resultValue].push_back(statement);
-			}
-
-			actionDeclToActionStatements[action.getResult()].push_back(
-					statement.getOperation());
-		});
+		if (parentSymbolTable == nullptr)
+			addActionToRootTable(action);
+		registerAction(action);
 	}
 }
 

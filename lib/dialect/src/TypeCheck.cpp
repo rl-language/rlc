@@ -1,9 +1,7 @@
-#include <set>
 
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Pass/Pass.h"
-#include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
@@ -323,48 +321,6 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
-static void assignActionIndicies(mlir::rlc::ActionFunction fun)
-{
-	mlir::IRRewriter rewriter(fun.getContext());
-
-	size_t lastId = 1;
-	int64_t lastResumePoint = 1;
-	llvm::SmallVector<mlir::rlc::ActionStatement, 2> statments;
-	fun.walk([&](mlir::rlc::ActionStatement statement) {
-		statments.push_back(statement);
-	});
-
-	llvm::DenseMap<mlir::rlc::ActionsStatement, int64_t> asctionsToResumePoint;
-
-	for (auto statement : statments)
-	{
-		rewriter.setInsertionPoint(statement);
-
-		int64_t resumePoint;
-		if (auto parent = statement->getParentOfType<mlir::rlc::ActionsStatement>())
-		{
-			if (asctionsToResumePoint.count(parent) == 0)
-				asctionsToResumePoint[parent] = lastResumePoint++;
-			resumePoint = asctionsToResumePoint[parent];
-		}
-		else
-		{
-			resumePoint = lastResumePoint++;
-		}
-
-		auto newOp = rewriter.create<mlir::rlc::ActionStatement>(
-				statement.getLoc(),
-				statement.getResultTypes(),
-				statement.getName(),
-				statement.getDeclaredNames(),
-				lastId,
-				resumePoint);
-		lastId++;
-		newOp.getPrecondition().takeBody(statement.getPrecondition());
-		rewriter.replaceOp(statement, newOp.getResults());
-	}
-}
-
 static mlir::LogicalResult deduceTraitTypes(mlir::ModuleOp op)
 {
 	mlir::rlc::ModuleBuilder builder(op);
@@ -380,98 +336,65 @@ static mlir::LogicalResult deduceTraitTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
-static llvm::SmallVector<mlir::Type, 3> getFunctionsTypesGeneratedByAction(
-		mlir::rlc::ModuleBuilder& builder, mlir::rlc::ActionFunction fun)
+static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 {
-	auto funType = builder.typeOfAction(fun);
-	llvm::SmallVector<mlir::Type, 3> ToReturn;
-	using OverloadKey = std::pair<std::string, const void*>;
-	std::set<OverloadKey> added;
-	// for each subaction invoked by this action, add it to generatedFunctions
-	for (const auto& op : builder.actionStatementsOfAction(fun))
-	{
-		llvm::SmallVector<mlir::Type, 3> args({ funType });
+	mlir::IRRewriter rewriter(op.getContext());
 
-		for (auto type : op->getResultTypes())
-		{
-			auto converted = builder.getConverter().convertType(type);
-			args.push_back(converted);
-		}
-
-		auto ftype =
-				mlir::FunctionType::get(op->getContext(), args, mlir::TypeRange());
-		OverloadKey overloadKey(
-				llvm::cast<mlir::rlc::ActionStatement>(op).getName().str(),
-				ftype.getAsOpaquePointer());
-		if (added.contains(overloadKey))
-			continue;
-
-		ToReturn.emplace_back(ftype);
-		added.insert(overloadKey);
-	}
-	return ToReturn;
-}
-
-/*
-	Rewrites the Action Function operations in the module to include the type,
-	which contains information about
-	- Arguments
-	- Members (arguments, declared variables, variables provided by subactions,
-	resume_index)
-	- Subactions
-	- Preconditions
-	- Body
-*/
-
-static void deduceActionType(mlir::rlc::ActionFunction fun)
-{
-	auto op = fun->getParentOfType<mlir::ModuleOp>();
 	mlir::rlc::ModuleBuilder builder(op);
-	mlir::IRRewriter& rewriter = builder.getRewriter();
+	llvm::SmallVector<mlir::rlc::ActionFunction, 4> funs(
+			op.getOps<mlir::rlc::ActionFunction>());
+	for (auto fun : funs)
+	{
+		auto funType = builder.typeOfAction(fun);
 
-	auto funType = builder.typeOfAction(fun);
+		mlir::Type actionType =
+				builder.getConverter().convertType(mlir::FunctionType::get(
+						op.getContext(), fun.getFunctionType().getInputs(), { funType }));
 
-	mlir::Type actionType =
-			builder.getConverter().convertType(mlir::FunctionType::get(
-					op.getContext(), fun.getFunctionType().getInputs(), { funType }));
-
-	auto generatedFunctions = getFunctionsTypesGeneratedByAction(builder, fun);
-
-	// rewrite the Action Function Operation with the generatedFunctions.
-	rewriter.setInsertionPoint(fun);
-	auto newAction = rewriter.create<mlir::rlc::ActionFunction>(
-			fun.getLoc(),
-			actionType,
-			mlir::FunctionType::get(
-					rewriter.getContext(),
-					mlir::TypeRange({ funType }),
-					mlir::TypeRange({ mlir::rlc::BoolType::get(rewriter.getContext()) })),
-			generatedFunctions,
-			fun.getUnmangledName(),
-			fun.getArgNames());
-	newAction.getBody().takeBody(fun.getBody());
-	newAction.getPrecondition().takeBody(fun.getPrecondition());
-	rewriter.eraseOp(fun);
-
-	mlir::rlc::ActionLiveness liveness(newAction);
-	liveness.getFrameTypes();
+		rewriter.setInsertionPoint(fun);
+		auto newAction = rewriter.create<mlir::rlc::ActionFunction>(
+				fun.getLoc(),
+				actionType,
+				mlir::FunctionType::get(
+						rewriter.getContext(),
+						mlir::TypeRange({ funType }),
+						mlir::TypeRange(
+								{ mlir::rlc::BoolType::get(rewriter.getContext()) })),
+				mlir::TypeRange(),
+				fun.getUnmangledName(),
+				fun.getArgNames());
+		newAction.getBody().takeBody(fun.getBody());
+		newAction.getPrecondition().takeBody(fun.getPrecondition());
+		rewriter.eraseOp(fun);
+	}
+	return mlir::success();
 }
 
 static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 {
 	mlir::IRRewriter rewriter(op.getContext());
 
-	llvm::SmallVector<mlir::rlc::ActionFunction, 4> funs(
-			op.getOps<mlir::rlc::ActionFunction>());
-	for (auto fun : funs)
+	bool foundOne = true;
+	// the actions are allowed to type check each other, but that means that they
+	// will change in the process, so if one typechecks and change, we have to
+	// start again typechecking them all. if one typechecks and does not change,
+	// it can't possible have changed any other either.
+	while (foundOne)
 	{
-		mlir::rlc::ModuleBuilder builder(op);
-		auto _ = builder.addSymbolTable();
-		if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
-			return mlir::failure();
-
-		assignActionIndicies(fun);
-		deduceActionType(fun);
+		foundOne = false;
+		llvm::SmallVector<mlir::rlc::ActionFunction, 4> funs(
+				op.getOps<mlir::rlc::ActionFunction>());
+		for (auto fun : funs)
+		{
+			auto typeChecked = mlir::rlc::detail::typeCheckAction(fun);
+			if (typeChecked == nullptr)
+				return mlir::failure();
+			if (typeChecked != fun)
+			{
+				foundOne = true;
+				break;
+			}
+		}
 	}
 	return mlir::success();
 }
@@ -523,6 +446,12 @@ namespace mlir::rlc
 		void runOnOperation() override
 		{
 			if (deduceFunctionTypes(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
+
+			if (deduceActionsMainFunctionType(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;

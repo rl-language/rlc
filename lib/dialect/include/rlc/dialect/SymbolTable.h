@@ -56,6 +56,12 @@ namespace mlir::rlc
 			reverseValues[value.getAsOpaquePointer()] = name.str();
 		}
 
+		void erase(llvm::StringRef name, T value)
+		{
+			llvm::erase(values[name], value);
+			reverseValues.erase(value.getAsOpaquePointer());
+		}
+
 		const llvm::StringMap<llvm::SmallVector<T, 2>>& allDirectValues()
 		{
 			return values;
@@ -71,6 +77,14 @@ namespace mlir::rlc
 				return "";
 
 			return parent->lookUpValue(value);
+		}
+
+		SymbolTable& getRoot()
+		{
+			SymbolTable* current = this;
+			while (current->parent != nullptr)
+				current = current->parent;
+			return *current;
 		}
 
 		private:
@@ -147,7 +161,7 @@ namespace mlir::rlc
 			return SymbolTableRAIIDeleater(this);
 		}
 
-		ModuleBuilder(mlir::ModuleOp op);
+		ModuleBuilder(mlir::ModuleOp op, ValueTable* parentSymbolTable = nullptr);
 
 		mlir::IRRewriter& getRewriter() { return rewriter; }
 
@@ -202,6 +216,13 @@ namespace mlir::rlc
 				llvm::StringRef name,
 				mlir::ValueRange arguments,
 				bool log = true);
+
+		ValueTable& getRootTable() { return values.front()->getRoot(); }
+
+		void registerAction(mlir::Operation* op);
+		void removeAction(mlir::Operation* op);
+		void removeActionFromRootTable(mlir::Operation* op);
+		void addActionToRootTable(mlir::Operation* op);
 
 		private:
 		mlir::ModuleOp op;

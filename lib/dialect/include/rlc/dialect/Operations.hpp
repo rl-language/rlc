@@ -15,6 +15,10 @@
 
 namespace mlir::rlc::detail
 {
+
+    mlir::rlc::ActionFunction typeCheckAction(mlir::rlc::ActionFunction fun, ValueTable* parentSymbolTable = nullptr);
+
+
 	template<typename Op>
 	mlir::LogicalResult handleBuiltin(
 			Op op,

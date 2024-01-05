@@ -75,7 +75,7 @@ act odd_and_evens() -> Game:
   if sum % 2 != int(first_player_has_selected_odd):
     p1_has_won = false 
 
-# What is going here? It this `coroutine action` we are expressing control flow, as well 
+# What is going here? It this `action procedure` we are expressing control flow, as well 
 # as declaring global functions that can be executed. 
 # Every time the control flow reaches a action statement (lines 56, 61 and 66),  the 
 # control flow stops and will resume only when the action we have just reached is invoked.
@@ -91,7 +91,7 @@ act odd_and_evens() -> Game:
 # Finally, no dynamic allocation or syscall happens in this piece of code. 
 # This piece of code is as performant as it would have if you hand written it in C.
 
-# Here is the same coroutine, except we assume that the players will not provide impossible
+# Here is the same procedure, except we assume that the players will not provide impossible
 # arguments, so instead of looping until we recieve a valid one, we simply assert their 
 # values. Try invoking this new coroutine at line 16. As long as line 20 exists, the 
 # program will crash. 

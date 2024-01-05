@@ -36,11 +36,6 @@ def TypeCheckPass : Pass<"rlc-type-check", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
-def SortActionsPass: Pass<"rlc-sort-actions", "mlir::ModuleOp"> {
-  let summary = "sort actions";
-  let dependentDialects = ["rlc::RLCDialect"];
-}
-
 def EmitMainPass: Pass<"rlc-emit-main", "mlir::ModuleOp"> {
   let summary = "emit rlc main pass";
   let dependentDialects = ["rlc::RLCDialect"];
