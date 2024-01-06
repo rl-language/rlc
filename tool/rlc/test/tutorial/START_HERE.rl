@@ -1,10 +1,10 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-# These files are a series of examples meant to introduce you to the rulebook language.
+# These files are a series of examples to introduce you to the rulebook language.
 # Each of these files is a valid rl program that can be run by pressing ctrl+shift+b.
 
-# Here the simplest rl program, try running it, and then try edit the return value to 10 
+# Here the simplest rl program. Try running it, and then try edit the return value to 10 
 # to see the program fail.
 
 fun main() -> Int:

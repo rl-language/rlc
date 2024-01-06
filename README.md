@@ -1,17 +1,21 @@
 # RLC
 
 ![RLC Logo](./imgs/RLC_logo.png)
+> ReLiC, the rlc dragon
 
-The RuleBook Compiler (RLC) is a MLIR-based compiler for a domain specific language aimed at simplifying the complexity of developing multiagent simulations at all stages of development.
+The RuleBook Compiler (`RLC`) is an MLIR-based compiler for a domain-specific language aimed at simplifying the complexity of developing multiagent simulations at all stages of development.
+
+The elevator pitch description of the `RL` is:
+> **A language that turns a easy-to-write procedural description of a simulation into a easy-to-use and easy-to-reuse efficient library**.
 
 Read the language rationale [here](./docs/rationale.md)
 
 Given a RuleBook file that describes a simulation, it will be able to produce:
-* a compiled library implementing such simulation
-* a serialization and deserialization mechanism both in textual and binary format
-* a network protocol able to run the simulation remotely
-* a fuzzer able to find bugs in the simulation
-* machine learning algorithms able to analyze the simulation.
+* a compiled library implementing such simulation (implemented)
+* a serialization and deserialization mechanism both in textual and binary format (binary format implemented)
+* a network protocol able to run the simulation remotely (development not yet started)
+* a fuzzer able to find bugs in the simulation (development started)
+* machine learning algorithms able to analyze the simulation. (development started)
 
 ### Example: tic tac toe
 ```
@@ -94,9 +98,9 @@ Extra dependecies used by the setup script:
 
 ### Installation for developers
 
-We provide a setup script that download the rlc repository and a setupscrit that will download and compile LLVM as well as RLC. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gibabytes of hard drive space and will require a large ammount of time and RAM.
+We provide a setup script that downloads the rlc repository and a setup script that will download and compile LLVM as well as RLC. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM.
 
-Hard drive space can be reclaimed by deleating LLVM build directory after it has been fully built.
+Hard drive space can be reclaimed by deleting LLVM build directory after it has been fully built.
 
 Download the setup.sh file in the root of the repository and then run:
 ```
@@ -121,7 +125,7 @@ python rlc/build.py --llvm-dir <PATH-TO-LLVM-INSTALL> [--rlc-shared]
 You need to use the flag --rlc-shared if you have built a shared LLVM.
 
 ### environment.sh
-If you are using the default installation script (setup.sh) we provide a .sh file that configures your environment variable so that you can use python and rlc without installing anything in your actuall machine.
+If you are using the default installation script (setup.sh) we provide a .sh file that configures your environment variable so that you can use python and rlc without installing anything in your actual machine.
 When you open a shell to start working on RLC run the following command.
 
 If you use some editor such as code or clion, start it from that shell.
