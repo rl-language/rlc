@@ -1,3 +1,17 @@
+/*
+This file is part of the RLC project.
+
+RLC is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License version 2 as published by the Free Software
+Foundation.
+
+RLC is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+RLC. If not, see <https://www.gnu.org/licenses/>.
+*/
 #include "rlc/dialect/Types.hpp"
 
 #include "llvm/ADT/TypeSwitch.h"
@@ -668,8 +682,8 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 		for (auto child : casted.getExplicitTemplateParameters())
 			if (isTemplateType(child).succeeded())
 				return mlir::success();
-        if (not casted.isInitialized())
-            return mlir::success();
+		if (not casted.isInitialized())
+			return mlir::success();
 
 		for (auto child : casted.getBody())
 			if (isTemplateType(child).succeeded())

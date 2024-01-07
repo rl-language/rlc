@@ -115,7 +115,7 @@ Indeed, this is the case for most projects trying to solve this issue:
 * The [Game Description Language](https://en.wikipedia.org/wiki/Game_Description_Language) also distinguishes `legal moves`, `update rules`, and `termination`.
 * Games with millions of copies sold, such as [CK2](https://ck2.paradoxwikis.com/Ze_Lunatic_(Conclave)) have their own custom language where they can express `events` that are composed of `trigger conditions` that must be satisfied before they can manifest, `decisions` the player can select and `effects` that are applied if that `decision` is taken, and `flags` used to coordinate different events.
 
-This is how, today, one writes simulations and games.
+We live in a world where billion dollar companies write code for custom hardware accellerators in Python and then turn around and implement TicTacToe in C.
 
 The four properties identified before, `inspectability`, `serializability`, `precondition checkability`, and `no main loop ownership` generate this pattern discovered again and again by different programmers in different contexts. Simulations and games that exist in the mind of developers as normal-looking programs end up rewritten in such a way that those four properties are respected, by explicating the underlying control flow diagram that describes them.
 

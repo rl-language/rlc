@@ -1,3 +1,9 @@
+#
+# Part of the RLC Project, under the MIT license. 
+# See stdlib/LICENSE.TXT for license information.
+# SPDX-License-Identifier: MIT
+#
+
 ent Nothing:
 	Bool _dont_care
 

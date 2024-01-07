@@ -95,12 +95,24 @@ Extra dependecies used by the setup script:
 * virtualenv
 * lld
 
+### License
+
+We wish for `RLC` to be usable by all as a compiler, for both commercial and non-commercial purposes.
+In the future, we would like to be able to distribute `RLC` entirely under Apache License, in a structure similar to `LLVM`, but that will depend on the finacial sustainability of the project.
+
+At the moment `RLC` is distributed under the following licensing scheme.
+
+* `RLC` standard library is released under Apache License V2, the intent is to let the standard library to be usable for any purpose, forever.
+* `RLC` code is released under GPL2. As long as you do not redistribute the compiler and its libraries (which is not needed to use it as a compiler) you can use it for any purpose. This should include 95% of the use cases. If you redistribute them, for example, because you are developing a tool that uses the RLC parser library, you will have to distribute it under GPL2, or you will need to contact us for a custom license.
+
+Should `RLC` ever include components that logically require to be linked to a user library to be useful, such as a just-in-time compiler library or runtime libraries, those libraries will have some exception from GPL2 and will be more permissive.
+
 
 ### Installation for developers
 
-We provide a setup script that downloads the rlc repository and a setup script that will download and compile LLVM as well as RLC. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM.
+We provide a setup script that downloads the rlc repository and a setup script that will download and compile `LLVM` as well as `RLC`. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM.
 
-Hard drive space can be reclaimed by deleting LLVM build directory after it has been fully built.
+Hard drive space can be reclaimed by deleting `LLVM` build directory after it has been fully built.
 
 Download the setup.sh file in the root of the repository and then run:
 ```
@@ -109,7 +121,7 @@ source ./setup.sh # clones RLC repo and initialize virtualenvs and submodules
 python rlc/build.py # clones LLVM, builds it and builds RLC
 ```
 
-If that script terminates successfully, you are fully set up to start working on RLC.
+If that script terminates successfully, you are fully set up to start working on `RLC`.
 
 #### What do if run out of space or memory
 Instead of the previous command python, you can run. This will only build the release LLVM version and save a great deal of space.

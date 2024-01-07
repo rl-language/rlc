@@ -1,3 +1,17 @@
+/*
+This file is part of the RLC project.
+
+RLC is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License version 2 as published by the Free Software
+Foundation.
+
+RLC is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+RLC. If not, see <https://www.gnu.org/licenses/>.
+*/
 #include "llvm/Support/Casting.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
@@ -5,7 +19,8 @@
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 
-static mlir::rlc::FunctionMetadataOp emitPreconditionFunction(mlir::rlc::FunctionOp fun)
+static mlir::rlc::FunctionMetadataOp emitPreconditionFunction(
+		mlir::rlc::FunctionOp fun)
 {
 	mlir::IRRewriter rewriter(fun.getContext());
 	rewriter.setInsertionPoint(fun);
@@ -60,22 +75,27 @@ namespace mlir::rlc
 			llvm::SmallVector<mlir::rlc::FunctionOp, 2> ops(
 					range.begin(), range.end());
 
-			for (auto function : ops) {
+			for (auto function : ops)
+			{
 				auto metadata = emitPreconditionFunction(function);
-				if(metadata) {
-					for (auto *user :metadata.getSourceFunction().getUsers()) {
-						if(auto casted = mlir::dyn_cast<mlir::rlc::CanOp>(user))
+				if (metadata)
+				{
+					for (auto* user : metadata.getSourceFunction().getUsers())
+					{
+						if (auto casted = mlir::dyn_cast<mlir::rlc::CanOp>(user))
 							casted.replaceAllUsesWith(metadata.getPreconditionFunction());
 					}
 				}
 			}
 
 			llvm::SmallVector<mlir::rlc::CanOp, 2> canOps;
-			getOperation()->walk([&](mlir::rlc::CanOp canOp) {
-				canOps.push_back(canOp);
-			});
-			for(auto canOp : canOps) {
-				if( not canOp->getUses().empty()) { // The CanOp's who still have users are those that referred to an empty precondition.
+			getOperation()->walk(
+					[&](mlir::rlc::CanOp canOp) { canOps.push_back(canOp); });
+			for (auto canOp : canOps)
+			{
+				if (not canOp->getUses().empty())
+				{	 // The CanOp's who still have users are those that referred to an
+					 // empty precondition.
 					mlir::OpBuilder builder(canOp);
 					auto t = builder.create<mlir::rlc::Constant>(canOp->getLoc(), true);
 					canOp.replaceAllUsesWith(t.getResult());
