@@ -83,6 +83,20 @@ fun main() -> Int:
 	return int(game.board.three_in_a_line())
 ```
 
+### Try the compiler and lsp
+
+We preparred a docker with vscode and rlc inside so you can try it with minimal friction. If you cannot run it this way, contact us and we will provide you with a link where you can try it while it runs on our machines.
+
+```
+docker pull rllang/rlc-demo
+docker run --name code-server -p 127.0.0.1:8080:8080 rllang/rlc-demo
+
+# from another shell
+firefox "http://127.0.0.1:8080/?folder=/home/coder/&payload=%5B%5B%22openFile%22,%22vscode-remote:///home/coder/START_HERE.rl%22%5D%5D"
+
+# the password is fbcc00a4fa28a4e11e44307a
+```
+
 ### Dependencies
 Base:
 * cpp17 compiler
@@ -148,7 +162,7 @@ source environment.sh
 
 To check if everything works correctly run the following command.
 ```
-python python/solve.py --source ./tool/rlc/test/tris.rl
+python python/solve.py --source ./tool/rlc/test/tic_tac_toe.rl
 ```
 If it does not crashes, then you are good to go.
 

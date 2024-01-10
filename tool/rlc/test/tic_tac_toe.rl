@@ -54,7 +54,7 @@ fun current_player(Board board) -> Int:
 fun next_turn(Board board):
 	board.playerTurn = !board.playerTurn
 
-act play() -> Tris:
+act play() -> TicTacToe:
 	let board : Board
 	let score = 10
 	while !full(board):
@@ -96,5 +96,7 @@ fun main() -> Int:
 	game.mark(2, 2)
 	if game.board.full():
 		return 5
-	return int(game.board.three_in_a_line_player(1)) - 1
-
+	if game.board.three_in_a_line_player(1):
+		return 0
+	else:
+		return 1

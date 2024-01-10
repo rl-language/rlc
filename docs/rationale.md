@@ -2,7 +2,7 @@
 
 The `Rulebook` (or `rl` for short) is a domain specific-language that tries to reduce the complexity of writing simulations, such as those used in reinforcement learning, game programming, and similar other domains. This document explains the rationale behind it.
 
-If you want to jump directly into the code, try it out [here](no_link_yet) instead.
+If you want to jump directly into the code, try it out as described in the main page instead instead. If you want to see a quick description of what the `rlc` tool is capable of, instead of the `rl` language, you can see video [here](https://www.youtube.com/watch?v=tMnBo3TGIbU). A less pratical and more rambly philosofical description of why `rl` is usefull can be found [here](./philosophy.md)
 
 ### The Complexity of writing games and rule heavy simulations.
 
@@ -119,11 +119,11 @@ We live in a world where billion dollar companies write code for custom hardware
 
 The four properties identified before, `inspectability`, `serializability`, `precondition checkability`, and `no main loop ownership` generate this pattern discovered again and again by different programmers in different contexts. Simulations and games that exist in the mind of developers as normal-looking programs end up rewritten in such a way that those four properties are respected, by explicating the underlying control flow diagram that describes them.
 
-We assert that the current state of the art is not sustainable, and can be improved.
+We assert that the current state of the art is not sustainable because unrolling the state machines involved in large programs generate a combinatorial explosion in program complexity that makes them hard to refactor and reason about.
 
 ## How RL does it
 
-Here is how [TicTacToe](https://github.com/drblallo/rlc/blob/master/tool/rlc/test/tris.rl) is implemented in the `rlc` (`rl compiler`) test suite.
+Here is how [TicTacToe](https://github.com/drblallo/rlc/blob/master/tool/rlc/test/tic_tac_toe.rl) is implemented in the `rlc` (`rl compiler`) test suite.
 
 The code that implements the game is:
 ```python
@@ -269,8 +269,8 @@ The language is designed to behave the same independently from the underlying ma
 ##### But is it easy to integrate with other codebases?
 `rlc`can emit `C` and `python` wrappers that make it easy to integrate with other programming languages. As a rule of thumb, if your code base can be integrated with `C`, it can be integrated with `rl`.
 
-##### But did we really needed another language?
-Unfortunately yes, various compiler-based and library-based solutions were attempted, but in the end, we reached the conclusion that a domain-specific language was needed. The exact technical nature of these reasons goes beyond the scope of this document, but intuitively the reason is that translating a "procedure-like" simulation into a "class-like" simulation is very similar to what a compiler does when it translates a structured function into a bunch of assembly branch instructions. Any solution that is not using compiler techniques is trying to reinvent the wheel.
+##### But did we really needed another language? / But couldn't this have been a macro/template/generic?
+Unfortunately yes, various compiler-based and library-based solutions were attempted, but in the end, we reached the conclusion that a domain-specific language was needed. The exact technical nature of these reasons goes beyond the scope of this document, but intuitively the reason is that translating a "procedure-like" simulation into a "class-like" simulation is very similar to what a compiler does when it translates a structured function into a bunch of assembly branch instructions and collaboration from the typecheker is required. We have not found any language that was both fast enough and had the required metaprogramming facilities to implement this.
 
 ##### But what is the catch?
 The main catch is that not all programs can be expressed trivially in `rl`.   `rl` is a domain-specific tool, and if your problem does not lie in that domain, `C` is still your best solution. Still, the language is designed to be lean and easy to integrate, so that the parts of your code base that make sense to be expressed in `rl` will do so, and the parts that don't, will not.

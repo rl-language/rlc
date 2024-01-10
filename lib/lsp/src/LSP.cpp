@@ -270,6 +270,12 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			registerArgument(statement.getName(), statement.getType());
 		});
 
+		for (auto op : module.getOps<mlir::rlc::ActionFunction>())
+			registerArgument(op.getUnmangledName(), op.getType());
+
+		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
+			registerArgument(op.getUnmangledName(), op.getType());
+
 		return mlir::success();
 	}
 
@@ -343,6 +349,13 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.detail = prettyType(fType);
 				list.items.push_back(item);
 			});
+
+			mlir::lsp::CompletionItem item;
+			item.label = "is_done()";
+			item.kind = mlir::lsp::CompletionItemKind::Function;
+			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
+			item.detail = prettyType(fun.getIsDoneFunctionType());
+			list.items.push_back(item);
 		}
 		return mlir::success();
 	}
