@@ -3,6 +3,7 @@
 ![RLC Logo](./imgs/RLC_logo.png)
 > ReLiC, the rlc dragon
 
+### RL and RLC
 The RuleBook Compiler (`RLC`) is an MLIR-based compiler for a domain-specific language aimed at simplifying the complexity of developing multiagent simulations at all stages of development.
 
 The elevator pitch description of the `RL` is:
@@ -10,10 +11,10 @@ The elevator pitch description of the `RL` is:
 
 Read the language rationale [here](./docs/rationale.md)
 
-Given a RuleBook file that describes a simulation, it will be able to produce:
-* a compiled library implementing such simulation (implemented)
-* a serialization and deserialization mechanism both in textual and binary format (binary format implemented)
-* a network protocol able to run the simulation remotely (development not yet started)
+At the moment `RLC` is a proof of concept, before release we want for users to be able to produce:
+* a compiled library implementing such simulation (DONE)
+* a serialization and deserialization mechanism both in textual and binary format (binary format DONE)
+* a simple network protocol able to run the simulation remotely (not yet started)
 * a fuzzer able to find bugs in the simulation (development started)
 * machine learning algorithms able to analyze the simulation. (development started)
 
@@ -27,7 +28,7 @@ ent Board:
 	Int[9] slots
 	Bool playerTurn
 
-act play():
+act play() -> TicTacToe:
 	# allocates and initializes a board of type Board
 	let board : Board
 	while !full(board):
@@ -179,14 +180,10 @@ Do not push directly onto branches of this repo. Instead:
 The intent of this workflow is so that reviewrs can use the review feature of github pull requests to have persistent comment threads.
 
 
-### Features  to develop next
-
-#### missing for release
-* allow declarations to be explicitly refs, in general require the user to specify this stuff and the emits error if its is wrong
-
-* scalar type constraints for float
+### Roadmap
 
 #### long term feature
+* allow declarations to be explicitly refs, in general require the user to specify this stuff and the emits error if its is wrong instead of deducing it
 * require clauses out of line (just allow to call any function i guess?)
 * require clauses on structs
 * inline initializers
@@ -201,3 +198,7 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 
 #### machine learning
 * figure out how to make transformers fast
+
+### Contacts
+
+[Discord](https://discord.gg/saSEj9PAt3)

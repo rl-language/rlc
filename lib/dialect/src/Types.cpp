@@ -548,15 +548,15 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
 	{
 		assert(maybeType.getResults().size() <= 1);
-		if (not maybeType.getResults().empty())
-		{
-			typeToMangled(OS, maybeType.getResult(0));
-			OS << "_";
-		}
 		for (auto input : maybeType.getInputs())
 		{
-			typeToMangled(OS, input);
 			OS << "_";
+			typeToMangled(OS, input);
+		}
+		if (not maybeType.getResults().empty())
+		{
+			OS << "_r_";
+			typeToMangled(OS, maybeType.getResult(0));
 		}
 		return;
 	}
@@ -593,7 +593,7 @@ std::string mlir::rlc::mangledName(
 	std::string s;
 	llvm::raw_string_ostream OS(s);
 
-	OS << functionName;
+	OS << "rl_" << functionName << "_";
 	typeToMangled(OS, type);
 	OS.flush();
 

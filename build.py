@@ -275,7 +275,7 @@ def main():
         python,
         "python/solve.py",
         "--source",
-        "./tool/rlc/test/tris.rl",
+        "./tool/rlc/test/tic_tac_toe.rl",
         "--rlc",
         "{}/install/bin/rlc".format(rlc_build_dir),
     )

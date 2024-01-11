@@ -21,7 +21,7 @@ fun to_invoke() -> Int:
 
 int main() {
   int64_t result;
-  to_invokeint64_t_(&result);
+  rl_to_invoke__r_int64_t(&result);
   return 5 - result;
 }
 

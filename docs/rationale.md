@@ -123,7 +123,7 @@ We assert that the current state of the art is not sustainable because unrolling
 
 ## How RL does it
 
-Here is how [TicTacToe](https://github.com/drblallo/rlc/blob/master/tool/rlc/test/tic_tac_toe.rl) is implemented in the `rlc` (`rl compiler`) test suite.
+Here is how [TicTacToe](https://github.com/rl-language/rlc/blob/master/tool/rlc/test/tic_tac_toe.rl) is implemented in the `rlc` (`rl compiler`) test suite.
 
 The code that implements the game is:
 ```python
@@ -212,10 +212,10 @@ class TicTacToe:
 
     # taken from the lines that follow `act mark` in the rl code
     self.board.set(x, y, board.current_player())
-	if board.three_in_a_line_player(board.current_player()):
-		# implied by the fact that there was a return in the original code
-	    self.resumption_index = -1
-		return
+    if board.three_in_a_line_player(board.current_player()):
+        # implied by the fact that there was a return in the original code
+        self.resumption_index = -1
+        return
 
 	board.next_turn()
     # emit the condition of the loop again
@@ -245,17 +245,17 @@ then instrumentation can be written to generically exploit one or more of these 
 
 ###  Conclusion
 
-In this document we described the issue `rl` is trying to tackle, how `rl` does it, and what extra benefit one obtains when using `rl`. If you want to try it out in a live environment, go [here](not_supported_yet).
+In this document we described the issue `rl` is trying to tackle, how `rl` does it, and what extra benefit one obtains when using `rl`. If you want to try it out in a live environment, the main page specifies how do that [here](../README.md).
 
 
 
 ### FAQ:
 
 ##### But is it fast?
-`Rlc` is a `LLVM` based compiler, the performances will be comparable as having written the program in `C`.
+`Rlc` is a `LLVM` based compiler, the performances will be comparable as having written the program in `C`. When procedurers are rewritten, no malloc is introduce. No heap allocation happens, unless it happens in some function called within the body.
 
 ##### But is it easy to learn?
-`Rl` strives to be as easy to use as python. We provide a plugin to have language support in vscode too.
+`Rl` strives to be as easy as possible. We aim for this language to be usable both by proficient and new programmers.
 
 ##### But is it garbage collected?
 No, we emit destructors similarly to `cpp` and `rust`. We are considering if and how to adopt a full borrow checker such as the `rust`.
@@ -270,7 +270,7 @@ The language is designed to behave the same independently from the underlying ma
 `rlc`can emit `C` and `python` wrappers that make it easy to integrate with other programming languages. As a rule of thumb, if your code base can be integrated with `C`, it can be integrated with `rl`.
 
 ##### But did we really needed another language? / But couldn't this have been a macro/template/generic?
-Unfortunately yes, various compiler-based and library-based solutions were attempted, but in the end, we reached the conclusion that a domain-specific language was needed. The exact technical nature of these reasons goes beyond the scope of this document, but intuitively the reason is that translating a "procedure-like" simulation into a "class-like" simulation is very similar to what a compiler does when it translates a structured function into a bunch of assembly branch instructions and collaboration from the typecheker is required. We have not found any language that was both fast enough and had the required metaprogramming facilities to implement this.
+Unfortunately we do need one. Various compiler-based and library-based solutions were attempted, but in the end, we reached the conclusion that a domain-specific language was needed. The exact technical nature of these reasons goes beyond the scope of this document, but intuitively the reason is that translating a "procedure-like" simulation into a "class-like" simulation is very similar to what a compiler does when it translates a structured function into a bunch of assembly branch instructions. On top of that, collaboration from the typecheker is required. We have not found any language that was both fast enough and had the required metaprogramming facilities to implement this.
 
 ##### But what is the catch?
 The main catch is that not all programs can be expressed trivially in `rl`.   `rl` is a domain-specific tool, and if your problem does not lie in that domain, `C` is still your best solution. Still, the language is designed to be lean and easy to integrate, so that the parts of your code base that make sense to be expressed in `rl` will do so, and the parts that don't, will not.

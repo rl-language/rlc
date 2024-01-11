@@ -12,7 +12,7 @@ mkdir rlc-infrastructure
 cd rlc-infrastructure
 
 # INSTALL RLC
-git clone git@github.com:drblallo/rlc.git 
+git clone git@github.com:rl-language/rlc.git 
 
 # SETUP PYTHON
 virtualenv .venv
