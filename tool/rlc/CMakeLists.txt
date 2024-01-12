@@ -5,6 +5,7 @@ rlcAddTool(rlc
 	rlc::parser
 	rlc::conversions
 	rlc::backend
+	rlc::driver
 	MLIRTargetLLVMIRExport
 	LLVMCodeGen
 	LLVMAnalysis

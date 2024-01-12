@@ -24,7 +24,7 @@ namespace mlir::rlc::lsp
 	class LSPContext
 	{
 		public:
-		LSPContext();
+		LSPContext() {}
 
 		void addInclude(llvm::StringRef include)
 		{

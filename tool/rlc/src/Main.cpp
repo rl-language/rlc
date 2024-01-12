@@ -42,10 +42,10 @@ RLC. If not, see <https://www.gnu.org/licenses/>.
 #include "rlc/conversions/RLCToC.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Passes.hpp"
+#include "rlc/driver/Driver.hpp"
 #include "rlc/parser/MultiFileParser.hpp"
 #include "rlc/python/Interfaces.hpp"
 #include "rlc/python/Passes.hpp"
-#include "rlc/utils/Error.hpp"
 
 #if NDEBUG
 static constexpr const bool isDebug = false;
@@ -201,143 +201,73 @@ static cl::opt<bool> ExpectFail(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
-static void configurePassManager(
-		const llvm::SmallVector<std::string, 4> &includeDirs,
-		const std::string &inputFile,
-		llvm::raw_ostream &OS,
-		mlir::PassManager &manager,
-		mlir::rlc::TargetInfo &targetInfo,
-		llvm::SourceMgr &srcManager)
+int main(int argc, char *argv[]);
+
+static mlir::rlc::Driver::Request getRequest()
 {
-	manager.addPass(
-			mlir::rlc::createParseFilePass({ &includeDirs, inputFile, &srcManager }));
+	using namespace mlir::rlc;
 	if (dumpUncheckedAST)
-	{
-		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
-		return;
-	}
-
+		return Driver::Request::dumpUncheckedAST;
 	if (dumpDot)
-	{
-		manager.addPass(mlir::rlc::createUncheckedAstToDotPass({ &OS }));
-		return;
-	}
-
-	manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
-	manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
-	manager.addPass(mlir::rlc::createTypeCheckPass());
-
+		return Driver::Request::dumpDot;
 	if (dumpCheckedAST)
-	{
-		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
-		return;
-	}
-
-	manager.addPass(mlir::rlc::createEmitImplicitDestructorInvocationsPass());
-	manager.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
-	manager.addPass(mlir::rlc::createLowerForFieldOpPass());
-	manager.addPass(mlir::rlc::createLowerIsOperationsPass());
-	manager.addPass(mlir::rlc::createLowerAssignPass());
-	manager.addPass(mlir::rlc::createLowerConstructOpPass());
-	manager.addPass(mlir::rlc::createLowerDestructorsPass());
-	manager.addPass(mlir::rlc::createInstantiateTemplatesPass());
-
-	manager.addPass(mlir::rlc::createLowerConstructOpPass());
-	manager.addPass(mlir::rlc::createLowerAssignPass());
-	manager.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
-	manager.addPass(mlir::rlc::createLowerDestructorsPass());
-
-	manager.addPass(mlir::rlc::createEmitImplicitAssignPass());
-	manager.addPass(mlir::rlc::createEmitImplicitInitPass());
-	manager.addPass(mlir::rlc::createLowerArrayCallsPass());
-	manager.addPass(mlir::rlc::createAddOutOfBoundsCheckPass());
-
+		return Driver::Request::dumpCheckedAST;
 	if (dumpCWrapper)
-	{
-		manager.addPass(mlir::rlc::createPrintCHeaderPass({ &OS }));
-		return;
-	}
-
+		return Driver::Request::dumpCWrapper;
 	if (dumpGodotWrapper)
-	{
-		manager.addPass(mlir::rlc::createPrintGodotPass({ &OS }));
-		return;
-	}
-
-	if (dumpPythonWrapper or dumpPythonAST)
-	{
-		manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
-		manager.addPass(mlir::python::createRLCTypesToPythonTypesPass());
-		manager.addPass(mlir::python::createRLCToPythonPass());
-		if (dumpPythonAST)
-			manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
-		else
-			manager.addPass(mlir::python::createPrintPythonPass({ &OS }));
-		return;
-	}
-
+		return Driver::Request::dumpGodotWrapper;
+	if (dumpPythonAST)
+		return Driver::Request::dumpPythonAST;
+	if (dumpPythonWrapper)
+		return Driver::Request::dumpPythonWrapper;
 	if (dumpRLC)
-	{
-		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
-		return;
-	}
-
-	manager.addPass(mlir::rlc::createLowerActionPass());
-	manager.addPass(mlir::rlc::createLowerAssignPass());
-
+		return Driver::Request::dumpRLC;
 	if (dumpAfterImplicit)
-	{
-		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
-		return;
-	}
-
-	manager.addPass(mlir::rlc::createExtractPreconditionPass());
-
-	if (emitPreconditionChecks)
-	{
-		manager.addPass(mlir::rlc::createAddPreconditionsCheckPass());
-	}
-
-	manager.addPass(mlir::rlc::createLowerAssertsPass());
-	manager.addPass(mlir::rlc::createLowerToCfPass());
-	manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
-	manager.addPass(mlir::rlc::createStripFunctionMetadataPass());
-	manager.addPass(mlir::rlc::createRewriteCallSignaturesPass());
+		return Driver::Request::dumpAfterImplicit;
 	if (dumpFlatIR)
-	{
-		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
-		return;
-	}
-	manager.addPass(mlir::rlc::createLowerToLLVMPass());
-	if (not compileOnly)
-		manager.addPass(mlir::rlc::createEmitMainPass());
-	manager.addPass(mlir::createCanonicalizerPass());
-
+		return Driver::Request::dumpFlatIR;
 	if (dumpMLIR)
-	{
-		manager.addPass(mlir::rlc::createPrintIRPass({ &OS, hidePosition }));
-		return;
-	}
-	manager.addPass(mlir::rlc::createRLCBackEndPass(
-			mlir::rlc::RLCBackEndPassOptions{ &OS,
-																				clangPath,
-																				outputFile,
-																				&ExtraObjectFiles,
-																				dumpIR,
-																				compileOnly,
-																				&targetInfo }));
+		return Driver::Request::dumpMLIR;
+	if (compileOnly)
+		return Driver::Request::compile;
+	return Driver::Request::executable;
 }
 
-static int run(
-		mlir::MLIRContext &context,
-		const llvm::SmallVector<std::string, 4> &includeDirs,
-		const std::string &inputFile,
+static mlir::rlc::Driver configureDriver(
+		char *argv[],
 		llvm::SourceMgr &srcManager,
 		llvm::raw_ostream &OS,
 		mlir::rlc::TargetInfo &info)
 {
+	using namespace mlir::rlc;
+	auto pathToRlc = llvm::sys::fs::getMainExecutable(argv[0], (void *) &main);
+	auto rlcDirectory =
+			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
+	llvm::SmallVector<std::string, 4> includes(
+			IncludeDirs.begin(), IncludeDirs.end());
+	includes.push_back(rlcDirectory);
+
+	Driver driver(srcManager, InputFilePath, outputFile, OS);
+	driver.setRequest(getRequest());
+	driver.setHidePosition(hidePosition);
+	driver.setEmitPreconditionChecks(emitPreconditionChecks);
+	driver.setDumpIR(dumpIR);
+	driver.setClangPath(clangPath);
+	driver.setIncludeDirs(includes);
+	driver.setExtraObjectFile(ExtraObjectFiles);
+	driver.setTargetInfo(&info);
+
+	return driver;
+}
+
+static int run(
+		mlir::MLIRContext &context,
+		const mlir::rlc::Driver &driver,
+		const std::string &inputFile,
+		const mlir::rlc::TargetInfo &info)
+{
 	mlir::PassManager manager(&context);
-	configurePassManager(includeDirs, inputFile, OS, manager, info, srcManager);
+	driver.configurePassManager(manager);
 
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, inputFile, 0, 0), inputFile);
@@ -394,12 +324,15 @@ int main(int argc, char *argv[])
 	mlir::registerLLVMDialectTranslation(Registry);
 	context.appendDialectRegistry(Registry);
 	context.loadAllAvailableDialects();
-	auto pathToRlc = llvm::sys::fs::getMainExecutable(argv[0], (void *) &main);
-	auto rlcDirectory =
-			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
-	llvm::SmallVector<std::string, 4> includes(
-			IncludeDirs.begin(), IncludeDirs.end());
-	includes.push_back(rlcDirectory);
+
+	if (outputFile == "-" and
+			(getRequest() == mlir::rlc::Driver::Request::executable or
+			 getRequest() == mlir::rlc::Driver::Request::compile))
+	{
+		errs()
+				<< "cannot write on a executable on stdout, specify a path with -o\n";
+		return errorCode(-1);
+	}
 
 	error_code error;
 	raw_fd_ostream OS(outputFile, error);
@@ -418,6 +351,6 @@ int main(int argc, char *argv[])
 		return errorCode(0);
 	}
 
-	return errorCode(
-			run(context, includes, InputFilePath, sourceManager, OS, targetInfo));
+	auto driver = configureDriver(argv, sourceManager, OS, targetInfo);
+	return errorCode(run(context, driver, InputFilePath, targetInfo));
 }

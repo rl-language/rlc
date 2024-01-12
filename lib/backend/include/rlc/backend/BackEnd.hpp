@@ -35,6 +35,15 @@ namespace mlir::rlc
 		bool isShared() const;
 		const llvm::DataLayout& getDataLayout() const;
 
+		TargetInfo(TargetInfo&& other): pimpl(other.pimpl)
+		{
+			other.pimpl = nullptr;
+		}
+		TargetInfo& operator==(TargetInfo&& other);
+
+		TargetInfo(const TargetInfo& other) = delete;
+		TargetInfo& operator=(const TargetInfo& other) = delete;
+
 		TargetInfoImpl* pimpl;
 	};
 

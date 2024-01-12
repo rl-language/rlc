@@ -183,7 +183,7 @@ def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
            "dump ir and stop">,
     Option<"compileOnly", "compile and stop", "bool", /*default=*/"false",
            "compile and stop">,
-    Option<"targetInfo", "info about the target", "mlir::rlc::TargetInfo*", /*default=*/"nullptr",
+    Option<"targetInfo", "info about the target", "const mlir::rlc::TargetInfo*", /*default=*/"nullptr",
            "info about the target">,
   ];
   let dependentDialects = ["rlc::RLCDialect"];

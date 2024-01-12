@@ -185,6 +185,16 @@ mlir::rlc::TargetInfo::TargetInfo(
 	pimpl = new TargetInfoImpl(triple, shared, optimize);
 }
 
+mlir::rlc::TargetInfo &mlir::rlc::TargetInfo::operator==(TargetInfo &&other)
+{
+	if (this == &other)
+		return *this;
+	delete pimpl;
+	pimpl = other.pimpl;
+	other.pimpl = nullptr;
+	return *this;
+}
+
 mlir::rlc::TargetInfo::~TargetInfo() { delete pimpl; }
 
 const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
@@ -203,7 +213,7 @@ bool mlir::rlc::TargetInfo::isShared() const
 }
 
 static void compile(
-		mlir::rlc::TargetInfo &info,
+		const mlir::rlc::TargetInfo &info,
 		std::unique_ptr<llvm::Module> M,
 		llvm::raw_pwrite_stream &OS)
 {
