@@ -173,16 +173,14 @@ If you use some whacky shell of your own or you did not followed the default set
 ### How to contruibute for developers
 Do not push directly onto branches of this repo. Instead:
 * fork this project. Make sure it is still private
-* add me @drblallo to the developers for your fork
 * push your branches to your fork
 * open a pull request for the branch relevant to your project
 
 The intent of this workflow is so that reviewrs can use the review feature of github pull requests to have persistent comment threads.
 
-
 ### Roadmap
 
-#### long term feature
+#### near term feature
 * allow declarations to be explicitly refs, in general require the user to specify this stuff and the emits error if its is wrong instead of deducing it
 * require clauses out of line (just allow to call any function i guess?)
 * require clauses on structs
@@ -198,6 +196,11 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 
 #### machine learning
 * figure out how to make transformers fast
+
+#### for 1.0
+* windows support
+* some very large hand written program with machine learning and all
+* some other language testsuite transpiled to rl
 
 ### Contacts
 
