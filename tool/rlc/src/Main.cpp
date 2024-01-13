@@ -93,6 +93,12 @@ static cl::opt<bool> dumpFlatIR(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> timing(
+		"timing",
+		cl::desc("mesure time"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpCheckedAST(
 		"type-checked",
 		cl::desc("dumps the type checked ast before template expansion and exits"),
@@ -268,6 +274,9 @@ static int run(
 {
 	mlir::PassManager manager(&context);
 	driver.configurePassManager(manager);
+
+	if (timing)
+		manager.enableTiming();
 
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, inputFile, 0, 0), inputFile);
