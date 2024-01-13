@@ -214,6 +214,9 @@ mlir::LogicalResult mlir::rlc::UnderTypeCheckMarker::typeCheck(
 mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	if (getOperation()->getParentOfType<mlir::rlc::FunctionOp>())
+		return mlir::rlc::logError(
+				*this, "SubAction statements can only appear in Action Functions");
 	for (auto *child : ops(getBody()))
 	{
 		if (mlir::rlc::typeCheck(*child, builder).failed())
@@ -414,6 +417,15 @@ mlir::LogicalResult mlir::rlc::Yield::typeCheck(
 	return mlir::success();
 }
 
+static bool isReturnTypeCompatible(
+		mlir::Type returnValue, mlir::Type functionReturnType)
+{
+	if (auto casted = functionReturnType.dyn_cast<mlir::rlc::ReferenceType>())
+		return casted.getUnderlying() == returnValue;
+
+	return returnValue == functionReturnType;
+}
+
 mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -432,6 +444,25 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 																	 : mlir::rlc::VoidType::get(getContext()));
 	newOne.getBody().takeBody(getBody());
 	rewriter.eraseOp(*this);
+
+	if (auto parentFunction = newOne->getParentOfType<mlir::rlc::FunctionOp>())
+	{
+		if (not isReturnTypeCompatible(
+						newOne.getResult(), parentFunction.getResultTypes()[0]))
+		{
+			auto _ = mlir::rlc::logError(
+					newOne,
+					"Return statement returns values incompatible with the function "
+					"signature");
+			_ = mlir::rlc::logRemark(
+					newOne, "Return value type is " + prettyType(newOne.getResult()));
+
+			return mlir::rlc::logRemark(
+					parentFunction,
+					"Function return type is " +
+							prettyType(parentFunction.getResultTypes()[0]));
+		}
+	}
 
 	return mlir::success();
 }
@@ -777,6 +808,9 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::ActionsStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	if (getOperation()->getParentOfType<mlir::rlc::FunctionOp>())
+		return mlir::rlc::logError(
+				*this, "Actions statements can only appear in Action Functions");
 	auto &rewriter = builder.getRewriter();
 
 	for (auto &region : getActions())
@@ -846,6 +880,9 @@ mlir::LogicalResult mlir::rlc::CastOp::typeCheck(
 mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	if (getOperation()->getParentOfType<mlir::rlc::FunctionOp>())
+		return mlir::rlc::logError(
+				*this, "Action statements can only appear in Action Functions");
 	auto &rewriter = builder.getRewriter();
 	llvm::SmallVector<mlir::Type> deducedTypes;
 
@@ -1553,4 +1590,16 @@ mlir::rlc::UncheckedTraitDefinition::getTemplateParameterType()
 {
 	return mlir::rlc::TemplateParameterType::get(
 			getContext(), getTemplateParameter(), nullptr, false);
+}
+
+mlir::LogicalResult mlir::rlc::FunctionOp::isTemplate()
+{
+	if (isTemplateType(getFunctionType()).succeeded())
+		return mlir::success();
+
+	for (auto t : getTemplateParameters())
+		if (isTemplateType(t.cast<mlir::TypeAttr>().getValue()).succeeded())
+			return mlir::success();
+
+	return mlir::failure();
 }

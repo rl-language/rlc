@@ -657,6 +657,7 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
 	mlir::LogicalResult typeCheckFunctionDeclaration(
 		mlir::IRRewriter& rewriter,
 		mlir::rlc::RLCTypeConverter& converter);
+    mlir::LogicalResult isTemplate(); 
   }];
 
    let builders = [
@@ -667,6 +668,8 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let assemblyFormat = [{
 	$unmangled_name( $template_parameters^ )? type($result) $argNames $precondition $body attr-dict 
   }];
+
+
 }
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {

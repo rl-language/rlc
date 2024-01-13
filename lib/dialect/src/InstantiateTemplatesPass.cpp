@@ -274,7 +274,7 @@ namespace mlir::rlc
 			llvm::SmallVector<mlir::rlc::FunctionOp> templates;
 			for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
 			{
-				if (isTemplateType(op.getType()).succeeded())
+				if (op.isTemplate().succeeded())
 					templates.push_back(op);
 			}
 

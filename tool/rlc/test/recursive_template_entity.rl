@@ -13,6 +13,6 @@ fun<K> init(SamePair<K> pair):
 		pair.content.first = 5
 		pair.content.second = 5
 
-fun<K> main() -> Int:
+fun main() -> Int:
 	let var : SamePair<Int>
 	return var.content.first + var.content.second - 10
