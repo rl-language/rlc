@@ -203,8 +203,10 @@ static void registerConversions(
 
 				return mlir::FunctionType::get(use.getContext(), types, { converted });
 			});
-	converter.addConversion([&](mlir::rlc::ReferenceType t) {
+	converter.addConversion([&](mlir::rlc::ReferenceType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
+		if (not converted)
+			return converted;
 		return mlir::rlc::ReferenceType::get(t.getContext(), converted);
 	});
 	converter.addConversion([](mlir::rlc::IntegerType t) { return t; });
@@ -415,8 +417,10 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 	for (auto fun : getSymbolTable().get(
 					 mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>()))
 	{
-		typeToInitFunction[fun.getDefiningOp<mlir::rlc::FunctionOp>()
-													 .getArgumentTypes()[0]] = fun;
+		auto casted = fun.getDefiningOp<mlir::rlc::FunctionOp>();
+		if (casted and casted.getFunctionType().getNumInputs() == 1 and
+				casted.getFunctionType().getNumResults() == 0)
+			typeToInitFunction[casted.getArgumentTypes()[0]] = fun;
 	}
 
 	for (auto fun : op.getOps<mlir::rlc::FunctionOp>())

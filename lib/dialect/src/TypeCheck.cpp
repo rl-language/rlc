@@ -289,7 +289,10 @@ static mlir::LogicalResult deduceFunctionTypes(mlir::ModuleOp op)
 	for (auto fun : funs)
 	{
 		if (fun.typeCheckFunctionDeclaration(rewriter, converter).failed())
+		{
+			fun.erase();
 			return mlir::failure();
+		}
 	}
 
 	return mlir::success();
@@ -331,6 +334,21 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 
 		if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
 			return mlir::failure();
+
+		bool needsRet = not fun.getResultTypes().empty() and
+										not fun.getResultTypes()[0].isa<mlir::rlc::VoidType>() and
+										not fun.isDeclaration();
+
+		if (needsRet)
+			fun.walk([&](mlir::rlc::ReturnStatement statement) { needsRet = false; });
+
+		if (needsRet)
+		{
+			return mlir::rlc::logError(
+					fun,
+					"Function with non-void return type needs at least a return "
+					"statement");
+		}
 	}
 	return mlir::success();
 }
@@ -342,6 +360,20 @@ static mlir::LogicalResult deduceTraitTypes(mlir::ModuleOp op)
 
 	llvm::SmallVector<mlir::rlc::UncheckedTraitDefinition, 4> funs(
 			op.getOps<mlir::rlc::UncheckedTraitDefinition>());
+	llvm::StringMap<mlir::rlc::UncheckedTraitDefinition> alreadyDeclared;
+
+	for (auto fun : funs)
+	{
+		if (alreadyDeclared.contains(fun.getName()))
+		{
+			auto _ = mlir::rlc::logError(
+					fun, "Trait " + fun.getName() + " already declared");
+
+			return mlir::rlc::logRemark(
+					alreadyDeclared[fun.getName()], "Previous declaration here");
+		}
+		alreadyDeclared[fun.getName()] = fun;
+	}
 	for (auto fun : funs)
 	{
 		if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
@@ -360,10 +392,40 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 	for (auto fun : funs)
 	{
 		auto funType = builder.typeOfAction(fun);
+		if (funType == nullptr)
+		{
+			return mlir::rlc::logError(
+					fun,
+					mlir::rlc::prettyType(fun.getEntityType()) +
+							" is not allowed as action return type");
+		}
 
-		mlir::Type actionType =
-				builder.getConverter().convertType(mlir::FunctionType::get(
-						op.getContext(), fun.getFunctionType().getInputs(), { funType }));
+		llvm::SmallVector<mlir::Type, 4> convertedArgs;
+		for (auto arg : fun.getFunctionType().getInputs())
+		{
+			auto converted = builder.getConverter().convertType(arg);
+			if (not converted)
+			{
+				return mlir::rlc::logError(
+						fun,
+						"No known type named " + mlir::rlc::prettyType(arg) +
+								" in argument of Action Function declaration");
+			}
+			convertedArgs.emplace_back(converted);
+		}
+
+		auto convertedReturnType = builder.getConverter().convertType(funType);
+		if (convertedReturnType == nullptr)
+		{
+			return mlir::rlc::logError(
+					fun,
+					"Return type of Action Function declaration must be a name, got "
+					"instead " +
+							mlir::rlc::prettyType(funType));
+		}
+
+		mlir::Type actionType = mlir::FunctionType::get(
+				op.getContext(), convertedArgs, { convertedReturnType });
 
 		rewriter.setInsertionPoint(fun);
 		auto newAction = rewriter.create<mlir::rlc::ActionFunction>(

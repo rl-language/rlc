@@ -160,9 +160,24 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 	if (builder.typeOfAction(fun).cast<mlir::rlc::EntityType>().isInitialized())
 		return fun;
 
+	builder.getRewriter().setInsertionPointToStart(&fun.getBody().front());
+	if (mlir::isa<mlir::rlc::UnderTypeCheckMarker>(fun.getBody().front().front()))
+	{
+		auto _ = logError(
+				fun,
+				"Found recursive call path involving Action Declaration. This is not "
+				"allowed since would actions frame of infinite size");
+		return nullptr;
+	}
+
+	builder.getRewriter().create<mlir::rlc::UnderTypeCheckMarker>(fun.getLoc());
+
 	auto _ = builder.addSymbolTable();
 	if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
 		return nullptr;
+
+	// remove the marker
+	fun.getBody().front().front().erase();
 
 	assignActionIndicies(fun);
 	auto newF = deduceActionType(fun);
@@ -190,6 +205,12 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 	return LogicalResult::success();
 }
 
+mlir::LogicalResult mlir::rlc::UnderTypeCheckMarker::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -202,11 +223,17 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	mlir::rlc::Yield yield =
 			mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
 	mlir::Value frameVar = yield.getArguments()[0];
+	if (not frameVar.getType().isa<mlir::rlc::EntityType>() or
+			not builder.isEntityOfAction(frameVar.getType()))
+	{
+		return logError(
+				*this,
+				"Subaction statement must refer to a action, not a " +
+						prettyType(frameVar.getType()));
+	}
 	auto underlyingType = frameVar.getType().cast<mlir::rlc::EntityType>();
 	auto underlying = builder.getActionOf(underlyingType)
 												.getDefiningOp<mlir::rlc::ActionFunction>();
-
-	llvm::SmallVector<mlir::Value, 2> actionValues = underlying.getActions();
 
 	mlir::IRRewriter &rewiter = builder.getRewriter();
 	rewiter.setInsertionPoint(*this);
@@ -226,6 +253,13 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			getBody().front().front().moveBefore(*this);
 	}
 
+	llvm::SmallVector<mlir::Value, 2> actionValues = underlying.getActions();
+	if (actionValues.empty())
+	{
+		rewiter.setInsertionPointAfter(*this);
+		erase();
+		return mlir::success();
+	}
 	rewiter.setInsertionPoint(*this);
 
 	if (not getRunOnce())
@@ -447,8 +481,7 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 	auto deducedType = builder.getConverter().convertType(getTypeOrTrait());
 	if (deducedType == nullptr)
 	{
-		emitRemark("In Is expression");
-		return mlir::failure();
+		return mlir::rlc::logRemark(*this, "In Is expression");
 	}
 
 	rewriter.setInsertionPoint(getOperation());
@@ -636,9 +669,13 @@ static mlir::LogicalResult maybeInstantiateAction(
 	auto newF = mlir::rlc::detail::typeCheckAction(
 			actionFunction, &builder.getRootTable());
 
-	builder.addActionToRootTable(newF);
-	builder.registerAction(newF);
-	return mlir::success(newF != nullptr);
+	if (newF)
+	{
+		builder.addActionToRootTable(newF);
+		builder.registerAction(newF);
+		return mlir::success();
+	}
+	return mlir::failure();
 }
 
 mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
@@ -677,6 +714,13 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 		return maybeInstantiateAction(builder, newCall->getResults()[0]);
 	}
 
+	if (newCall->getNumResults() == 0 and
+			not getResults().front().getUsers().empty())
+	{
+		return logError(
+				*this, "Call of void returning function cannot be used as expression");
+	}
+
 	rewriter.eraseOp(*this);
 	if (unresolvedCallee)
 		rewriter.eraseOp(unresolvedCallee);
@@ -712,11 +756,10 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 	{
 		if (argument.getType() != yield.getArguments()[0].getType())
 		{
-			auto _ = logError(
+			return logError(
 					*this,
 					"for field statement does not support expressions with "
 					"different types");
-			return mlir::failure();
 		}
 	}
 
@@ -742,6 +785,12 @@ mlir::LogicalResult mlir::rlc::ActionsStatement::typeCheck(
 		for (auto *op : ops(region))
 			if (mlir::rlc::typeCheck(*op, builder).failed())
 				return mlir::failure();
+	}
+
+	if (getActions().empty())
+	{
+		return logError(
+				*this, "Actions statement must have at least 1 sub action statement");
 	}
 
 	return mlir::success();
@@ -780,8 +829,7 @@ mlir::LogicalResult mlir::rlc::ConstructOp::typeCheck(
 	auto &rewriter = builder.getRewriter();
 	if (deducedType == nullptr)
 	{
-		emitRemark("in construction expression");
-		return mlir::failure();
+		return logRemark(*this, "in construction expression");
 	}
 
 	rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(*this, deducedType);
@@ -806,8 +854,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		auto converted = builder.getConverter().convertType(operand.getType());
 		if (not converted)
 		{
-			getOperation()->emitRemark("in of argument of action statement");
-			return mlir::failure();
+			return logRemark(*this, "in of argument of action statement");
 		}
 		operand.setType(converted);
 	}
@@ -904,6 +951,14 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 
 	auto converted = builder.getConverter().convertType(getResult().getType());
 
+	if (not converted)
+	{
+		return logError(
+				*this,
+				"Type argument of __builtin_from_array must be a primitive type, not " +
+						prettyType(getResult().getType()));
+	}
+
 	if (converted.isa<mlir::rlc::FloatType>())
 	{
 		if (castedInput.getArraySize() != 8)
@@ -995,8 +1050,7 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 		if (element.getType() != getArgs()[0].getType())
 		{
 			emitOpError("initializer list has arguments of different type");
-			element.getDefiningOp()->emitRemark("missmatched argument here");
-			return mlir::failure();
+			return logRemark(element.getDefiningOp(), "missmatched argument here");
 		}
 	}
 
@@ -1159,8 +1213,10 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 		auto checkedParameterType = converter.convertType(unchecked);
 		if (not checkedParameterType)
 		{
-			emitRemark("in function definition");
-			return mlir::failure();
+			return logError(
+					*this,
+					"No know type " + prettyType(unchecked) +
+							" in function declaration parameter");
 		}
 		checkedTemplateParameters.push_back(checkedParameterType);
 		auto actualType =
@@ -1171,8 +1227,10 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	auto deducedType = scopedConverter.convertType(getFunctionType());
 	if (deducedType == nullptr)
 	{
-		emitRemark("in function declaration " + getUnmangledName());
-		return mlir::failure();
+		return logError(
+				*this,
+				"No known type " + prettyType(getFunctionType().getResult(0)) +
+						" in function declaration return type");
 	}
 	assert(deducedType.isa<mlir::FunctionType>());
 

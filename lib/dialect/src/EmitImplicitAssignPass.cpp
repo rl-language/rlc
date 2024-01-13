@@ -116,11 +116,11 @@ namespace mlir::rlc
 				continue;
 
 			builder.getRewriter().setInsertionPoint(assign);
-			builder.emitCall(
+			auto* result = builder.emitCall(
 					assign,
 					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 					{ assign.getLhs(), assign.getRhs() });
-			builder.getRewriter().eraseOp(assign);
+			builder.getRewriter().replaceOp(assign, result->getResult(0));
 		}
 	}
 

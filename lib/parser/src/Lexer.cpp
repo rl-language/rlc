@@ -262,7 +262,8 @@ Token Lexer::eatNumber()
 
 	if (*in != '.')
 	{
-		lInt64 = stol(number);
+		if (llvm::StringRef(number).consumeInteger(10, lInt64))
+			return Token::Error;
 		return Token::Int64;
 	}
 
@@ -496,7 +497,7 @@ bool Lexer::eatComment()
 {
 	if (*in == '#')
 	{
-		while (*in != '\n')
+		while (*in != '\n' and *in != '\0')
 			eatChar();
 		return true;
 	}

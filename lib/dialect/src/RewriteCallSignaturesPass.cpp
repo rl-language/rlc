@@ -41,6 +41,10 @@ namespace mlir::rlc
 
 				mlir::IRRewriter rewriter(&getContext());
 				fun.walk([&](mlir::rlc::Yield yield) {
+					// happens with unrechable yields
+					if (yield.getArguments().empty())
+						return;
+
 					rewriter.setInsertionPoint(yield);
 					rewriter.create<mlir::rlc::YieldReference>(
 							yield.getLoc(), yield.getArguments()[0]);

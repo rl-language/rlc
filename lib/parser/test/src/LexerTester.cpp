@@ -69,6 +69,12 @@ TEST(LexerTest, operators)
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
+TEST(LexerTest, tooLargeNumber)
+{
+	Lexer lexer("44444444444444444444444444444444444444444444444444444444");
+	EXPECT_EQ(lexer.next(), Token::Error);
+}
+
 TEST(LexerTest, lexerIndentTest)
 {
 	Lexer lexer("ent \n\t\telse\n\t\tin\t  \nfor");

@@ -298,6 +298,16 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		OS << maybeType.getName();
 		return;
 	}
+
+	if (auto maybeType = t.dyn_cast<mlir::rlc::UncheckedTemplateParameterType>())
+	{
+		OS << maybeType.getName();
+		if (maybeType.getTrait() != nullptr)
+		{
+			OS << ":" << maybeType.getTrait();
+		}
+		return;
+	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
 	{
 		OS << maybeType.getName();
@@ -377,7 +387,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::ReferenceType>())
 	{
-		OS << "Ref ";
+		OS << "ref ";
 		typeToPretty(OS, maybeType.getUnderlying());
 		return;
 	}

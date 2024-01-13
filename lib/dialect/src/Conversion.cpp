@@ -1471,7 +1471,7 @@ static mlir::Value lowerToIntCast(
 {
 	if (op.getResult().getType() == op.getOperand().getType())
 	{
-		return op.getOperand();
+		return lhs;
 	}
 	if (isRLCFInt(op.getResult().getType()))
 	{
@@ -1531,6 +1531,7 @@ static mlir::Value lowerToIntCast(
 		return builder.create<mlir::LLVM::UIToFPOp>(
 				lhs.getLoc(), builder.getF64Type(), isZero);
 	}
+
 	return toBool(builder, lhs);
 }
 

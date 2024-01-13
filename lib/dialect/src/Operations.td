@@ -1728,6 +1728,10 @@ def RLC_FunctionMetadataOp : RLC_Dialect<"function_metadata"> {
   }];
 }
 
+def RLC_UnderTypeCheckMarker : RLC_Dialect<"under_type_check", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary="used then them removed in type check to mark who si being currently typechecked";
+  let assemblyFormat = "attr-dict";
+}
 
 def RLC_AbortOp : RLC_Dialect<"abort", [Terminator]> {
   let summary="terminates the execution.";

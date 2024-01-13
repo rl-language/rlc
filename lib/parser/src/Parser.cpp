@@ -683,12 +683,15 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 			location, name, runOnce, expressions);
 	builder.createBlock(&operation.getBody());
 	auto onExit = [&, this](mlir::Value exp) {
-		builder.create<mlir::rlc::Yield>(
-				getCurrentSourcePos(), mlir::ValueRange(exp));
+		if (exp)
+			builder.create<mlir::rlc::Yield>(
+					getCurrentSourcePos(), mlir::ValueRange(exp));
 		builder.setInsertionPointAfter(operation);
+		if (not exp)
+			operation.erase();
 	};
 
-	TRY(exp, expression(), onExit(*exp));
+	TRY(exp, expression(), onExit(nullptr));
 	EXPECT(Token::Newline);
 	onExit(*exp);
 
@@ -704,6 +707,15 @@ llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
 	EXPECT(Token::Indent);
 
 	llvm::SmallVector<llvm::SmallVector<mlir::Operation*, 2>, 4> ops;
+
+	ops.push_back({});
+	do
+	{
+		TRY(op, statement());
+		ops.back().push_back(*op);
+		while (accept<Token::Newline>())
+			;
+	} while (current != Token::KeywordAction and current != Token::Deindent);
 
 	while (not accept<Token::Deindent>())
 	{
