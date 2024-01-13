@@ -119,7 +119,7 @@ We live in a world where billion dollar companies write code for custom hardware
 
 The four properties identified before, `inspectability`, `serializability`, `precondition checkability`, and `no main loop ownership` generate this pattern discovered again and again by different programmers in different contexts. Simulations and games that exist in the mind of developers as normal-looking programs end up rewritten in such a way that those four properties are respected, by explicating the underlying control flow diagram that describes them.
 
-We assert that the current state of the art is not sustainable because unrolling the state machines involved in large programs generate a combinatorial explosion in program complexity that makes them hard to refactor and reason about.
+We assert that the current state of the art is not sustainable because unrolling the state machines involved in large programs generates a combinatorial explosion in program complexity that makes them hard to refactor and reason about. Almost only trivial games are implementable this way.
 
 ## How RL does it
 
@@ -228,7 +228,7 @@ class TicTacToe:
    return self.resumption_index == 1
 ```
 
-This is it, the whole Raison d'etre of the `rl` language is just that, to automatize the tedious and error-prone process of translating a procedure-like description of a simulation into a class-like description. It may look like not a lot, but it took more than 30.000 lines of code to have it working and easy to use.
+This is it, the whole Raison d'etre of the `rl` language is just that, to automatize the tedious and error-prone process of translating a procedure-like description of a simulation into a class-like description.
 
 ## Building on top of it
 We saw that `rl` has been created to solve the 4 issues of `inspectability`, `serializability`, `precondition checkability`, and `no main loop ownership` described earlier.  Of course, having a tool able to perform this transformation is not the end of the story. Since that simple implementation `TicTacToe` describes in a compact way
