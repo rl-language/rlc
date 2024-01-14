@@ -96,7 +96,10 @@ namespace mlir::rlc
 		if (auto type = toConsider.dyn_cast<mlir::rlc::EntityType>())
 		{
 			mlir::rlc::OverloadResolver resolver(builder.getSymbolTable());
-			auto overload = resolver.findOverloads("drop", mlir::TypeRange({ type }));
+			auto overload = resolver.findOverloads(
+					builder.getRewriter().getUnknownLoc(),
+					"drop",
+					mlir::TypeRange({ type }));
 			if (not overload.empty())
 			{
 				requireDestructor[toConsider] = true;
@@ -276,7 +279,8 @@ namespace mlir::rlc
 
 		for (auto type : destructorsToCreate)
 		{
-			if (auto overload = resolver.findOverload("drop", { type });
+			if (auto overload = resolver.findOverload(
+							builder.getRewriter().getUnknownLoc(), "drop", { type });
 					overload != nullptr)
 			{
 				continue;

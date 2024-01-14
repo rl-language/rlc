@@ -224,11 +224,19 @@ namespace mlir::rlc
 		void removeActionFromRootTable(mlir::Operation* op);
 		void addActionToRootTable(mlir::Operation* op);
 
+		mlir::Operation* getDeclarationOfType(mlir::Type t)
+		{
+			if (typeTypeDeclaration.contains(t))
+				return typeTypeDeclaration.at(t);
+			return nullptr;
+		}
+
 		private:
 		mlir::ModuleOp op;
 		mlir::IRRewriter rewriter;
 		std::vector<std::unique_ptr<ValueTable>> values;
 		std::vector<std::unique_ptr<RLCTypeConverter>> converter;
+		llvm::DenseMap<mlir::Type, mlir::Operation*> typeTypeDeclaration;
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToInitFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> actionTypeToAction;
 		llvm::DenseMap<mlir::Value, mlir::Type> actionToActionType;

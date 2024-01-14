@@ -36,19 +36,26 @@ namespace mlir::rlc
 				llvm::StringRef name,
 				mlir::TypeRange arguments);
 
-		mlir::Value findOverload(llvm::StringRef name, mlir::TypeRange arguments);
+		mlir::Value findOverload(
+				mlir::Location callPoint,
+				llvm::StringRef name,
+				mlir::TypeRange arguments);
 
 		llvm::SmallVector<mlir::Value, 2> findOverloads(
-				llvm::StringRef name, mlir::TypeRange arguments);
+				mlir::Location callPoint,
+				llvm::StringRef name,
+				mlir::TypeRange arguments);
 
 		// returns the type of the intantiated template if possibleCallee is the
 		// type of a template, or returns possibleCallee if it is not a template.
 		// returns nullptr if the overload does not match
 		mlir::Type deduceTemplateCallSiteType(
+				mlir::Location callPoint,
 				mlir::TypeRange callSiteArgumentTypes,
 				mlir::FunctionType possibleCallee);
 
 		mlir::LogicalResult deduceSubstitutions(
+				mlir::Location callPoint,
 				llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type>&
 						substitutions,
 				mlir::Type calleeArgument,

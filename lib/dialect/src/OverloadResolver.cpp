@@ -18,6 +18,7 @@ RLC. If not, see <https://www.gnu.org/licenses/>.
 #include "rlc/dialect/Operations.hpp"
 
 mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
+		mlir::Location callPoint,
 		llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type>& substitutions,
 		mlir::Type calleeArgument,
 		mlir::Type callSiteArgument)
@@ -32,7 +33,7 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 	{
 		if (templateParameter.getTrait() != nullptr and
 				templateParameter.getTrait()
-						.typeRespectsTrait(callSiteArgument, *symbolTable)
+						.typeRespectsTrait(callPoint, callSiteArgument, *symbolTable)
 						.failed())
 			return mlir::failure();
 
@@ -56,7 +57,8 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		for (auto [callee, callsite] :
 				 llvm::zip(pair.first.getBody(), pair.second.getBody()))
 		{
-			if (deduceSubstitutions(substitutions, callee, callsite).failed())
+			if (deduceSubstitutions(callPoint, substitutions, callee, callsite)
+							.failed())
 				return mlir::failure();
 		}
 		return mlir::success();
@@ -79,7 +81,10 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 				return mlir::failure();
 		}
 		return deduceSubstitutions(
-				substitutions, pair.first.getUnderlying(), pair.second.getUnderlying());
+				callPoint,
+				substitutions,
+				pair.first.getUnderlying(),
+				pair.second.getUnderlying());
 	}
 
 	if (auto pair =
@@ -88,7 +93,10 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 			pair.first and pair.second)
 	{
 		return deduceSubstitutions(
-				substitutions, pair.first.getUnderlying(), pair.second.getUnderlying());
+				callPoint,
+				substitutions,
+				pair.first.getUnderlying(),
+				pair.second.getUnderlying());
 	}
 
 	if (auto pair = std::pair{ calleeArgument.dyn_cast<mlir::FunctionType>(),
@@ -98,13 +106,15 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		for (auto [callee, callsite] :
 				 llvm::zip(pair.first.getInputs(), pair.second.getInputs()))
 		{
-			if (deduceSubstitutions(substitutions, callee, callsite).failed())
+			if (deduceSubstitutions(callPoint, substitutions, callee, callsite)
+							.failed())
 				return mlir::failure();
 		}
 		for (auto [callee, callsite] :
 				 llvm::zip(pair.first.getResults(), pair.second.getResults()))
 		{
-			if (deduceSubstitutions(substitutions, callee, callsite).failed())
+			if (deduceSubstitutions(callPoint, substitutions, callee, callsite)
+							.failed())
 				return mlir::failure();
 		}
 		return mlir::success();
@@ -114,13 +124,16 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 }
 
 mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
-		mlir::TypeRange callSiteArgumentTypes, mlir::FunctionType possibleCallee)
+		mlir::Location callPoint,
+		mlir::TypeRange callSiteArgumentTypes,
+		mlir::FunctionType possibleCallee)
 {
 	llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type> substitutions;
 	for (auto [callSiteArgument, calleeArgument] :
 			 llvm::zip(callSiteArgumentTypes, possibleCallee.getInputs()))
 	{
-		if (deduceSubstitutions(substitutions, calleeArgument, callSiteArgument)
+		if (deduceSubstitutions(
+						callPoint, substitutions, calleeArgument, callSiteArgument)
 						.failed())
 			return nullptr;
 	}
@@ -156,9 +169,10 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 }
 
 mlir::Value mlir::rlc::OverloadResolver::findOverload(
-		llvm::StringRef name, mlir::TypeRange arguments)
+		mlir::Location callPoint, llvm::StringRef name, mlir::TypeRange arguments)
 {
-	llvm::SmallVector<mlir::Value> matching = findOverloads(name, arguments);
+	llvm::SmallVector<mlir::Value> matching =
+			findOverloads(callPoint, name, arguments);
 
 	if (not matching.empty())
 		return matching.front();
@@ -194,8 +208,15 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 	return nullptr;
 }
 
+static bool locsAreInSameFile(mlir::Location l, mlir::Location r)
+{
+	auto casted1 = l.cast<mlir::FileLineColLoc>();
+	auto catsed2 = r.cast<mlir::FileLineColLoc>();
+	return casted1.getFilename() == catsed2.getFilename();
+}
+
 llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
-		llvm::StringRef name, mlir::TypeRange arguments)
+		mlir::Location callPoint, llvm::StringRef name, mlir::TypeRange arguments)
 {
 	llvm::SmallVector<mlir::Value, 2> matching;
 	for (auto candidate : symbolTable->get(name))
@@ -207,9 +228,14 @@ llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 		if (casted.getNumInputs() != arguments.size())
 			continue;
 
+		if (name.starts_with("_") and
+				not locsAreInSameFile(candidate.getDefiningOp()->getLoc(), callPoint))
+			continue;
+
 		if (deduceTemplateCallSiteType(
-						arguments, candidate.getType().cast<mlir::FunctionType>()) !=
-				nullptr)
+						callPoint,
+						arguments,
+						candidate.getType().cast<mlir::FunctionType>()) != nullptr)
 		{
 			matching.push_back(candidate);
 		}
@@ -223,12 +249,12 @@ mlir::Value mlir::rlc::OverloadResolver::instantiateOverload(
 		llvm::StringRef name,
 		mlir::TypeRange arguments)
 {
-	auto overload = findOverload(name, arguments);
+	auto overload = findOverload(loc, name, arguments);
 	if (not overload)
 		return overload;
 
 	auto instantiated = deduceTemplateCallSiteType(
-			arguments, overload.getType().cast<mlir::FunctionType>());
+			loc, arguments, overload.getType().cast<mlir::FunctionType>());
 	if (isTemplateType(overload.getType()).failed())
 		return overload;
 

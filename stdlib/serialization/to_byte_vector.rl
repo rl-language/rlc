@@ -39,10 +39,10 @@ fun append_to_vector(Byte to_add, Vector<Byte> output):
 	output.append(to_add)
 
 fun<T> append_to_vector(Vector<T> to_add, Vector<Byte> output):
-	append_to_vector(to_add.size, output)
+	append_to_vector(to_add.size(), output)
 	let counter = 0
-	while counter < to_add.size:
-		_to_vector_impl(to_add.data[counter], output)
+	while counter < to_add.size():
+		_to_vector_impl(to_add.get(counter), output)
 		counter = counter + 1 
 
 fun<T, Int X> append_to_vector(T[X] to_add, Vector<Byte> output):

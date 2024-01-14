@@ -641,13 +641,14 @@ mlir::FunctionType mlir::rlc::replaceTemplateParameter(
 }
 
 static mlir::LogicalResult sameSignatureMethodExists(
+		mlir::Location callPoint,
 		ValueTable &table,
 		llvm::StringRef functionName,
 		mlir::FunctionType functionType)
 {
 	auto resolver = OverloadResolver(table);
 	auto overloads =
-			resolver.findOverloads(functionName, functionType.getInputs());
+			resolver.findOverloads(callPoint, functionName, functionType.getInputs());
 
 	for (auto &overload : overloads)
 	{
@@ -660,7 +661,10 @@ static mlir::LogicalResult sameSignatureMethodExists(
 
 mlir::LogicalResult
 mlir::rlc::TraitMetaType::typeRespectsTraitFunctionDeclaration(
-		mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table, size_t index)
+		mlir::Location callPoint,
+		mlir::Type type,
+		mlir::rlc::SymbolTable<mlir::Value> &table,
+		size_t index)
 {
 	auto methodType =
 			getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
@@ -668,15 +672,18 @@ mlir::rlc::TraitMetaType::typeRespectsTraitFunctionDeclaration(
 			replaceTemplateParameter(methodType, getTemplateParameterType(), type);
 
 	llvm::StringRef methodName = getRequestedFunctionNames()[index];
-	return sameSignatureMethodExists(table, methodName, instantiated);
+	return sameSignatureMethodExists(callPoint, table, methodName, instantiated);
 }
 
 mlir::LogicalResult mlir::rlc::TraitMetaType::typeRespectsTrait(
-		mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table)
+		mlir::Location callPoint,
+		mlir::Type type,
+		mlir::rlc::SymbolTable<mlir::Value> &table)
 {
 	for (size_t i : ::rlc::irange(getRequestedFunctionTypes().size()))
 	{
-		if (typeRespectsTraitFunctionDeclaration(type, table, i).failed())
+		if (typeRespectsTraitFunctionDeclaration(callPoint, type, table, i)
+						.failed())
 			return mlir::failure();
 	}
 	return mlir::success();

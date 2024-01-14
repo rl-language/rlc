@@ -315,7 +315,10 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 					substitutions;
 			if (resolver
 							.deduceSubstitutions(
-									substitutions, fun.getType().getInput(0), type)
+									memberAccess->getLoc(),
+									substitutions,
+									fun.getType().getInput(0),
+									type)
 							.succeeded())
 			{
 				mlir::lsp::CompletionItem item;

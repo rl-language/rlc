@@ -200,9 +200,9 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
 		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr, false);
 	  }
 
-	mlir::LogicalResult typeRespectsTrait(mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table);
+	mlir::LogicalResult typeRespectsTrait(mlir::Location callPoint, mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table);
 	private:
-	mlir::LogicalResult typeRespectsTraitFunctionDeclaration(mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table, size_t FuctionDeclarationIndex);
+	mlir::LogicalResult typeRespectsTraitFunctionDeclaration(mlir::Location callPoint, mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table, size_t FuctionDeclarationIndex);
 	public:
   }];
 }

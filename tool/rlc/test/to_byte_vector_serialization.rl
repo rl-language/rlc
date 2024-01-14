@@ -14,20 +14,20 @@ ent Struct1:
 
 fun eq(Struct2 lhs, Struct2 rhs) -> Bool:
 	let index = 0
-	if lhs.values.size != rhs.values.size:
+	if lhs.values.size() != rhs.values.size():
 		return false
-	while index < lhs.values.size:
-		if lhs.values.data[index] != rhs.values.data[index]:
+	while index < lhs.values.size():
+		if lhs.values.get(index) != rhs.values.get(index):
 			return false
 		index = index + 1
 	return true
 
 fun eq(Vector<Struct2> lhs, Vector<Struct2> rhs) -> Bool:
 	let index = 0
-	if lhs.size != rhs.size:
+	if lhs.size() != rhs.size():
 		return false
-	while index < lhs.size:
-		if !eq(lhs.data[index], rhs.data[index]):
+	while index < lhs.size():
+		if !eq(lhs.get(index), rhs.get(index)):
 			return false
 		index = index + 1
 	return true

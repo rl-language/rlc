@@ -182,11 +182,13 @@ namespace mlir::rlc
 							 op.getInputTemplate().getType().getInputs(),
 							 op.getType().getInputs()))
 			{
-				resolver.deduceSubstitutions(deductions, first, second).succeeded();
+				resolver.deduceSubstitutions(op.getLoc(), deductions, first, second)
+						.succeeded();
 			}
 			if (op.getInputTemplate().getType().getNumResults() != 0)
 				resolver
 						.deduceSubstitutions(
+								op.getLoc(),
 								deductions,
 								op.getInputTemplate().getType().getResult(0),
 								op.getType().getResult(0))

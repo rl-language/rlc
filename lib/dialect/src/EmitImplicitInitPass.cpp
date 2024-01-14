@@ -60,7 +60,9 @@ namespace mlir::rlc
 		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
 		mlir::rlc::OverloadResolver resolver(table);
 		if (auto overloads = resolver.findOverloads(
-						mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), { type });
+						rewriter.getUnknownLoc(),
+						mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
+						{ type });
 				not overloads.empty())
 			return overloads.front();
 

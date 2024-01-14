@@ -437,6 +437,9 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 			addActionToRootTable(action);
 		registerAction(action);
 	}
+
+	for (auto decl : op.getOps<mlir::rlc::EntityDeclaration>())
+		typeTypeDeclaration[decl.getResult().getType()] = decl.getOperation();
 }
 
 mlir::rlc::TraitDefinition mlir::rlc::ModuleBuilder::getTraitDefinition(

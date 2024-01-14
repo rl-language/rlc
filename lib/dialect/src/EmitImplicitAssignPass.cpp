@@ -34,6 +34,7 @@ namespace mlir::rlc
 		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
 		mlir::rlc::OverloadResolver resolver(table);
 		if (auto overloads = resolver.findOverloads(
+						rewriter.getUnknownLoc(),
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 						{ type, type });
 				not overloads.empty())

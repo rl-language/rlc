@@ -1183,6 +1183,13 @@ mlir::LogicalResult mlir::rlc::IntegerLiteralUse::typeCheck(
 	return mlir::success();
 }
 
+static bool locsAreInSameFile(mlir::Location l, mlir::Location r)
+{
+	auto casted1 = l.cast<mlir::FileLineColLoc>();
+	auto catsed2 = r.cast<mlir::FileLineColLoc>();
+	return casted1.getFilename() == catsed2.getFilename();
+}
+
 mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -1201,6 +1208,16 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 	{
 		if (index.value() != getMemberName())
 			continue;
+
+		auto *maybeDecl = builder.getDeclarationOfType(getValue().getType());
+		if (maybeDecl != nullptr and getMemberName().starts_with("_") and
+				not locsAreInSameFile(maybeDecl->getLoc(), getLoc()))
+		{
+			return logError(
+					*this,
+					"Members starting with _ are private and cannot be accessed from "
+					"another module");
+		}
 
 		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::MemberAccess>(
 				*this, getValue(), index.index());

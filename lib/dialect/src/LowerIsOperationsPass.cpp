@@ -84,9 +84,10 @@ namespace mlir::rlc
 			if (auto casted =
 							op.getTypeOrTrait().dyn_cast<mlir::rlc::TraitMetaType>())
 			{
-				evalsToTrue =
-						casted.typeRespectsTrait(op.getExpression().getType(), table)
-								.succeeded();
+				evalsToTrue = casted
+													.typeRespectsTrait(
+															op.getLoc(), op.getExpression().getType(), table)
+													.succeeded();
 			}
 			else
 			{
