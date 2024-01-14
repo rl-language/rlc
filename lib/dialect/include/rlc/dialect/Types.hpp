@@ -36,7 +36,9 @@ namespace mlir::rlc
 	class SymbolTable;
 
 	std::string mangledName(
-			llvm::StringRef functionName, mlir::FunctionType type);
+			llvm::StringRef functionName,
+			bool isMemberFunction,
+			mlir::FunctionType type);
 
 	std::string prettyType(mlir::Type type);
 

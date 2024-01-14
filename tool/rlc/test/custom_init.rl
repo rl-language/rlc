@@ -4,8 +4,8 @@
 ent Example:
 	Int f1
 
-fun init(Example e):
-	e.f1 = 5	
+	fun init():
+		self.f1 = 5	
 
 fun main() -> Int:
 	let asd : Example

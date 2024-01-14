@@ -172,7 +172,7 @@ namespace mlir::rlc::detail
 		mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), op);
 		rewriter.setInsertionPoint(op);
 		auto overload = resolver.instantiateOverload(
-				rewriter, op.getLoc(), opName, lookUpUperandTypes);
+				rewriter, true, op.getLoc(), opName, lookUpUperandTypes);
 		if (overload == nullptr)
 			return mlir::failure();
 
@@ -181,7 +181,7 @@ namespace mlir::rlc::detail
 					op, overload, operandValues);
 		else
 			rewriter.replaceOpWithNewOp<mlir::rlc::CallOp>(
-					op, overload, operandValues);
+					op, overload, true, operandValues);
 		return mlir::success();
 	}
 

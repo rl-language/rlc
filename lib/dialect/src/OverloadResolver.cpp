@@ -169,10 +169,13 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 }
 
 mlir::Value mlir::rlc::OverloadResolver::findOverload(
-		mlir::Location callPoint, llvm::StringRef name, mlir::TypeRange arguments)
+		mlir::Location callPoint,
+		bool isMemberCall,
+		llvm::StringRef name,
+		mlir::TypeRange arguments)
 {
 	llvm::SmallVector<mlir::Value> matching =
-			findOverloads(callPoint, name, arguments);
+			findOverloads(callPoint, isMemberCall, name, arguments);
 
 	if (not matching.empty())
 		return matching.front();
@@ -216,7 +219,10 @@ static bool locsAreInSameFile(mlir::Location l, mlir::Location r)
 }
 
 llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
-		mlir::Location callPoint, llvm::StringRef name, mlir::TypeRange arguments)
+		mlir::Location callPoint,
+		bool isMemberCall,
+		llvm::StringRef name,
+		mlir::TypeRange arguments)
 {
 	llvm::SmallVector<mlir::Value, 2> matching;
 	for (auto candidate : symbolTable->get(name))
@@ -232,6 +238,12 @@ llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 				not locsAreInSameFile(candidate.getDefiningOp()->getLoc(), callPoint))
 			continue;
 
+		if (auto casted = candidate.getDefiningOp<mlir::rlc::FunctionOp>())
+		{
+			if (casted.getIsMemberFunction() != isMemberCall)
+				continue;
+		}
+
 		if (deduceTemplateCallSiteType(
 						callPoint,
 						arguments,
@@ -245,11 +257,12 @@ llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 
 mlir::Value mlir::rlc::OverloadResolver::instantiateOverload(
 		mlir::IRRewriter& rewriter,
+		bool isMemberCall,
 		mlir::Location loc,
 		llvm::StringRef name,
 		mlir::TypeRange arguments)
 {
-	auto overload = findOverload(loc, name, arguments);
+	auto overload = findOverload(loc, isMemberCall, name, arguments);
 	if (not overload)
 		return overload;
 

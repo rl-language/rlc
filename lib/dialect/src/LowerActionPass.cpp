@@ -115,6 +115,7 @@ namespace mlir::rlc
 			assert(decl.getType() != nullptr);
 			auto* call = builder.emitCall(
 					decl,
+					true,
 					builtinOperatorName<mlir::rlc::AssignOp>(),
 					mlir::ValueRange({ refToMember, decl }));
 			assert(call != nullptr);
@@ -248,6 +249,7 @@ namespace mlir::rlc
 				subF.getLoc(),
 				mlir::TypeRange(),
 				action.getResult(),
+				false,
 				mlir::ValueRange(
 						{ subF.getBlocks().front().getArgument(0), frameHidden }));
 		rewriter.create<mlir::rlc::Yield>(subF.getLoc());
@@ -327,7 +329,8 @@ namespace mlir::rlc
 				action.getLoc(),
 				firstStatement.getName(),
 				type,
-				firstStatement.getDeclaredNames());
+				firstStatement.getDeclaredNames(),
+				true);
 		action.getActions()[subActionIndex].replaceAllUsesWith(subF);
 
 		// steals the precondition of all possible actions to take from here and
@@ -383,7 +386,8 @@ namespace mlir::rlc
 				action.getLoc(),
 				action.getUnmangledName(),
 				action.getType().cast<mlir::FunctionType>(),
-				action.getArgNames());
+				action.getArgNames(),
+				false);
 
 		f.getPrecondition().takeBody(action.getPrecondition());
 
@@ -451,6 +455,7 @@ namespace mlir::rlc
 				f.getLoc(),
 				mlir::TypeRange(),
 				action.getResult(),
+				false,
 				mlir::ValueRange({ frame, frameHidden }));
 
 		rewriter.create<mlir::rlc::Yield>(f.getLoc(), mlir::Value({ frame }));
@@ -534,7 +539,8 @@ namespace mlir::rlc
 						action.getLoc(),
 						"is_done",
 						action.getIsDoneFunctionType(),
-						rewriter.getStrArrayAttr({ "frame" }));
+						rewriter.getStrArrayAttr({ "frame" }),
+						true);
 
 				auto* block = rewriter.createBlock(
 						&isDoneFunction.getBody(),
@@ -565,7 +571,8 @@ namespace mlir::rlc
 								{ actionType,
 									liveness.getFrameTypes().frameNotUsedAcrossSections },
 								{}),
-						rewriter.getStrArrayAttr({ "frame", "hidden_frame" }));
+						rewriter.getStrArrayAttr({ "frame", "hidden_frame" }),
+						true);
 				loweredToFun.getBody().takeBody(action.getBody());
 				action.getResult().replaceAllUsesWith(loweredToFun);
 				rewriter.eraseOp(action);

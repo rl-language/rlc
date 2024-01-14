@@ -60,16 +60,16 @@ fun<T> _to_vector_impl(T to_add, Vector<Byte> output):
 			for field of to_add:
 				using Type = type(field)
 				if to_add is Type:
-					counter._to_vector_impl(output)
-					to_add._to_vector_impl(output)
+					_to_vector_impl(counter, output)
+					_to_vector_impl(to_add, output)
 				counter = counter + 1
 		else:
 			for field of to_add:
-				field._to_vector_impl(output)
+				_to_vector_impl(field, output)
 
 fun<T> as_byte_vector(T to_convert) -> Vector<Byte>:
 	let vec : Vector<Byte>
-	to_convert._to_vector_impl(vec)
+	_to_vector_impl(to_convert, vec)
 	return vec
 
 trait<T> ByteVectorParsable:
@@ -125,18 +125,18 @@ fun<T> _from_vector_impl(T to_add, Vector<Byte> input, Int index):
 	else:
 		if to_add is Alternative:
 			let counter = 0
-			counter._from_vector_impl(input, index)
+			_from_vector_impl(counter, input, index)
 			for field of to_add:
 				if counter == 0:
 					using Type = type(field)
 					let to_parse : Type
-					to_parse._from_vector_impl(input, index)
+					_from_vector_impl(to_parse, input, index)
 					to_add = to_parse
 					return
 				counter = counter - 1
 		else:
 			for field of to_add:
-				field._from_vector_impl(input, index)
+				_from_vector_impl(field, input, index)
 
 fun<T> from_byte_vector(T result, Vector<Byte> input):
 	_from_vector_impl(result, input, 0)

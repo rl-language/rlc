@@ -207,12 +207,14 @@ namespace mlir::rlc
 
 		mlir::Value resolveFunctionCall(
 				mlir::Operation* callSite,
+				bool isMemberCall,
 				llvm::StringRef name,
 				mlir::ValueRange arguments,
 				bool logErrors = true);
 
 		mlir::Operation* emitCall(
 				mlir::Operation* callSite,
+				bool isMemberCall,
 				llvm::StringRef name,
 				mlir::ValueRange arguments,
 				bool log = true);

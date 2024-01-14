@@ -61,6 +61,7 @@ namespace mlir::rlc
 		mlir::rlc::OverloadResolver resolver(table);
 		if (auto overloads = resolver.findOverloads(
 						rewriter.getUnknownLoc(),
+						true,
 						mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 						{ type });
 				not overloads.empty())
@@ -73,7 +74,8 @@ namespace mlir::rlc
 				rewriter.getUnknownLoc(),
 				mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 				fType,
-				rewriter.getStrArrayAttr({ "arg0" }));
+				rewriter.getStrArrayAttr({ "arg0" }),
+				true);
 
 		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), fun);
 		return fun;
@@ -175,6 +177,7 @@ namespace mlir::rlc
 
 		auto op = builder.emitCall(
 				lhs.getDefiningOp(),
+				true,
 				builtinOperatorName<mlir::rlc::InitOp>(),
 				mlir::ValueRange({ lhs }));
 		if (not op)

@@ -58,8 +58,8 @@ ent<T> Vector:
 		self._capacity = 0
 
 	fun assign(Vector<T> other) -> Vector<T>:
-		drop(self)	
-		init(self)	
+		self.drop()
+		self.init()
 		let counter = 0
 		while counter < other._size:
 			self.append(other.get(counter))

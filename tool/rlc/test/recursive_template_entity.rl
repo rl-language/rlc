@@ -8,10 +8,10 @@ ent<T, Y> Pair:
 ent<K> SamePair:
 	Pair<K, K> content
 
-fun<K> init(SamePair<K> pair):
-	if pair.content.first is Int:
-		pair.content.first = 5
-		pair.content.second = 5
+	fun init():
+		if self.content.first is Int:
+			self.content.first = 5
+			self.content.second = 5
 
 fun main() -> Int:
 	let var : SamePair<Int>

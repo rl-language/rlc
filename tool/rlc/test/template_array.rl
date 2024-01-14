@@ -5,13 +5,13 @@ ent<T> ArrayVector:
 	T[10] data
 	Int size
 
-fun<T> append(ArrayVector<T> vec, T new):
-	vec.data[vec.size] = new 
-	vec.size = vec.size + 1
+	fun append(T new):
+		self.data[self.size] = new 
+		self.size = self.size + 1
 
-fun<T> pop(ArrayVector<T> vec) -> T:
-	vec.size = vec.size - 1
-	return vec.data[vec.size]
+	fun pop() -> T:
+		self.size = self.size - 1
+		return self.data[self.size]
 
 fun main() -> Int:
 	let array : ArrayVector<Int>

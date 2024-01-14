@@ -8,56 +8,56 @@ ent Board:
 	Bool playerTurn
 
 
-fun get(Board b, Int x, Int y) -> Int:
-	return b.slots[x + (y*3)]
+	fun get(Int x, Int y) -> Int:
+		return self.slots[x + (y*3)]
 
-fun set(Board b, Int x, Int y, Int val): 
-	b.slots[x + (y * 3)] = val
+	fun set(Int x, Int y, Int val): 
+		self.slots[x + (y * 3)] = val
 
-fun full(Board b) -> Bool:
-	let x = 0
+	fun full() -> Bool:
+		let x = 0
 
-	while x < 3:
-		let y = 0
-		while y < 3:
-			if b.get(x, y) == 0:
-				return false
-			y = y + 1
-		x = x + 1
+		while x < 3:
+			let y = 0
+			while y < 3:
+				if self.get(x, y) == 0:
+					return false
+				y = y + 1
+			x = x + 1
 
-	return true
-
-fun three_in_a_line_player_row(Board b, Int player_id, Int row) -> Bool:
-	return b.get(0, row) == b.get(1, row) and b.get(0, row) == b.get(2, row) and b.get(0, row) == player_id
-
-fun three_in_a_line_player(Board b, Int player_id) -> Bool:
-	let x = 0
-	while x < 3:
-		if b.get(x, 0) == b.get(x, 1) and b.get(x, 0) == b.get(x, 2) and b.get(x, 0) == player_id:
-			return true
-
-		if three_in_a_line_player_row(b, player_id, x):
-			return true
-		x = x + 1
-
-	if b.get(0, 0) == b.get(1, 1) and b.get(0, 0) == b.get(2, 2) and b.get(0, 0) == player_id:
 		return true
 
-	if b.get(0, 2) == b.get(1, 1) and b.get(0, 2) == b.get(2, 0) and b.get(0, 2) == player_id:
-		return true
+	fun three_in_a_line_player_row(Int player_id, Int row) -> Bool:
+		return self.get(0, row) == self.get(1, row) and self.get(0, row) == self.get(2, row) and self.get(0, row) == player_id
 
-	return false
+	fun three_in_a_line_player(Int player_id) -> Bool:
+		let x = 0
+		while x < 3:
+			if self.get(x, 0) == self.get(x, 1) and self.get(x, 0) == self.get(x, 2) and self.get(x, 0) == player_id:
+				return true
 
-fun current_player(Board board) -> Int:
-	return int(board.playerTurn) + 1
+			if self.three_in_a_line_player_row(player_id, x):
+				return true
+			x = x + 1
 
-fun next_turn(Board board):
-	board.playerTurn = !board.playerTurn
+		if self.get(0, 0) == self.get(1, 1) and self.get(0, 0) == self.get(2, 2) and self.get(0, 0) == player_id:
+			return true
+
+		if self.get(0, 2) == self.get(1, 1) and self.get(0, 2) == self.get(2, 0) and self.get(0, 2) == player_id:
+			return true
+
+		return false
+
+	fun current_player() -> Int:
+		return int(self.playerTurn) + 1
+
+	fun next_turn():
+		self.playerTurn = !self.playerTurn
 
 act play() -> TicTacToe:
 	let board : Board
 	let score = 10
-	while !full(board):
+	while !board.full():
 		act mark(Int x, Int y) {
 			x < 3,
 			x >= 0,
@@ -76,8 +76,8 @@ act play() -> TicTacToe:
 
 fun gen_printer_parser():
 	let state = play()
-	let serialized = state.as_byte_vector()
-	state.from_byte_vector(serialized)
+	let serialized = as_byte_vector(state)
+	from_byte_vector(state, serialized)
 
 fun main() -> Int:
 	let game = play()

@@ -37,6 +37,7 @@ namespace mlir::rlc
 		{
 			auto mangeledMainName = mlir::rlc::mangledName(
 					"main",
+					false,
 					mlir::FunctionType::get(
 							&getContext(),
 							mlir::TypeRange(),

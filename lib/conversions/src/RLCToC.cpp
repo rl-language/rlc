@@ -314,7 +314,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 			printFunctionSignature(
 					casted.getName(),
-					mlir::rlc::mangledName(casted.getName(), castedType),
+					mlir::rlc::mangledName(casted.getName(), true, castedType),
 					(fun.getEntityType().getName() + "_" + casted.getName()).str(),
 					castedType,
 					mlir::ArrayAttr::get(casted.getContext(), attrs),
@@ -323,7 +323,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 		printFunctionSignature(
 				"is_done",
-				mlir::rlc::mangledName("is_done", fun.getIsDoneFunctionType()),
+				mlir::rlc::mangledName("is_done", true, fun.getIsDoneFunctionType()),
 				(fun.getEntityType().getName() + "_is_done").str(),
 				fun.getIsDoneFunctionType(),
 				mlir::ArrayAttr::get(
@@ -377,7 +377,9 @@ static std::string mangledName(
 					mlir::dyn_cast<mlir::rlc::ActionFunction>(op.getDefiningOp()))
 	{
 		return mlir::rlc::mangledName(
-				unmangledName(op, builder), op.getType().cast<mlir::FunctionType>());
+				unmangledName(op, builder),
+				false,
+				op.getType().cast<mlir::FunctionType>());
 	}
 	llvm_unreachable("unrechable");
 	return "";

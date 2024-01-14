@@ -499,7 +499,7 @@ class ActionDeclToTNothing
 					rewriter,
 					getTypeConverter(),
 					casted.getName(),
-					mlir::rlc::mangledName(casted.getName(), castedType),
+					mlir::rlc::mangledName(casted.getName(), true, castedType),
 					rewriter.getStrArrayAttr(arrayAttr),
 					castedType);
 			rewriter.setInsertionPointAfter(f);
@@ -519,7 +519,7 @@ class ActionDeclToTNothing
 					rewriter,
 					getTypeConverter(),
 					name,
-					mlir::rlc::mangledName(name, validityType),
+					mlir::rlc::mangledName(name, true, validityType),
 					rewriter.getStrArrayAttr(arrayAttr),
 					validityType);
 			rewriter.setInsertionPointAfter(preconditionCheckFunction);

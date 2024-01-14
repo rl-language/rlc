@@ -32,17 +32,20 @@ namespace mlir::rlc
 		// gets istantiated
 		mlir::Value instantiateOverload(
 				mlir::IRRewriter& rewriter,
+				bool isMemberCall,
 				mlir::Location loc,
 				llvm::StringRef name,
 				mlir::TypeRange arguments);
 
 		mlir::Value findOverload(
 				mlir::Location callPoint,
+				bool isMemberCall,
 				llvm::StringRef name,
 				mlir::TypeRange arguments);
 
 		llvm::SmallVector<mlir::Value, 2> findOverloads(
 				mlir::Location callPoint,
+				bool isMemberCall,
 				llvm::StringRef name,
 				mlir::TypeRange arguments);
 

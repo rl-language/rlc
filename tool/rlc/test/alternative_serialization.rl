@@ -8,9 +8,9 @@ fun main() -> Int:
 	let asd : Int | Float
 	asd = 3.4
 	
-	let serialized = asd.as_byte_vector()
+	let serialized = as_byte_vector(asd)
 	let result : Int | Float
-	result.from_byte_vector(serialized) 
+	from_byte_vector(result, serialized) 
 
 	if result is Float:
 		return int(result - 3.4)

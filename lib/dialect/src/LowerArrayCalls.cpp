@@ -76,7 +76,7 @@ namespace mlir::rlc
 						rewriter.create<mlir::rlc::ArrayAccess>(op.getLoc(), arg, index));
 			}
 			auto res = rewriter.create<mlir::rlc::CallOp>(
-					op.getLoc(), op.getCallee(), realArgs);
+					op.getLoc(), op.getCallee(), false, realArgs);
 			if (op.getNumResults() != 0)
 			{
 				auto resElem =

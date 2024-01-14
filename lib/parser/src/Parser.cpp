@@ -323,8 +323,10 @@ Expected<mlir::Value> Parser::postFixExpression()
 		{
 			TRY(args, argumentExpressionList());
 			EXPECT(Token::RPar);
-			exp = builder.create<mlir::rlc::CallOp>(location, unkType(), exp, *args)
-								.getResult(0);
+			exp =
+					builder
+							.create<mlir::rlc::CallOp>(location, unkType(), exp, false, *args)
+							.getResult(0);
 			continue;
 		}
 
@@ -361,7 +363,7 @@ Expected<mlir::Value> Parser::postFixExpression()
 
 			exp = builder
 								.create<mlir::rlc::CallOp>(
-										callLoc, unkType(), ref->getResult(0), *arguments)
+										callLoc, unkType(), ref->getResult(0), true, *arguments)
 								.getResult(0);
 			continue;
 		}
@@ -612,7 +614,7 @@ llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 	{
 		if (current == Token::KeywordFun)
 		{
-			TRY(_, functionDefinition(), on_exit());
+			TRY(_, functionDefinition(true), on_exit());
 		}
 		else
 		{
@@ -1302,7 +1304,7 @@ Expected<Parser::FunctionDeclarationResult> Parser::externFunctionDeclaration()
  * ("," argDeclaration)*] ")" ["->" "ref"? singleTypeUse]
  */
 Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
-		bool templateFunction)
+		bool templateFunction, bool isMemberFunction)
 {
 	auto location = getCurrentSourcePos();
 
@@ -1346,6 +1348,7 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 			mlir::FunctionType::get(ctx, argTypes, { retType }),
 			builder.getStringAttr(nm),
 			builder.getStrArrayAttr(argName),
+			isMemberFunction,
 			builder.getTypeArrayAttr(templateParameters));
 
 	return FunctionDeclarationResult{ fun, argLocs };
@@ -1354,9 +1357,10 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 /**
  * functionDefinition : functionDeclaration ":\n" statementList
  */
-Expected<mlir::rlc::FunctionOp> Parser::functionDefinition()
+Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
+		bool isMemberFunction)
 {
-	TRY(result, functionDeclaration());
+	TRY(result, functionDeclaration(true, isMemberFunction));
 	auto fun = result->op;
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();

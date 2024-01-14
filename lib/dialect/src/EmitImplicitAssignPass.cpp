@@ -35,6 +35,7 @@ namespace mlir::rlc
 		mlir::rlc::OverloadResolver resolver(table);
 		if (auto overloads = resolver.findOverloads(
 						rewriter.getUnknownLoc(),
+						true,
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 						{ type, type });
 				not overloads.empty())
@@ -54,7 +55,8 @@ namespace mlir::rlc
 						op.getLoc(),
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 						fType,
-						rewriter.getStrArrayAttr({ "arg0", "arg1" }));
+						rewriter.getStrArrayAttr({ "arg0", "arg1" }),
+						true);
 
 				table.add(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(), fun);
 			}
@@ -67,7 +69,8 @@ namespace mlir::rlc
 				op.getLoc(),
 				mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 				fType,
-				rewriter.getStrArrayAttr({ "arg0", "arg1" }));
+				rewriter.getStrArrayAttr({ "arg0", "arg1" }),
+				true);
 
 		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(), fun);
 		return fun;
@@ -119,6 +122,7 @@ namespace mlir::rlc
 			builder.getRewriter().setInsertionPoint(assign);
 			auto* result = builder.emitCall(
 					assign,
+					true,
 					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 					{ assign.getLhs(), assign.getRhs() });
 			builder.getRewriter().replaceOp(assign, result->getResult(0));
@@ -173,6 +177,7 @@ namespace mlir::rlc
 
 		if (auto call = builder.emitCall(
 						fun,
+						true,
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 						mlir::ValueRange({ lhsElem, rhsElem }));
 				not call)
@@ -236,6 +241,7 @@ namespace mlir::rlc
 			assert(isTemplateType(contructed.getType()).failed());
 			auto* call = builder.emitCall(
 					fun,
+					true,
 					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 					mlir::ValueRange({ casted, contructed }));
 			if (call == nullptr)
@@ -253,6 +259,7 @@ namespace mlir::rlc
 
 		builder.emitCall(
 				fun,
+				true,
 				mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 				mlir::ValueRange({ castedAgain, block->getArgument(1) }));
 	}
@@ -286,6 +293,7 @@ namespace mlir::rlc
 
 			builder.emitCall(
 					fun,
+					true,
 					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 					mlir::ValueRange({ block->getArgument(0), casted }));
 			rewriter.create<mlir::rlc::Yield>(fun.getLoc());
@@ -314,6 +322,7 @@ namespace mlir::rlc
 
 			builder.emitCall(
 					fun,
+					true,
 					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 					mlir::ValueRange({ lhs, rhs }));
 		}

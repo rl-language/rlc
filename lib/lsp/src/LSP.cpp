@@ -237,7 +237,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			list.items.push_back(item);
 		};
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
-				casted and not casted.getBody().empty())
+				casted and not casted.getBody().empty() and
+				not casted.getIsMemberFunction())
 		{
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
@@ -258,14 +259,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			}
 		}
 
-		fun->walk([&](mlir::rlc::ActionStatement action) {
-			for (auto arg :
-					 llvm::zip(action.getDeclaredNames(), action.getResults().getTypes()))
-			{
-				registerArgument(
-						std::get<0>(arg).cast<mlir::StringAttr>(), std::get<1>(arg));
-			}
-		});
 		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
 			registerArgument(statement.getName(), statement.getType());
 		});
@@ -319,7 +312,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 									substitutions,
 									fun.getType().getInput(0),
 									type)
-							.succeeded())
+							.succeeded() and
+					fun.getIsMemberFunction())
 			{
 				mlir::lsp::CompletionItem item;
 				item.label = (fun.getUnmangledName() + "()").str();

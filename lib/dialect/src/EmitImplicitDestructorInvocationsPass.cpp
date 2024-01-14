@@ -98,6 +98,7 @@ namespace mlir::rlc
 			mlir::rlc::OverloadResolver resolver(builder.getSymbolTable());
 			auto overload = resolver.findOverloads(
 					builder.getRewriter().getUnknownLoc(),
+					true,
 					"drop",
 					mlir::TypeRange({ type }));
 			if (not overload.empty())
@@ -182,9 +183,9 @@ namespace mlir::rlc
 					fun.getLoc(), field, fun.getBody().getArgument(0));
 
 			auto subFunction = resolver.instantiateOverload(
-					rewriter, fun.getLoc(), "drop", mlir::ValueRange({ casted }));
+					rewriter, true, fun.getLoc(), "drop", mlir::ValueRange({ casted }));
 			rewriter.create<mlir::rlc::CallOp>(
-					fun.getLoc(), subFunction, mlir::ValueRange({ casted }));
+					fun.getLoc(), subFunction, true, mlir::ValueRange({ casted }));
 
 			rewriter.create<mlir::rlc::Yield>(fun.getLoc());
 
@@ -227,16 +228,16 @@ namespace mlir::rlc
 					auto access = rewriter.create<mlir::rlc::MemberAccess>(
 							op.getLoc(), body->getArgument(0), num);
 					auto subFunction = resolver.instantiateOverload(
-							rewriter, op.getLoc(), "drop", { fieldType });
+							rewriter, true, op.getLoc(), "drop", { fieldType });
 					rewriter.create<mlir::rlc::CallOp>(
-							op.getLoc(), subFunction, mlir::ValueRange({ access }));
+							op.getLoc(), subFunction, true, mlir::ValueRange({ access }));
 				}
 			}
 			else if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
 			{
 				auto subType = casted.getUnderlying();
 				auto subFunction = resolver.instantiateOverload(
-						rewriter, op.getLoc(), "drop", { subType });
+						rewriter, true, op.getLoc(), "drop", { subType });
 				rewriter.create<mlir::rlc::ArrayCallOp>(
 						op.getLoc(),
 						subFunction,
@@ -280,7 +281,7 @@ namespace mlir::rlc
 		for (auto type : destructorsToCreate)
 		{
 			if (auto overload = resolver.findOverload(
-							builder.getRewriter().getUnknownLoc(), "drop", { type });
+							builder.getRewriter().getUnknownLoc(), true, "drop", { type });
 					overload != nullptr)
 			{
 				continue;
@@ -292,7 +293,8 @@ namespace mlir::rlc
 							rewriter.getContext(),
 							mlir::TypeRange({ type }),
 							mlir::TypeRange()),
-					rewriter.getStrArrayAttr({ "to_drop" }));
+					rewriter.getStrArrayAttr({ "to_drop" }),
+					true);
 			builder.getSymbolTable().add("drop", destructor);
 		}
 	}
@@ -321,13 +323,17 @@ namespace mlir::rlc
 
 			auto function = resolver.instantiateOverload(
 					builder.getRewriter(),
+					true,
 					destroyOp.getLoc(),
 					"drop",
 					mlir::TypeRange({ destroyOp.getOperand().getType() }));
 			if (not function)
 				continue;
 			builder.getRewriter().replaceOpWithNewOp<mlir::rlc::CallOp>(
-					destroyOp, function, mlir::ValueRange({ destroyOp.getOperand() }));
+					destroyOp,
+					function,
+					true,
+					mlir::ValueRange({ destroyOp.getOperand() }));
 		}
 	}
 

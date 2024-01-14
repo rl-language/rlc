@@ -34,6 +34,7 @@ namespace mlir::rlc
 		OverloadResolver resolver(builder.getSymbolTable());
 		auto overload = resolver.instantiateOverload(
 				builder.getRewriter(),
+				true,
 				op.getLoc(),
 				builtinOperatorName<mlir::rlc::InitOp>(),
 				mlir::TypeRange({ op.getResult().getType() }));

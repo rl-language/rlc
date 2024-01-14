@@ -91,12 +91,13 @@ namespace rlc
 		llvm::Expected<mlir::Type> singleTypeUse();
 		llvm::Expected<mlir::rlc::ScalarUseType> singleNonArrayTypeUse();
 		llvm::Expected<mlir::rlc::FunctionUseType> functionTypeUse();
-		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition();
+		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition(
+				bool isMemberFunction = false);
 		llvm::Expected<
 				llvm::SmallVector<mlir::rlc::UncheckedTemplateParameterType, 2>>
 		templateArguments();
 		llvm::Expected<FunctionDeclarationResult> functionDeclaration(
-				bool templateFunction = true);
+				bool templateFunction = true, bool isMemberFunction = false);
 		llvm::Expected<FunctionDeclarationResult> externFunctionDeclaration();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDeclaration(
 				bool needsReturnType);

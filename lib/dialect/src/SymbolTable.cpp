@@ -494,10 +494,11 @@ static mlir::Operation* emitBuiltinAssign(
 				callSite->getLoc(), arguments[0], arguments[1]);
 	}
 
-	auto overload = builder.resolveFunctionCall(callSite, name, arguments, false);
+	auto overload =
+			builder.resolveFunctionCall(callSite, true, name, arguments, false);
 	if (overload)
 		return builder.getRewriter().create<mlir::rlc::CallOp>(
-				callSite->getLoc(), overload, arguments);
+				callSite->getLoc(), overload, true, arguments);
 
 	return builder.getRewriter().create<mlir::rlc::ImplicitAssignOp>(
 			callSite->getLoc(), arguments[0], arguments[1]);
@@ -557,6 +558,7 @@ static mlir::rlc::CastOp emitCast(
 
 mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
 		mlir::Operation* callSite,
+		bool isMemberCall,
 		llvm::StringRef name,
 		mlir::ValueRange arguments,
 		bool emitLog)
@@ -568,8 +570,8 @@ mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
 		return maybeCast;
 
 	auto argTypes = arguments.getType();
-	auto overload =
-			resolveFunctionCall(emitLog ? callSite : nullptr, name, arguments);
+	auto overload = resolveFunctionCall(
+			emitLog ? callSite : nullptr, isMemberCall, name, arguments);
 
 	if (overload == nullptr)
 		return nullptr;
@@ -581,11 +583,12 @@ mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
 	}
 
 	return rewriter.create<mlir::rlc::CallOp>(
-			callSite->getLoc(), overload, arguments);
+			callSite->getLoc(), overload, isMemberCall, arguments);
 }
 
 mlir::Value mlir::rlc::ModuleBuilder::resolveFunctionCall(
 		mlir::Operation* callSite,
+		bool isMemberCall,
 		llvm::StringRef name,
 		mlir::ValueRange arguments,
 		bool logErrors)
@@ -593,5 +596,5 @@ mlir::Value mlir::rlc::ModuleBuilder::resolveFunctionCall(
 	mlir::rlc::OverloadResolver resolver(
 			getSymbolTable(), logErrors ? callSite : nullptr);
 	return resolver.instantiateOverload(
-			rewriter, callSite->getLoc(), name, arguments);
+			rewriter, isMemberCall, callSite->getLoc(), name, arguments);
 }

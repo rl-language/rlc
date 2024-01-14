@@ -34,6 +34,7 @@ namespace mlir::rlc
 		builder.getRewriter().setInsertionPoint(op);
 		auto* actualCall = builder.emitCall(
 				op,
+				true,
 				builtinOperatorName<mlir::rlc::AssignOp>(),
 				mlir::ValueRange({ op.getLhs(), op.getRhs() }));
 		assert(actualCall != nullptr);

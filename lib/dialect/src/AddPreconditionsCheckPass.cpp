@@ -35,6 +35,7 @@ static void addPreconditionChecks(mlir::rlc::FunctionMetadataOp metadata)
 	auto preconditionsHold = builder.create<mlir::rlc::CallOp>(
 			preconditionFunction.getLoc(),
 			preconditionFunction,
+			false,
 			body.getBlocks().begin()->getArguments());
 
 	// emit an assert

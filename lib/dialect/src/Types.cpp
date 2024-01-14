@@ -598,12 +598,15 @@ std::string mlir::rlc::AlternativeType::getMangledName()
 }
 
 std::string mlir::rlc::mangledName(
-		llvm::StringRef functionName, mlir::FunctionType type)
+		llvm::StringRef functionName,
+		bool isMemberFunction,
+		mlir::FunctionType type)
 {
 	std::string s;
 	llvm::raw_string_ostream OS(s);
+	assert(not isMemberFunction or type.getInputs().size() >= 1);
 
-	OS << "rl_" << functionName << "_";
+	OS << "rl_" << (isMemberFunction ? "m_" : "") << functionName << "_";
 	typeToMangled(OS, type);
 	OS.flush();
 
@@ -647,8 +650,8 @@ static mlir::LogicalResult sameSignatureMethodExists(
 		mlir::FunctionType functionType)
 {
 	auto resolver = OverloadResolver(table);
-	auto overloads =
-			resolver.findOverloads(callPoint, functionName, functionType.getInputs());
+	auto overloads = resolver.findOverloads(
+			callPoint, false, functionName, functionType.getInputs());
 
 	for (auto &overload : overloads)
 	{

@@ -35,7 +35,8 @@ static mlir::rlc::FunctionMetadataOp emitPreconditionFunction(
 			fun.getLoc(),
 			("can_" + fun.getUnmangledName()).str(),
 			ftype,
-			fun.getArgNamesAttr());
+			fun.getArgNamesAttr(),
+			fun.getIsMemberFunction());
 	rewriter.cloneRegionBefore(
 			fun.getPrecondition(),
 			validityFunction.getBody(),

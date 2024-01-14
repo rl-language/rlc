@@ -546,7 +546,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
         }
 
 		std::string getMangledName() {
-			return rlc::mangledName(getUnmangledName(), getType());
+			return rlc::mangledName(getUnmangledName(), getIsMemberFunction(), getType());
 		}
 
 		mlir::FunctionType getType() {
@@ -646,13 +646,19 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 
 def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
   let summary = "function.";
-    let extraClassDeclaration = extraBaseClassDeclaration;
+  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function);
+  let extraClassDeclaration = extraBaseClassDeclaration;
+
+   let builders = [
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction), [{
+			build($_builder, $_state, type, name ,argNames, isMemberFunction);
+    }]>];
 }
 
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let extraClassDeclaration = extraBaseClassDeclaration # [{
 	mlir::LogicalResult typeCheckFunctionDeclaration(
 		mlir::IRRewriter& rewriter,
@@ -661,8 +667,8 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   }];
 
    let builders = [
-        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
-			build($_builder, $_state, type, name ,argNames, $_builder.getTypeArrayAttr(templateParameters));
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
+			build($_builder, $_state, type, name ,argNames, isMemberFunction ,$_builder.getTypeArrayAttr(templateParameters));
     }]>];
 
   let assemblyFormat = [{
@@ -691,6 +697,10 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
 		mlir::FunctionType getIsDoneFunctionType() {
 			return getIsDoneFunction().getType().cast<mlir::FunctionType>();
 		}
+
+        bool getIsMemberFunction() {
+          return false;
+        }
 
 		mlir::FunctionType getMainActionType() {
 			return getResult().getType().cast<mlir::FunctionType>();
@@ -781,26 +791,26 @@ def RLC_CallOp : RLC_Dialect<"call",
 {
     let summary = "Call operation.";
 
-    let arguments = (ins AnyFunctionType:$callee, Variadic<AnyType>:$args);
+    let arguments = (ins AnyFunctionType:$callee, BoolAttr:$is_member_call, Variadic<AnyType>:$args);
     let results = (outs Variadic<AnyType>);
 
     let assemblyFormat = [{
-        $callee `:` type($callee) `(` $args `)` attr-dict `:` functional-type($args, results)
+        $callee `:` type($callee) `(` $args `)` attr-dict  `:` functional-type($args, results)
     }];
 
     let builders = [
-        OpBuilder<(ins "Value":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
+        OpBuilder<(ins "Value":$callee, "bool":$is_member_call, CArg<"mlir::ValueRange", "{}">:$args), [{
 			auto calleeType = callee.getType();
 			auto functionType = calleeType.cast<FunctionType>();
 			if (functionType.getResults().size() == 0 or functionType.getResults().front() == VoidType::get($_builder.getContext()))
-				build($_builder, $_state, mlir::TypeRange(), callee, args);
+				build($_builder, $_state, mlir::TypeRange(), callee, is_member_call ,args);
 			else
 			{
 
 				mlir::Type resType = functionType.getResults().front();
 				if (auto casted = resType.dyn_cast<mlir::rlc::ReferenceType>())
 					resType = casted.getUnderlying();
-				build($_builder, $_state, resType, callee, args);
+				build($_builder, $_state, resType, callee, is_member_call, args);
 			}
         }]>    
 	];

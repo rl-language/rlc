@@ -270,8 +270,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		auto loop = rewiter.create<mlir::rlc::WhileStatement>(getLoc());
 		rewiter.createBlock(&loop.getCondition());
 
-		auto *call =
-				builder.emitCall(*this, "is_done", mlir::ValueRange({ frameVar }));
+		auto *call = builder.emitCall(
+				*this, true, "is_done", mlir::ValueRange({ frameVar }));
 		assert(call);
 		auto isDone = call->getResult(0);
 
@@ -334,8 +334,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		canArgs.insert(canArgs.begin(), frameVar);
 
 		auto casted = rewiter.create<mlir::rlc::CanOp>(actions.getLoc(), toCall);
-		auto result =
-				rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), casted, canArgs);
+		auto result = rewiter.create<mlir::rlc::CallOp>(
+				actions.getLoc(), casted, false, canArgs);
 		rewiter.create<mlir::rlc::Yield>(
 				actions.getLoc(), mlir::ValueRange({ result.getResult(0) }));
 		rewiter.setInsertionPointAfter(fixed);
@@ -346,7 +346,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			args.push_back(result);
 		args.insert(args.begin(), frameVar);
 
-		rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, args);
+		rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, false, args);
 
 		rewiter.create<mlir::rlc::Yield>(actions.getLoc());
 	}
@@ -721,7 +721,10 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 	{
 		rewriter.setInsertionPoint(getOperation());
 		newCall = builder.emitCall(
-				unresolvedCallee, unresolvedCallee.getName(), getArgs());
+				unresolvedCallee,
+				getIsMemberCall(),
+				unresolvedCallee.getName(),
+				getArgs());
 		if (newCall == nullptr)
 			return mlir::failure();
 	}
@@ -732,8 +735,8 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 			return logError(*this, "Cannot call non function type");
 		}
 
-		newCall =
-				rewriter.create<mlir::rlc::CallOp>(getLoc(), getCallee(), getArgs());
+		newCall = rewriter.create<mlir::rlc::CallOp>(
+				getLoc(), getCallee(), getIsMemberCall(), getArgs());
 	}
 
 	if (newCall->getNumResults() != 0)
@@ -1293,6 +1296,7 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 			getUnmangledName(),
 			deducedType.cast<mlir::FunctionType>(),
 			getArgNames(),
+			getIsMemberFunction(),
 			checkedTemplateParameters);
 	newF.getBody().takeBody(getBody());
 	newF.getPrecondition().takeBody(getPrecondition());

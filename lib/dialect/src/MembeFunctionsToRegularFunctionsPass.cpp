@@ -77,6 +77,7 @@ namespace mlir::rlc
 							function.getUnmangledName(),
 							newType,
 							rewriter.getStrArrayAttr(argNames),
+							function.getIsMemberFunction(),
 							templateParameters);
 
 					newF.getPrecondition().takeBody(function.getPrecondition());

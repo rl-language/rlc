@@ -49,7 +49,7 @@ fun main() -> Int:
 	var.x = true
 	var.ras[1] = 10.0
 	var.ras[0] = 2.0
-	let transformed = var.as_byte_vector()
+	let transformed = as_byte_vector(var)
 	let result : Struct1
 	from_byte_vector(result, transformed)
 	return int(eq(var, result)) - 1
