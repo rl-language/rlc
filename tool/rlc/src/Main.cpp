@@ -336,7 +336,8 @@ int main(int argc, char *argv[])
 
 	if (outputFile == "-" and
 			(getRequest() == mlir::rlc::Driver::Request::executable or
-			 getRequest() == mlir::rlc::Driver::Request::compile))
+			 getRequest() == mlir::rlc::Driver::Request::compile) and
+			not dumpIR)
 	{
 		errs()
 				<< "cannot write on a executable on stdout, specify a path with -o\n";

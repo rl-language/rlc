@@ -113,6 +113,7 @@ namespace mlir::rlc
 			return;
 		}
 		manager.addPass(mlir::rlc::createLowerToLLVMPass());
+		manager.addPass(mlir::rlc::createRemoveUselessAllocaPass());
 		if (request == Request::executable)
 			manager.addPass(mlir::rlc::createEmitMainPass());
 		manager.addPass(mlir::createCanonicalizerPass());

@@ -26,6 +26,11 @@ def LowerToLLVMPass : Pass<"rlc-lower-to-llvm", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect", "LLVM::LLVMDialect"];
 }
 
+def RemoveUselessAllocaPass : Pass<"rlc-remove-useless-alloca", "mlir::ModuleOp"> {
+  let summary = "remove useless alloca";
+  let dependentDialects = ["LLVM::LLVMDialect"];
+}
+
 def TypeCheckEntitiesPass : Pass<"rlc-type-check-entities", "mlir::ModuleOp"> {
   let summary = "type check rlc entities";
   let dependentDialects = ["rlc::RLCDialect"];
