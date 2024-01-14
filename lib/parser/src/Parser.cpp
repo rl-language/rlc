@@ -566,11 +566,12 @@ llvm::Expected<std::pair<std::string, mlir::Type>> Parser::entityField()
 
 /**
  * EntityDeclaration : Ent[templateArguments] Identifier Colons Newline Indent
- * (entityField Newline)* Deindent
+ * (entityField Newline | functionDefinition)* Deindent
  */
 llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 {
 	auto location = getCurrentSourcePos();
+	auto insertionPoint = builder.saveInsertionPoint();
 	EXPECT(Token::KeywordEntity);
 	SmallVector<mlir::Type, 3> templateParameters;
 	if (current == Token::LAng)
@@ -588,21 +589,43 @@ llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 	SmallVector<mlir::Type, 3> fieldTypes;
 	SmallVector<mlir::Attribute, 3> fieldNames;
 
+	mlir::Region region;
+	auto* bb = builder.createBlock(&region);
+	builder.setInsertionPointToStart(bb);
+
+	const auto on_exit = [&]() -> mlir::rlc::EntityDeclaration {
+		builder.restoreInsertionPoint(insertionPoint);
+		auto toReturn = builder.create<mlir::rlc::EntityDeclaration>(
+				location,
+				unkType(),
+				builder.getStringAttr(name),
+				builder.getTypeArrayAttr(fieldTypes),
+				builder.getArrayAttr(fieldNames),
+				builder.getTypeArrayAttr(templateParameters));
+
+		toReturn.getBody().takeBody(region);
+
+		return toReturn;
+	};
+
 	while (!accept<Token::Deindent>())
 	{
-		TRY(field, entityField());
-		fieldTypes.emplace_back(field->second);
-		fieldNames.emplace_back(builder.getStringAttr(field->first));
-		EXPECT(Token::Newline);
+		if (current == Token::KeywordFun)
+		{
+			TRY(_, functionDefinition(), on_exit());
+		}
+		else
+		{
+			TRY(field, entityField(), on_exit());
+			fieldTypes.emplace_back(field->second);
+			fieldNames.emplace_back(builder.getStringAttr(field->first));
+			EXPECT(Token::Newline, on_exit());
+		}
+		while (accept<Token::Newline>())
+			;
 	}
 
-	return builder.create<mlir::rlc::EntityDeclaration>(
-			location,
-			unkType(),
-			builder.getStringAttr(name),
-			builder.getTypeArrayAttr(fieldTypes),
-			builder.getArrayAttr(fieldNames),
-			builder.getTypeArrayAttr(templateParameters));
+	return on_exit();
 }
 
 /**

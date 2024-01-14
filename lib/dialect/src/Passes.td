@@ -16,6 +16,11 @@ def LowerToCfPass : Pass<"rlc-to-cf", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def MemberFunctionsToRegularFunctionsPass : Pass<"rlc-member-functions-to-regular-functions", "mlir::ModuleOp"> {
+  let summary = "extract member functions and adds the implicit argument";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def ActionStatementsToCoroPass : Pass<"rlc-action-statements-to-coro", "mlir::ModuleOp"> {
   let summary = "lower to cf";
   let dependentDialects = ["rlc::RLCDialect"];

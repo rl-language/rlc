@@ -1613,7 +1613,7 @@ def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInte
   }];
 }
 
-def RLC_EntityDeclaration : RLC_Dialect<"entity_decl"> {
+def RLC_EntityDeclaration : RLC_Dialect<"entity_decl", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
   let summary = "constant.";
 
   let description = [{
@@ -1623,8 +1623,12 @@ def RLC_EntityDeclaration : RLC_Dialect<"entity_decl"> {
   let arguments = (ins StrAttr:$name, TypeArrayAttr:$memberTypes, StrArrayAttr:$memberNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let results = (outs AnyType:$result);
 
+  let regions = (region
+  AnyRegion:$body
+  );
+
   let assemblyFormat = [{
-	$name ( `template_parameters` $template_parameters^ )? $memberTypes $memberNames type($result) attr-dict 
+	$name ( `template_parameters` $template_parameters^ )? $memberTypes $memberNames type($result) $body attr-dict 
   }];
 }
 
