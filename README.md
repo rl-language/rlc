@@ -11,7 +11,9 @@ The elevator pitch description of the `RL` is:
 
 Read the language rationale [here](./docs/rationale.md)
 
-At the moment `RLC` is a proof of concept, before release we want for users to be able to produce:
+At the moment `RLC` is a proof of concept, and is released to gather feedback on the features of the language. Until version 1.0 syntax and semantics may change at any point.
+
+Before version 1.0 we want for users to be able to produce:
 * a compiled library implementing such simulation (DONE)
 * a serialization and deserialization mechanism both in textual and binary format (binary format DONE)
 * a simple network protocol able to run the simulation remotely (not yet started)
