@@ -339,7 +339,7 @@ def RLC_MallocOp : RLC_Dialect<"malloc_op", [DeclareOpInterfaceMethods<TypeCheck
   }];
 }
 
-def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op"> {
+def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
   let summary = "implement malloc";
 
   let description = [{
@@ -348,8 +348,12 @@ def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op"> {
 
   let arguments = (ins StrAttr:$name, StrArrayAttr:$enum_names);
 
+  let regions = (region
+  AnyRegion:$body
+  );
+
   let assemblyFormat = [{
-	$name $enum_names attr-dict 
+	$name $enum_names $body attr-dict 
   }];
 }
 

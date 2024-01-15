@@ -46,6 +46,7 @@ namespace mlir::rlc
 								getOperation().getContext(), "Int") }),
 						rewriter.getStrArrayAttr({ "value" }),
 						rewriter.getTypeArrayAttr({}));
+				op.getBody().takeBody(declaration.getBody());
 				enums[declaration.getName()] = declaration;
 			}
 

@@ -1466,6 +1466,7 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 {
 	auto location = getCurrentSourcePos();
+	auto pos = builder.saveInsertionPoint();
 	EXPECT(Token::KeywordEnum);
 	EXPECT(Token::Identifier);
 	auto enumName = lIdent;
@@ -1476,17 +1477,38 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 	llvm::SmallVector<std::unique_ptr<std::string>, 2> enumFields;
 	llvm::SmallVector<llvm::StringRef, 2> enumFieldsRefs;
 
+	mlir::Region region;
+	auto* bb = builder.createBlock(&region);
+	builder.setInsertionPointToStart(bb);
+
+	const auto onExit = [&]() {
+		builder.restoreInsertionPoint(pos);
+		auto toReturn = builder.create<mlir::rlc::EnumDeclarationOp>(
+				location, enumName, builder.getStrArrayAttr(enumFieldsRefs));
+
+		toReturn.getBody().takeBody(region);
+		return toReturn;
+	};
+
 	while (not accept<Token::Deindent>())
 	{
-		EXPECT(Token::Identifier);
-		auto enumField = lIdent;
-		EXPECT(Token::Newline);
-		enumFields.emplace_back(std::make_unique<std::string>(enumField));
-		enumFieldsRefs.push_back(*enumFields.back());
+		if (current == Token::KeywordFun)
+		{
+			TRY(_, functionDefinition(true), onExit());
+		}
+		else
+		{
+			EXPECT(Token::Identifier, onExit());
+			auto enumField = lIdent;
+			EXPECT(Token::Newline, onExit());
+			enumFields.emplace_back(std::make_unique<std::string>(enumField));
+			enumFieldsRefs.push_back(*enumFields.back());
+		}
+		while (accept<Token::Newline>())
+			;
 	}
 
-	return builder.create<mlir::rlc::EnumDeclarationOp>(
-			location, enumName, builder.getStrArrayAttr(enumFieldsRefs));
+	return onExit();
 }
 
 /**

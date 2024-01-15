@@ -26,8 +26,8 @@ namespace mlir::rlc
 			return;
 		}
 
-		manager.addPass(mlir::rlc::createMemberFunctionsToRegularFunctionsPass());
 		manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
+		manager.addPass(mlir::rlc::createMemberFunctionsToRegularFunctionsPass());
 		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 

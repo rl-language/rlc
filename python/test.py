@@ -8,6 +8,7 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 import argparse
+import time
 from loader.simulation import dump
 from loader import Simulation, compile
 from solvers import find_end
@@ -33,9 +34,11 @@ def main():
                 and sim.module.signatures[overload][0] == bool
             ):
                 print(f"  RUN: {name}")
+                start_time = time.perf_counter()
                 result = overload()
+                end_time = time.perf_counter()
                 if result:
-                    print(f"  OK:  {name}")
+                    print(f"  OK:  {name} {end_time-start_time:.3g}s")
                 else:
                     print(f"  KO:  {name}")
                     failed.append(name)
