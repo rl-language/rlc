@@ -49,8 +49,10 @@ namespace mlir::rlc
 		{
 			for (auto field : alternative.getUnderlying())
 			{
-				auto fType =
-						mlir::FunctionType::get(op.getContext(), { type, field }, { type });
+				auto fType = mlir::FunctionType::get(
+						op.getContext(),
+						{ type, field },
+						{ mlir::rlc::VoidType::get(rewriter.getContext()) });
 				auto fun = rewriter.create<mlir::rlc::FunctionOp>(
 						op.getLoc(),
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
@@ -62,8 +64,10 @@ namespace mlir::rlc
 			}
 		}
 
-		auto fType =
-				mlir::FunctionType::get(op.getContext(), { type, type }, { type });
+		auto fType = mlir::FunctionType::get(
+				op.getContext(),
+				{ type, type },
+				{ mlir::rlc::VoidType::get(rewriter.getContext()) });
 
 		auto fun = rewriter.create<mlir::rlc::FunctionOp>(
 				op.getLoc(),
@@ -84,7 +88,7 @@ namespace mlir::rlc
 		llvm::SmallVector<mlir::Type, 2> types;
 		op.walk([&](mlir::rlc::ImplicitAssignOp op) {
 			ops.push_back(op);
-			types.push_back(op.getType());
+			types.push_back(op.getLhs().getType());
 		});
 		op.walk([&](mlir::rlc::EntityDeclaration op) {
 			types.push_back(op.getType());
@@ -116,7 +120,7 @@ namespace mlir::rlc
 		{
 			assert(assign.getLhs().getType() != nullptr);
 			assert(assign.getRhs().getType() != nullptr);
-			if (isTemplateType(assign.getType()).succeeded())
+			if (isTemplateType(assign.getLhs().getType()).succeeded())
 				continue;
 
 			builder.getRewriter().setInsertionPoint(assign);
@@ -125,14 +129,28 @@ namespace mlir::rlc
 					true,
 					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 					{ assign.getLhs(), assign.getRhs() });
-			builder.getRewriter().replaceOp(assign, result->getResult(0));
+			assign.erase();
 		}
+	}
+
+	static void emitMemMove(
+			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
+	{
+		auto resType = fun.getArgumentTypes().front();
+		auto& rewriter = builder.getRewriter();
+
+		auto* block = &fun.getBody().front();
+		rewriter.setInsertionPointToEnd(block);
+		auto lhs = block->getArgument(0);
+		auto rhs = block->getArgument(1);
+
+		rewriter.create<mlir::rlc::MemMove>(fun.getLoc(), lhs, rhs);
 	}
 
 	static void emitImplicitAssignArray(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
 	{
-		auto resType = fun.getResultTypes().front();
+		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
 		auto type = resType.dyn_cast<mlir::rlc::ArrayType>();
 
@@ -204,7 +222,7 @@ namespace mlir::rlc
 	static void emitImplicitAssignAlternatveField(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
 	{
-		auto resType = fun.getResultTypes().front();
+		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
 		auto type = resType.dyn_cast<mlir::rlc::AlternativeType>();
 		auto* block = &fun.getBody().front();
@@ -270,7 +288,7 @@ namespace mlir::rlc
 	static void emitImplicitAssignAlternatve(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
 	{
-		auto resType = fun.getResultTypes().front();
+		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
 		auto type = resType.dyn_cast<mlir::rlc::AlternativeType>();
 
@@ -307,7 +325,7 @@ namespace mlir::rlc
 	static void emitImplicitAssignEntity(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
 	{
-		auto resType = fun.getResultTypes().front();
+		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
 		auto type = resType.dyn_cast<mlir::rlc::EntityType>();
 
@@ -328,6 +346,19 @@ namespace mlir::rlc
 		}
 	}
 
+	static bool isTriviallyCopiable(mlir::Type t)
+	{
+		bool leafesAreAllPrimitiveTypes = true;
+		t.walk([&](mlir::Type inner) {
+			if (inner.isa<mlir::rlc::EntityType>())
+				leafesAreAllPrimitiveTypes = false;
+		});
+		if (t.isa<mlir::rlc::EntityType>())
+			leafesAreAllPrimitiveTypes = false;
+
+		return leafesAreAllPrimitiveTypes;
+	}
+
 	static void emitImplicitAssign(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
 	{
@@ -335,7 +366,7 @@ namespace mlir::rlc
 		if (not fun.getBody().empty())
 			return;
 
-		auto resType = fun.getResultTypes().front();
+		auto lhs = fun.getArgumentTypes().front();
 
 		auto* block = rewriter.createBlock(
 				&fun.getBody(),
@@ -343,30 +374,37 @@ namespace mlir::rlc
 				fun.getArgumentTypes(),
 				{ fun.getLoc(), fun.getLoc() });
 
-		if (auto arraytype = resType.dyn_cast<mlir::rlc::ArrayType>())
+		// if we are assining a field of a alternative to the alternative itself,
+		// emit a special assign operator
+		if (auto type = lhs.dyn_cast<mlir::rlc::AlternativeType>();
+				type and type != fun.getType().getInput(1))
+		{
+			emitImplicitAssignAlternatveField(builder, fun);
+		}
+		else if (isTriviallyCopiable(lhs))
+		{
+			emitMemMove(builder, fun);
+		}
+		else if (auto arraytype = lhs.dyn_cast<mlir::rlc::ArrayType>())
 		{
 			emitImplicitAssignArray(builder, fun);
 		}
-		else if (auto type = resType.dyn_cast<mlir::rlc::EntityType>())
+		else if (auto type = lhs.dyn_cast<mlir::rlc::EntityType>())
 		{
 			emitImplicitAssignEntity(builder, fun);
 		}
-		else if (auto type = resType.dyn_cast<mlir::rlc::AlternativeType>())
+		else if (auto type = lhs.dyn_cast<mlir::rlc::AlternativeType>())
 		{
-			if (type == fun.getType().getInput(1))
-				emitImplicitAssignAlternatve(builder, fun);
-			else
-				emitImplicitAssignAlternatveField(builder, fun);
+			emitImplicitAssignAlternatve(builder, fun);
 		}
 		else
 		{
-			resType.dump();
+			lhs.dump();
 			assert(false && "unrechable");
 		}
 
 		rewriter.setInsertionPointToEnd(block);
-		rewriter.create<mlir::rlc::Yield>(
-				fun.getLoc(), mlir::ValueRange({ block->getArgument(0) }));
+		rewriter.create<mlir::rlc::Yield>(fun.getLoc(), mlir::ValueRange({}));
 	}
 
 	static void emitImplicitAssigments(mlir::ModuleOp op)

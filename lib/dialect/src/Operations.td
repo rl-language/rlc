@@ -220,18 +220,39 @@ def RLC_UsingTypeOp : RLC_Dialect<"using_type", [DeclareOpInterfaceMethods<TypeC
   }];
 }
 
-def RLC_InitializerListOp : RLC_Dialect<"initializer_list", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_ConstantGlobalArrayOp : RLC_Dialect<"constant_array", [NoTerminator]> {
+  let summary = "constant global array";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins TypeAttrOf<AnyType>:$result, StrAttr:$name);
+
+  let regions = (region
+    AnyRegion:$body
+  );
+
+  let assemblyFormat = [{
+	$name $result $body attr-dict 
+  }];
+}
+
+def RLC_InitializerListOp : RLC_Dialect<"initializer_list", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins Variadic<AnyType>:$args);
   let results = (outs AnyType:$result);
 
+  let regions = (region
+    AnyRegion:$body
+  );
+
   let assemblyFormat = [{
-	$args `:` type($args) type($result) attr-dict 
+	type($result) $body attr-dict 
   }];
 }
 
@@ -1255,15 +1276,9 @@ def RLC_ImplicitAssignOp : RLC_Dialect<"implicit_assign", [DeclareOpInterfaceMet
   }];
 
   let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-  let results = (outs AnyType:$result);
-
-  let builders = [
-        OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
-            build($_builder, $_state, lhs.getType(), lhs, rhs);
-    }]>];
 
   let assemblyFormat = [{
-	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs) `->` type($result) attr-dict
+	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs)  attr-dict
   }];
 }
 
@@ -1275,15 +1290,9 @@ def RLC_BuiltinAssignOp : RLC_Dialect<"builtin_assign", [DeclareOpInterfaceMetho
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);
-  let results = (outs AnyRLCScalarType:$result);
-
-  let builders = [
-        OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
-            build($_builder, $_state, lhs.getType(), lhs, rhs);
-    }]>];
 
   let assemblyFormat = [{
-	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs) `->` type($result) attr-dict
+	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs)  attr-dict
   }];
 }
 
@@ -1295,15 +1304,9 @@ def RLC_AssignOp : RLC_Dialect<"assign", [DeclareOpInterfaceMethods<TypeCheckabl
   }];
 
   let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-  let results = (outs AnyType:$result);
-
-  let builders = [
-        OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
-            build($_builder, $_state, lhs.getType(), lhs, rhs);
-    }]>];
 
   let assemblyFormat = [{
-	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs) `->` type($result) attr-dict
+	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs) attr-dict
   }];
 }
 
@@ -1717,6 +1720,25 @@ def RLC_EntityRuntimeTypeGlobal : RLC_Dialect<"entity_runtime_type_global"> {
         OpBuilder<(ins "llvm::StringRef":$name, CArg<"mlir::ValueRange", "{}">:$fields, CArg<"mlir::ArrayAttr", "{}">:$fieldNames), [{
             build($_builder, $_state, TypeType::get($_builder.getContext()), name, fields, fieldNames);
     }]>];
+}
+
+
+def RLC_MemMove : RLC_Dialect<"mem_move"> {
+
+  let arguments = (ins AnyType:$dest, AnyType:$source);
+
+  let assemblyFormat = [{
+	$dest type($dest) `=` $source type($source) attr-dict 
+  }];
+}
+
+def RLC_MemSetZero : RLC_Dialect<"mem_set_zero"> {
+
+  let arguments = (ins AnyType:$dest);
+
+  let assemblyFormat = [{
+	$dest type($dest) attr-dict 
+  }];
 }
 
 def RLC_TemplateInstantiationOp : RLC_Dialect<"template_instantiation", [DeclareOpInterfaceMethods<TypeCheckable>]> {

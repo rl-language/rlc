@@ -55,6 +55,19 @@ namespace mlir::rlc
 				return;
 			}
 
+			// if we statically know it is a safe access, do not emit the check
+			auto* definingOp = op.getMemberIndex().getDefiningOp();
+			if (auto casted = mlir::dyn_cast_or_null<mlir::rlc::Constant>(definingOp);
+					casted)
+			{
+				int64_t index = casted.getValue()
+														.cast<mlir::IntegerAttr>()
+														.getValue()
+														.getZExtValue();
+				if (index >= 0 and index < array.getArraySize())
+					return;
+			}
+
 			mlir::OpBuilder builder(op);
 
 			// construct the condition

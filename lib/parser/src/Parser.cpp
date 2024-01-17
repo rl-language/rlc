@@ -100,19 +100,34 @@ llvm::Expected<mlir::Value> Parser::builtinFromArray()
 llvm::Expected<mlir::Value> Parser::initializerList()
 {
 	auto location = getCurrentSourcePos();
+	auto insertionPoint = builder.saveInsertionPoint();
 	EXPECT(Token::LSquare);
+	mlir::Region region;
+	auto* bb = builder.createBlock(&region);
+	builder.setInsertionPointToStart(bb);
+
 	llvm::SmallVector<mlir::Value> expressions;
+
+	auto onExit = [&]() -> mlir::Value {
+		builder.create<mlir::rlc::Yield>(location, expressions);
+		builder.restoreInsertionPoint(insertionPoint);
+		auto toReturn = builder.create<mlir::rlc::InitializerListOp>(
+				location, mlir::rlc::UnknownType::get(builder.getContext()));
+		toReturn.getBody().takeBody(region);
+		return toReturn;
+	};
+
 	do
 	{
 		while (accept<Token::Newline>() or accept<Token::Indent>() or
 					 accept<Token::Deindent>())
 			;
-		TRY(arg, expression());
+		TRY(arg, expression(), onExit());
 		expressions.push_back(*arg);
 	} while (accept<Token::Comma>());
-	EXPECT(Token::RSquare);
-	return builder.create<mlir::rlc::InitializerListOp>(
-			location, mlir::rlc::UnknownType::get(builder.getContext()), expressions);
+	EXPECT(Token::RSquare, onExit());
+
+	return onExit();
 }
 
 llvm::Expected<mlir::Value> Parser::builtinToArray()
@@ -538,23 +553,7 @@ Expected<mlir::Value> Parser::orExpression()
 	return std::move(*exp);
 }
 
-Expected<mlir::Value> Parser::expression() { return assignmentExpression(); }
-
-/**
- * assigmentExpression : orExpression | orExpression "=" assigmentExpression
- */
-Expected<mlir::Value> Parser::assignmentExpression()
-{
-	TRY(leftHand, orExpression());
-
-	auto location = getCurrentSourcePos();
-	if (!accept<Token::Equal>())
-		return std::move(*leftHand);
-
-	TRY(rightHand, assignmentExpression());
-	return builder.create<mlir::rlc::AssignOp>(
-			location, unkType(), *leftHand, *rightHand);
-}
+Expected<mlir::Value> Parser::expression() { return orExpression(); }
 
 /**
  * EntityField : TypeUse Identifier
@@ -631,7 +630,7 @@ llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 }
 
 /**
- * expressionStatement : expression '\n'
+ * expressionStatement : expression (= expression)? '\n'
  */
 llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
 {
@@ -647,8 +646,15 @@ llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
 	};
 
 	TRY(exp, expression(), onExit());
-	onExit();
 
+	auto locAssign = getCurrentSourcePos();
+	if (accept<Token::Equal>())
+	{
+		TRY(rightHand, expression(), onExit());
+		builder.create<mlir::rlc::AssignOp>(locAssign, *exp, *rightHand);
+	}
+
+	onExit();
 	EXPECT(Token::Newline);
 
 	return expStatement;

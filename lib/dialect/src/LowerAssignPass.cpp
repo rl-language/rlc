@@ -38,7 +38,6 @@ namespace mlir::rlc
 				builtinOperatorName<mlir::rlc::AssignOp>(),
 				mlir::ValueRange({ op.getLhs(), op.getRhs() }));
 		assert(actualCall != nullptr);
-		builder.getRewriter().replaceAllUsesWith(op, actualCall->getResult(0));
 		builder.getRewriter().eraseOp(op);
 	}
 

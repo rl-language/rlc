@@ -112,20 +112,6 @@ TEST(ParserTest, testAdditiveExpression)
 	EXPECT_NE(exp->getDefiningOp<mlir::rlc::AddOp>(), nullptr);
 }
 
-TEST(ParserTest, testAssigmentExpression)
-{
-	mlir::MLIRContext context;
-	context.loadDialect<mlir::rlc::RLCDialect>();
-	context.loadAllAvailableDialects();
-	Parser p(&context, "3.14 = 2", "fileName");
-
-	auto exp = p.expression();
-	if (!exp)
-		FAIL();
-
-	EXPECT_NE(exp->getDefiningOp<mlir::rlc::AssignOp>(), nullptr);
-}
-
 TEST(ParserTest, testEntityDeclaration)
 {
 	mlir::MLIRContext context;

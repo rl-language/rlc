@@ -53,6 +53,8 @@ namespace mlir::rlc
 			targetInfo = newTargetInfo;
 		}
 
+		void setEmitBoundChecks(bool doEmit) { emitBoundChecks = doEmit; }
+
 		void setSkipParsing(bool doIt = true) { skipParsing = doIt; }
 
 		Driver(
@@ -71,6 +73,7 @@ namespace mlir::rlc
 		bool hidePosition = false;
 		Request request = Request::executable;
 		bool emitPreconditionChecks = true;
+		bool emitBoundChecks = true;
 		bool skipParsing = false;
 
 		std::string clangPath = "clang";

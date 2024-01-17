@@ -109,13 +109,20 @@ namespace mlir::rlc
 				InstantiateTemplatesPass>::InstantiateTemplatesPassBase;
 		llvm::DenseMap<mlir::Type, bool> destructorsCache;
 
-		mlir::Value redirectMaterializedCallFromTraitToExplicitFunction(
+		// if the template instantiation refers to a trait, resolves the real
+		// function the trait was poiting at, and returns a template instantiation
+		// to it.
+		mlir::Value replaceTraitInstantiationWithUnderlyingFunctionInstantiation(
 				mlir::IRRewriter& rewriter,
 				mlir::rlc::ValueTable& symbolTable,
-				mlir::rlc::TemplateInstantiationOp op,
-				mlir::rlc::TraitDefinition trait)
+				mlir::rlc::TemplateInstantiationOp op)
 
 		{
+			auto trait =
+					op.getInputTemplate().getDefiningOp<mlir::rlc::TraitDefinition>();
+			if (not trait)
+				return op;
+
 			mlir::rlc::OverloadResolver resolver(symbolTable);
 			rewriter.setInsertionPoint(op);
 			size_t index = 0;
@@ -160,19 +167,6 @@ namespace mlir::rlc
 				op.erase();
 				return input;
 			}
-			if (auto trait =
-							op.getInputTemplate().getDefiningOp<mlir::rlc::TraitDefinition>())
-			{
-				auto replacedTraitMethodUsage =
-						redirectMaterializedCallFromTraitToExplicitFunction(
-								rewriter, symbolTable, op, trait);
-				if (auto casted =
-								replacedTraitMethodUsage
-										.getDefiningOp<mlir::rlc::TemplateInstantiationOp>())
-					op = casted;
-				else
-					return replacedTraitMethodUsage;
-			}
 
 			rewriter.setInsertionPoint(op.getInputTemplate().getDefiningOp());
 			OverloadResolver resolver(builder.getSymbolTable());
@@ -216,7 +210,6 @@ namespace mlir::rlc
 			lowerDestructors(destructorsCache, builder, clone);
 
 			op.replaceAllUsesWith(resolvedFunction);
-			op.erase();
 
 			return resolvedFunction;
 		}
@@ -256,6 +249,19 @@ namespace mlir::rlc
 
 				for (auto op : ops)
 				{
+					mlir::Value unwrappedInstantiation =
+							replaceTraitInstantiationWithUnderlyingFunctionInstantiation(
+									rewriter, builder.getSymbolTable(), op);
+					if (op != unwrappedInstantiation.getDefiningOp())
+					{
+						auto casted = dyn_cast_or_null<mlir::rlc::TemplateInstantiationOp>(
+								unwrappedInstantiation.getDefiningOp());
+						if (casted)
+							op = casted;
+						else
+							continue;
+					}
+
 					AlreadyReplacedMapEntry mapKey{ op.getInputTemplate().getDefiningOp(),
 																					op.getType() };
 					if (auto iter = alreadyReplaced.find(mapKey);

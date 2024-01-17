@@ -59,7 +59,6 @@ namespace rlc
 		llvm::Expected<mlir::rlc::EnumDeclarationOp> enumDeclaration();
 		llvm::Expected<mlir::Value> initializerList();
 		llvm::Expected<mlir::Value> enumUse();
-		llvm::Expected<mlir::Value> assignmentExpression();
 		llvm::Expected<mlir::Value> multyplicativeExpression();
 		llvm::Expected<mlir::Value> additiveExpression();
 		llvm::Expected<mlir::Value> relationalExpression();

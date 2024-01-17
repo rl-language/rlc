@@ -57,15 +57,13 @@ ent<T> Vector:
 		self._size = 0
 		self._capacity = 0
 
-	fun assign(Vector<T> other) -> Vector<T>:
+	fun assign(Vector<T> other):
 		self.drop()
 		self.init()
 		let counter = 0
 		while counter < other._size:
 			self.append(other.get(counter))
 			counter = counter + 1
-
-		return self
 
 	fun get(Int index) -> ref T:
 		return self._data[index]

@@ -1085,9 +1085,18 @@ static bool initializerListTypeIsValid(mlir::Type t)
 mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	for (auto element : getArgs())
+	auto yield =
+			mlir::dyn_cast<mlir::rlc::Yield>(getBody().back().getTerminator());
+
+	for (auto *child : ops(getBody()))
 	{
-		if (element.getType() != getArgs()[0].getType())
+		if (mlir::rlc::typeCheck(*child, builder).failed())
+			return mlir::failure();
+	}
+
+	for (auto element : yield.getArguments())
+	{
+		if (element.getType() != yield.getArguments()[0].getType())
 		{
 			emitOpError("initializer list has arguments of different type");
 			return logRemark(element.getDefiningOp(), "missmatched argument here");
@@ -1095,7 +1104,9 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 	}
 
 	auto type = mlir::rlc::ArrayType::get(
-			getContext(), getArgs()[0].getType(), getArgs().size());
+			getContext(),
+			yield.getArguments()[0].getType(),
+			yield.getArguments().size());
 
 	// the reason we only accept this types is because they are trivially
 	// copiable and the back. if the backend to mlir invoked copy assigment
@@ -1107,8 +1118,13 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 		return mlir::failure();
 	}
 
-	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::InitializerListOp>(
-			*this, type, getArgs());
+	builder.getRewriter().setInsertionPoint(*this);
+	auto newVal = builder.getRewriter().create<mlir::rlc::InitializerListOp>(
+			getLoc(), type);
+
+	newVal.getBody().takeBody(getBody());
+
+	builder.getRewriter().replaceOp(*this, newVal);
 
 	return mlir::success();
 }
@@ -1159,7 +1175,7 @@ mlir::LogicalResult mlir::rlc::BuiltinAssignOp::typeCheck(
 mlir::LogicalResult mlir::rlc::AssignOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::AssignOp>(
+	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ImplicitAssignOp>(
 			*this, getLhs(), getRhs());
 	return mlir::success();
 }
@@ -1465,6 +1481,27 @@ void mlir::rlc::ExpressionStatement::getRegionInvocationBounds(
 		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
 {
 	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::InitializerListOp::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::InitializerListOp::getSuccessorRegions(
+		mlir::RegionBranchPoint succ,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a initializer list you jump into the single body block
+	if (succ.isParent())
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	// when you are done with the region, you get out back to initializer list
+	if (not succ.isParent())
+		regions.push_back(mlir::RegionSuccessor());
 }
 
 void mlir::rlc::ExpressionStatement::getSuccessorRegions(

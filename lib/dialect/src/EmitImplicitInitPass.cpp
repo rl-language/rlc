@@ -200,6 +200,17 @@ namespace mlir::rlc
 		}
 	}
 
+	static void emitMemSetZero(
+			mlir::Type type,
+			mlir::rlc::FunctionOp fun,
+			mlir::rlc::ModuleBuilder& builder)
+	{
+		auto& rewriter = builder.getRewriter();
+
+		auto lhs = rewriter.create<mlir::rlc::MemSetZero>(
+				fun.getLoc(), fun.getBody().front().getArgument(0));
+	}
+
 	static void emitImplicitInitAlternative(
 			mlir::rlc::AlternativeType type,
 			mlir::rlc::FunctionOp fun,
@@ -270,6 +281,19 @@ namespace mlir::rlc
 		rewriter.setInsertionPointAfter(whileStatemet);
 	}
 
+	static bool isTriviallConstructible(mlir::Type t)
+	{
+		bool leafesAreAllPrimitiveTypes = true;
+		t.walk([&](mlir::Type inner) {
+			if (inner.isa<mlir::rlc::EntityType>())
+				leafesAreAllPrimitiveTypes = false;
+		});
+		if (t.isa<mlir::rlc::EntityType>())
+			leafesAreAllPrimitiveTypes = false;
+
+		return leafesAreAllPrimitiveTypes;
+	}
+
 	static void emitImplicitInits(
 			mlir::rlc::ModuleBuilder& builder, mlir::ModuleOp op)
 	{
@@ -286,7 +310,11 @@ namespace mlir::rlc
 			auto* block = rewriter.createBlock(
 					&fun.getBody(), fun.getBody().begin(), { type }, { fun.getLoc() });
 			rewriter.setInsertionPointToStart(block);
-			if (auto entityType = type.dyn_cast<mlir::rlc::EntityType>())
+			if (isTriviallConstructible(type))
+			{
+				emitMemSetZero(type, fun, builder);
+			}
+			else if (auto entityType = type.dyn_cast<mlir::rlc::EntityType>())
 			{
 				emitEntityImplicitInit(entityType, fun, builder);
 			}

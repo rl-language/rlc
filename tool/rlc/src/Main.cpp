@@ -192,6 +192,12 @@ static cl::opt<bool> emitPreconditionChecks(
 		cl::init(true),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> emitBoundChecks(
+		"emit-bound-checks",
+		cl::desc("emit bound checks for array accesses"),
+		cl::init(true),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> Optimize(
 		"O2",
 		cl::desc("Optimize"),
@@ -262,6 +268,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setIncludeDirs(includes);
 	driver.setExtraObjectFile(ExtraObjectFiles);
 	driver.setTargetInfo(&info);
+	driver.setEmitBoundChecks(emitBoundChecks);
 
 	return driver;
 }

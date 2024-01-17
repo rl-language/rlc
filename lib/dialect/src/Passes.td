@@ -213,3 +213,8 @@ def RewriteCallSignaturesPass: Pass<"rlc-rewrite-call-signatures", "mlir::Module
   let summary = "rewrite call signatures";
   let dependentDialects = ["rlc::RLCDialect"];
 }
+
+def LowerInitializerListsPass : Pass<"rlc-lower-initializer-lists", "mlir::ModuleOp"> {
+  let summary = "lower initializer list either to global or to regular array";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

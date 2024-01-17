@@ -565,7 +565,7 @@ namespace mlir::rlc
 				auto actionType = builder.typeOfAction(action);
 				auto loweredToFun = rewriter.create<mlir::rlc::FunctionOp>(
 						action.getLoc(),
-						(action.getUnmangledName() + "_impl").str(),
+						("_" + action.getUnmangledName() + "_impl").str(),
 						mlir::FunctionType::get(
 								action.getContext(),
 								{ actionType,

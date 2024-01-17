@@ -36,7 +36,6 @@ namespace mlir::rlc
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			return;
 		}
-
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorInvocationsPass());
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
 		manager.addPass(mlir::rlc::createLowerForFieldOpPass());
@@ -44,7 +43,9 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createLowerAssignPass());
 		manager.addPass(mlir::rlc::createLowerConstructOpPass());
 		manager.addPass(mlir::rlc::createLowerDestructorsPass());
+
 		manager.addPass(mlir::rlc::createInstantiateTemplatesPass());
+		manager.addPass(mlir::rlc::createLowerInitializerListsPass());
 
 		manager.addPass(mlir::rlc::createLowerConstructOpPass());
 		manager.addPass(mlir::rlc::createLowerAssignPass());
@@ -54,7 +55,8 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createEmitImplicitAssignPass());
 		manager.addPass(mlir::rlc::createEmitImplicitInitPass());
 		manager.addPass(mlir::rlc::createLowerArrayCallsPass());
-		manager.addPass(mlir::rlc::createAddOutOfBoundsCheckPass());
+		if (emitBoundChecks)
+			manager.addPass(mlir::rlc::createAddOutOfBoundsCheckPass());
 
 		if (request == Request::dumpCWrapper)
 		{
