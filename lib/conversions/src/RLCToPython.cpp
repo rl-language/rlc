@@ -277,6 +277,23 @@ class EntityDeclarationToNothing
 	}
 };
 
+class ConstantGlobalArrayOpToNothing
+		: public mlir::OpConversionPattern<mlir::rlc::ConstantGlobalArrayOp>
+{
+	public:
+	using mlir::OpConversionPattern<
+			mlir::rlc::ConstantGlobalArrayOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::ConstantGlobalArrayOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class EnumDeclarationToNothing
 		: public mlir::OpConversionPattern<mlir::rlc::EnumDeclarationOp>
 {
@@ -568,6 +585,7 @@ namespace mlir::python
 					&lib, &rlcBuilder, converter, &getContext());
 			patterns.add<TraitDeclarationToNothing>(converter, &getContext());
 			patterns.add<EnumDeclarationToNothing>(converter, &getContext());
+			patterns.add<ConstantGlobalArrayOpToNothing>(converter, &getContext());
 			patterns.add<EntityDeclarationToNothing>(converter, &getContext());
 			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
 

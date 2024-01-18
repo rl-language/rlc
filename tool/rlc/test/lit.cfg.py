@@ -21,6 +21,7 @@ lit.util.usePlatformSdkOnDarwin(config, lit_config)
 config.substitutions.append(('%PATH%', config.environment['PATH']))
 config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 config.substitutions.append(('%stdlib', config.rlc_stdlib))
+config.substitutions.append(('%pyscript', config.python_scripts))
 llvm_config.with_system_environment(["HOME", "INCLUDE", "LIB", "TMP", "TEMP"], append_path=True)
 llvm_config.use_default_substitutions()
 

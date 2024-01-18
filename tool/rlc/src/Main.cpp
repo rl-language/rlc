@@ -257,6 +257,8 @@ static mlir::rlc::Driver configureDriver(
 			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
 	llvm::SmallVector<std::string, 4> includes(
 			IncludeDirs.begin(), IncludeDirs.end());
+	auto directory = llvm::sys::path::parent_path(InputFilePath);
+	includes.push_back(directory.str());
 	includes.push_back(rlcDirectory);
 
 	Driver driver(srcManager, InputFilePath, outputFile, OS);

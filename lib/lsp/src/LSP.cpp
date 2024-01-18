@@ -15,6 +15,7 @@ RLC. If not, see <https://www.gnu.org/licenses/>.
 #include "rlc/lsp/LSP.hpp"
 
 #include "llvm/Support/Error.h"
+#include "llvm/Support/Path.h"
 #include "mlir/Pass/PassManager.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
@@ -410,11 +411,11 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	void loadFile(
 			llvm::StringRef path, llvm::StringRef contents, LSPContext &lspContext)
 	{
+		llvm::SmallVector<std::string, 4> includes(lspContext.getIncludePaths());
+		auto directory = llvm::sys::path::parent_path(path);
+		includes.push_back(directory.str());
 		::rlc::MultiFileParser parser(
-				&context,
-				lspContext.getIncludePaths(),
-				&lspContext.getSourceManager(),
-				module);
+				&context, includes, &lspContext.getSourceManager(), module);
 		auto res = parser.parseFromBuffer(contents, path);
 
 		if (!res)
