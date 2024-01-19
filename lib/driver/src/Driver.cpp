@@ -31,6 +31,8 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 
+		manager.addPass(mlir::createCanonicalizerPass());
+
 		if (request == Request::dumpCheckedAST)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
@@ -45,7 +47,6 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createLowerDestructorsPass());
 
 		manager.addPass(mlir::rlc::createInstantiateTemplatesPass());
-		manager.addPass(mlir::rlc::createLowerInitializerListsPass());
 
 		manager.addPass(mlir::rlc::createLowerConstructOpPass());
 		manager.addPass(mlir::rlc::createLowerAssignPass());
@@ -106,6 +107,9 @@ namespace mlir::rlc
 		}
 
 		manager.addPass(mlir::rlc::createLowerAssertsPass());
+
+		manager.addPass(mlir::rlc::createLowerInitializerListsPass());
+
 		manager.addPass(mlir::rlc::createLowerToCfPass());
 		manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 		manager.addPass(mlir::rlc::createStripFunctionMetadataPass());

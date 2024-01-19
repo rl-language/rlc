@@ -89,6 +89,24 @@ class LowerFree: public mlir::OpConversionPattern<mlir::rlc::FreeOp>
 
 static mlir::LLVM::ConstantOp lowerConstant(
 		mlir::ConversionPatternRewriter& rewriter,
+		mlir::Attribute attr,
+		mlir::Location loc)
+{
+	if (auto casted = attr.dyn_cast<mlir::BoolAttr>())
+		return rewriter.create<mlir::LLVM::ConstantOp>(
+				loc, rewriter.getI8Type(), casted.getValue());
+	if (auto casted = attr.dyn_cast<mlir::IntegerAttr>())
+		return rewriter.create<mlir::LLVM::ConstantOp>(
+				loc, casted.getType(), casted.getValue());
+	if (auto casted = attr.dyn_cast<mlir::FloatAttr>())
+		return rewriter.create<mlir::LLVM::ConstantOp>(
+				loc, casted.getType(), casted.getValue());
+	assert(false);
+	return nullptr;
+}
+
+static mlir::LLVM::ConstantOp lowerConstant(
+		mlir::ConversionPatternRewriter& rewriter,
 		const mlir::TypeConverter* typeConverter,
 		mlir::rlc::Constant op)
 {
@@ -1210,28 +1228,27 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 };
 
 static void emitGlobalVectorInitialization(
-		mlir::rlc::ConstantGlobalArrayOp array,
+		mlir::ArrayAttr array,
 		mlir::Value& toReturn,
 		llvm::SmallVector<int64_t, 4>& indicies,
 		mlir::ConversionPatternRewriter& rewriter,
-		const mlir::TypeConverter* typeConverter)
+		const mlir::TypeConverter* typeConverter,
+		mlir::Location loc)
 {
 	indicies.push_back(0);
-	for (auto& constant : array.getBody().front().getOperations())
+	for (auto& constant : array.getValue())
 	{
-		if (auto subElement =
-						mlir::dyn_cast<mlir::rlc::ConstantGlobalArrayOp>(constant))
+		if (auto subElement = mlir::dyn_cast<mlir::ArrayAttr>(constant))
 		{
 			emitGlobalVectorInitialization(
-					subElement, toReturn, indicies, rewriter, typeConverter);
+					subElement, toReturn, indicies, rewriter, typeConverter, loc);
 		}
 		else
 		{
-			auto casted = mlir::cast<mlir::rlc::Constant>(constant);
-			auto lowered = lowerConstant(rewriter, typeConverter, casted);
+			auto lowered = lowerConstant(rewriter, constant, loc);
 
 			toReturn = rewriter.create<mlir::LLVM::InsertValueOp>(
-					array.getLoc(), toReturn, lowered, indicies);
+					loc, toReturn, lowered, indicies);
 		}
 		indicies.back()++;
 	}
@@ -1267,7 +1284,12 @@ class GlobalArrayRewriter
 
 		llvm::SmallVector<int64_t, 4> indicies;
 		emitGlobalVectorInitialization(
-				op, toReturn, indicies, rewriter, typeConverter);
+				op.getValues(),
+				toReturn,
+				indicies,
+				rewriter,
+				typeConverter,
+				op.getLoc());
 
 		rewriter.create<mlir::LLVM::ReturnOp>(
 				op->getLoc(), mlir::ValueRange({ toReturn }));

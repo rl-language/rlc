@@ -18,6 +18,7 @@ RLC. If not, see <https://www.gnu.org/licenses/>.
 
 #include "llvm/ADT/StringExtras.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/OpDefinition.h"
 #include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/utils/IRange.hpp"
@@ -1088,6 +1089,9 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 	auto yield =
 			mlir::dyn_cast<mlir::rlc::Yield>(getBody().back().getTerminator());
 
+	if (yield.getArguments().empty())
+		return logError(*this, "Initializer list cannot be empty");
+
 	for (auto *child : ops(getBody()))
 	{
 		if (mlir::rlc::typeCheck(*child, builder).failed())
@@ -1098,7 +1102,8 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 	{
 		if (element.getType() != yield.getArguments()[0].getType())
 		{
-			emitOpError("initializer list has arguments of different type");
+			auto _ =
+					logError(*this, "initializer list has arguments of different type");
 			return logRemark(element.getDefiningOp(), "missmatched argument here");
 		}
 	}
@@ -1660,4 +1665,61 @@ mlir::LogicalResult mlir::rlc::FunctionOp::isTemplate()
 			return mlir::success();
 
 	return mlir::failure();
+}
+
+mlir::OpFoldResult mlir::rlc::Constant::fold(
+		mlir::rlc::ConstantGenericAdaptor<llvm::ArrayRef<mlir::Attribute>> attr)
+{
+	return getValueAttr();
+}
+
+mlir::OpFoldResult mlir::rlc::MinusOp::fold(
+		mlir::rlc::MinusOpGenericAdaptor<llvm::ArrayRef<mlir::Attribute>> attr)
+{
+	if (attr.getLhs() == nullptr)
+		return nullptr;
+	if (auto castedLHS = attr.getLhs().dyn_cast<mlir::IntegerAttr>())
+	{
+		return mlir::IntegerAttr::get(
+				castedLHS.getType(), -1 * castedLHS.getValue());
+	}
+
+	if (auto castedLHS = attr.getLhs().dyn_cast<mlir::FloatAttr>())
+	{
+		auto copy = castedLHS.getValue();
+		copy.changeSign();
+		return mlir::FloatAttr::get(castedLHS.getType(), copy);
+	}
+
+	return nullptr;
+}
+
+mlir::OpFoldResult mlir::rlc::InitializerListOp::fold(
+		mlir::rlc::InitializerListOpGenericAdaptor<llvm::ArrayRef<mlir::Attribute>>
+				attr)
+{
+	// if any operatation in the body is not foldable, we can't be turned into a
+	// constant
+	for (auto &op : getBody().getOps())
+	{
+		if (llvm::isa<mlir::rlc::Yield>(op))
+			continue;
+		llvm::SmallVector<mlir::OpFoldResult, 4> attr;
+		if (op.fold(attr).failed() or attr.empty())
+			return nullptr;
+	}
+	auto yield =
+			mlir::dyn_cast<mlir::rlc::Yield>(getBody().front().getTerminator());
+	llvm::SmallVector<mlir::Attribute> toReturn;
+	for (auto arg : yield.getArguments())
+	{
+		llvm::SmallVector<mlir::OpFoldResult, 4> attr;
+		auto res = arg.getDefiningOp()->fold(attr);
+		assert(res.succeeded());
+		assert(attr.size() == 1);
+		assert(not attr[0].isNull());
+		toReturn.push_back(mlir::cast<mlir::Attribute>(attr[0]));
+	}
+
+	return mlir::ArrayAttr::get(getContext(), toReturn);
 }

@@ -220,21 +220,17 @@ def RLC_UsingTypeOp : RLC_Dialect<"using_type", [DeclareOpInterfaceMethods<TypeC
   }];
 }
 
-def RLC_ConstantGlobalArrayOp : RLC_Dialect<"constant_array", [NoTerminator]> {
+def RLC_ConstantGlobalArrayOp : RLC_Dialect<"global_array"> {
   let summary = "constant global array";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins TypeAttrOf<AnyType>:$result, StrAttr:$name);
-
-  let regions = (region
-    AnyRegion:$body
-  );
+  let arguments = (ins TypeAttrOf<AnyType>:$result, ArrayAttr:$values, StrAttr:$name);
 
   let assemblyFormat = [{
-	$name $result $body attr-dict 
+	$name $values `:` $result attr-dict 
   }];
 }
 
@@ -254,6 +250,7 @@ def RLC_InitializerListOp : RLC_Dialect<"initializer_list", [DeclareOpInterfaceM
   let assemblyFormat = [{
 	type($result) $body attr-dict 
   }];
+  let hasFolder = 1;
 }
 
 def RLC_MakeRefOp : RLC_Dialect<"make_ref"> {
@@ -913,14 +910,14 @@ def RLC_IntegerLiteralUse : RLC_Dialect<"integer_literal_use", [DeclareOpInterfa
   }];
 }
 
-def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeCheckable>, ConstantLike, Pure]> {
   let summary = "constant.";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins AnyAttrOf<[I8Attr, I64Attr, F64Attr, BoolAttr]>:$value);
+  let arguments = (ins AnyAttrOf<[I8Attr, I64Attr, F64Attr, BoolAttr, ArrayAttr]>:$value);
   let results = (outs AnyType:$result);
 
    let builders = [
@@ -939,6 +936,8 @@ def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeChecka
   let assemblyFormat = [{
 	$value type($result) attr-dict
   }];
+
+  let hasFolder = 1;
 }
 
 
@@ -1225,6 +1224,7 @@ def RLC_MinusOp : RLC_InternalOp<"minus"> {
   let assemblyFormat = [{
 	$lhs `:` type($lhs) `->` type($result) attr-dict
   }];
+  let hasFolder = 1;
 }
 
 def RLC_ReminderOp : RLC_InternalOp<"reminder"> {

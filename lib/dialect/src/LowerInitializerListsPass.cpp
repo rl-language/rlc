@@ -24,32 +24,6 @@ namespace mlir::rlc
 #define GEN_PASS_DEF_LOWERINITIALIZERLISTSPASS
 #include "rlc/dialect/Passes.inc"
 
-	static bool canBeTurnedIntoAGlobal(mlir::rlc::InitializerListOp list)
-	{
-		// can be turned into a global if everything inside is a constant except for
-		// the yield, and the yield only refers to expressions inside the
-		// initializer list
-		bool isComposedOfConstantExpressions =
-				llvm::all_of(list.getOps(), [](mlir::Operation& op) {
-					if (mlir::isa<mlir::rlc::Constant>(op) or
-							mlir::isa<mlir::rlc::Yield>(op))
-						return true;
-					if (auto casted = mlir::dyn_cast<mlir::rlc::InitializerListOp>(op))
-						return true;
-					return false;
-				});
-
-		if (not isComposedOfConstantExpressions)
-			return false;
-
-		bool yieldOnlyRefersToCostants =
-				mlir::cast<mlir::rlc::Yield>(list.getBody().front().getTerminator())
-						.getArguments()
-						.size() == (list.getBody().front().getOperations().size() - 1);
-
-		return yieldOnlyRefersToCostants;
-	}
-
 	static mlir::Value rewriteAsInitialization(
 			mlir::rlc::InitializerListOp initializerList, mlir::IRRewriter& rewriter)
 	{
@@ -77,27 +51,14 @@ namespace mlir::rlc
 	}
 
 	static mlir::rlc::ConstantGlobalArrayOp rewriteAsGlobal(
-			llvm::StringRef name,
-			mlir::rlc::InitializerListOp op,
-			mlir::IRRewriter& rewriter)
+			llvm::StringRef name, mlir::rlc::Constant op, mlir::IRRewriter& rewriter)
 	{
 		rewriter.setInsertionPoint(op);
 		auto global = rewriter.create<mlir::rlc::ConstantGlobalArrayOp>(
-				op.getLoc(), op.getResult().getType(), name);
-
-		global.getBody().takeBody(op.getBody());
-		global.getBody().front().getTerminator()->erase();
-
-		llvm::SmallVector<mlir::rlc::InitializerListOp> ops;
-		for (auto op :
-				 global.getBody().front().getOps<mlir::rlc::InitializerListOp>())
-		{
-			ops.push_back(op);
-		}
-		for (auto op : ops)
-		{
-			rewriteAsGlobal("", op, rewriter);
-		}
+				op.getLoc(),
+				op.getResult().getType(),
+				op.getValue().cast<mlir::ArrayAttr>(),
+				name);
 
 		for (auto& use : op.getResult().getUses())
 		{
@@ -118,21 +79,19 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			llvm::SmallVector<mlir::rlc::InitializerListOp, 4> toGlobals;
+			llvm::SmallVector<mlir::rlc::Constant, 4> toGlobals;
 			llvm::SmallVector<mlir::rlc::InitializerListOp, 4> initializerLists;
 			mlir::IRRewriter rewriter(&getContext());
 			size_t emittedGlobals = 0;
 
-			getOperation().walk<WalkOrder::PreOrder>(
-					[&](mlir::rlc::InitializerListOp initializer) {
-						if (canBeTurnedIntoAGlobal(initializer))
-						{
-							toGlobals.push_back(initializer);
-							return WalkResult::skip();
-						}
-						initializerLists.push_back(initializer);
-						return WalkResult::interrupt();
-					});
+			getOperation().walk([&](mlir::rlc::InitializerListOp initializer) {
+				initializerLists.push_back(initializer);
+			});
+
+			getOperation().walk([&](mlir::rlc::Constant initializer) {
+				if (initializer.getType().isa<mlir::rlc::ArrayType>())
+					toGlobals.push_back(initializer);
+			});
 
 			for (auto op : toGlobals)
 			{

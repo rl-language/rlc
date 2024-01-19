@@ -96,7 +96,7 @@ llvm::Expected<mlir::Value> Parser::builtinFromArray()
 	return builder.create<mlir::rlc::FromByteArrayOp>(location, *type, *size);
 }
 
-// initializerList: "[" expression ( "," expression)* "]"
+// initializerList: "[" (expression ( "," expression)*)? "]"
 llvm::Expected<mlir::Value> Parser::initializerList()
 {
 	auto location = getCurrentSourcePos();
@@ -116,6 +116,9 @@ llvm::Expected<mlir::Value> Parser::initializerList()
 		toReturn.getBody().takeBody(region);
 		return toReturn;
 	};
+
+	if (accept<Token::RSquare>())
+		return onExit();
 
 	do
 	{
