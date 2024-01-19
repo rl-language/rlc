@@ -245,7 +245,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	if (not getName().empty())
 	{
 		auto decl = rewiter.create<mlir::rlc::DeclarationStatement>(
-				getLoc(), underlyingType, getName());
+				getLoc(), underlyingType, getName(), false);
 		decl.getBody().takeBody(getBody());
 		builder.getSymbolTable().add(getName(), decl);
 		frameVar = decl;
@@ -373,6 +373,33 @@ mlir::LogicalResult mlir::rlc::ExpressionStatement::typeCheck(
 	return mlir::success();
 }
 
+static bool declStatementInitializerIsReference(
+		mlir::rlc::DeclarationStatement statement)
+{
+	auto initializer = statement.getBody().front().getTerminator()->getOperand(0);
+
+	if (initializer.getDefiningOp<mlir::rlc::MemberAccess>())
+		return true;
+
+	if (initializer.getDefiningOp<mlir::rlc::ArrayAccess>())
+		return true;
+
+	// true if it is a function argument
+	if (initializer.getDefiningOp() == nullptr)
+		return true;
+
+	if (auto casted = initializer.getDefiningOp<mlir::rlc::CallOp>())
+	{
+		auto resultsType =
+				casted.getCallee().getType().cast<mlir::FunctionType>().getResults();
+		if (resultsType.empty() or resultsType[0].isa<mlir::rlc::VoidType>())
+			return false;
+
+		return resultsType[0].isa<mlir::rlc::ReferenceType>();
+	}
+	return false;
+}
+
 mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -386,8 +413,34 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 	rewriter.setInsertionPoint(getOperation());
 	auto deducedType = getBody().front().getTerminator()->getOperand(0).getType();
 
+	if (getIsReference())
+	{
+		if (not declStatementInitializerIsReference(*this))
+		{
+			return mlir::rlc::logError(
+					getOperation(),
+					"Declaration statement is a reference but right hand side of "
+					"assigment is not.");
+		}
+	}
+	else
+	{
+		if (declStatementInitializerIsReference(*this))
+		{
+			auto yield =
+					mlir::dyn_cast<mlir::rlc::Yield>(getBody().front().getTerminator());
+			rewriter.setInsertionPoint(yield);
+			auto construct = rewriter.create<mlir::rlc::ConstructOp>(
+					getLoc(), yield.getArguments()[0].getType());
+			rewriter.create<mlir::rlc::ImplicitAssignOp>(
+					getLoc(), construct, yield.getArguments()[0]);
+			yield->setOperand(0, construct);
+			rewriter.setInsertionPoint(*this);
+		}
+	}
+
 	auto newOne = rewriter.create<mlir::rlc::DeclarationStatement>(
-			getLoc(), deducedType, getName());
+			getLoc(), deducedType, getName(), getIsReference());
 	newOne.getBody().takeBody(getBody());
 	rewriter.replaceOp(*this, newOne);
 

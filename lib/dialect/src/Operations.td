@@ -521,7 +521,7 @@ def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods
 def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$sym_name);
+  let arguments = (ins StrAttr:$sym_name, BoolAttr:$is_reference);
   let description = [{
 	expression.
   }];
@@ -533,7 +533,7 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMe
   );
 
   let assemblyFormat = [{
-	$sym_name `:` type($result) $body  attr-dict 
+	$sym_name `:` type($result) `ref` `=` $is_reference  $body attr-dict
   }];
 }
 

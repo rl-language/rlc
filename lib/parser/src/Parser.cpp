@@ -1046,7 +1046,7 @@ Expected<mlir::Operation*> Parser::statement()
 	if (current == Token::KeywordFor)
 		return forFieldStatement();
 
-	if (current == Token::KeywordLet)
+	if (current == Token::KeywordLet || current == Token::KeywordRef)
 		return declarationStatement();
 
 	if (current == Token::KeywordFree)
@@ -1083,17 +1083,21 @@ void Parser::emitYieldIfNeeded(mlir::Location loc)
 }
 
 /**
- * declarationStatement : 'let' identifier ['=' expression | ':' type_use ]
+ * declarationStatement : ('let' | `ref`) identifier ['=' expression | ':'
+ * type_use
+ * ]
  */
 Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 {
 	auto location = getCurrentSourcePos();
-	EXPECT(Token::KeywordLet);
+	bool isRef = accept<Token::KeywordRef>();
+	if (not isRef)
+		EXPECT(Token::KeywordLet);
 	EXPECT(Token::Identifier);
 	auto name = lIdent;
 
 	auto expStatement = builder.create<mlir::rlc::DeclarationStatement>(
-			location, unkType(), name);
+			location, unkType(), name, isRef);
 
 	auto pos = builder.saveInsertionPoint();
 	builder.createBlock(&expStatement.getBody());

@@ -10,6 +10,6 @@ fun ret_x(Asd val) -> ref Int:
 fun main() -> Int:
 	let var : Asd
 	var.x = 10
-	let refvar = ret_x(var)
+	ref refvar = ret_x(var)
 	var.x = 20
 	return refvar - 20

@@ -48,17 +48,13 @@ namespace mlir::rlc
 			{
 				rewriter.eraseOp(op);
 			}
-			auto index = rewriter.create<mlir::rlc::DeclarationStatement>(
-					op.getLoc(), mlir::rlc::IntegerType::getInt64(op.getContext()), "dc");
-			auto* block = rewriter.createBlock(&index.getBody());
-			rewriter.setInsertionPoint(block, block->begin());
+			auto index = rewriter.create<mlir::rlc::UninitializedConstruct>(
+					op.getLoc(), mlir::rlc::IntegerType::getInt64(op.getContext()));
 			auto zero = rewriter.create<mlir::rlc::Constant>(
 					op.getLoc(), static_cast<int64_t>(0));
 
-			rewriter.create<mlir::rlc::Yield>(
-					op.getLoc(), mlir::ValueRange({ zero }));
+			rewriter.create<mlir::rlc::BuiltinAssignOp>(op.getLoc(), index, zero);
 
-			rewriter.setInsertionPointAfter(index);
 			auto whileStm = rewriter.create<mlir::rlc::WhileStatement>(op.getLoc());
 			auto* wCond = rewriter.createBlock(&whileStm.getCondition());
 			rewriter.setInsertionPoint(wCond, wCond->begin());

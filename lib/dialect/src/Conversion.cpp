@@ -712,9 +712,16 @@ class CopyRewriter: public mlir::OpConversionPattern<mlir::rlc::CopyOp>
 				mlir::rlc::ProxyType::get(op.getToCopy().getType()));
 		auto result = makeAlloca(rewriter, type, op.getLoc());
 
-		auto loaded =
-				makeAlignedLoad(rewriter, type, adaptor.getToCopy(), op.getLoc());
-		makeAlignedStore(rewriter, loaded, result, op.getLoc());
+		auto resultType = typeConverter->convertType(
+				mlir::rlc::ProxyType::get(op.getResult().getType()));
+		const auto& dl = mlir::DataLayout::closest(op);
+
+		auto len = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(),
+				rewriter.getIntegerType(64),
+				rewriter.getI64IntegerAttr(dl.getTypeSize(resultType)));
+		rewriter.create<mlir::LLVM::MemcpyOp>(
+				op.getLoc(), result, adaptor.getToCopy(), len, false);
 		rewriter.replaceOp(op, result);
 
 		return mlir::LogicalResult::success();

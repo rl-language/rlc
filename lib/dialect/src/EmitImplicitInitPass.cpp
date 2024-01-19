@@ -237,18 +237,11 @@ namespace mlir::rlc
 		rewriter.setInsertionPointToEnd(block);
 		auto lhs = block->getArgument(0);
 
-		auto decl = rewriter.create<mlir::rlc::DeclarationStatement>(
-				fun.getLoc(),
-				mlir::rlc::IntegerType::getInt64(fun.getContext()),
-				"counter");
-		auto* counterInitializerBB =
-				rewriter.createBlock(&decl.getBody(), decl.getBody().begin());
-		rewriter.setInsertionPoint(
-				counterInitializerBB, counterInitializerBB->begin());
+		auto decl = rewriter.create<mlir::rlc::UninitializedConstruct>(
+				fun.getLoc(), mlir::rlc::IntegerType::getInt64(fun.getContext()));
 		auto zero = rewriter.create<mlir::rlc::Constant>(fun.getLoc(), int64_t(0));
-		rewriter.create<mlir::rlc::Yield>(fun.getLoc(), mlir::ValueRange({ zero }));
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(fun.getLoc(), decl, zero);
 
-		rewriter.setInsertionPointAfter(decl);
 		auto whileStatemet =
 				rewriter.create<mlir::rlc::WhileStatement>(fun.getLoc());
 		auto* condition = rewriter.createBlock(
