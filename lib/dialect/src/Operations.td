@@ -1,5 +1,6 @@
 include "Types.td"
 include "Interfaces.td"
+include "Enums.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
@@ -521,7 +522,7 @@ def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods
 def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$sym_name, BoolAttr:$is_reference);
+  let arguments = (ins StrAttr:$sym_name);
   let description = [{
 	expression.
   }];
@@ -532,8 +533,12 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMe
   AnyRegion:$body
   );
 
+  code extraClassDeclaration = [{
+	bool isReference();
+  }];
+
   let assemblyFormat = [{
-	$sym_name `:` type($result) `ref` `=` $is_reference  $body attr-dict
+	$sym_name `:` type($result) $body attr-dict
   }];
 }
 
@@ -555,7 +560,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 
    let builders = [
         OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames), [{
-			build($_builder, $_state, type, name ,argNames);
+			build($_builder, $_state, type, name, argNames);
     }]>];
 
   let assemblyFormat = [{
@@ -673,14 +678,14 @@ def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
 
    let builders = [
         OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction), [{
-			build($_builder, $_state, type, name ,argNames, isMemberFunction);
+			build($_builder, $_state, type, name, argNames, isMemberFunction);
     }]>];
 }
 
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function , DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let extraClassDeclaration = extraBaseClassDeclaration # [{
 	mlir::LogicalResult typeCheckFunctionDeclaration(
 		mlir::IRRewriter& rewriter,
@@ -690,14 +695,12 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
 
    let builders = [
         OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
-			build($_builder, $_state, type, name ,argNames, isMemberFunction ,$_builder.getTypeArrayAttr(templateParameters));
+			build($_builder, $_state, type, name, argNames, isMemberFunction ,$_builder.getTypeArrayAttr(templateParameters));
     }]>];
 
   let assemblyFormat = [{
 	$unmangled_name( $template_parameters^ )? type($result) $argNames $precondition $body attr-dict 
   }];
-
-
 }
 
 def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
@@ -707,6 +710,7 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
 	$unmangled_name type($result) type($actions) type($is_done_function) $argNames $precondition $body attr-dict 
   }];
     let extraClassDeclaration = extraBaseClassDeclaration # [{
+        std::pair<ActionFrameContent, ActionFrameContent>  getFrameLists();
 
 		size_t getSubActionsSize() {
 			return getActions().size();
@@ -1592,6 +1596,21 @@ def RLC_SelectBranch : RLC_Dialect<"switch", [Terminator, DeclareOpInterfaceMeth
   }];
 }
 
+def RLC_StorageCast : RLC_Dialect<"storage_cast"> {
+  let summary = "Turns context and frame types into a regular type";
+
+  let description = [{
+    A storage cast is a cast introduced in actions to erase the type informations that refers to the location where a variable will be allocated. For example, if the argument of a action is `ctx Int a`, then before each use of `a` a storage cast must be introduced to remove the ctx qualifier. This operation should not appear in a regular function.
+  }];
+
+  let arguments = (ins AnyType:$operand);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$operand `:` type($operand) `->` type($result) attr-dict
+  }];
+}
+
 def RLC_UnresolvedReference : RLC_Dialect<"unresolved_ref", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "statement list.";
 
@@ -1609,10 +1628,6 @@ def RLC_UnresolvedReference : RLC_Dialect<"unresolved_ref", [DeclareOpInterfaceM
         OpBuilder<(ins "llvm::StringRef":$name), [{
             build($_builder, $_state, UnknownType::get($_builder.getContext()), name);
     }]>];
-
-  let assemblyFormat = [{
-	$name attr-dict `:` type($result)
-  }];
 }
 
 def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInterfaceMethods<TypeCheckable>]> {

@@ -691,7 +691,7 @@ llvm::Expected<bool> Parser::requirementList()
 
 /**
  * subActionStatement: subaction (*)? ("(" argumentExpressionList ")")?
- * (`ident` =)? expression \n \n
+ * `ident` = expression \n \n
  */
 llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 {
@@ -1046,7 +1046,8 @@ Expected<mlir::Operation*> Parser::statement()
 	if (current == Token::KeywordFor)
 		return forFieldStatement();
 
-	if (current == Token::KeywordLet || current == Token::KeywordRef)
+	if (current == Token::KeywordLet || current == Token::KeywordRef ||
+			current == Token::KeywordFrame)
 		return declarationStatement();
 
 	if (current == Token::KeywordFree)
@@ -1083,21 +1084,26 @@ void Parser::emitYieldIfNeeded(mlir::Location loc)
 }
 
 /**
- * declarationStatement : ('let' | `ref`) identifier ['=' expression | ':'
- * type_use
+ * declarationStatement : ('let' | `ref` | `frm`) identifier ['=' expression |
+ * ':' type_use
  * ]
  */
 Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 {
 	auto location = getCurrentSourcePos();
-	bool isRef = accept<Token::KeywordRef>();
-	if (not isRef)
+	mlir::Type type = mlir::rlc::UnknownType::get(builder.getContext());
+	if (accept<Token::KeywordRef>())
+		type = mlir::rlc::ReferenceType::get(type);
+	else if (accept<Token::KeywordFrame>())
+		type = mlir::rlc::FrameType::get(type);
+	else
 		EXPECT(Token::KeywordLet);
+
 	EXPECT(Token::Identifier);
 	auto name = lIdent;
 
-	auto expStatement = builder.create<mlir::rlc::DeclarationStatement>(
-			location, unkType(), name, isRef);
+	auto expStatement =
+			builder.create<mlir::rlc::DeclarationStatement>(location, type, name);
 
 	auto pos = builder.saveInsertionPoint();
 	builder.createBlock(&expStatement.getBody());
@@ -1241,23 +1247,27 @@ Expected<mlir::Type> Parser::singleTypeUse()
 	return mlir::rlc::AlternativeType::get(ctx, seenTypes);
 }
 
-Expected<std::pair<std::string, mlir::Type>> Parser::argDeclaration()
+Expected<std::tuple<std::string, mlir::Type>> Parser::argDeclaration()
 {
+	auto isFrame = accept<Token::KeywordFrame>();
+
 	TRY(tp, singleTypeUse());
+	if (isFrame)
+		*tp = mlir::rlc::FrameType::get(*tp);
 	EXPECT(Token::Identifier);
 	auto parName = lIdent;
-	return std::pair{ parName, *tp };
+	return std::tuple{ parName, *tp };
 }
 
 /**
  * functionDefinition : "(" [argDeclaration ("," argDeclaration)*] ")"
  */
-Expected<llvm::SmallVector<std::pair<std::string, mlir::Type>, 3>>
+Expected<llvm::SmallVector<std::tuple<std::string, mlir::Type>, 3>>
 Parser::functionArguments()
 {
 	EXPECT(Token::LPar);
 
-	llvm::SmallVector<std::pair<std::string, mlir::Type>, 3> args;
+	llvm::SmallVector<std::tuple<std::string, mlir::Type>, 3> args;
 
 	if (current != Token::RPar)
 	{
@@ -1340,8 +1350,8 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 
 	for (auto& arg : *args)
 	{
-		argTypes.push_back(arg.second);
-		argName.push_back(arg.first);
+		argTypes.push_back(std::get<mlir::Type>(arg));
+		argName.push_back(std::get<std::string>(arg));
 		argLocs.push_back(location);
 	}
 
@@ -1358,11 +1368,11 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 
 	auto fun = builder.create<mlir::rlc::FunctionOp>(
 			location,
-			mlir::FunctionType::get(ctx, argTypes, { retType }),
 			builder.getStringAttr(nm),
+			mlir::FunctionType::get(ctx, argTypes, { retType }),
 			builder.getStrArrayAttr(argName),
 			isMemberFunction,
-			builder.getTypeArrayAttr(templateParameters));
+			templateParameters);
 
 	return FunctionDeclarationResult{ fun, argLocs };
 }
@@ -1419,8 +1429,8 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration(
 
 	for (auto& arg : *args)
 	{
-		argTypes.push_back(arg.second);
-		argName.push_back(arg.first);
+		argName.push_back(std::get<std::string>(arg));
+		argTypes.push_back(std::get<mlir::Type>(arg));
 	}
 
 	std::string name;

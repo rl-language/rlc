@@ -48,6 +48,9 @@ static std::string nonArrayTypeToString(mlir::Type type)
 
 static std::string typeToString(mlir::Type type)
 {
+	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+		type = casted.getUnderlying();
+
 	std::string O;
 	llvm::raw_string_ostream OS(O);
 	llvm::TypeSwitch<mlir::Type>(type)
@@ -69,6 +72,9 @@ static std::string typeToString(mlir::Type type)
 static void printTypeField(
 		llvm::StringRef fieldName, mlir::Type type, llvm::raw_ostream& OS)
 {
+	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+		type = casted.getUnderlying();
+
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case<mlir::rlc::ArrayType>([&](mlir::rlc::ArrayType array) {
 				printTypeField(fieldName, array.getUnderlying(), OS);

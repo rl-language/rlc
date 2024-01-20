@@ -2,8 +2,8 @@
 # RUN: %t
 
 act guess() -> Guess:
-	act p1_choise(Int secret)
-	let result : Int
+	act p1_choise(frm Int secret)
+	frm result : Int
 
 	while true:
 		act p2_choise(Int guess)	

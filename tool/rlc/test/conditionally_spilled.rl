@@ -2,7 +2,7 @@
 # RUN: %t
 
 act test() -> Test:
-  let x = 0
+  frm x = 0
   if x == 0:
     act asd(Int y)
   x = 1

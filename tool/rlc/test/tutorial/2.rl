@@ -53,26 +53,26 @@ fun main() -> Int:
 
 act odd_and_evens() -> Game:
   # declares a local variable, which will be saved in the `game_state` variable.
-  let p1_has_won = true
+  frm p1_has_won = true
 
   # stop the execution of the coroutine until `player_one_predicts_odd` is invoked. The
   # argument of that function is bound to `first_player_has_selected_odd`
-  act player_one_predicts_odd(Bool first_player_has_selected_odd)
+  act player_one_predicts_odd(frm Bool first_player_has_selected_odd)
 
   # keep executing the next action until the input is valid
-  let p1_choise = -1
+  frm p1_choise = -1
   while p1_choise < 0 or p1_choise > 5:
     act current_player_reveals_hand(Int p1_finger_count)
     p1_choise = p1_finger_count
 
-  let p2_choise = -1
+  frm p2_choise = -1
   while p2_choise < 0 or p2_choise > 5:
     act current_player_reveals_hand(Int p2_finger_count) 
     p2_choise = p2_finger_count
 
   # check who has won. Sum is not saved in the coroutine frame, it is not used in between 
   # actions, it does not need to take space! 
-  let sum = p1_choise + p2_choise
+  frm sum = p1_choise + p2_choise
   if sum % 2 != int(first_player_has_selected_odd):
     p1_has_won = false 
 
@@ -100,11 +100,11 @@ act odd_and_evens() -> Game:
 # Think back at your predicted implementation in another language. 
 # Would have been this easy to write?
 act odd_and_evens_asserts() -> GameWithAsserts:
-  let p1_has_won = true
+  frm p1_has_won = true
 
-  act player_one_predicts_odd(Bool first_player_has_selected_odd)
-  act current_player_reveals_hand(Int p1_choise) { p1_choise <= 5 and p1_choise >= 0 }
-  act current_player_reveals_hand(Int p2_choise) { p2_choise <= 5 and p2_choise >= 0 }
+  act player_one_predicts_odd(frm Bool first_player_has_selected_odd)
+  act current_player_reveals_hand(frm Int p1_choise) { p1_choise <= 5 and p1_choise >= 0 }
+  act current_player_reveals_hand(frm Int p2_choise) { p2_choise <= 5 and p2_choise >= 0 }
 
   let sum = p1_choise + p2_choise
   if sum % 2 != int(first_player_has_selected_odd):

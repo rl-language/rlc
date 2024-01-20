@@ -9,7 +9,7 @@ act inner(Int arg) -> Inner:
     arg = val
 
 act outer() -> Outer:
-    let result : Int
+    frm result : Int
     subaction*(result) inner_frame = inner(result)
 
 fun main() -> Int:

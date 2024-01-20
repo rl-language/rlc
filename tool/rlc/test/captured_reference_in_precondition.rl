@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-act inner(Int local_var) -> Inner:
+act inner(frm Int local_var) -> Inner:
   act to_call(Int other){
     other == local_var + 1
   }

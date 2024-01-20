@@ -55,8 +55,8 @@ ent Board:
 		self.playerTurn = !self.playerTurn
 
 act play() -> TicTacToe:
-	let board : Board
-	let score = 10
+	frm board : Board
+	frm score = 10
 	while !board.full():
 		act mark(Int x, Int y) {
 			x < 3,

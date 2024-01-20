@@ -2,7 +2,7 @@
 # RUN: %t
 
 act to_run() -> ToRun:
-	let to_ret : Int
+	frm to_ret : Int
 	act dead_store(Int val)
 	to_ret = val 
 	act to_call(Int val2)

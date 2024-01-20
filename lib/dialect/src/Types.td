@@ -74,6 +74,11 @@ def RLC_ReferenceType : RLC_Type<"Reference", "ref"> {
 
   let parameters = (ins "Type":$underlying);
   let assemblyFormat = "`<` $underlying `>` ";
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins "mlir::Type":$underlying),[{
+		return 	mlir::rlc::ReferenceType::get(underlying.getContext(), underlying);
+	  }]>,
+  ];
 }
 
 def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr"> {
@@ -205,6 +210,21 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
 	mlir::LogicalResult typeRespectsTraitFunctionDeclaration(mlir::Location callPoint, mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table, size_t FuctionDeclarationIndex);
 	public:
   }];
+}
+
+def RLC_FrameType : RLC_Type<"Frame", "frame"> {
+  let summary = "Marks a type as being allocated in the frame of a action.";
+  let description = [{
+        Marks a type as being allocated in the frame of a action.
+  }];
+
+  let parameters = (ins "Type":$underlying);
+  let assemblyFormat = "`<` $underlying`>`";
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins "mlir::Type":$underlying),[{
+		return mlir::rlc::FrameType::get(underlying.getContext(), underlying);
+	  }]>,
+  ];
 }
 
 // this types is here to abuse the type converter when lowering llvm ir

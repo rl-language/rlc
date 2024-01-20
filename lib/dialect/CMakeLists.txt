@@ -1,4 +1,4 @@
-rlcAddLibrary(dialect src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp src/LowerActionPass.cpp src/LowerArrayCalls.cpp src/LowerToCf.cpp src/ActionStatementsToCoro.cpp src/OverloadResolver.cpp src/LowerIsOperationsPass.cpp src/InstantiateTemplatesPass.cpp src/LowerAssignPass.cpp src/EmitImplicitAssignPass.cpp src/LowerConstructOpPass.cpp src/EmitImplicitInitPass.cpp src/EmitImplicitDestructorInvocationsPass.cpp src/LowerForFieldOpPass.cpp src/EmitEnumEntitiesPass.cpp src/SortTypeDeclarationsPass.cpp src/AddOutOfBoundsCheckPass.cpp src/PrintIRPass.cpp src/ExtractPreconditionPass.cpp src/LowerAssertsPass.cpp src/AddPreconditionsCheckPass.cpp src/ActionLiveness.cpp src/UncheckedAstToDot.cpp src/RewriteCallSignaturesPass.cpp src/RemoveUselessAllocaPass.cpp src/MembeFunctionsToRegularFunctionsPass.cpp src/LowerInitializerListsPass.cpp)
+rlcAddLibrary(dialect src/Dialect.cpp src/Types.cpp src/Operations.cpp src/Conversion.cpp src/EmitMain.cpp src/TypeCheck.cpp src/Interfaces.cpp src/SymbolTable.cpp src/ActionArgumentAnalysis.cpp src/LowerActionPass.cpp src/LowerArrayCalls.cpp src/LowerToCf.cpp src/ActionStatementsToCoro.cpp src/OverloadResolver.cpp src/LowerIsOperationsPass.cpp src/InstantiateTemplatesPass.cpp src/LowerAssignPass.cpp src/EmitImplicitAssignPass.cpp src/LowerConstructOpPass.cpp src/EmitImplicitInitPass.cpp src/EmitImplicitDestructorInvocationsPass.cpp src/LowerForFieldOpPass.cpp src/EmitEnumEntitiesPass.cpp src/SortTypeDeclarationsPass.cpp src/AddOutOfBoundsCheckPass.cpp src/PrintIRPass.cpp src/ExtractPreconditionPass.cpp src/LowerAssertsPass.cpp src/AddPreconditionsCheckPass.cpp src/ActionLiveness.cpp src/UncheckedAstToDot.cpp src/RewriteCallSignaturesPass.cpp src/RemoveUselessAllocaPass.cpp src/MembeFunctionsToRegularFunctionsPass.cpp src/LowerInitializerListsPass.cpp src/Enums.cpp)
 target_link_libraries(dialect PUBLIC rlc::utils MLIRSupport MLIRDialect MLIRLLVMDialect MLIRLLVMIRTransforms MLIRControlFlowDialect)
 
 set(tblgen ${LLVM_BINARY_DIR}/bin/mlir-tblgen)
@@ -45,7 +45,20 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}
 
 add_custom_target(${dialectName}PassesIncludeInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Passes.inc)
 
-add_dependencies(${dialectName} ${dialectName}PassesIncludeInc ${dialectName}DialectInc ${dialectName}DialectIncludeInc ${dialectName}TypesInc ${dialectName}TypesIncludeInc ${dialectName}OperationsInc ${dialectName}OperationsIncludeInc ${dialectName}InterfacesInc ${dialectName}InterfacesIncludeInc)
+# enums
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Enums.inc DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/Enums.td
+    COMMAND ${tblgen} --gen-enum-decls -I ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src/Enums.td -o ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Enums.inc -I ${CMAKE_CURRENT_SOURCE_DIR}/src -name ${dialectName})
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/Enums.inc DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/Enums.td
+    COMMAND ${tblgen} --gen-enum-defs -I ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/src/Enums.td -o ${CMAKE_CURRENT_BINARY_DIR}/src/Enums.inc -I ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+add_custom_target(${dialectName}EnumIncludeInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/${dialectName}/Enums.inc)
+add_custom_target(${dialectName}EnumInc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/src/Enums.inc)
+
+#####
+add_dependencies(${dialectName} ${dialectName}PassesIncludeInc ${dialectName}DialectInc ${dialectName}DialectIncludeInc ${dialectName}TypesInc ${dialectName}TypesIncludeInc ${dialectName}OperationsInc ${dialectName}OperationsIncludeInc ${dialectName}InterfacesInc ${dialectName}InterfacesIncludeInc ${dialectName}EnumIncludeInc ${dialectName}EnumInc)
+
 endmacro(add_rlc_dialect)
+
 
 add_rlc_dialect(dialect)

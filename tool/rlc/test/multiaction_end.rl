@@ -6,7 +6,7 @@ import collections.vector
 act play(Int seed) -> Play:
 	let board : Vector<Int>
 
-	let over = false
+	frm over = false
 
 	while !over:
 		actions:

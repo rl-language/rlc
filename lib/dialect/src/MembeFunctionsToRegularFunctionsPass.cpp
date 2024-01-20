@@ -46,7 +46,6 @@ namespace mlir::rlc
 				{
 					functions.push_back(function);
 				}
-				rewriter.setInsertionPoint(decl);
 				for (auto function : functions)
 				{
 					llvm::SmallVector<mlir::Type, 4> templateParameters;
@@ -72,23 +71,16 @@ namespace mlir::rlc
 					for (const auto& name : function.getArgNames())
 						argNames.push_back(name.cast<mlir::StringAttr>());
 
-					auto newF = rewriter.create<mlir::rlc::FunctionOp>(
-							function.getLoc(),
-							function.getUnmangledName(),
-							newType,
-							rewriter.getStrArrayAttr(argNames),
-							function.getIsMemberFunction(),
-							templateParameters);
+					function.setTemplateParametersAttr(
+							rewriter.getTypeArrayAttr(templateParameters));
+					function.setArgNamesAttr(rewriter.getStrArrayAttr(argNames));
+					function.getResult().setType(newType);
 
-					newF.getPrecondition().takeBody(function.getPrecondition());
-					newF.getBody().takeBody(function.getBody());
-
-					newF.getPrecondition().insertArgument(
-							(unsigned int) 0, newArgs[0], newF.getLoc());
-					newF.getBody().insertArgument(
-							(unsigned int) 0, newArgs[0], newF.getLoc());
-
-					function.erase();
+					function.getPrecondition().insertArgument(
+							(unsigned int) 0, newArgs[0], function.getLoc());
+					function.getBody().insertArgument(
+							(unsigned int) 0, newArgs[0], function.getLoc());
+					function->moveAfter(decl);
 				}
 			}
 		}

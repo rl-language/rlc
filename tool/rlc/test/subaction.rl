@@ -2,12 +2,12 @@
 # RUN: %t
 
 act outer() -> Outer:
-	let frame = inner()
+	frm frame = inner()
 	act run(Int x)
 	frame.asd(x)
 
 act inner() -> Inner:
-	let to_return : Int
+	frm to_return : Int
 	act asd(Int x)
 	to_return = x
 

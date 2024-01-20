@@ -3,7 +3,7 @@
 
 act action_example(Int x) -> Action:
 	let wasd = 4
-	let asd = wasd + x
+	frm asd = wasd + x
 
 	act dont_care()
 	asd = asd

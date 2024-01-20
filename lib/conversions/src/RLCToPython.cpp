@@ -55,6 +55,10 @@ static void registerBuiltinConversions(
 		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
 	});
 
+	converter.addConversion([&](mlir::rlc::FrameType t) -> mlir::Type {
+		return converter.convertType(t.getUnderlying());
+	});
+
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
 		assert(converted);

@@ -31,13 +31,13 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 
-		manager.addPass(mlir::createCanonicalizerPass());
-
 		if (request == Request::dumpCheckedAST)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			return;
 		}
+		manager.addPass(mlir::createCanonicalizerPass());
+
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorInvocationsPass());
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
 		manager.addPass(mlir::rlc::createLowerForFieldOpPass());

@@ -8,13 +8,13 @@
 # We already saw the basic `action function` structure, where one can declare action with suspension points
 
 act odd_and_evens_asserts() -> Game:
-  let p1_has_won = true
+  frm p1_has_won = true
 
-  act player_one_predicts_odd(Bool first_player_has_selected_odd)
-  act current_player_reveals_hand(Int p1_choise) { p1_choise <= 5 and p1_choise >= 0 }
-  act current_player_reveals_hand(Int p2_choise) { p2_choise <= 5 and p2_choise >= 0 }
+  act player_one_predicts_odd(frm Bool first_player_has_selected_odd)
+  act current_player_reveals_hand(frm Int p1_choise) { p1_choise <= 5 and p1_choise >= 0 }
+  act current_player_reveals_hand(frm Int p2_choise) { p2_choise <= 5 and p2_choise >= 0 }
 
-  let sum = p1_choise + p2_choise
+  frm sum = p1_choise + p2_choise
   if sum % 2 != int(first_player_has_selected_odd):
     p1_has_won = false 
 
@@ -41,7 +41,7 @@ fun p1_always_pick_odd_test() -> Bool:
 # so the user may decide to wrap it inside another action to prevent user from accessing it
 
 act p1_always_pick_odd_safe() -> GameWithOneLessAction:
-  let inner_frame = p1_always_pick_odd()
+  frm inner_frame = p1_always_pick_odd()
   while !inner_frame.is_done():
     act current_player_reveals_hand(Int choise) { choise <= 5 and choise >= 0 }
     inner_frame.current_player_reveals_hand(choise)
@@ -89,7 +89,7 @@ fun maybe_play_a_game_test() -> Bool:
 # With the actions statement
 
 act guess_a_number() -> GuessGame:
-  let guessed : Int
+  frm guessed : Int
   actions:
     act guess_4() 
     guessed = 4

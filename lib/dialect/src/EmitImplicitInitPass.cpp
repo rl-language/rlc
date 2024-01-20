@@ -124,8 +124,8 @@ namespace mlir::rlc
 			emitAllNeedSubtypes(type);
 		}
 
-		// emits the the root tyes and drops the points where they are used in favor
-		// of the new function
+		// emits the the root tyes and drops the points where they are used in
+		// favor of the new function
 		for (auto init : ops)
 		{
 			if (isBuiltinType(init.getType()))

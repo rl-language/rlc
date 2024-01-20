@@ -2,7 +2,7 @@
 # RUN: %t
 
 act play() -> Play:
-	let z = 0
+	frm z = 0
 	actions:
 		act mark(Int x, Int y) {x == 2}
 		z = y	

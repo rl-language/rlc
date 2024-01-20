@@ -15,32 +15,38 @@ RLC. If not, see <https://www.gnu.org/licenses/>.
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/PatternMatch.h"
-#include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
 namespace mlir::rlc
 {
+	using Frames = std::pair<ActionFrameContent, ActionFrameContent>;
+	static mlir::Type getHiddenFrameType(mlir::rlc::ActionFunction fun)
+	{
+		return mlir::rlc::EntityType::getIdentified(
+				fun.getContext(),
+				(fun.getEntityType().getName() + "_shadow").str(),
+				{});
+	}
 
 	static void replaceAllAccessesWithIndirectOnes(
 			mlir::rlc::ActionFunction action,
 			mlir::rlc::ModuleBuilder& builder,
-			ActionLiveness& liveness)
+			const Frames& content)
 	{
 		mlir::IRRewriter rewriter(action.getContext());
-		auto frames = liveness.getFrameTypes();
 
 		auto* region = &action.getBody();
-		auto argument = region->front().addArgument(
-				frames.frameUsedAcrossSections, action.getLoc());
+		auto argument =
+				region->front().addArgument(action.getEntityType(), action.getLoc());
 
 		auto argument2 = region->front().addArgument(
-				frames.frameNotUsedAcrossSections, action.getLoc());
+				getHiddenFrameType(action), action.getLoc());
 
 		rewriter.setInsertionPointToStart(&region->front());
 
-		for (const auto& arg : llvm::drop_end(region->front().getArguments(), 2))
+		for (auto& arg : llvm::drop_end(region->front().getArguments(), 2))
 		{
 			llvm::SmallVector<mlir::OpOperand*, 4> operands;
 			for (auto& operand : arg.getUses())
@@ -50,12 +56,12 @@ namespace mlir::rlc
 			for (auto& use : operands)
 			{
 				rewriter.setInsertionPoint(use->getOwner());
-				if (liveness.variableIsInHiddenFrame(arg))
+				if (not arg.getType().isa<mlir::rlc::FrameType>())
 				{
 					auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
 							use->getOwner()->getLoc(),
 							argument2,
-							*liveness.indexInHiddenFrame(arg));
+							content.second.indexOf(arg));
 					auto dereffed = rewriter.create<mlir::rlc::DerefOp>(
 							refToMember.getLoc(), refToMember);
 					use->set(dereffed);
@@ -65,7 +71,7 @@ namespace mlir::rlc
 					auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
 							use->getOwner()->getLoc(),
 							argument,
-							*liveness.indexInExternalFrame(arg));
+							content.first.indexOf(arg) + 1);
 					use->set(refToMember);
 				}
 			}
@@ -78,7 +84,7 @@ namespace mlir::rlc
 	static void replaceAllDeclarationsWithIndirectOnes(
 			mlir::rlc::ActionFunction action,
 			mlir::rlc::ModuleBuilder& builder,
-			ActionLiveness& liveness)
+			const Frames& frames)
 	{
 		mlir::IRRewriter& rewriter = builder.getRewriter();
 
@@ -92,13 +98,19 @@ namespace mlir::rlc
 
 		for (auto decl : decls)
 		{
-			if (not liveness.variableIsInExternalFrame(decl))
+			if (not decl.getType().isa<mlir::rlc::FrameType>())
 				continue;
-			size_t memberIndex = *liveness.indexInExternalFrame(decl);
+			size_t memberIndex = frames.first.indexOf(decl) + 1;
+			auto underlyingType =
+					decl.getType().cast<mlir::rlc::FrameType>().getUnderlying();
+			// we have replaced the real location of the variable, we can now decay it
+			// into a regular type
+			decl.getResult().setType(underlyingType);
 
 			llvm::SmallVector<mlir::OpOperand*, 4> uses;
 			for (auto& operand : decl.getResult().getUses())
 				uses.push_back(&operand);
+
 			for (auto* operand : uses)
 			{
 				rewriter.setInsertionPoint(operand->getOwner());
@@ -128,7 +140,6 @@ namespace mlir::rlc
 	// argument
 	static void redirectAccessesToNewFrame(
 			mlir::rlc::ActionFunction root,
-			mlir::FunctionType actionType,
 			mlir::rlc::FunctionOp action,
 			mlir::rlc::ModuleBuilder& builder)
 	{
@@ -170,18 +181,18 @@ namespace mlir::rlc
 			mlir::IRRewriter& rewriter,
 			mlir::rlc::EntityType entityType,
 			mlir::rlc::FunctionOp subF,
-			ActionLiveness& liveness,
-			mlir::rlc::UninitializedConstruct hiddenFrame)
+			mlir::rlc::UninitializedConstruct hiddenFrame,
+			const Frames& frames)
 
 	{
 		for (auto arg : llvm::enumerate(subAction.getResults()))
 		{
-			if (liveness.variableIsInExternalFrame(arg.value()))
+			if (arg.value().getType().isa<mlir::rlc::FrameType>())
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
 						action.getLoc(),
 						subF.getBlocks().front().getArgument(0),
-						*liveness.indexInExternalFrame(arg.value()));
+						frames.first.indexOf(arg.value()) + 1);
 
 				rewriter.create<mlir::rlc::AssignOp>(
 						action.getLoc(),
@@ -191,9 +202,7 @@ namespace mlir::rlc
 			else
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
-						action.getLoc(),
-						hiddenFrame,
-						*liveness.indexInHiddenFrame(arg.value()));
+						action.getLoc(), hiddenFrame, frames.second.indexOf(arg.value()));
 
 				auto refToArg = rewriter.create<mlir::rlc::MakeRefOp>(
 						addressOfArgInFrame.getLoc(),
@@ -215,9 +224,9 @@ namespace mlir::rlc
 			mlir::IRRewriter& rewriter,
 			mlir::rlc::EntityType entityType,
 			mlir::rlc::FunctionOp subF,
-			ActionLiveness& liveness)
+			const Frames& frames)
 	{
-		auto hiddenEntityType = liveness.getFrameTypes().frameNotUsedAcrossSections;
+		auto hiddenEntityType = getHiddenFrameType(action);
 		auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(subF.getLoc());
 		auto* condition = rewriter.createBlock(&ifStatement.getCondition());
 
@@ -233,7 +242,7 @@ namespace mlir::rlc
 		auto frameHidden = rewriter.create<mlir::rlc::UninitializedConstruct>(
 				action.getLoc(), hiddenEntityType);
 		emitActionArgsAssignsToFrame(
-				action, subAction, rewriter, entityType, subF, liveness, frameHidden);
+				action, subAction, rewriter, entityType, subF, frameHidden, frames);
 
 		// the resumption point stored in the frame is not enough to discrimated
 		// among alternative resumption points, so we have to store the actual id
@@ -257,6 +266,19 @@ namespace mlir::rlc
 		auto* elseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
 		auto lastYield = rewriter.create<mlir::rlc::Yield>(subF.getLoc());
 		rewriter.setInsertionPoint(lastYield);
+	}
+
+	static mlir::FunctionType decayFunctionType(mlir::FunctionType t)
+	{
+		llvm::SmallVector<mlir::Type, 4> decayedArgs;
+		for (auto arg : t.getInputs())
+		{
+			if (auto casted = arg.dyn_cast<mlir::rlc::FrameType>())
+				decayedArgs.push_back(casted.getUnderlying());
+			else
+				decayedArgs.push_back(arg);
+		}
+		return mlir::FunctionType::get(t.getContext(), decayedArgs, t.getResults());
 	}
 
 	// all preconditions for all possible sub actions that can be executed for
@@ -303,6 +325,15 @@ namespace mlir::rlc
 				subF.getLoc(), mlir::ValueRange({ lastValue }));
 	}
 
+	static void decayRegionTypes(mlir::Region& region)
+	{
+		for (auto& arg : region.front().getArguments())
+		{
+			if (auto casted = arg.getType().dyn_cast<mlir::rlc::FrameType>())
+				arg.setType(casted.getUnderlying());
+		}
+	}
+
 	// emits a function declaration such as
 	// def action(frame, args...):
 	//   for possible_resumption_point
@@ -315,14 +346,14 @@ namespace mlir::rlc
 			mlir::rlc::ModuleBuilder& builder,
 			mlir::ArrayRef<mlir::Operation*> subActions,
 			size_t subActionIndex,
-			mlir::rlc::ActionLiveness& liveness)
+			const Frames& frames)
 	{
 		mlir::IRRewriter rewriter(action.getContext());
 		rewriter.setInsertionPoint(action);
-		auto type = action.getActions()[subActionIndex]
-										.getType()
-										.cast<mlir::FunctionType>();
-		auto entityType = liveness.getFrameTypes().frameUsedAcrossSections;
+		auto type = decayFunctionType(action.getActions()[subActionIndex]
+																			.getType()
+																			.cast<mlir::FunctionType>());
+		auto entityType = action.getEntityType();
 
 		auto firstStatement = llvm::cast<mlir::rlc::ActionStatement>(subActions[0]);
 		auto subF = rewriter.create<mlir::rlc::FunctionOp>(
@@ -353,8 +384,9 @@ namespace mlir::rlc
 		}
 
 		mergePreconditionBlocksIntoOne(subF);
+		decayRegionTypes(subF.getPrecondition());
 
-		redirectAccessesToNewFrame(action, type, subF, builder);
+		redirectAccessesToNewFrame(action, subF, builder);
 
 		// creates a block to hold the dispatching mechanism
 		llvm::SmallVector<mlir::Location, 2> locs;
@@ -366,8 +398,7 @@ namespace mlir::rlc
 		for (auto* subAct : subActions)
 		{
 			auto subAction = mlir::cast<mlir::rlc::ActionStatement>(subAct);
-			emitDispatchToImpl(
-					action, subAction, rewriter, entityType, subF, liveness);
+			emitDispatchToImpl(action, subAction, rewriter, entityType, subF, frames);
 		}
 
 		rewriter.setInsertionPointToEnd(&subF.getBody().front());
@@ -377,7 +408,7 @@ namespace mlir::rlc
 	static void emitActionWrapperCalls(
 			mlir::rlc::ActionFunction action,
 			mlir::rlc::ModuleBuilder& builder,
-			ActionLiveness& liveness)
+			const Frames& frames)
 	{
 		mlir::IRRewriter rewriter(action.getContext());
 
@@ -385,11 +416,12 @@ namespace mlir::rlc
 		auto f = rewriter.create<mlir::rlc::FunctionOp>(
 				action.getLoc(),
 				action.getUnmangledName(),
-				action.getType().cast<mlir::FunctionType>(),
+				decayFunctionType(action.getType().cast<mlir::FunctionType>()),
 				action.getArgNames(),
 				false);
 
 		f.getPrecondition().takeBody(action.getPrecondition());
+		decayRegionTypes(f.getPrecondition());
 
 		llvm::SmallVector<mlir::Location, 2> locs;
 		for (size_t i = 0; i < f.getFunctionType().getInputs().size(); i++)
@@ -410,7 +442,7 @@ namespace mlir::rlc
 				action.getLoc(), initFunction);
 
 		auto frameHidden = rewriter.create<mlir::rlc::UninitializedConstruct>(
-				action.getLoc(), liveness.getFrameTypes().frameNotUsedAcrossSections);
+				action.getLoc(), getHiddenFrameType(action));
 
 		auto ptrToIndex =
 				rewriter.create<mlir::rlc::MemberAccess>(action.getLoc(), frame, 0);
@@ -421,14 +453,15 @@ namespace mlir::rlc
 		rewriter.create<mlir::rlc::BuiltinAssignOp>(
 				action.getLoc(), ptrToIndex, constantZero);
 
+		size_t explitFrameIndex = 1;
+		size_t hiddenFrameIndex = 0;
 		for (const auto& argument : llvm::enumerate(action.getArgNames()))
 		{
-			if (liveness.isMainFunctionArgInExternalFrame(argument.index()))
+			auto arg = action.getType().getInputs()[0];
+			if (arg.isa<mlir::rlc::FrameType>())
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
-						action.getLoc(),
-						frame,
-						liveness.mainFunctionArgIndexInFrame(argument.index()));
+						action.getLoc(), frame, explitFrameIndex++);
 
 				rewriter.create<mlir::rlc::AssignOp>(
 						action.getLoc(),
@@ -438,9 +471,7 @@ namespace mlir::rlc
 			else
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
-						action.getLoc(),
-						frameHidden,
-						liveness.mainFunctionArgIndexInFrame(argument.index()));
+						action.getLoc(), frameHidden, hiddenFrameIndex);
 
 				auto refToArg = rewriter.create<mlir::rlc::MakeRefOp>(
 						addressOfArgInFrame.getLoc(),
@@ -467,14 +498,14 @@ namespace mlir::rlc
 					builder,
 					builder.actionFunctionValueToActionStatement(subAction.value()),
 					subAction.index(),
-					liveness);
+					frames);
 		}
 	}
 
 	// redirects all uses of a variable introduced by a action to the variable in
 	// the coroutine frame
 	static void redirectActionArgumentsToFrame(
-			mlir::rlc::ActionFunction fun, mlir::rlc::ActionLiveness& liveness)
+			mlir::rlc::ActionFunction fun, const Frames& frames)
 	{
 		mlir::IRRewriter rewriter(fun.getContext());
 		fun.walk([&](mlir::rlc::ActionStatement op) {
@@ -493,16 +524,16 @@ namespace mlir::rlc
 					auto frameHidden = fun.getBlocks().front().getArgument(1);
 					auto entityType = frame.getType().cast<mlir::rlc::EntityType>();
 
-					if (liveness.variableIsInExternalFrame(res))
+					if (res.getType().isa<mlir::rlc::FrameType>())
 					{
 						auto ref = rewriter.create<mlir::rlc::MemberAccess>(
-								op.getLoc(), frame, *liveness.indexInExternalFrame(res));
+								op.getLoc(), frame, frames.first.indexOf(res) + 1);
 						use->set(ref);
 					}
 					else
 					{
 						auto ref = rewriter.create<mlir::rlc::MemberAccess>(
-								op.getLoc(), frameHidden, *liveness.indexInHiddenFrame(res));
+								op.getLoc(), frameHidden, frames.second.indexOf(res));
 						auto dereffed =
 								rewriter.create<mlir::rlc::DerefOp>(op.getLoc(), ref);
 						use->set(dereffed);
@@ -510,6 +541,31 @@ namespace mlir::rlc
 				}
 			}
 		});
+	}
+
+	static void moveCastsNearUses(mlir::ModuleOp module)
+	{
+		llvm::SmallVector<mlir::rlc::StorageCast, 4> casts;
+		module.walk([&](mlir::rlc::StorageCast cast) { casts.push_back(cast); });
+		for (auto cast : casts)
+		{
+			mlir::IRRewriter rewriter(module.getContext());
+			if (cast.getResult().getUses().empty())
+			{
+				cast.erase();
+				continue;
+			}
+
+			while (not cast.getResult().hasOneUse())
+			{
+				auto& use = *cast.getResult().getUses().begin();
+				rewriter.setInsertionPoint(use.getOwner());
+				auto* cloned = rewriter.clone(*cast);
+				use.set(cloned->getResult(0));
+			}
+
+			cast->moveBefore(cast.getResult().getUses().begin()->getOwner());
+		}
 	}
 
 #define GEN_PASS_DEF_LOWERACTIONPASS
@@ -521,6 +577,8 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
+			moveCastsNearUses(getOperation());
+
 			mlir::rlc::ModuleBuilder builder(getOperation());
 			llvm::SmallVector<mlir::rlc::ActionFunction, 4> acts(
 					getOperation().getOps<mlir::rlc::ActionFunction>());
@@ -528,13 +586,14 @@ namespace mlir::rlc
 
 			for (auto action : acts)
 			{
-				ActionLiveness liveness(action);
-				replaceAllAccessesWithIndirectOnes(action, builder, liveness);
-				replaceAllDeclarationsWithIndirectOnes(action, builder, liveness);
-				redirectActionArgumentsToFrame(action, liveness);
-				emitActionWrapperCalls(action, builder, liveness);
+				const Frames& frames = action.getFrameLists();
+				replaceAllAccessesWithIndirectOnes(action, builder, frames);
+				replaceAllDeclarationsWithIndirectOnes(action, builder, frames);
+				redirectActionArgumentsToFrame(action, frames);
+				emitActionWrapperCalls(action, builder, frames);
 
 				rewriter.setInsertionPoint(action);
+
 				auto isDoneFunction = rewriter.create<mlir::rlc::FunctionOp>(
 						action.getLoc(),
 						"is_done",
@@ -568,8 +627,7 @@ namespace mlir::rlc
 						("_" + action.getUnmangledName() + "_impl").str(),
 						mlir::FunctionType::get(
 								action.getContext(),
-								{ actionType,
-									liveness.getFrameTypes().frameNotUsedAcrossSections },
+								{ actionType, getHiddenFrameType(action) },
 								{}),
 						rewriter.getStrArrayAttr({ "frame", "hidden_frame" }),
 						true);
@@ -577,6 +635,12 @@ namespace mlir::rlc
 				action.getResult().replaceAllUsesWith(loweredToFun);
 				rewriter.eraseOp(action);
 			}
+
+			getOperation().walk([](mlir::rlc::StorageCast cast) {
+				assert(cast.getType() == cast.getOperand().getType());
+				cast.replaceAllUsesWith(cast.getOperand());
+				cast.erase();
+			});
 		}
 	};
 }	 // namespace mlir::rlc

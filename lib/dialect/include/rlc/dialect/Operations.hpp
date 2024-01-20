@@ -23,6 +23,7 @@ RLC. If not, see <https://www.gnu.org/licenses/>.
 #include "mlir/IR/TypeRange.h"
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "rlc/dialect/Enums.hpp"
 #include "rlc/dialect/Interfaces.hpp"
 #include "rlc/dialect/OverloadResolver.hpp"
 #include "rlc/dialect/Types.hpp"
@@ -73,6 +74,26 @@ namespace mlir::rlc
 
 	mlir::LogicalResult typeCheck(
 			mlir::Operation& op, mlir::rlc::ModuleBuilder& builder);
+
+	struct ActionFrameContent
+	{
+		public:
+		void append(mlir::Value value, llvm::StringRef name)
+		{
+			valueNamePairs.push_back(
+					std::pair<mlir::Value, llvm::StringRef>(value, name));
+		}
+		size_t indexOf(mlir::Value val) const
+		{
+			auto* it = llvm::find_if(
+					valueNamePairs,
+					[val](const ValueNamePair& pair) { return pair.first == val; });
+			assert(it != valueNamePairs.end());
+			return std::distance(valueNamePairs.begin(), it);
+		}
+		using ValueNamePair = std::pair<mlir::Value, llvm::StringRef>;
+		llvm::SmallVector<ValueNamePair, 4> valueNamePairs;
+	};
 }	 // namespace mlir::rlc
 
 #define GET_OP_CLASSES

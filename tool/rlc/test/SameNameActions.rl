@@ -2,7 +2,7 @@
 # RUN: %t
 
 act action() -> Action:
-	let result = 5
+	frm result = 5
 
 	act first(Int x)
 	result = x

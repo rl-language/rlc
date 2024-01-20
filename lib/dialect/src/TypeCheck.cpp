@@ -424,24 +424,16 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 							mlir::rlc::prettyType(funType));
 		}
 
-		mlir::Type actionType = mlir::FunctionType::get(
+		auto actionType = mlir::FunctionType::get(
 				op.getContext(), convertedArgs, { convertedReturnType });
+		auto isDoneType = mlir::FunctionType::get(
+				rewriter.getContext(),
+				mlir::TypeRange({ funType }),
+				mlir::TypeRange({ mlir::rlc::BoolType::get(rewriter.getContext()) }));
 
 		rewriter.setInsertionPoint(fun);
-		auto newAction = rewriter.create<mlir::rlc::ActionFunction>(
-				fun.getLoc(),
-				actionType,
-				mlir::FunctionType::get(
-						rewriter.getContext(),
-						mlir::TypeRange({ funType }),
-						mlir::TypeRange(
-								{ mlir::rlc::BoolType::get(rewriter.getContext()) })),
-				mlir::TypeRange(),
-				fun.getUnmangledName(),
-				fun.getArgNames());
-		newAction.getBody().takeBody(fun.getBody());
-		newAction.getPrecondition().takeBody(fun.getPrecondition());
-		rewriter.eraseOp(fun);
+		fun.getResult().setType(actionType);
+		fun.getIsDoneFunction().setType(isDoneType);
 	}
 	return mlir::success();
 }

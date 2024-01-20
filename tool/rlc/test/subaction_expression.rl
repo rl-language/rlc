@@ -5,7 +5,7 @@ act outer() -> Outer:
 	subaction* inner_frame = inner()
 
 act inner() -> Inner:
-	let sum = 60
+	frm sum = 60
 	while sum != -3:
 		actions:
 			act first(Int x, Int y)

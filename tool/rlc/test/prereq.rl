@@ -1,10 +1,10 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-act example(Int X) -> Example {X < 4}: 
-	X = X + 1
-	act sub_action(Int Y) {Y < X}
-	X = X
+act example(frm Int x) -> Example {x < 4}: 
+	x = x + 1
+	act sub_action(Int y) {y < x}
+	x = x
 
 fun main() -> Int:
 	let frame = example(2)

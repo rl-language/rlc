@@ -83,9 +83,9 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ReturnStatement> returnStatement();
 		llvm::Expected<mlir::rlc::SubActionStatement> subActionStatement();
 
-		llvm::Expected<llvm::SmallVector<std::pair<std::string, mlir::Type>, 3>>
+		llvm::Expected<llvm::SmallVector<std::tuple<std::string, mlir::Type>, 3>>
 		functionArguments();
-		llvm::Expected<std::pair<std::string, mlir::Type>> argDeclaration();
+		llvm::Expected<std::tuple<std::string, mlir::Type>> argDeclaration();
 
 		llvm::Expected<mlir::Type> singleTypeUse();
 		llvm::Expected<mlir::rlc::ScalarUseType> singleNonArrayTypeUse();

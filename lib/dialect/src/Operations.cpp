@@ -62,16 +62,9 @@ static void assignActionIndicies(mlir::rlc::ActionFunction fun)
 			resumePoint = lastResumePoint++;
 		}
 
-		auto newOp = rewriter.create<mlir::rlc::ActionStatement>(
-				statement.getLoc(),
-				statement.getResultTypes(),
-				statement.getName(),
-				statement.getDeclaredNames(),
-				lastId,
-				resumePoint);
+		statement.setResumptionPoint(resumePoint);
+		statement.setId(lastId);
 		lastId++;
-		newOp.getPrecondition().takeBody(statement.getPrecondition());
-		rewriter.replaceOp(statement, newOp.getResults());
 	}
 }
 
@@ -105,6 +98,82 @@ static llvm::SmallVector<mlir::Type, 3> getFunctionsTypesGeneratedByAction(
 		added.insert(overloadKey);
 	}
 	return ToReturn;
+}
+
+std::pair<mlir::rlc::ActionFrameContent, mlir::rlc::ActionFrameContent>
+mlir::rlc::ActionFunction::getFrameLists()
+{
+	mlir::rlc::ActionFrameContent explicitFrame;
+	mlir::rlc::ActionFrameContent hiddenFrame;
+
+	const auto &addToFrames = [&](mlir::Value value, llvm::StringRef name) {
+		if (auto castedType = value.getType().dyn_cast<mlir::rlc::FrameType>())
+			explicitFrame.append(value, name);
+		else
+			hiddenFrame.append(value, name);
+	};
+
+	for (auto pair : llvm::zip(getArgNames(), getBody().front().getArguments()))
+	{
+		auto name = std::get<0>(pair).cast<mlir::StringAttr>();
+		auto arg = std::get<1>(pair);
+		addToFrames(arg, name);
+	}
+
+	walk([&](mlir::Operation *op) {
+		if (auto casted = llvm::dyn_cast<mlir::rlc::DeclarationStatement>(op))
+		{
+			if (auto castedType = casted.getType().dyn_cast<mlir::rlc::FrameType>())
+				explicitFrame.append(casted, casted.getName());
+		}
+		else if (auto casted = llvm::dyn_cast<mlir::rlc::ActionStatement>(op))
+		{
+			for (auto pair :
+					 llvm::zip(casted.getDeclaredNames(), casted.getResults()))
+			{
+				auto name = std::get<0>(pair).cast<mlir::StringAttr>();
+				auto arg = std::get<1>(pair);
+				addToFrames(arg, name);
+			}
+		}
+	});
+	return { std::move(explicitFrame), std::move(hiddenFrame) };
+}
+
+static void setFramesBody(mlir::rlc::ActionFunction fun)
+{
+	llvm::SmallVector<mlir::Type, 4> memberTypes;
+	llvm::SmallVector<std::string, 4> memberNames;
+
+	llvm::SmallVector<mlir::Type, 4> hiddenMemberTypes;
+	llvm::SmallVector<std::string, 4> hiddenMemberNames;
+
+	// add the implicit local variable "resume_index" to members
+	memberTypes.push_back(mlir::rlc::IntegerType::getInt64(fun.getContext()));
+	memberNames.push_back("resume_index");
+
+	auto frames = fun.getFrameLists();
+	for (auto &entry : frames.first.valueNamePairs)
+	{
+		memberNames.push_back(entry.second.str());
+		memberTypes.push_back(
+				entry.first.getType().cast<mlir::rlc::FrameType>().getUnderlying());
+	}
+
+	for (auto &entry : frames.second.valueNamePairs)
+	{
+		hiddenMemberNames.push_back(entry.second.str());
+		hiddenMemberTypes.push_back(
+				mlir::rlc::ReferenceType::get(entry.first.getType()));
+	}
+
+	auto res = fun.getEntityType().setBody(memberTypes, memberNames);
+	assert(res.succeeded());
+
+	auto res2 = mlir::rlc::EntityType::getIdentified(
+			fun.getContext(), (fun.getEntityType().getName() + "_shadow").str(), {});
+	auto isOk = res2.setBody(hiddenMemberTypes, hiddenMemberNames).succeeded();
+	assert(isOk);
 }
 
 /*
@@ -147,8 +216,7 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 	fun.getResult().replaceAllUsesWith(newAction.getResult());
 	rewriter.eraseOp(fun);
 
-	mlir::rlc::ActionLiveness liveness(newAction);
-	liveness.getFrameTypes();
+	setFramesBody(newAction);
 	return newAction;
 }
 
@@ -242,29 +310,20 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	mlir::IRRewriter &rewiter = builder.getRewriter();
 	rewiter.setInsertionPoint(*this);
 
-	if (not getName().empty())
-	{
-		auto decl = rewiter.create<mlir::rlc::DeclarationStatement>(
-				getLoc(), underlyingType, getName(), false);
-		decl.getBody().takeBody(getBody());
-		builder.getSymbolTable().add(getName(), decl);
-		frameVar = decl;
-	}
-	else
-	{
-		yield.erase();
-		while (not getBody().front().empty())
-			getBody().front().front().moveBefore(*this);
-	}
+	auto decl = rewiter.create<mlir::rlc::DeclarationStatement>(
+			getLoc(), mlir::rlc::FrameType::get(underlyingType), getName());
+	decl.getBody().takeBody(getBody());
+	builder.getSymbolTable().add(getName(), decl);
+
+	frameVar = builder.getRewriter().create<mlir::rlc::StorageCast>(
+			getLoc(), underlyingType, decl);
 
 	llvm::SmallVector<mlir::Value, 2> actionValues = underlying.getActions();
 	if (actionValues.empty())
 	{
-		rewiter.setInsertionPointAfter(*this);
 		erase();
 		return mlir::success();
 	}
-	rewiter.setInsertionPoint(*this);
 
 	if (not getRunOnce())
 	{
@@ -309,16 +368,18 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 				 llvm::drop_begin(referred.getResultTypes(), getForwardedArgs().size()))
 			resultLoc.push_back(actions.getLoc());
 
-		llvm::SmallVector<mlir::Attribute> nameAttrs;
+		llvm::SmallVector<std::string> nameAttrs;
 		for (auto name : llvm::drop_begin(
 						 referred.getDeclaredNames(), getForwardedArgs().size()))
-			nameAttrs.push_back(name);
+		{
+			nameAttrs.push_back(name.cast<mlir::StringAttr>().str());
+		}
 
 		auto fixed = rewiter.create<mlir::rlc::ActionStatement>(
 				referred.getLoc(),
 				resultTypes,
 				referred.getName(),
-				rewiter.getArrayAttr(nameAttrs),
+				nameAttrs,
 				referred.getId(),
 				referred.getResumptionPoint());
 
@@ -345,6 +406,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 				getForwardedArgs().begin(), getForwardedArgs().end());
 		for (auto result : fixed.getResults())
 			args.push_back(result);
+
 		args.insert(args.begin(), frameVar);
 
 		rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, false, args);
@@ -373,10 +435,9 @@ mlir::LogicalResult mlir::rlc::ExpressionStatement::typeCheck(
 	return mlir::success();
 }
 
-static bool declStatementInitializerIsReference(
-		mlir::rlc::DeclarationStatement statement)
+bool mlir::rlc::DeclarationStatement::isReference()
 {
-	auto initializer = statement.getBody().front().getTerminator()->getOperand(0);
+	auto initializer = getBody().front().getTerminator()->getOperand(0);
 
 	if (initializer.getDefiningOp<mlir::rlc::MemberAccess>())
 		return true;
@@ -413,9 +474,9 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 	rewriter.setInsertionPoint(getOperation());
 	auto deducedType = getBody().front().getTerminator()->getOperand(0).getType();
 
-	if (getIsReference())
+	if (getType().isa<mlir::rlc::ReferenceType>())
 	{
-		if (not declStatementInitializerIsReference(*this))
+		if (not isReference())
 		{
 			return mlir::rlc::logError(
 					getOperation(),
@@ -425,7 +486,7 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 	}
 	else
 	{
-		if (declStatementInitializerIsReference(*this))
+		if (isReference())
 		{
 			auto yield =
 					mlir::dyn_cast<mlir::rlc::Yield>(getBody().front().getTerminator());
@@ -437,10 +498,21 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 			yield->setOperand(0, construct);
 			rewriter.setInsertionPoint(*this);
 		}
+
+		if (getType().isa<mlir::rlc::FrameType>())
+		{
+			if (getOperation()->getParentOfType<mlir::rlc::FunctionOp>())
+			{
+				return mlir::rlc::logError(
+						getOperation(),
+						"Frame variables are only allowed in action functions.");
+			}
+			deducedType = mlir::rlc::FrameType::get(deducedType);
+		}
 	}
 
 	auto newOne = rewriter.create<mlir::rlc::DeclarationStatement>(
-			getLoc(), deducedType, getName(), getIsReference());
+			getLoc(), deducedType, getName());
 	newOne.getBody().takeBody(getBody());
 	rewriter.replaceOp(*this, newOne);
 
@@ -542,7 +614,18 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 	if (candidates.empty())
 		return logError(*this, "No known value " + getName());
 
-	replaceAllUsesWith(candidates.front());
+	if (auto casted =
+					candidates.front().getType().dyn_cast<mlir::rlc::FrameType>())
+	{
+		auto newValue = builder.getRewriter().create<mlir::rlc::StorageCast>(
+				getLoc(), casted.getUnderlying(), candidates.front());
+		replaceAllUsesWith(newValue.getResult());
+	}
+	else
+	{
+		replaceAllUsesWith(candidates.front());
+	}
+
 	builder.getRewriter().eraseOp(*this);
 	return mlir::success();
 }
@@ -837,7 +920,8 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 	{
 		return logError(
 				*this,
-				"Missmatched count between for induction variables and for arguments");
+				"Missmatched count between for induction variables and for "
+				"arguments");
 	}
 
 	for (auto argument : yield.getArguments())
@@ -941,7 +1025,6 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		return mlir::rlc::logError(
 				*this, "Action statements can only appear in Action Functions");
 	auto &rewriter = builder.getRewriter();
-	llvm::SmallVector<mlir::Type> deducedTypes;
 
 	for (auto &operand : getPrecondition().front().getArguments())
 	{
@@ -953,12 +1036,12 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		operand.setType(converted);
 	}
 
-	for (auto result : getResultTypes())
+	for (auto result : getResults())
 	{
-		auto deduced = builder.getConverter().convertType(result);
+		auto deduced = builder.getConverter().convertType(result.getType());
 		if (deduced == nullptr)
 			return mlir::failure();
-		deducedTypes.push_back(deduced);
+		result.setType(deduced);
 	}
 
 	llvm::SmallVector<mlir::Operation *, 4> ToCheck;
@@ -980,19 +1063,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		}
 	}
 
-	rewriter.setInsertionPoint(*this);
-	auto newDecl = rewriter.create<mlir::rlc::ActionStatement>(
-			getLoc(),
-			deducedTypes,
-			getName(),
-			getDeclaredNames(),
-			getId(),
-			getResumptionPoint());
-	newDecl.getPrecondition().takeBody(getPrecondition());
-	rewriter.replaceOp(getOperation(), newDecl.getResults());
-
-	for (auto [name, res] :
-			 llvm::zip(newDecl.getDeclaredNames(), newDecl.getResults()))
+	for (auto [name, res] : llvm::zip(getDeclaredNames(), getResults()))
 		builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), res);
 	return mlir::success();
 }
@@ -1049,7 +1120,8 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 	{
 		return logError(
 				*this,
-				"Type argument of __builtin_from_array must be a primitive type, not " +
+				"Type argument of __builtin_from_array must be a primitive type, "
+				"not " +
 						prettyType(getResult().getType()));
 	}
 
@@ -1365,16 +1437,10 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	}
 	assert(deducedType.isa<mlir::FunctionType>());
 
-	auto newF = rewriter.create<mlir::rlc::FunctionOp>(
-			getLoc(),
-			getUnmangledName(),
-			deducedType.cast<mlir::FunctionType>(),
-			getArgNames(),
-			getIsMemberFunction(),
-			checkedTemplateParameters);
-	newF.getBody().takeBody(getBody());
-	newF.getPrecondition().takeBody(getPrecondition());
-	rewriter.eraseOp(*this);
+	getResult().setType(deducedType.cast<mlir::FunctionType>());
+	setTemplateParametersAttr(
+			rewriter.getTypeArrayAttr(checkedTemplateParameters));
+
 	return mlir::success();
 }
 
@@ -1571,7 +1637,8 @@ void mlir::rlc::ExpressionStatement::getSuccessorRegions(
 		regions.push_back(
 				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
 
-	// when you are done with the region, you get out back to ExpressionStatement
+	// when you are done with the region, you get out back to
+	// ExpressionStatement
 	if (not succ.isParent())
 		regions.push_back(mlir::RegionSuccessor());
 }
