@@ -543,7 +543,7 @@ namespace mlir::rlc
 		});
 	}
 
-	static void moveCastsNearUses(mlir::ModuleOp module)
+	void moveCastsNearUses(mlir::ModuleOp module)
 	{
 		llvm::SmallVector<mlir::rlc::StorageCast, 4> casts;
 		module.walk([&](mlir::rlc::StorageCast cast) { casts.push_back(cast); });

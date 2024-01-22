@@ -17,6 +17,7 @@ RLC. If not, see <https://www.gnu.org/licenses/>.
 #include "mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"
 #include "mlir/Analysis/DataFlow/DeadCodeAnalysis.h"
 #include "mlir/Analysis/DataFlow/DenseAnalysis.h"
+#include "mlir/Pass/Pass.h"
 
 namespace mlir::rlc
 {
@@ -218,10 +219,10 @@ namespace mlir::rlc
 			}
 		};
 
-		class ActionValueLivenessImpl
+		class ActionLiveness
 		{
 			public:
-			explicit ActionValueLivenessImpl(mlir::rlc::ActionFunction action)
+			explicit ActionLiveness(mlir::rlc::ActionFunction action)
 					: entry(action), config()
 			{
 				config.setInterprocedural(false);
@@ -266,26 +267,13 @@ namespace mlir::rlc
 		};
 	}	 // namespace detail
 
-	ActionValueLiveness::ActionValueLiveness(mlir::rlc::ActionFunction action)
-			: impl(new detail::ActionValueLivenessImpl(action))
+	static bool isUsedAcrossActions(
+			mlir::rlc::ActionFunction fun,
+			mlir::Value val,
+			detail::ActionLiveness& liveness)
 	{
-	}
-
-	ActionValueLiveness::~ActionValueLiveness() { delete impl; }
-
-	bool ActionValueLiveness::isDeadAfter(
-			mlir::Value value, mlir::rlc::ActionStatement statement)
-	{
-		return impl->isDeadAfter(value, statement);
-	}
-
-	bool ActionLiveness::isUsedAcrossActions(mlir::Value val)
-	{
-		if (cache.contains(val))
-			return cache.at(val);
-
 		bool isUsedAcrossActions = false;
-		fun.walk([&, this](mlir::rlc::ActionStatement subAction) {
+		fun.walk([&](mlir::rlc::ActionStatement subAction) {
 			// the action defining the value is allowed have uses after it, of
 			// course
 			if (val.getDefiningOp() == subAction)
@@ -295,131 +283,68 @@ namespace mlir::rlc
 				isUsedAcrossActions = true;
 		});
 
-		cache[val] = isUsedAcrossActions;
 		return isUsedAcrossActions;
 	}
 
-	const ActionLiveness::Partition<mlir::rlc::DeclarationStatement>&
-	ActionLiveness::getDeclarationsUsedAcrossActions()
-	{
-		if (declsStatements.has_value())
-			return *declsStatements;
+#define GEN_PASS_DEF_VALIDATESTORAGEQUALIFIERSPASS
+#include "rlc/dialect/Passes.inc"
 
-		declsStatements = Partition<mlir::rlc::DeclarationStatement>();
-		fun.walk([&](mlir::rlc::DeclarationStatement statement) {
-			// declarations do not go in the hidden frame, they can stay on the stack
-			// since they are not inputs from outside
-			if (isUsedAcrossActions(statement.getResult()))
+	struct ValidateStorageQualifiersPass
+			: impl::ValidateStorageQualifiersPassBase<ValidateStorageQualifiersPass>
+	{
+		using impl::ValidateStorageQualifiersPassBase<
+				ValidateStorageQualifiersPass>::ValidateStorageQualifiersPassBase;
+
+		void runOnOperation() override
+		{
+			moveCastsNearUses(getOperation());
+			for (auto fun : getOperation().getOps<mlir::rlc::ActionFunction>())
 			{
-				declsStatements->usedAcrossActions.push_back(statement);
-				valueToSurvivingFrameIndex[statement] =
-						valueToSurvivingFrameIndex.size();
-			}
-		});
-		return *declsStatements;
-	}
-
-	const ActionLiveness::Partition<mlir::OpResult>&
-	ActionLiveness::getStatementsArgsUsedAcrossActions()
-	{
-		if (operands.has_value())
-			return *operands;
-
-		operands = Partition<mlir::OpResult>();
-		fun.walk([&](mlir::rlc::ActionStatement statement) {
-			for (auto result : statement.getResults())
-				if (isUsedAcrossActions(result))
+				detail::ActionLiveness liveness(fun);
+				for (auto arg : fun.getBody().front().getArguments())
 				{
-					operands->usedAcrossActions.push_back(result);
-					valueToSurvivingFrameIndex[result] =
-							valueToSurvivingFrameIndex.size();
+					if (not arg.getType().isa<mlir::rlc::FrameType>() and
+							isUsedAcrossActions(fun, arg, liveness))
+					{
+						auto _ = mlir::rlc::logError(
+								fun,
+								"Action function argument declared as a local variable, but it "
+								"is "
+								"used in different actions. Rewrite it as frm <name> if this "
+								"was intended, this will move it to the action frame.");
+						signalPassFailure();
+					}
 				}
-				else
-				{
-					operands->notUsedAcrossActions.push_back(result);
-					valueToHiddenFrameIndex[result] = valueToHiddenFrameIndex.size();
-				}
-		});
 
-		return *operands;
-	}
+				fun.walk([&, this](mlir::rlc::DeclarationStatement statemenet) {
+					if (not statemenet.getType().isa<mlir::rlc::FrameType>() and
+							isUsedAcrossActions(fun, statemenet, liveness))
+					{
+						auto _ = mlir::rlc::logError(
+								statemenet,
+								"Declaration statement declared as a local variable, but it is "
+								"used in different actions. Rewrite it as frm <name> if this "
+								"was intended, this will move it to the action frame.");
+						signalPassFailure();
+					}
+				});
 
-	const ActionLiveness::Partition<mlir::BlockArgument>&
-	ActionLiveness::getArgumentsUsedAcrossActions()
-	{
-		if (mainFunArgs.has_value())
-			return *mainFunArgs;
-
-		mainFunArgs = Partition<mlir::BlockArgument>();
-		for (auto arg : fun.getBody().front().getArguments())
-		{
-			if (isUsedAcrossActions(arg))
-			{
-				mainFunArgs->usedAcrossActions.push_back(arg);
-				valueToSurvivingFrameIndex[arg] = valueToSurvivingFrameIndex.size();
-				mainFunctionArgToFrameIndex[arg.getArgNumber()] =
-						std::pair<bool, size_t>(true, valueToSurvivingFrameIndex[arg]);
-			}
-			else
-			{
-				mainFunArgs->notUsedAcrossActions.push_back(arg);
-				valueToHiddenFrameIndex[arg] = valueToHiddenFrameIndex.size();
-				mainFunctionArgToFrameIndex[arg.getArgNumber()] =
-						std::pair<bool, size_t>(false, valueToHiddenFrameIndex[arg]);
+				fun.walk([&, this](mlir::rlc::ActionStatement statemenet) {
+					for (auto res : statemenet.getResults())
+						if (not res.getType().isa<mlir::rlc::FrameType>() and
+								isUsedAcrossActions(fun, res, liveness))
+						{
+							auto _ = mlir::rlc::logError(
+									statemenet,
+									"Action statement declaration is local, but it "
+									"is "
+									"used in different actions. Rewrite it as frm <name> if this "
+									"was intended, this will move it to the action frame.");
+							signalPassFailure();
+						}
+				});
 			}
 		}
-
-		return *mainFunArgs;
-	}
-
-	ActionLiveness::ActionFrames ActionLiveness::getFrames()
-	{
-		ActionFrames toReturn;
-
-		auto funArgs = getArgumentsUsedAcrossActions();
-		for (auto arg : funArgs.usedAcrossActions)
-		{
-			std::string name =
-					fun.getArgNames()[arg.getArgNumber()].cast<mlir::StringAttr>().str();
-			toReturn.usedAcrossActions.emplace_back(std::move(name), arg.getType());
-		}
-		for (auto arg : funArgs.notUsedAcrossActions)
-		{
-			std::string name =
-					fun.getArgNames()[arg.getArgNumber()].cast<mlir::StringAttr>().str();
-			toReturn.notUsedAcrossActions.emplace_back(
-					std::move(name), arg.getType());
-		}
-
-		auto actionDecl = getStatementsArgsUsedAcrossActions();
-		for (auto arg : actionDecl.usedAcrossActions)
-		{
-			auto statement = arg.getDefiningOp<mlir::rlc::ActionStatement>();
-			std::string name = statement.getDeclaredNames()[arg.getResultNumber()]
-														 .cast<mlir::StringAttr>()
-														 .str();
-			toReturn.usedAcrossActions.emplace_back(std::move(name), arg.getType());
-		}
-		for (auto arg : actionDecl.notUsedAcrossActions)
-		{
-			auto statement = arg.getDefiningOp<mlir::rlc::ActionStatement>();
-			std::string name = statement.getDeclaredNames()[arg.getResultNumber()]
-														 .cast<mlir::StringAttr>()
-														 .str();
-			toReturn.notUsedAcrossActions.emplace_back(
-					std::move(name), arg.getType());
-		}
-
-		auto decls = getDeclarationsUsedAcrossActions();
-		for (auto decl : decls.usedAcrossActions)
-			toReturn.usedAcrossActions.emplace_back(
-					decl.getName().str(), decl.getType());
-
-		for (auto decl : decls.notUsedAcrossActions)
-			toReturn.notUsedAcrossActions.emplace_back(
-					decl.getName().str(), decl.getType());
-
-		return toReturn;
-	}
+	};
 
 }	 // namespace mlir::rlc

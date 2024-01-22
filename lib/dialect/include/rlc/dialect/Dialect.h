@@ -8,4 +8,5 @@ namespace mlir::rlc
 {
 	mlir::LogicalResult logRemark(mlir::Operation *op, llvm::Twine twine);
 	mlir::LogicalResult logError(mlir::Operation *op, llvm::Twine twine);
+	void moveCastsNearUses(mlir::ModuleOp module);
 }	 // namespace mlir::rlc

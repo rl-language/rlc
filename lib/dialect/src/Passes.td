@@ -214,6 +214,11 @@ def RewriteCallSignaturesPass: Pass<"rlc-rewrite-call-signatures", "mlir::Module
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def ValidateStorageQualifiersPass : Pass<"rlc-validate-storage-qualifiers", "mlir::ModuleOp"> {
+  let summary = "returns a error if a storage qualifiers is incompatible with the control flow of the actions";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def LowerInitializerListsPass : Pass<"rlc-lower-initializer-lists", "mlir::ModuleOp"> {
   let summary = "lower initializer list either to global or to regular array";
   let dependentDialects = ["rlc::RLCDialect"];
