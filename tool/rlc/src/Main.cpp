@@ -165,6 +165,12 @@ static cl::opt<bool> hidePosition(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> debugInfo(
+		"g",
+		cl::desc("Add debug info to the output"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpMLIR(
 		"mlir",
 		cl::desc("dumps the mlir and exits"),
@@ -263,6 +269,7 @@ static mlir::rlc::Driver configureDriver(
 
 	Driver driver(srcManager, InputFilePath, outputFile, OS);
 	driver.setRequest(getRequest());
+	driver.setDebug(debugInfo);
 	driver.setHidePosition(hidePosition);
 	driver.setEmitPreconditionChecks(emitPreconditionChecks);
 	driver.setDumpIR(dumpIR);

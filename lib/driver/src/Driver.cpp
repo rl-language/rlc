@@ -1,5 +1,7 @@
 #include "rlc/driver/Driver.hpp"
 
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include "rlc/dialect/Dialect.h"
@@ -131,6 +133,9 @@ namespace mlir::rlc
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			return;
 		}
+		if (debug)
+			manager.addNestedPass<mlir::LLVM::LLVMFuncOp>(
+					mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 		manager.addPass(mlir::rlc::createRLCBackEndPass(
 				mlir::rlc::RLCBackEndPassOptions{ OS,
 																					clangPath,

@@ -294,9 +294,9 @@ namespace mlir::rlc
 			LLVMContext LLVMcontext;
 			auto Module = mlir::translateModuleToLLVMIR(
 					getOperation(), LLVMcontext, getOperation().getName().value());
+			assert(Module);
 			Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
 
-			assert(Module);
 			runOptimizer(*Module, targetInfo->optimize());
 			if (dumpIR)
 			{

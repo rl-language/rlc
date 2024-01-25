@@ -71,7 +71,7 @@ namespace mlir::rlc
 		auto fType = mlir::FunctionType::get(rewriter.getContext(), { type }, {});
 
 		auto fun = rewriter.create<mlir::rlc::FunctionOp>(
-				rewriter.getUnknownLoc(),
+				op.getLoc(),
 				mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 				fType,
 				rewriter.getStrArrayAttr({ "arg0" }),

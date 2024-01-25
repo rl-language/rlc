@@ -56,6 +56,7 @@ namespace mlir::rlc
 		void setEmitBoundChecks(bool doEmit) { emitBoundChecks = doEmit; }
 
 		void setSkipParsing(bool doIt = true) { skipParsing = doIt; }
+		void setDebug(bool doIt = true) { debug = doIt; }
 
 		Driver(
 				llvm::SourceMgr &srcManager,
@@ -75,6 +76,7 @@ namespace mlir::rlc
 		bool emitPreconditionChecks = true;
 		bool emitBoundChecks = true;
 		bool skipParsing = false;
+		bool debug = false;
 
 		std::string clangPath = "clang";
 
