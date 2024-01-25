@@ -59,6 +59,10 @@ static void registerBuiltinConversions(
 		return converter.convertType(t.getUnderlying());
 	});
 
+	converter.addConversion([&](mlir::rlc::ContextType t) -> mlir::Type {
+		return converter.convertType(t.getUnderlying());
+	});
+
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
 		assert(converted);

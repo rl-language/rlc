@@ -73,7 +73,7 @@ def RLC_ReferenceType : RLC_Type<"Reference", "ref"> {
   }];
 
   let parameters = (ins "Type":$underlying);
-  let assemblyFormat = "`<` $underlying `>` ";
+  let assemblyFormat = "`<` $underlying `>`";
   let builders = [
 	  TypeBuilderWithInferredContext<(ins "mlir::Type":$underlying),[{
 		return 	mlir::rlc::ReferenceType::get(underlying.getContext(), underlying);
@@ -210,6 +210,21 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
 	mlir::LogicalResult typeRespectsTraitFunctionDeclaration(mlir::Location callPoint, mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table, size_t FuctionDeclarationIndex);
 	public:
   }];
+}
+
+def RLC_ContextType : RLC_Type<"Context", "ctx"> {
+  let summary = "Marks a type as being allocated externally to the action and needs to passed to every action.";
+  let description = [{
+        Marks a type as being allocated in the frame of a action and needs to be passed to every action.
+  }];
+
+  let parameters = (ins "Type":$underlying);
+  let assemblyFormat = "`<` $underlying`>`";
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins "mlir::Type":$underlying),[{
+		return mlir::rlc::ContextType::get(underlying.getContext(), underlying);
+	  }]>,
+  ];
 }
 
 def RLC_FrameType : RLC_Type<"Frame", "frame"> {

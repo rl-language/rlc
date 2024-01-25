@@ -56,7 +56,15 @@ namespace mlir::rlc
 			for (auto& use : operands)
 			{
 				rewriter.setInsertionPoint(use->getOwner());
-				if (not arg.getType().isa<mlir::rlc::FrameType>())
+				if (arg.getType().isa<mlir::rlc::FrameType>())
+				{
+					auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
+							use->getOwner()->getLoc(),
+							argument,
+							content.first.indexOf(arg) + 1);
+					use->set(refToMember);
+				}
+				else
 				{
 					auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
 							use->getOwner()->getLoc(),
@@ -65,14 +73,6 @@ namespace mlir::rlc
 					auto dereffed = rewriter.create<mlir::rlc::DerefOp>(
 							refToMember.getLoc(), refToMember);
 					use->set(dereffed);
-				}
-				else
-				{
-					auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
-							use->getOwner()->getLoc(),
-							argument,
-							content.first.indexOf(arg) + 1);
-					use->set(refToMember);
 				}
 			}
 		}
@@ -139,16 +139,39 @@ namespace mlir::rlc
 	// point to a argument of that original root function with the new frame
 	// argument
 	static void redirectAccessesToNewFrame(
-			mlir::rlc::ActionFunction root,
-			mlir::rlc::FunctionOp action,
-			mlir::rlc::ModuleBuilder& builder)
+			mlir::rlc::ActionFunction root, mlir::rlc::FunctionOp action)
 	{
+		mlir::IRRewriter rewiter(root.getContext());
+		llvm::SmallVector<mlir::Operation*, 4> ops;
 		for (auto& ins : action.getPrecondition().front().getOperations())
 		{
-			for (auto& operand : ins.getOpOperands())
+			ops.push_back(&ins);
+		}
+		for (auto& ins : ops)
+		{
+			for (auto& operand : ins->getOpOperands())
 			{
 				if (root.getBody().front().getArgument(0) == operand.get())
 					operand.set(action.getPrecondition().getArgument(0));
+				else if (root.getBody().front().getArgument(1) == operand.get())
+				{
+					// if there is a access to the hidden frame in the precondition
+					// of a action it must be because it is trying to access a context
+					// variable, thus let us make sure it is a member access and then
+					// redirect it to the argument with the same index. This is valid
+					// since the cntext variables are always the leftmosts of the
+					// function, and the first ones of the hidden frames so the index
+					// is in common
+					auto casted = mlir::cast<mlir::rlc::MemberAccess>(ins);
+					rewiter.setInsertionPointAfter(casted);
+					auto dereffed = rewiter.create<mlir::rlc::MakeRefOp>(
+							casted.getLoc(),
+							action.getPrecondition().getArgument(
+									casted.getMemberIndex() + 1));
+					casted.replaceAllUsesWith(dereffed.getResult());
+					casted.erase();
+					break;
+				}
 			}
 		}
 	}
@@ -201,8 +224,18 @@ namespace mlir::rlc
 			}
 			else
 			{
-				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
-						action.getLoc(), hiddenFrame, frames.second.indexOf(arg.value()));
+				mlir::Value addressOfArgInFrame;
+				if (arg.value().getType().isa<mlir::rlc::ContextType>())
+				{
+					// Context argumets are guaranteed to be the first of the list
+					addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
+							action.getLoc(), hiddenFrame, arg.index());
+				}
+				else
+				{
+					addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
+							action.getLoc(), hiddenFrame, frames.second.indexOf(arg.value()));
+				}
 
 				auto refToArg = rewriter.create<mlir::rlc::MakeRefOp>(
 						addressOfArgInFrame.getLoc(),
@@ -275,6 +308,8 @@ namespace mlir::rlc
 		{
 			if (auto casted = arg.dyn_cast<mlir::rlc::FrameType>())
 				decayedArgs.push_back(casted.getUnderlying());
+			else if (auto casted = arg.dyn_cast<mlir::rlc::ContextType>())
+				decayedArgs.push_back(casted.getUnderlying());
 			else
 				decayedArgs.push_back(arg);
 		}
@@ -331,6 +366,8 @@ namespace mlir::rlc
 		{
 			if (auto casted = arg.getType().dyn_cast<mlir::rlc::FrameType>())
 				arg.setType(casted.getUnderlying());
+			else if (auto casted = arg.getType().dyn_cast<mlir::rlc::ContextType>())
+				arg.setType(casted.getUnderlying());
 		}
 	}
 
@@ -386,7 +423,7 @@ namespace mlir::rlc
 		mergePreconditionBlocksIntoOne(subF);
 		decayRegionTypes(subF.getPrecondition());
 
-		redirectAccessesToNewFrame(action, subF, builder);
+		redirectAccessesToNewFrame(action, subF);
 
 		// creates a block to hold the dispatching mechanism
 		llvm::SmallVector<mlir::Location, 2> locs;
@@ -455,9 +492,10 @@ namespace mlir::rlc
 
 		size_t explitFrameIndex = 1;
 		size_t hiddenFrameIndex = 0;
+
 		for (const auto& argument : llvm::enumerate(action.getArgNames()))
 		{
-			auto arg = action.getType().getInputs()[0];
+			auto arg = action.getType().getInputs()[argument.index()];
 			if (arg.isa<mlir::rlc::FrameType>())
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
@@ -471,7 +509,7 @@ namespace mlir::rlc
 			else
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
-						action.getLoc(), frameHidden, hiddenFrameIndex);
+						action.getLoc(), frameHidden, hiddenFrameIndex++);
 
 				auto refToArg = rewriter.create<mlir::rlc::MakeRefOp>(
 						addressOfArgInFrame.getLoc(),
@@ -509,10 +547,12 @@ namespace mlir::rlc
 	{
 		mlir::IRRewriter rewriter(fun.getContext());
 		fun.walk([&](mlir::rlc::ActionStatement op) {
+			size_t index = 0;
 			for (const auto& [res, name] :
 					 llvm::zip(op.getResults(), op.getDeclaredNames()))
 			{
 				llvm::SmallVector<mlir::OpOperand*, 4> uses;
+				decayRegionTypes(op.getPrecondition());
 				for (auto& use : res.getUses())
 				{
 					uses.push_back(&use);
@@ -530,6 +570,14 @@ namespace mlir::rlc
 								op.getLoc(), frame, frames.first.indexOf(res) + 1);
 						use->set(ref);
 					}
+					else if (res.getType().isa<mlir::rlc::ContextType>())
+					{
+						auto ref = rewriter.create<mlir::rlc::MemberAccess>(
+								op.getLoc(), frameHidden, index);
+						auto dereffed =
+								rewriter.create<mlir::rlc::DerefOp>(op.getLoc(), ref);
+						use->set(dereffed);
+					}
 					else
 					{
 						auto ref = rewriter.create<mlir::rlc::MemberAccess>(
@@ -539,6 +587,7 @@ namespace mlir::rlc
 						use->set(dereffed);
 					}
 				}
+				index++;
 			}
 		});
 	}

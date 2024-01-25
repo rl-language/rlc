@@ -87,6 +87,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordSubAction";
 		case Token::KeywordFrame:
 			return "KeywordFrame";
+		case Token::KeywordCtx:
+			return "KeywordCtx";
 		case Token::KeywordLet:
 			return "KeywordLet";
 		case Token::KeywordEntity:
@@ -406,6 +408,9 @@ Token Lexer::eatIdent()
 
 	if (name == "frm")
 		return Token::KeywordFrame;
+
+	if (name == "ctx")
+		return Token::KeywordCtx;
 
 	if (name == "true")
 		return Token::KeywordTrue;

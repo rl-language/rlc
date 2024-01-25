@@ -215,6 +215,12 @@ static void registerConversions(
 			return converted;
 		return mlir::rlc::FrameType::get(t.getContext(), converted);
 	});
+	converter.addConversion([&](mlir::rlc::ContextType t) -> mlir::Type {
+		auto converted = converter.convertType(t.getUnderlying());
+		if (not converted)
+			return converted;
+		return mlir::rlc::ContextType::get(t.getContext(), converted);
+	});
 	converter.addConversion([](mlir::rlc::IntegerType t) { return t; });
 	converter.addConversion([](mlir::rlc::VoidType t) { return t; });
 	converter.addConversion([](mlir::rlc::BoolType t) { return t; });

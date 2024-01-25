@@ -26,6 +26,9 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 	if (auto casted = calleeArgument.dyn_cast<mlir::rlc::FrameType>())
 		return deduceSubstitutions(
 				callPoint, substitutions, casted.getUnderlying(), callSiteArgument);
+	if (auto casted = calleeArgument.dyn_cast<mlir::rlc::ContextType>())
+		return deduceSubstitutions(
+				callPoint, substitutions, casted.getUnderlying(), callSiteArgument);
 	// if the called function argument is not a template, you must provide exactly
 	// that argumen of course.
 	if (mlir::rlc::isTemplateType(calleeArgument).failed())

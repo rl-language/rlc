@@ -1250,10 +1250,13 @@ Expected<mlir::Type> Parser::singleTypeUse()
 Expected<std::tuple<std::string, mlir::Type>> Parser::argDeclaration()
 {
 	auto isFrame = accept<Token::KeywordFrame>();
+	bool isCtx = not isFrame && accept<Token::KeywordCtx>();
 
 	TRY(tp, singleTypeUse());
 	if (isFrame)
 		*tp = mlir::rlc::FrameType::get(*tp);
+	if (isCtx)
+		*tp = mlir::rlc::ContextType::get(*tp);
 	EXPECT(Token::Identifier);
 	auto parName = lIdent;
 	return std::tuple{ parName, *tp };

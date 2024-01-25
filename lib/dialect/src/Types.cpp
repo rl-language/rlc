@@ -385,6 +385,12 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		OS << "]";
 		return;
 	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ContextType>())
+	{
+		OS << "ctx ";
+		typeToPretty(OS, maybeType.getUnderlying());
+		return;
+	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::FrameType>())
 	{
 		OS << "frm ";
@@ -481,6 +487,11 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
 	{
 		OS << maybeType.getName();
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ContextType>())
+	{
+		typeToMangled(OS, maybeType.getUnderlying());
 		return;
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::FrameType>())
@@ -744,6 +755,11 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+	{
+		return isTemplateType(casted.getUnderlying());
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
 	{
 		return isTemplateType(casted.getUnderlying());
 	}

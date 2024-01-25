@@ -1,4 +1,4 @@
-# RUN: python %pyscript/test.py --source %s -i %stdlib --rlc rlc
+# RUN: rlc %s --type-checked -i %stdlib
 
 import collections.hidden_information
 import direction 

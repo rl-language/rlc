@@ -303,7 +303,8 @@ namespace mlir::rlc
 				detail::ActionLiveness liveness(fun);
 				for (auto arg : fun.getBody().front().getArguments())
 				{
-					if (not arg.getType().isa<mlir::rlc::FrameType>() and
+					if ((not arg.getType().isa<mlir::rlc::FrameType>() and
+							 not arg.getType().isa<mlir::rlc::ContextType>()) and
 							isUsedAcrossActions(fun, arg, liveness))
 					{
 						auto _ = mlir::rlc::logError(
@@ -331,7 +332,8 @@ namespace mlir::rlc
 
 				fun.walk([&, this](mlir::rlc::ActionStatement statemenet) {
 					for (auto res : statemenet.getResults())
-						if (not res.getType().isa<mlir::rlc::FrameType>() and
+						if ((not res.getType().isa<mlir::rlc::FrameType>() and
+								 not res.getType().isa<mlir::rlc::ContextType>()) and
 								isUsedAcrossActions(fun, res, liveness))
 						{
 							auto _ = mlir::rlc::logError(
