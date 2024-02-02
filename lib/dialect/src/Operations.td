@@ -1823,3 +1823,9 @@ def RLC_CanOp : RLC_Dialect <"can", [DeclareOpInterfaceMethods<TypeCheckable>]> 
 			build($_builder, $_state, resultType, value);
   }]>];
 }
+
+def RLC_MinValOp : RLC_Dialect <"minval", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let arguments = (ins AnyFunctionType:$function, I8Attr:$argument_index, AnyType:$action_entity);
+
+  let results = (outs RLC_IntegerType:$result);
+}

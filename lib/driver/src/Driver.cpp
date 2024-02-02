@@ -114,6 +114,8 @@ namespace mlir::rlc
 			manager.addPass(mlir::rlc::createAddPreconditionsCheckPass());
 		}
 
+		manager.addPass(mlir::rlc::createArgumentAnalysisPass());
+
 		manager.addPass(mlir::rlc::createLowerAssertsPass());
 
 		manager.addPass(mlir::rlc::createLowerInitializerListsPass());

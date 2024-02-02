@@ -236,3 +236,8 @@ def EmitFuzzTargetPass : Pass<"rlc-emit-fuzz-target-pass", "mlir::ModuleOp"> {
       "Name of the action to generate a fuzzer for">,
   ];
 }
+
+def ArgumentAnalysisPass : Pass<"rlc-argument-analysis-pass", "mlir::ModuleOp"> {
+  let summary = "Lower MinValOp's to expressions that compute the minimum value dynamically.";
+  let dependentDialects = ["rlc::RLCDialect"];
+}

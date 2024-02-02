@@ -20,8 +20,10 @@ limitations under the License.
 #include "llvm/ADT/StringExtras.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpDefinition.h"
+#include "mlir/Support/LogicalResult.h"
 #include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Dialect.h"
+#include "rlc/dialect/SymbolTable.h"
 #include "rlc/utils/IRange.hpp"
 #define GET_OP_CLASSES
 #include "./Operations.inc"
@@ -928,6 +930,12 @@ mlir::LogicalResult mlir::rlc::CanOp::typeCheck(
 {
 	auto &rewriter = builder.getRewriter();
 	rewriter.replaceOpWithNewOp<CanOp>(*this, getCallee());
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::MinValOp::typeCheck(
+	mlir::rlc::ModuleBuilder &builder)
+{
 	return mlir::success();
 }
 
