@@ -31,6 +31,7 @@ limitations under the License.
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Region.h"
+#include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
@@ -224,23 +225,22 @@ static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
     auto inputsExcludingActionEntity = llvm::drop_begin(llvm::enumerate(inputs));
     for(auto inputType : inputsExcludingActionEntity) {
         assert(inputType.value().isa<mlir::rlc::IntegerType>() && "Fuzzing can only handle integer arguments for now.");
-
-        auto input_min = builder.create<mlir::rlc::MinValOp>(
+        auto argConstraints = builder.create<mlir::rlc::ArgConstraintsOp>(
             loc,
-            mlir::rlc::IntegerType::getInt64(builder.getContext()),
+            mlir::TypeRange({
+                mlir::rlc::IntegerType::getInt64(builder.getContext()),
+                mlir::rlc::IntegerType::getInt64(builder.getContext())
+            }),
             subactionFunction,
             (uint8_t)inputType.index(),
             actionEntity
         );
-        auto input_max = builder.create<mlir::rlc::Constant>(
-            loc,
-            (int64_t)10 // TODO
-        );
+
         auto call = builder.create<mlir::rlc::CallOp>(
             loc,
             pickArgument,
             false,
-            mlir::ValueRange({input_min.getResult(), input_max.getResult()})
+            mlir::ValueRange({argConstraints.getMin(), argConstraints.getMax()})
         );
         // print the value picked for the argument for debugging purposes.
         builder.create<mlir::rlc::CallOp>(loc, print, false, call.getResult(0));

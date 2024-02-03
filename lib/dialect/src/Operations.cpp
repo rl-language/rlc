@@ -933,7 +933,7 @@ mlir::LogicalResult mlir::rlc::CanOp::typeCheck(
 	return mlir::success();
 }
 
-mlir::LogicalResult mlir::rlc::MinValOp::typeCheck(
+mlir::LogicalResult mlir::rlc::ArgConstraintsOp::typeCheck(
 	mlir::rlc::ModuleBuilder &builder)
 {
 	return mlir::success();

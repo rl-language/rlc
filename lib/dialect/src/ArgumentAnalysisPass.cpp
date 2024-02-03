@@ -16,12 +16,17 @@
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Types.hpp"
 
+struct DeducedConstraints {
+    mlir::Value min;
+    mlir::Value max;
+};
+
 class ArgumentAnalysis
 {
     public:
     explicit ArgumentAnalysis(mlir::rlc::FunctionOp op);
     
-    mlir::Value emitMinimumValue(int argIndex, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc);
+    DeducedConstraints deduceConstraints(int argIndex, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc);
 
     private:
     llvm::SmallVector<llvm::SmallVector<mlir::Value>> conjunctions;
@@ -146,39 +151,60 @@ mlir::Value recompute(mlir::Value expression, mlir::Value actionEntity, mlir::Op
 
 //TODO 
 const int64_t min_int = -800;
+const int64_t max_int = 800;
 
-mlir::Value findMinConstraint(mlir::Value constraint, mlir::Value arg, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc, mlir::Region &precondition) {
+
+DeducedConstraints findImposedConstraints(mlir::Value constraint, mlir::Value arg, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc, mlir::Region &precondition) {
     auto *definingOp = constraint.getDefiningOp();
     if (definingOp->getOperands().size() != 2)
-        return builder.create<mlir::rlc::Constant>(loc, min_int);
+        return {
+            builder.create<mlir::rlc::Constant>(loc, min_int),
+            builder.create<mlir::rlc::Constant>(loc, max_int)
+        };
 
     if (definingOp->getOperand(0) == arg) {
         auto rhs = recompute(definingOp->getOperand(1), actionEntity, builder, precondition);
 
         if (mlir::isa<mlir::rlc::LessOp>(definingOp))
         {
-            // could set max here.
+            auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
+            return {
+                builder.create<mlir::rlc::Constant>(loc, min_int),
+                builder.create<mlir::rlc::SubOp>(loc, rhs, one)
+            };
         }
 
         if (mlir::isa<mlir::rlc::LessEqualOp>(definingOp))
         {
-            // could set max here.
+            return {
+                rhs,
+                builder.create<mlir::rlc::Constant>(loc, max_int)
+            };
         }
 
         if (mlir::isa<mlir::rlc::GreaterOp>(definingOp))
         {
             auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
-            return builder.create<mlir::rlc::AddOp>(loc, rhs, one);
+            return {
+                builder.create<mlir::rlc::AddOp>(loc, rhs, one),
+                builder.create<mlir::rlc::Constant>(loc, max_int)
+            };
         }
 
         if (mlir::isa<mlir::rlc::GreaterEqualOp>(definingOp))
         {
-            return rhs;
+            return {
+                rhs,
+                builder.create<mlir::rlc::Constant>(loc, max_int)
+            };
         }
 
         if (mlir::isa<mlir::rlc::EqualOp>(definingOp))
         {
-            return rhs;
+            return {
+                rhs,
+                rhs
+            };
         }
     }
 
@@ -188,39 +214,63 @@ mlir::Value findMinConstraint(mlir::Value constraint, mlir::Value arg, mlir::Val
         if (mlir::isa<mlir::rlc::LessOp>(definingOp))
         {
             auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
-            return builder.create<mlir::rlc::AddOp>(loc, lhs, one);
+            return {
+                builder.create<mlir::rlc::AddOp>(loc, lhs, one),
+                builder.create<mlir::rlc::Constant>(loc, max_int),
+            };
         }
 
         if (mlir::isa<mlir::rlc::LessEqualOp>(definingOp))
         {
-            return lhs;
+            return {
+                lhs,
+                builder.create<mlir::rlc::Constant>(loc, max_int),
+            };
         }
 
         if (mlir::isa<mlir::rlc::GreaterOp>(definingOp))
         {
-            // could set max here.
+            auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
+            return {
+                builder.create<mlir::rlc::Constant>(loc, min_int),
+                builder.create<mlir::rlc::SubOp>(loc, lhs, one)
+            };
         }
 
         if (mlir::isa<mlir::rlc::GreaterEqualOp>(definingOp))
         {
-            // could set max here.
+            return {
+                builder.create<mlir::rlc::Constant>(loc, min_int),
+                lhs
+            };
         }
 
         if (mlir::isa<mlir::rlc::EqualOp>(definingOp))
         {
-            return lhs;
+            return {
+                lhs,
+                lhs
+            };
         }
     }
 
-    return builder.create<mlir::rlc::Constant>(loc, min_int);
+    return {
+        builder.create<mlir::rlc::Constant>(loc, min_int),
+        builder.create<mlir::rlc::Constant>(loc, max_int)
+    };
 }
 
-mlir::Value ArgumentAnalysis::emitMinimumValue(int argIndex, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc) {
+DeducedConstraints ArgumentAnalysis::deduceConstraints(int argIndex, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc) {
     auto arg = function.getPrecondition().getArgument(argIndex);
     assert(arg.getType().isa<mlir::rlc::IntegerType>() && "Expected an integer.");
+
     auto minVal = builder.create<mlir::rlc::UninitializedConstruct>(loc, arg.getType());
     auto minInt =  builder.create<mlir::rlc::Constant>(loc, min_int);
     builder.create<mlir::rlc::BuiltinAssignOp>(loc, minVal, minInt);
+
+    auto maxVal = builder.create<mlir::rlc::UninitializedConstruct>(loc, arg.getType());
+    auto maxInt =  builder.create<mlir::rlc::Constant>(loc, max_int);
+    builder.create<mlir::rlc::BuiltinAssignOp>(loc, maxVal, maxInt);
 
     for (auto conjunction :  conjunctions) {
         llvm::SmallVector<mlir::Value> constraints;
@@ -257,25 +307,41 @@ mlir::Value ArgumentAnalysis::emitMinimumValue(int argIndex, mlir::Value actionE
 
             builder.createBlock(&ifStatement.getTrueBranch());
             for(auto  constraint : constraints) {
-                auto imposed_min = findMinConstraint(constraint, arg, actionEntity, builder, loc, function.getPrecondition());
-                auto innerIfStatement = builder.create<mlir::rlc::IfStatement>(loc);
-                builder.createBlock(&innerIfStatement.getElseBranch());
+                auto imposedConstraints = findImposedConstraints(constraint, arg, actionEntity, builder, loc, function.getPrecondition());
+               
+                // if the minimum imposed by this constraint is greater than the current minimum, set the current minimum.
+                auto minIfStatement = builder.create<mlir::rlc::IfStatement>(loc);
+                builder.createBlock(&minIfStatement.getElseBranch());
                 builder.create<mlir::rlc::Yield>(loc);
 
-                builder.createBlock(&innerIfStatement.getCondition());
-                auto g = builder.create<mlir::rlc::GreaterOp>(loc, imposed_min, minVal);
+                builder.createBlock(&minIfStatement.getCondition());
+                auto g = builder.create<mlir::rlc::GreaterOp>(loc, imposedConstraints.min, minVal);
                 builder.create<mlir::rlc::Yield>(loc, g.getResult());
 
-                builder.createBlock(&innerIfStatement.getTrueBranch());
-                builder.create<mlir::rlc::BuiltinAssignOp>(loc, minVal, imposed_min);
+                builder.createBlock(&minIfStatement.getTrueBranch());
+                builder.create<mlir::rlc::BuiltinAssignOp>(loc, minVal, imposedConstraints.min);
                 builder.create<mlir::rlc::Yield>(loc);
-                builder.setInsertionPointAfter(innerIfStatement);
+                builder.setInsertionPointAfter(minIfStatement);
+
+                // if the maximum imposed by this constraint is less than the current maximum, set the current maximum.
+                auto maxIfStatement = builder.create<mlir::rlc::IfStatement>(loc);
+                builder.createBlock(&maxIfStatement.getElseBranch());
+                builder.create<mlir::rlc::Yield>(loc);
+
+                builder.createBlock(&maxIfStatement.getCondition());
+                auto l = builder.create<mlir::rlc::LessOp>(loc, imposedConstraints.max, maxVal);
+                builder.create<mlir::rlc::Yield>(loc, l.getResult());
+
+                builder.createBlock(&maxIfStatement.getTrueBranch());
+                builder.create<mlir::rlc::BuiltinAssignOp>(loc, maxVal, imposedConstraints.max);
+                builder.create<mlir::rlc::Yield>(loc);
+                builder.setInsertionPointAfter(maxIfStatement);
             }
             builder.create<mlir::rlc::Yield>(loc);
             builder.setInsertionPointAfter(ifStatement);
         }
     }
-    return minVal;
+    return {minVal, maxVal};
 }
 
 namespace mlir::rlc
@@ -294,22 +360,25 @@ namespace mlir::rlc
 		{
 			ModuleOp module = getOperation();
 
-            llvm::SmallVector<mlir::rlc::MinValOp, 4> minValOps;
-			module.walk([&](mlir::rlc::MinValOp op) {
-				minValOps.emplace_back(op);
+
+            llvm::SmallVector<mlir::rlc::ArgConstraintsOp, 4> argConstraintsOps;
+			module.walk([&](mlir::rlc::ArgConstraintsOp op) {
+				argConstraintsOps.emplace_back(op);
 			});
 
-			for (auto minVal : minValOps)
+			for (auto argConstraints: argConstraintsOps)
 			{
-                auto function = llvm::dyn_cast<mlir::rlc::FunctionOp>(minVal.getFunction().getDefiningOp());
+                mlir::OpBuilder builder(argConstraints);
+                mlir::Location loc = argConstraints->getLoc();
+
+                auto function = llvm::dyn_cast<mlir::rlc::FunctionOp>(argConstraints.getFunction().getDefiningOp());
                 assert( function  && "Expected a FunctionOp");
                 ArgumentAnalysis analysis(function);
-                auto min = analysis.emitMinimumValue(minVal.getArgumentIndex(), minVal.getActionEntity(), mlir::OpBuilder(minVal), minVal->getLoc());
-                minVal.replaceAllUsesWith(min);
-                minVal.erase();
+                auto deduced = analysis.deduceConstraints(argConstraints.getArgumentIndex(), argConstraints.getActionEntity(), builder, loc);
+                argConstraints.getMin().replaceAllUsesWith(deduced.min);
+                argConstraints.getMax().replaceAllUsesWith(deduced.max);
+                argConstraints.erase();
 			}
-
-            //module.dump();
 		}
 	};
 
