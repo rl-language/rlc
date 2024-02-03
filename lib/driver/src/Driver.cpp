@@ -107,14 +107,14 @@ namespace mlir::rlc
 			return;
 		}
 
+		manager.addPass(mlir::rlc::createArgumentAnalysisPass());
+
 		manager.addPass(mlir::rlc::createExtractPreconditionPass());
 
 		if (emitPreconditionChecks)
 		{
 			manager.addPass(mlir::rlc::createAddPreconditionsCheckPass());
 		}
-
-		manager.addPass(mlir::rlc::createArgumentAnalysisPass());
 
 		manager.addPass(mlir::rlc::createLowerAssertsPass());
 

@@ -10,6 +10,7 @@
 #include "mlir/IR/Location.h"
 #include "mlir/IR/Region.h"
 #include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
 #include "rlc/dialect/Dialect.h"
@@ -21,12 +22,18 @@ struct DeducedConstraints {
     mlir::Value max;
 };
 
+enum TermType {
+    DEPENDS_ON_ARG,
+    DEPENDS_ON_OTHER_UNKNOWNS,
+    KNOWN_VALUE
+};
+
 class ArgumentAnalysis
 {
     public:
     explicit ArgumentAnalysis(mlir::rlc::FunctionOp op);
     
-    DeducedConstraints deduceConstraints(int argIndex, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc);
+    DeducedConstraints deduceConstraints(int argIndex, mlir::ValueRange knownArgs, mlir::OpBuilder builder, mlir::Location loc);
 
     private:
     llvm::SmallVector<llvm::SmallVector<mlir::Value>> conjunctions;
@@ -101,32 +108,45 @@ ArgumentAnalysis::ArgumentAnalysis(mlir::rlc::FunctionOp op) {
 
 }
 
-bool dependsOn(mlir::Value term, mlir::Value argument, mlir::Region &precondition) {
+TermType decideTermType(mlir::Value term, mlir::Value argument, mlir::ValueRange knownArgs, mlir::Region &precondition) {
     if(term == argument)
-        return true;
+        return DEPENDS_ON_ARG;
 
-    if(term.isa<mlir::BlockArgument>())
-        return false;
+    if(auto arg = llvm::dyn_cast<mlir::BlockArgument>(term)) {
+        if(arg.getArgNumber() < knownArgs.size())
+            return KNOWN_VALUE;
+        
+        return DEPENDS_ON_OTHER_UNKNOWNS;
+    }
 
     auto definingOp = term.getDefiningOp();
 
     if(auto casted = llvm::dyn_cast<mlir::rlc::Constant>(definingOp))
-        return false;
+        return KNOWN_VALUE;
 
     if(definingOp->getParentRegion() != precondition)
-        return false;
+        return KNOWN_VALUE;
+
+    bool dependsOnArg = false;
+    bool dependsOnOtherUnkowns = false;
 
     for(auto operand : definingOp->getOperands()) {
-        if(dependsOn(operand, argument, precondition))
-            return true;
+        auto operandType = decideTermType(operand, argument, knownArgs, precondition);
+        if(operandType == DEPENDS_ON_ARG)
+            dependsOnArg = true;
+        else if (operandType == DEPENDS_ON_OTHER_UNKNOWNS)
+            dependsOnOtherUnkowns = true;
     }
-    return false;
+
+    if (dependsOnArg) { return DEPENDS_ON_ARG; }
+    if (dependsOnOtherUnkowns) { return DEPENDS_ON_OTHER_UNKNOWNS; };
+    return KNOWN_VALUE;
 }
 
-mlir::Value recompute(mlir::Value expression, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Region &precondition) {
+mlir::Value recompute(mlir::Value expression, mlir::ValueRange knownArgs, mlir::OpBuilder builder, mlir::Region &precondition) {
     if(auto arg = llvm::dyn_cast<mlir::BlockArgument>(expression)) {
-        assert(arg.getArgNumber() == 0);
-        return actionEntity;
+        assert(arg.getArgNumber() < knownArgs.size());
+        return knownArgs[arg.getArgNumber()];
     }
 
     if (expression.getDefiningOp()->getParentRegion() != precondition)
@@ -142,7 +162,7 @@ mlir::Value recompute(mlir::Value expression, mlir::Value actionEntity, mlir::Op
     auto newOp = builder.clone(*expression.getDefiningOp());
     builder.setInsertionPoint(newOp);
     for(auto operand : llvm::enumerate(newOp->getOperands())) {
-        auto newOperand = recompute(operand.value(), actionEntity, builder, precondition);
+        auto newOperand = recompute(operand.value(), knownArgs, builder, precondition);
         newOp->setOperand(operand.index(), newOperand);
     }
     builder.setInsertionPointAfter(newOp);
@@ -154,105 +174,130 @@ const int64_t min_int = -800;
 const int64_t max_int = 800;
 
 
-DeducedConstraints findImposedConstraints(mlir::Value constraint, mlir::Value arg, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc, mlir::Region &precondition) {
+DeducedConstraints findImposedConstraints(mlir::Value constraint, mlir::Value arg, mlir::ValueRange knownArgs, mlir::OpBuilder builder, mlir::Location loc, mlir::Region &precondition) {
     auto *definingOp = constraint.getDefiningOp();
-    if (definingOp->getOperands().size() != 2)
-        return {
-            builder.create<mlir::rlc::Constant>(loc, min_int),
-            builder.create<mlir::rlc::Constant>(loc, max_int)
-        };
+    if (definingOp->getOperands().size() == 2) {
+        if (definingOp->getOperand(0) == arg) {
+            auto rhs = recompute(definingOp->getOperand(1), knownArgs, builder, precondition);
 
-    if (definingOp->getOperand(0) == arg) {
-        auto rhs = recompute(definingOp->getOperand(1), actionEntity, builder, precondition);
+            if (mlir::isa<mlir::rlc::LessOp>(definingOp))
+            {
+                auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
+                return {
+                    builder.create<mlir::rlc::Constant>(loc, min_int),
+                    builder.create<mlir::rlc::SubOp>(loc, rhs, one)
+                };
+            }
 
-        if (mlir::isa<mlir::rlc::LessOp>(definingOp))
-        {
-            auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
-            return {
-                builder.create<mlir::rlc::Constant>(loc, min_int),
-                builder.create<mlir::rlc::SubOp>(loc, rhs, one)
-            };
+            if (mlir::isa<mlir::rlc::LessEqualOp>(definingOp))
+            {
+                return {
+                    rhs,
+                    builder.create<mlir::rlc::Constant>(loc, max_int)
+                };
+            }
+
+            if (mlir::isa<mlir::rlc::GreaterOp>(definingOp))
+            {
+                auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
+                return {
+                    builder.create<mlir::rlc::AddOp>(loc, rhs, one),
+                    builder.create<mlir::rlc::Constant>(loc, max_int)
+                };
+            }
+
+            if (mlir::isa<mlir::rlc::GreaterEqualOp>(definingOp))
+            {
+                return {
+                    rhs,
+                    builder.create<mlir::rlc::Constant>(loc, max_int)
+                };
+            }
+
+            if (mlir::isa<mlir::rlc::EqualOp>(definingOp))
+            {
+                return {
+                    rhs,
+                    rhs
+                };
+            }
         }
 
-        if (mlir::isa<mlir::rlc::LessEqualOp>(definingOp))
-        {
-            return {
-                rhs,
-                builder.create<mlir::rlc::Constant>(loc, max_int)
-            };
-        }
+        if(definingOp->getOperand(1) == arg) {
+            auto lhs = recompute(definingOp->getOperand(0), knownArgs, builder, precondition);
 
-        if (mlir::isa<mlir::rlc::GreaterOp>(definingOp))
-        {
-            auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
-            return {
-                builder.create<mlir::rlc::AddOp>(loc, rhs, one),
-                builder.create<mlir::rlc::Constant>(loc, max_int)
-            };
-        }
+            if (mlir::isa<mlir::rlc::LessOp>(definingOp))
+            {
+                auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
+                return {
+                    builder.create<mlir::rlc::AddOp>(loc, lhs, one),
+                    builder.create<mlir::rlc::Constant>(loc, max_int),
+                };
+            }
 
-        if (mlir::isa<mlir::rlc::GreaterEqualOp>(definingOp))
-        {
-            return {
-                rhs,
-                builder.create<mlir::rlc::Constant>(loc, max_int)
-            };
-        }
+            if (mlir::isa<mlir::rlc::LessEqualOp>(definingOp))
+            {
+                return {
+                    lhs,
+                    builder.create<mlir::rlc::Constant>(loc, max_int),
+                };
+            }
 
-        if (mlir::isa<mlir::rlc::EqualOp>(definingOp))
-        {
-            return {
-                rhs,
-                rhs
-            };
-        }
-    }
+            if (mlir::isa<mlir::rlc::GreaterOp>(definingOp))
+            {
+                auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
+                return {
+                    builder.create<mlir::rlc::Constant>(loc, min_int),
+                    builder.create<mlir::rlc::SubOp>(loc, lhs, one)
+                };
+            }
 
-    if(definingOp->getOperand(1) == arg) {
-        auto lhs = recompute(definingOp->getOperand(0), actionEntity, builder, precondition);
+            if (mlir::isa<mlir::rlc::GreaterEqualOp>(definingOp))
+            {
+                return {
+                    builder.create<mlir::rlc::Constant>(loc, min_int),
+                    lhs
+                };
+            }
 
-        if (mlir::isa<mlir::rlc::LessOp>(definingOp))
-        {
-            auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
-            return {
-                builder.create<mlir::rlc::AddOp>(loc, lhs, one),
-                builder.create<mlir::rlc::Constant>(loc, max_int),
-            };
-        }
-
-        if (mlir::isa<mlir::rlc::LessEqualOp>(definingOp))
-        {
-            return {
-                lhs,
-                builder.create<mlir::rlc::Constant>(loc, max_int),
-            };
-        }
-
-        if (mlir::isa<mlir::rlc::GreaterOp>(definingOp))
-        {
-            auto one = builder.create<mlir::rlc::Constant>(loc, (int64_t)1);
-            return {
-                builder.create<mlir::rlc::Constant>(loc, min_int),
-                builder.create<mlir::rlc::SubOp>(loc, lhs, one)
-            };
-        }
-
-        if (mlir::isa<mlir::rlc::GreaterEqualOp>(definingOp))
-        {
-            return {
-                builder.create<mlir::rlc::Constant>(loc, min_int),
-                lhs
-            };
-        }
-
-        if (mlir::isa<mlir::rlc::EqualOp>(definingOp))
-        {
-            return {
-                lhs,
-                lhs
-            };
+            if (mlir::isa<mlir::rlc::EqualOp>(definingOp))
+            {
+                return {
+                    lhs,
+                    lhs
+                };
+            }
         }
     }
+
+    if( mlir::rlc::CallOp call = llvm::dyn_cast<mlir::rlc::CallOp>(definingOp))
+		{
+			if( mlir::rlc::CanOp can = llvm::dyn_cast<mlir::rlc::CanOp>(call.getCallee().getDefiningOp())) {
+				llvm::dbgs() << "Underlying function\n"; 
+				auto underlyingFunction = llvm::dyn_cast<mlir::rlc::FunctionOp>(*can.getCallee().getDefiningOp());
+				underlyingFunction.dump();
+
+                llvm::SmallVector<mlir::Value> knownArgsOfUnderlyingFunction;
+                int argIndex = -1;
+                for(auto current : llvm::enumerate(call.getArgs())) {
+                    // decide which arguments are known (assuming (in general) known arguments are before unknown arguments.)
+                    if( not current.value().isa<mlir::BlockArgument>()) {
+                        auto newExpr = recompute(current.value(), knownArgs, builder, precondition);
+                        knownArgsOfUnderlyingFunction.emplace_back(newExpr);
+                        continue;
+                    }
+                    // and find the index of the argument we're interested in.
+                    if(current.value() == arg) {
+                        argIndex = current.index();
+                        break;
+                    }
+                }
+                assert(argIndex != -1 && "Expecteed to find the argument.");
+                ArgumentAnalysis analysis(underlyingFunction);
+                return analysis.deduceConstraints(argIndex, knownArgsOfUnderlyingFunction, builder, loc);
+			}
+		}
+
 
     return {
         builder.create<mlir::rlc::Constant>(loc, min_int),
@@ -260,7 +305,7 @@ DeducedConstraints findImposedConstraints(mlir::Value constraint, mlir::Value ar
     };
 }
 
-DeducedConstraints ArgumentAnalysis::deduceConstraints(int argIndex, mlir::Value actionEntity, mlir::OpBuilder builder, mlir::Location loc) {
+DeducedConstraints ArgumentAnalysis::deduceConstraints(int argIndex, mlir::ValueRange knownArgs, mlir::OpBuilder builder, mlir::Location loc) {
     auto arg = function.getPrecondition().getArgument(argIndex);
     assert(arg.getType().isa<mlir::rlc::IntegerType>() && "Expected an integer.");
 
@@ -276,9 +321,10 @@ DeducedConstraints ArgumentAnalysis::deduceConstraints(int argIndex, mlir::Value
         llvm::SmallVector<mlir::Value> constraints;
         llvm::SmallVector<mlir::Value> conditions;
         for(auto term : conjunction) {
-            if(dependsOn(term, arg, function.getPrecondition())) {
+            TermType type = decideTermType(term, arg, knownArgs, function.getPrecondition());
+            if(type == DEPENDS_ON_ARG) {
                 constraints.emplace_back(term);
-            } else {
+            } else if (type == KNOWN_VALUE){
                 conditions.emplace_back(term);
             }
         }
@@ -299,7 +345,7 @@ DeducedConstraints ArgumentAnalysis::deduceConstraints(int argIndex, mlir::Value
             builder.createBlock(&ifStatement.getCondition());
             mlir::Value condition = builder.create<mlir::rlc::Constant>(loc, true);
             for( auto c : conditions) {
-                auto recomputed = recompute(c, actionEntity, builder, function.getPrecondition());
+                auto recomputed = recompute(c, knownArgs, builder, function.getPrecondition());
                 condition = builder.create<mlir::rlc::AndOp>(loc, condition, recomputed);
             }
 
@@ -307,7 +353,7 @@ DeducedConstraints ArgumentAnalysis::deduceConstraints(int argIndex, mlir::Value
 
             builder.createBlock(&ifStatement.getTrueBranch());
             for(auto  constraint : constraints) {
-                auto imposedConstraints = findImposedConstraints(constraint, arg, actionEntity, builder, loc, function.getPrecondition());
+                auto imposedConstraints = findImposedConstraints(constraint, arg, knownArgs, builder, loc, function.getPrecondition());
                
                 // if the minimum imposed by this constraint is greater than the current minimum, set the current minimum.
                 auto minIfStatement = builder.create<mlir::rlc::IfStatement>(loc);
@@ -374,7 +420,7 @@ namespace mlir::rlc
                 auto function = llvm::dyn_cast<mlir::rlc::FunctionOp>(argConstraints.getFunction().getDefiningOp());
                 assert( function  && "Expected a FunctionOp");
                 ArgumentAnalysis analysis(function);
-                auto deduced = analysis.deduceConstraints(argConstraints.getArgumentIndex(), argConstraints.getActionEntity(), builder, loc);
+                auto deduced = analysis.deduceConstraints(argConstraints.getArgumentIndex(), argConstraints.getKnownArgs(), builder, loc);
                 argConstraints.getMin().replaceAllUsesWith(deduced.min);
                 argConstraints.getMax().replaceAllUsesWith(deduced.max);
                 argConstraints.erase();

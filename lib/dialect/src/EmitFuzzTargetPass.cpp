@@ -233,7 +233,7 @@ static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
             }),
             subactionFunction,
             (uint8_t)inputType.index(),
-            actionEntity
+            mlir::ValueRange({actionEntity})
         );
 
         auto call = builder.create<mlir::rlc::CallOp>(
