@@ -22,6 +22,37 @@ enum TermType {
     KNOWN_VALUE
 };
 
+/*
+    Given a function and a set of known (bound) arguments for the function, we try to find the
+        minimum and maximum values the unknown (unbound) arguments can take while satisfying the
+        function's precondition.
+
+    We first normalize the precondition to be a disjunction of conjunction of terms, where each 
+        term is a value produced by something other than an AndOp or an OrOp. i.e. we express the
+        precondition in the form (t_1 AND t_2 AND ...) OR (t_3 AND t_4 AND ...).
+
+    Then, to find the minimum and the maximum for a given argument "arg", we emit code as follows:
+    We emit declarations for current_min and current_max, initialized to minus and plus infinity.
+
+    For each conjunction (t_1 AND t_2 AND ...) we classify the terms as
+        - conditions: terms depending only on known values 
+        - constraints: terms depending on "arg" and no other unknown values
+        - others: terms depending on other unknown values.
+    
+    We analyse the minimum and maximum values each constraint implies on "arg" in terms of known 
+        dynamic values. Currently, this returns [-infinity, +infinity] for anything but <, >, >=, <=, ==
+        constraints where one of the sides is "arg", and calls to CanOp results.
+
+    Then, we emit an if statement in the form of
+        if(condition_1 & condition_2....) {
+            if(imposed_min(constraint_1) > current_min)
+                current_min = imposed_min(constraint_1)
+            if(imposed_min(constraint_2) > current_min)
+                current_min = imposed_min(constraint_2)
+            ...
+        }
+    and similarly for the maximum.
+*/
 class DynamicArgumentAnalysis
 {
     public:
