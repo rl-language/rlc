@@ -237,7 +237,7 @@ def EmitFuzzTargetPass : Pass<"rlc-emit-fuzz-target-pass", "mlir::ModuleOp"> {
   ];
 }
 
-def ArgumentAnalysisPass : Pass<"rlc-argument-analysis-pass", "mlir::ModuleOp"> {
-  let summary = "Lower MinValOp's to expressions that compute the minimum value dynamically.";
+def DynamicArgumentAnalysisPass : Pass<"rlc-dynamic-argument-analysis-pass", "mlir::ModuleOp"> {
+  let summary = "Lower ArgConstraintsOp's to expressions that compute the minimum and maximum value dynamically.";
   let dependentDialects = ["rlc::RLCDialect"];
 }
