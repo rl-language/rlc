@@ -32,7 +32,7 @@ enum TermType {
         precondition in the form (t_1 AND t_2 AND ...) OR (t_3 AND t_4 AND ...).
 
     Then, to find the minimum and the maximum for a given argument "arg", we emit code as follows:
-    We emit declarations for current_min and current_max, initialized to minus and plus infinity.
+    We emit declarations for aggregate_min and aggregate_max, initialized to minus and plus infinity.
 
     For each conjunction (t_1 AND t_2 AND ...) we classify the terms as
         - conditions: terms depending only on known values 
@@ -45,12 +45,23 @@ enum TermType {
 
     Then, we emit an if statement in the form of
         if(condition_1 & condition_2....) {
+            current_min = -inf
             if(imposed_min(constraint_1) > current_min)
                 current_min = imposed_min(constraint_1)
             if(imposed_min(constraint_2) > current_min)
                 current_min = imposed_min(constraint_2)
             ...
+            if ( uninitialized(aggregate_min) || current_min < aggregate_min)
+                aggregate_min = current_min
         }
+
+    In other words, we compute
+        aggregate_min = max([
+            min([imposed_min(term) for term in conjunction.constraints])
+            for conjunction in constraint
+            where evaluate(conjunction.conditions) == true
+        ])
+
     and similarly for the maximum.
 */
 class DynamicArgumentAnalysis

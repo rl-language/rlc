@@ -159,8 +159,8 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Operati
             if (mlir::isa<mlir::rlc::LessEqualOp>(binaryOperation))
             {
                 return {
-                    rhs,
-                    builder.create<mlir::rlc::Constant>(loc, max_int)
+                    builder.create<mlir::rlc::Constant>(loc, min_int),
+                    rhs
                 };
             }
 
@@ -287,6 +287,82 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Value c
     };
 }
 
+/*
+    Emits `if (value > target) target = value`
+*/
+void assignIfGreaterthan(mlir::Value value, mlir::Value target, mlir::OpBuilder builder, mlir::Location loc) {
+    auto ifStatement = builder.create<mlir::rlc::IfStatement>(loc);
+    builder.createBlock(&ifStatement.getElseBranch());
+    builder.create<mlir::rlc::Yield>(loc);
+
+    builder.createBlock(&ifStatement.getCondition());
+    auto g = builder.create<mlir::rlc::GreaterOp>(loc, value, target);
+    builder.create<mlir::rlc::Yield>(loc, g.getResult());
+
+    builder.createBlock(&ifStatement.getTrueBranch());
+    builder.create<mlir::rlc::BuiltinAssignOp>(loc, target, value);
+    builder.create<mlir::rlc::Yield>(loc);
+    builder.setInsertionPointAfter(ifStatement);
+}
+
+/*
+    Emits `if (value < target) target = value`
+*/
+void assignIfLessThan(mlir::Value value, mlir::Value target, mlir::OpBuilder builder, mlir::Location loc) {
+    auto ifStatement = builder.create<mlir::rlc::IfStatement>(loc);
+    builder.createBlock(&ifStatement.getElseBranch());
+    builder.create<mlir::rlc::Yield>(loc);
+
+    builder.createBlock(&ifStatement.getCondition());
+    auto g = builder.create<mlir::rlc::LessOp>(loc, value, target);
+    builder.create<mlir::rlc::Yield>(loc, g.getResult());
+
+    builder.createBlock(&ifStatement.getTrueBranch());
+    builder.create<mlir::rlc::BuiltinAssignOp>(loc, target, value);
+    builder.create<mlir::rlc::Yield>(loc);
+    builder.setInsertionPointAfter(ifStatement);
+}
+
+void maybeAssignMin(mlir::Value currentMin, mlir::Value aggregateMin, mlir::Value minInt, mlir::OpBuilder builder, mlir::Location loc) {
+    auto maybeAssignMin = builder.create<mlir::rlc::IfStatement>(loc);
+    builder.createBlock(&maybeAssignMin.getElseBranch());
+    builder.create<mlir::rlc::Yield>(loc);
+
+    builder.createBlock(&maybeAssignMin.getCondition());
+    auto minUninitialized = builder.create<mlir::rlc::EqualOp>(loc, aggregateMin, minInt);
+    auto currentMinIsUninitialized = builder.create<mlir::rlc::EqualOp>(loc, currentMin, minInt);
+    auto currentMinIsInitialized = builder.create<mlir::rlc::NotOp>(loc, currentMinIsUninitialized.getResult());
+    auto currentMinIsSmaller = builder.create<mlir::rlc::LessOp>(loc, currentMin, aggregateMin);
+    auto cond = builder.create<mlir::rlc::OrOp>(loc, minUninitialized, currentMinIsSmaller);
+    auto cond2 = builder.create<mlir::rlc::AndOp>(loc, currentMinIsInitialized, cond);
+    builder.create<mlir::rlc::Yield>(loc, cond2.getResult());
+
+    builder.createBlock(&maybeAssignMin.getTrueBranch());
+    builder.create<mlir::rlc::BuiltinAssignOp>(loc, aggregateMin, currentMin);
+    builder.create<mlir::rlc::Yield>(loc);
+    builder.setInsertionPointAfter(maybeAssignMin);
+}
+
+void maybeAssignMax(mlir::Value currentMax, mlir::Value aggregateMax, mlir::Value maxInt, mlir::OpBuilder builder, mlir::Location loc) {
+    auto maybeAssignMax= builder.create<mlir::rlc::IfStatement>(loc);
+    builder.createBlock(&maybeAssignMax.getElseBranch());
+    builder.create<mlir::rlc::Yield>(loc);
+
+    builder.createBlock(&maybeAssignMax.getCondition());
+    auto maxUninitialized = builder.create<mlir::rlc::EqualOp>(loc, aggregateMax, maxInt);
+    auto currentMaxIsUninitialized = builder.create<mlir::rlc::EqualOp>(loc, currentMax, maxInt);
+    auto currentMaxIsInitialized = builder.create<mlir::rlc::NotOp>(loc, currentMaxIsUninitialized.getResult());
+    auto currentMaxIsGreater = builder.create<mlir::rlc::GreaterOp>(loc, currentMax, aggregateMax);
+    auto cond = builder.create<mlir::rlc::OrOp>(loc, maxUninitialized, currentMaxIsGreater);
+    auto cond2 = builder.create<mlir::rlc::AndOp>(loc, currentMaxIsInitialized, cond);
+    builder.create<mlir::rlc::Yield>(loc, cond2.getResult());
+
+    builder.createBlock(&maybeAssignMax.getTrueBranch());
+    builder.create<mlir::rlc::BuiltinAssignOp>(loc, aggregateMax, currentMax);
+    builder.create<mlir::rlc::Yield>(loc);
+    builder.setInsertionPointAfter(maybeAssignMax);
+}
+
 DeducedConstraints DynamicArgumentAnalysis::deduceConstraints(int argIndex) {
     auto arg = function.getPrecondition().getArgument(argIndex);
     assert(arg.getType().isa<mlir::rlc::IntegerType>() && "Expected an integer.");
@@ -314,6 +390,12 @@ DeducedConstraints DynamicArgumentAnalysis::deduceConstraints(int argIndex) {
 
         // if there are any constraints on unknown args, emit an if statement for this conjunction.
         if(constraints.size() > 0) {
+            auto minForThisConjunction = builder.create<mlir::rlc::UninitializedConstruct>(loc, arg.getType());
+            builder.create<mlir::rlc::BuiltinAssignOp>(loc, minForThisConjunction, minInt);
+
+            auto maxForThisConjunction = builder.create<mlir::rlc::UninitializedConstruct>(loc, arg.getType());
+            builder.create<mlir::rlc::BuiltinAssignOp>(loc, maxForThisConjunction, maxInt);
+
             // if the conditions are met, the constraints are active.
             auto ifStatement = builder.create<mlir::rlc::IfStatement>(loc);
             builder.createBlock(&ifStatement.getElseBranch());
@@ -330,36 +412,22 @@ DeducedConstraints DynamicArgumentAnalysis::deduceConstraints(int argIndex) {
 
             builder.createBlock(&ifStatement.getTrueBranch());
             for(auto  constraint : constraints) {
-                auto imposedConstraints = findImposedConstraints(constraint, arg);
-               
+                auto imposedConstraints = findImposedConstraints(constraint, arg);      
+
                 // if the minimum imposed by this constraint is greater than the current minimum, set the current minimum.
-                auto minIfStatement = builder.create<mlir::rlc::IfStatement>(loc);
-                builder.createBlock(&minIfStatement.getElseBranch());
-                builder.create<mlir::rlc::Yield>(loc);
-
-                builder.createBlock(&minIfStatement.getCondition());
-                auto g = builder.create<mlir::rlc::GreaterOp>(loc, imposedConstraints.min, minVal);
-                builder.create<mlir::rlc::Yield>(loc, g.getResult());
-
-                builder.createBlock(&minIfStatement.getTrueBranch());
-                builder.create<mlir::rlc::BuiltinAssignOp>(loc, minVal, imposedConstraints.min);
-                builder.create<mlir::rlc::Yield>(loc);
-                builder.setInsertionPointAfter(minIfStatement);
+                assignIfGreaterthan(imposedConstraints.min, minForThisConjunction, builder, loc);
 
                 // if the maximum imposed by this constraint is less than the current maximum, set the current maximum.
-                auto maxIfStatement = builder.create<mlir::rlc::IfStatement>(loc);
-                builder.createBlock(&maxIfStatement.getElseBranch());
-                builder.create<mlir::rlc::Yield>(loc);
-
-                builder.createBlock(&maxIfStatement.getCondition());
-                auto l = builder.create<mlir::rlc::LessOp>(loc, imposedConstraints.max, maxVal);
-                builder.create<mlir::rlc::Yield>(loc, l.getResult());
-
-                builder.createBlock(&maxIfStatement.getTrueBranch());
-                builder.create<mlir::rlc::BuiltinAssignOp>(loc, maxVal, imposedConstraints.max);
-                builder.create<mlir::rlc::Yield>(loc);
-                builder.setInsertionPointAfter(maxIfStatement);
+                assignIfLessThan(imposedConstraints.max, maxForThisConjunction, builder, loc);
             }
+
+            // if minVal is not initialized, or if the min imposed by this conjunction is smaller than it, set minVal 
+            //  to the min imposed by this conjunction.
+            maybeAssignMin(minForThisConjunction, minVal, minInt, builder, loc);
+
+            // similarly for maxVal.
+            maybeAssignMax(maxForThisConjunction, maxVal, maxInt, builder, loc);
+
             builder.create<mlir::rlc::Yield>(loc);
             builder.setInsertionPointAfter(ifStatement);
         }

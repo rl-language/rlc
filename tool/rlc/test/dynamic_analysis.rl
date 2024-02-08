@@ -16,11 +16,13 @@ fun factorial(Int input) -> Int:
 		return input * factorial(input - 1)
 
 act play() -> Play:
+	frm flag = true
 	frm current = 0
+
 	while current != 7:
 	    act subact(Int x) {x > (plus_three(current) + 8) / 2, x < 10 + factorial(current)}
 	    current = x
-	    act that(Int a) {a >= 0, a < 100}
+	    act that(Int a) {a >= 0, ( flag and a <= 20 ) or (flag and a <= 15), ( flag and a > 3 ) or (flag and a > 1)}
 	    crash_on_five(a)
 
 
