@@ -114,15 +114,7 @@ Extra dependecies used by the setup script:
 
 ### License
 
-We wish for `RLC` to be usable by all as a compiler, for both commercial and non-commercial purposes.
-In the future, we would like to be able to distribute `RLC` entirely under Apache License, in a structure similar to `LLVM`, but that will depend on the finacial sustainability of the project.
-
-At the moment `RLC` is distributed under the following licensing scheme.
-
-* `RLC` standard library is released under Apache License V2, the intent is to let the standard library to be usable for any purpose, forever.
-* `RLC` code is released under GPL2. As long as you do not redistribute the compiler and its libraries (which is not needed to use it as a compiler) you can use it for any purpose. This should include 95% of the use cases. If you redistribute them, for example, because you are developing a tool that uses the RLC parser library, you will have to distribute it under GPL2, or you will need to contact us for a custom license.
-
-Should `RLC` ever include components that logically require to be linked to a user library to be useful, such as a just-in-time compiler library or runtime libraries, those libraries will have some exception from GPL2 and will be more permissive.
+We wish for `RLC` to be usable by all as a compiler, for both commercial and non-commercial purposes, so it is released under apache license.
 
 
 ### Installation for developers
