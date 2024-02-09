@@ -449,6 +449,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		manager.addPass(mlir::rlc::createMemberFunctionsToRegularFunctionsPass());
 		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckPass());
+		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 		auto typeCheckResult = manager.run(module);
 	}
 

@@ -163,6 +163,13 @@ namespace mlir::rlc::lsp
 		{
 			mlir::lsp::PublishDiagnosticsParams diagParams(
 					params.textDocument.uri, params.textDocument.version);
+			std::error_code EC;
+			llvm::raw_fd_ostream OS(
+					"/tmp/last.rl",
+					EC,
+					llvm::sys::fs::CreationDisposition::CD_CreateAlways);
+			if (not EC)
+				OS << params.textDocument.text;
 			server->addOrUpdateDocument(
 					params.textDocument.uri,
 					params.textDocument.text,
