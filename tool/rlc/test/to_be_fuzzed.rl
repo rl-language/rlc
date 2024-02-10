@@ -1,4 +1,4 @@
-# RUN: rlc %s -o %t -i %stdlib --fuzzer
+# RUN: rlc %s -o %t -i %stdlib --fuzzer --fuzzer-lib=%fuzzer_lib
 # RUN: %t -runs=1000
 import fuzzer.cpp_functions
 import fuzzer.utils

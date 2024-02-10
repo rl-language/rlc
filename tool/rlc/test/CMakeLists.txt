@@ -1,3 +1,5 @@
+file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/fuzzer_lib_location.txt CONTENT "$<TARGET_FILE:rlc::fuzzer>")
+
 rlcAddLitTest(rlc)
 
 find_package(Python COMPONENTS Interpreter REQUIRED)

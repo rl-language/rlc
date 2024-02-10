@@ -1,6 +1,11 @@
 @LIT_SITE_CFG_IN_HEADER@
 
 import sys
+from pathlib import Path
+
+p = Path(__file__).with_name('fuzzer_lib_location.txt')
+with p.open('r') as f:
+    config.rlc_fuzzer_lib = f.read()
 
 config.host_triple = "@LLVM_HOST_TRIPLE@"
 config.target_triple = "@LLVM_TARGET_TRIPLE@"
