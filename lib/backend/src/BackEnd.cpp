@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 #include "rlc/backend/BackEnd.hpp"
+#include <string>
+#include <vector>
 
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/CommandFlags.h"
@@ -38,7 +40,9 @@ limitations under the License.
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/TargetParser/Host.h"
+#include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
+#include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -89,7 +93,18 @@ namespace mlir::rlc
 	}
 }	 // namespace mlir::rlc
 
-static void runOptimizer(llvm::Module &M, bool optimize)
+
+static void addFuzzerInstrumentationPass (llvm::ModulePassManager &MPM) {
+	SanitizerCoverageOptions opts;
+	opts.CoverageType = llvm::SanitizerCoverageOptions::SCK_Edge;
+	opts.IndirectCalls = true;
+	opts.Inline8bitCounters = true;
+	opts.TraceCmp = true;
+	opts.PCTable = true;
+	MPM.addPass(SanitizerCoveragePass(opts));
+}
+
+static void runOptimizer(llvm::Module &M, bool optimize, bool emitFuzzer)
 {
 	// Create the analysis managers.
 	LoopAnalysisManager LAM;
@@ -119,6 +134,8 @@ static void runOptimizer(llvm::Module &M, bool optimize)
 		functionPassManager.addPass(llvm::PromotePass());
 		passManager.addPass(
 				createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
+		if(emitFuzzer)
+			addFuzzerInstrumentationPass(passManager);
 		passManager.run(M, MAM);
 
 		PB.buildModuleSimplificationPipeline(
@@ -138,6 +155,8 @@ static void runOptimizer(llvm::Module &M, bool optimize)
 	{
 		ModulePassManager MPM =
 				PB.buildO0DefaultPipeline(OptimizationLevel::O0, true);
+		if(emitFuzzer)
+			addFuzzerInstrumentationPass(MPM);
 		MPM.run(M, MAM);
 	}
 }
@@ -244,7 +263,9 @@ static int linkLibraries(
 		llvm::StringRef clangPath,
 		llvm::StringRef outputFile,
 		bool shared,
-		const std::vector<std::string> &extraObjectFiles)
+		bool emitFuzzer,
+		const std::vector<std::string> &extraObjectFiles,
+		const std::vector<std::string> &rpaths)
 {
 	auto realPath = llvm::cantFail(
 			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath)));
@@ -264,6 +285,14 @@ static int linkLibraries(
 	{
 		argSource.push_back("-no-pie");
 	}
+	if(emitFuzzer)
+	{
+		argSource.push_back("-fsanitize=fuzzer,address");
+	}
+
+	for(auto rpathEntry :rpaths)
+		argSource.push_back("-Wl,-rpath=" + rpathEntry);
+	
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
 
@@ -298,7 +327,8 @@ namespace mlir::rlc
 			assert(Module);
 			Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
 
-			runOptimizer(*Module, targetInfo->optimize());
+			runOptimizer(*Module, targetInfo->optimize(), emitFuzzer);
+			
 			if (dumpIR)
 			{
 				Module->print(*OS, nullptr);
@@ -333,7 +363,9 @@ namespace mlir::rlc
 							clangPath,
 							outputFile,
 							targetInfo->isShared(),
-							*extraObjectFiles) != 0)
+							emitFuzzer,
+							*extraObjectFiles,
+							*rpaths) != 0)
 				signalPassFailure();
 		}
 	};

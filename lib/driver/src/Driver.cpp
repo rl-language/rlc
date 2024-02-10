@@ -34,12 +34,17 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 
+		if (emitFuzzer) {
+			manager.addPass(mlir::rlc::createEmitFuzzTargetPass());
+		}
+
 		if (request == Request::dumpCheckedAST)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			return;
 		}
 		manager.addPass(mlir::createCanonicalizerPass());
+
 
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorInvocationsPass());
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
@@ -124,7 +129,7 @@ namespace mlir::rlc
 		}
 		manager.addPass(mlir::rlc::createLowerToLLVMPass());
 		manager.addPass(mlir::rlc::createRemoveUselessAllocaPass());
-		if (request == Request::executable)
+		if (request == Request::executable and not emitFuzzer)
 			manager.addPass(mlir::rlc::createEmitMainPass());
 		manager.addPass(mlir::createCanonicalizerPass());
 
@@ -143,6 +148,8 @@ namespace mlir::rlc
 																					&extraObjectFiles,
 																					dumpIR,
 																					Request::compile == request,
+																					emitFuzzer,
+																					&rPath,
 																					targetInfo }));
 	}
 

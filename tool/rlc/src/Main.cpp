@@ -47,6 +47,7 @@ limitations under the License.
 #include "rlc/parser/MultiFileParser.hpp"
 #include "rlc/python/Interfaces.hpp"
 #include "rlc/python/Passes.hpp"
+#include "rlc/Fuzzer.hpp"
 
 #if NDEBUG
 static constexpr const bool isDebug = false;
@@ -220,6 +221,22 @@ static cl::opt<bool> ExpectFail(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<std::string> customFuzzerLibPath(
+		"fuzzer-lib",
+		cl::desc("path to the fuzzer library."),
+		cl::init(""),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> emitFuzzer(
+	"fuzzer",
+	cl::desc("emit a fuzzer."), // TODO consider passing the action name here.
+	cl::init(false),
+	cl::cat(astDumperCategory)
+);
+
+cl::list<std::string> RPath("rpath", cl::desc("<rpath>"));
+
+
 int main(int argc, char *argv[]);
 
 static mlir::rlc::Driver::Request getRequest()
@@ -268,6 +285,16 @@ static mlir::rlc::Driver configureDriver(
 	includes.push_back(directory.str());
 	includes.push_back(rlcDirectory);
 
+	if(emitFuzzer)
+	{
+		string fuzzerLibPath = customFuzzerLibPath.empty()
+			? llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/" + FUZZER_LIBRARY_FILENAME 
+			: customFuzzerLibPath.getValue();
+
+		ExtraObjectFiles.addValue(fuzzerLibPath);
+		RPath.addValue(llvm::sys::path::parent_path(fuzzerLibPath).str());
+	}
+
 	Driver driver(srcManager, InputFilePath, outputFile, OS);
 	driver.setRequest(getRequest());
 	driver.setDebug(debugInfo);
@@ -277,6 +304,8 @@ static mlir::rlc::Driver configureDriver(
 	driver.setClangPath(clangPath);
 	driver.setIncludeDirs(includes);
 	driver.setExtraObjectFile(ExtraObjectFiles);
+	driver.setRPath(RPath);
+	driver.setEmitFuzzer(emitFuzzer);
 	driver.setTargetInfo(&info);
 	driver.setEmitBoundChecks(emitBoundChecks);
 

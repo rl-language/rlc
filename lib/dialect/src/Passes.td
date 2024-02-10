@@ -193,6 +193,10 @@ def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
            "dump ir and stop">,
     Option<"compileOnly", "compile and stop", "bool", /*default=*/"false",
            "compile and stop">,
+    Option<"emitFuzzer", "emit a fuzzer", "bool", /*default=*/"false",
+           "emit a fuzzer">,
+    Option<"rpaths", "rpath entries", "const std::vector<std::string>*", /*default=*/"nullptr",
+          "rpath entries">,
     Option<"targetInfo", "info about the target", "const mlir::rlc::TargetInfo*", /*default=*/"nullptr",
            "info about the target">,
   ];
@@ -222,4 +226,13 @@ def ValidateStorageQualifiersPass : Pass<"rlc-validate-storage-qualifiers", "mli
 def LowerInitializerListsPass : Pass<"rlc-lower-initializer-lists", "mlir::ModuleOp"> {
   let summary = "lower initializer list either to global or to regular array";
   let dependentDialects = ["rlc::RLCDialect"];
+}
+
+def EmitFuzzTargetPass : Pass<"rlc-emit-fuzz-target-pass", "mlir::ModuleOp"> {
+  let summary = "emit the fuzzer_fuzz_action_function function to be used by the fuzzer.";
+  let dependentDialects = ["rlc::RLCDialect"];
+  let options = [
+    Option<"actionToFuzz", "Action to fuzz", "std::string", /*default=*/"\"play\"",
+      "Name of the action to generate a fuzzer for">,
+  ];
 }
