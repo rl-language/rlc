@@ -163,10 +163,15 @@ If it does not crashes, then you are good to go.
 
 If you use some whacky shell of your own or you did not followed the default setup, you are on your own.
 
+### Contacts
+
+[Discord](https://discord.gg/saSEj9PAt3)
+[Twitter](https://twitter.com/RulebookL3873)
+[Youtube](https://www.youtube.com/watch?v=tMnBo3TGIbU)
+
 
 ### How to contruibute for developers
-Do not push directly onto branches of this repo. Instead:
-* fork this project. Make sure it is still private
+* fork this project.
 * push your branches to your fork
 * open a pull request for the branch relevant to your project
 
@@ -196,6 +201,3 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 * some very large hand written program with machine learning and all
 * some other language testsuite transpiled to rl
 
-### Contacts
-
-[Discord](https://discord.gg/saSEj9PAt3)
