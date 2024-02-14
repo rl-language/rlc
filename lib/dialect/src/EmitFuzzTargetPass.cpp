@@ -223,6 +223,9 @@ static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
     auto inputs = mlir::dyn_cast<mlir::FunctionType>(subactionFunction.getType()).getInputs();
     // The first input is the actionEntity, which does not need to be declared here.
     auto inputsExcludingActionEntity = llvm::drop_begin(llvm::enumerate(inputs));
+    // keeps track of arguments that already have been bound.
+    // the action entity is bound before picking the first input, every input becomes bound when it's picked.
+    llvm::SmallVector<mlir::Value> boundArguments {actionEntity};
     for(auto inputType : inputsExcludingActionEntity) {
         assert(inputType.value().isa<mlir::rlc::IntegerType>() && "Fuzzing can only handle integer arguments for now.");
         auto argConstraints = builder.create<mlir::rlc::ArgConstraintsOp>(
@@ -233,7 +236,7 @@ static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
             }),
             subactionFunction,
             (uint8_t)inputType.index(),
-            mlir::ValueRange({actionEntity})
+            boundArguments
         );
 
         auto call = builder.create<mlir::rlc::CallOp>(
@@ -245,6 +248,7 @@ static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
         // print the value picked for the argument for debugging purposes.
         builder.create<mlir::rlc::CallOp>(loc, print, false, call.getResult(0));
         arguments.emplace_back(call->getResult(0));
+        boundArguments.emplace_back(call->getResult(0));
     }
 
     builder.restoreInsertionPoint(ip);
