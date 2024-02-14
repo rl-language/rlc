@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdint>
 #include <strings.h>
 #include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/Builders.h"
@@ -17,7 +18,7 @@ struct DeducedConstraints {
 };
 
 enum TermType {
-    DEPENDS_ON_ARG,
+    DEPENDS_ON_UNBOUND_VALUE,
     DEPENDS_ON_OTHER_UNKNOWNS,
     KNOWN_VALUE
 };
@@ -71,13 +72,16 @@ class DynamicArgumentAnalysis
     mlir::Value pickArg(int argIndex);
 
     private:
-    DeducedConstraints deduceConstraints(int argIndex);
+    DeducedConstraints deduceIntegerUnboundValueConstraints(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress);
     llvm::SmallVector<llvm::SmallVector<mlir::Value>> expandToDNF(mlir::Value constraint);
-    TermType decideTermType(mlir::Value term, mlir::Value argument);
+    TermType decideTermType(mlir::Value term, mlir::Value argument, mlir::SmallVector<uint64_t> memberAddress);
     mlir::Value compute(mlir::Value expression);
-    DeducedConstraints findImposedConstraints(mlir::Value constraint, mlir::Value arg);
-    DeducedConstraints findImposedConstraints(mlir::Operation *binaryOperation, mlir::Value arg);
-    DeducedConstraints findImposedConstraints(mlir::rlc::CallOp call, mlir::Value arg);
+    DeducedConstraints findImposedConstraints(mlir::Value constraint, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress);
+    DeducedConstraints findImposedConstraints(mlir::Operation *binaryOperation, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress);
+    DeducedConstraints findImposedConstraints(mlir::rlc::CallOp call, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress);
+
+    mlir::Value pickIntegerUnboundValue(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress);
+    mlir::Value pickUnboundValue(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress);
 
     mlir::rlc::FunctionOp function;
     mlir::Region& precondition;

@@ -226,11 +226,10 @@ static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
     // the action entity is bound before picking the first input, every input becomes bound when it's picked.
     llvm::SmallVector<mlir::Value> boundArguments {actionEntity};
     for(auto inputType : inputsExcludingActionEntity) {
-        assert(inputType.value().isa<mlir::rlc::IntegerType>() && "Fuzzing can only handle integer arguments for now.");
         auto pickedArg = builder.create<mlir::rlc::PickedArgOp>(
             loc,
             mlir::TypeRange({
-                mlir::rlc::IntegerType::getInt64(builder.getContext())
+                inputType.value()
             }),
             subactionFunction,
             (uint8_t)inputType.index(),
