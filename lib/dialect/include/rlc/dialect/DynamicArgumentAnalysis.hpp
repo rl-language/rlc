@@ -67,10 +67,11 @@ enum TermType {
 class DynamicArgumentAnalysis
 {
     public:
-    explicit DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange knownArgs, mlir::OpBuilder builder, mlir::Location loc);
-    DeducedConstraints deduceConstraints(int argIndex);
+    explicit DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange knownArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc);
+    mlir::Value pickArg(int argIndex);
 
     private:
+    DeducedConstraints deduceConstraints(int argIndex);
     llvm::SmallVector<llvm::SmallVector<mlir::Value>> expandToDNF(mlir::Value constraint);
     TermType decideTermType(mlir::Value term, mlir::Value argument);
     mlir::Value compute(mlir::Value expression);
@@ -81,6 +82,7 @@ class DynamicArgumentAnalysis
     mlir::rlc::FunctionOp function;
     mlir::Region& precondition;
     mlir::ValueRange knownArgs;
+    mlir::Value argPicker;
     mlir::OpBuilder builder;
     mlir::Location loc;
     llvm::SmallVector<llvm::SmallVector<mlir::Value>> conjunctions;

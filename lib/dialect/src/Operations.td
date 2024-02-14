@@ -1824,8 +1824,8 @@ def RLC_CanOp : RLC_Dialect <"can", [DeclareOpInterfaceMethods<TypeCheckable>]> 
   }]>];
 }
 
-def RLC_ArgConstraintsOp : RLC_Dialect <"argConstraints", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_PickedArgOp : RLC_Dialect <"pickedArg", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let arguments = (ins AnyFunctionType:$function, I8Attr:$argument_index, Variadic<AnyType>:$knownArgs);
 
-  let results = (outs RLC_IntegerType:$min, RLC_IntegerType: $max);
+  let results = (outs AnyType:$argument);
 }

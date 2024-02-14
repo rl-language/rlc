@@ -210,7 +210,6 @@ static mlir::Value emitChosenActionDeclaration(
 static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
     mlir::Value subactionFunction,
     mlir::Value actionEntity,
-    mlir::Value pickArgument,
     mlir::Value print,
     mlir::Location loc,
     mlir::OpBuilder builder,
@@ -228,27 +227,19 @@ static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
     llvm::SmallVector<mlir::Value> boundArguments {actionEntity};
     for(auto inputType : inputsExcludingActionEntity) {
         assert(inputType.value().isa<mlir::rlc::IntegerType>() && "Fuzzing can only handle integer arguments for now.");
-        auto argConstraints = builder.create<mlir::rlc::ArgConstraintsOp>(
+        auto pickedArg = builder.create<mlir::rlc::PickedArgOp>(
             loc,
             mlir::TypeRange({
-                mlir::rlc::IntegerType::getInt64(builder.getContext()),
                 mlir::rlc::IntegerType::getInt64(builder.getContext())
             }),
             subactionFunction,
             (uint8_t)inputType.index(),
             boundArguments
         );
-
-        auto call = builder.create<mlir::rlc::CallOp>(
-            loc,
-            pickArgument,
-            false,
-            mlir::ValueRange({argConstraints.getMin(), argConstraints.getMax()})
-        );
         // print the value picked for the argument for debugging purposes.
-        builder.create<mlir::rlc::CallOp>(loc, print, false, call.getResult(0));
-        arguments.emplace_back(call->getResult(0));
-        boundArguments.emplace_back(call->getResult(0));
+        builder.create<mlir::rlc::CallOp>(loc, print, false, pickedArg.getResult());
+        arguments.emplace_back(pickedArg.getResult());
+        boundArguments.emplace_back(pickedArg.getResult());
     }
 
     builder.restoreInsertionPoint(ip);
@@ -278,7 +269,6 @@ static void emitSubactionCases(
     mlir::OpBuilder builder
 ) {
     auto ip = builder.saveInsertionPoint();
-    auto pickArgument = findFunction(action->getParentOfType<mlir::ModuleOp>(), "fuzzer_pick_argument");
     auto print = findFunction(action->getParentOfType<mlir::ModuleOp>(),"fuzzer_print");
     auto skipFuzzInput = findFunction(action->getParentOfType<mlir::ModuleOp>(),"fuzzer_skip_input");
     
@@ -294,7 +284,7 @@ static void emitSubactionCases(
         //      let arg1 = pickArgument(arg_1_size)
         //      ...
         builder.createBlock(&ifActionIsChosen.getTrueBranch());
-        auto args = emitSubactionArgumentDeclarations(subaction.value(), actionEntity, pickArgument, print, action->getLoc(), builder, moduleBuilder);
+        auto args = emitSubactionArgumentDeclarations(subaction.value(), actionEntity, print, action->getLoc(), builder, moduleBuilder);
         args.insert(args.begin(), actionEntity); // the first argument should be the entity itself.
 
         //      if( !can_subaction_function(arg1, arg2, ...))

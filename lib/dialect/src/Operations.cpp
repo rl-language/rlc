@@ -933,9 +933,16 @@ mlir::LogicalResult mlir::rlc::CanOp::typeCheck(
 	return mlir::success();
 }
 
-mlir::LogicalResult mlir::rlc::ArgConstraintsOp::typeCheck(
+mlir::LogicalResult mlir::rlc::PickedArgOp::typeCheck(
 	mlir::rlc::ModuleBuilder &builder)
 {
+	auto &rewriter = builder.getRewriter();
+	rewriter.replaceOpWithNewOp<PickedArgOp>(*this,
+		getFunction().getType().cast<mlir::FunctionType>().getInputs()[getArgumentIndex()],
+		getFunction(),
+		getArgumentIndex(),
+		getKnownArgs()
+	);
 	return mlir::success();
 }
 

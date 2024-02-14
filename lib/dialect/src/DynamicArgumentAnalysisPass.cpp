@@ -17,10 +17,11 @@
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/DynamicArgumentAnalysis.hpp"
 
-DynamicArgumentAnalysis::DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange knownArgs, mlir::OpBuilder builder, mlir::Location loc): 
+DynamicArgumentAnalysis::DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange knownArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc): 
         function(op),
         precondition(op.getPrecondition()),
         knownArgs(knownArgs),
+        argPicker(argPicker),
         builder(builder),
         loc(loc) {
     auto yield = mlir::dyn_cast<mlir::rlc::Yield>(precondition.getBlocks().front().back());
@@ -261,7 +262,7 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::Ca
             }
         }
         assert(argIndex != -1 && "Expected to find the argument.");
-        DynamicArgumentAnalysis analysis(underlyingFunction, knownArgsOfUnderlyingFunction, builder, loc);
+        DynamicArgumentAnalysis analysis(underlyingFunction, knownArgsOfUnderlyingFunction, argPicker, builder, loc);
         return analysis.deduceConstraints(argIndex);
     }
     return {
@@ -435,6 +436,17 @@ DeducedConstraints DynamicArgumentAnalysis::deduceConstraints(int argIndex) {
     return {minVal, maxVal};
 }
 
+mlir::Value DynamicArgumentAnalysis::pickArg(int argIndex) {
+    auto deduced = deduceConstraints(argIndex);
+    auto call = builder.create<mlir::rlc::CallOp>(
+        loc,
+        argPicker,
+        false,
+        mlir::ValueRange({deduced.min, deduced.max})
+    );
+    return call.getResult(0);
+}
+
 namespace mlir::rlc
 {
 #define GEN_PASS_DEF_DYNAMICARGUMENTANALYSISPASS
@@ -450,23 +462,32 @@ namespace mlir::rlc
 		void runOnOperation() override
 		{
 			ModuleOp module = getOperation();
-            llvm::SmallVector<mlir::rlc::ArgConstraintsOp, 4> argConstraintsOps;
-			module.walk([&](mlir::rlc::ArgConstraintsOp op) {
-				argConstraintsOps.emplace_back(op);
+
+            mlir::Value argPicker; 
+            for (auto op : module.getOps<mlir::rlc::FunctionOp>()) {
+                if(op.getUnmangledName().equals("fuzzer_pick_argument")) {
+                    argPicker = op.getResult();
+                    break;
+                }
+            }
+
+            llvm::SmallVector<mlir::rlc::PickedArgOp, 4> pickedArgOps;
+			module.walk([&](mlir::rlc::PickedArgOp op) {
+				pickedArgOps.emplace_back(op);
 			});
 
-			for (auto argConstraints: argConstraintsOps)
+			for (auto pickedArgOp : pickedArgOps)
 			{
-                mlir::OpBuilder builder(argConstraints);
-                mlir::Location loc = argConstraints->getLoc();
+                mlir::OpBuilder builder(pickedArgOp);
+                mlir::Location loc = pickedArgOp->getLoc();
 
-                auto function = llvm::dyn_cast<mlir::rlc::FunctionOp>(argConstraints.getFunction().getDefiningOp());
+                auto function = llvm::dyn_cast<mlir::rlc::FunctionOp>(pickedArgOp.getFunction().getDefiningOp());
                 assert( function  && "Expected a FunctionOp");
-                DynamicArgumentAnalysis analysis(function, argConstraints.getKnownArgs(), builder, loc);
-                auto deduced = analysis.deduceConstraints(argConstraints.getArgumentIndex());
-                argConstraints.getMin().replaceAllUsesWith(deduced.min);
-                argConstraints.getMax().replaceAllUsesWith(deduced.max);
-                argConstraints.erase();
+                DynamicArgumentAnalysis analysis(function, pickedArgOp.getKnownArgs(), argPicker, builder, loc);
+                auto pickedArg = analysis.pickArg(pickedArgOp.getArgumentIndex());
+
+                pickedArgOp.getResult().replaceAllUsesWith(pickedArg);
+                pickedArgOp->erase();
 			}
 		}
 	};
