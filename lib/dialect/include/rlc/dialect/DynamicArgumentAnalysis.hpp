@@ -74,7 +74,7 @@ enum TermType {
     Example: arg = arg2, memberAddress = [2, 1] maps to MemberAccess(MemberAccess(arg,2), 1)
 */
 struct UnboundValue {
-    mlir::Value argument;
+    mlir::BlockArgument argument;
     llvm::SmallVector<uint64_t> memberAddress;
 
     /*

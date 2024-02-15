@@ -272,6 +272,17 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::Ca
         }
         assert(argIndex != -1 && "Expected to find the argument.");
         DynamicArgumentAnalysis analysis(underlyingFunction, knownArgsOfUnderlyingFunction, argPicker, builder, loc);
+        for(auto binding: bindings) {
+            if(binding.first.memberAddress.size() != 0) {
+                // the binding does not just correspond to an argument.
+                auto indexOfArg = std::distance(
+                    call.getArgs().begin(),
+                    llvm::find(call.getArgs(), unbound.argument));
+                // add an equivalent binding using the callee's arg.
+                UnboundValue newUnboundValue {underlyingFunction.getPrecondition().getArgument(indexOfArg), binding.first.memberAddress};
+                analysis.bindings.emplace_back(std::pair(newUnboundValue, binding.second));
+            }
+        }
         UnboundValue correspongindUnboundValue {underlyingFunction.getPrecondition().getArgument(argIndex), unbound.memberAddress};
         return analysis.deduceIntegerUnboundValueConstraints(correspongindUnboundValue);
     }

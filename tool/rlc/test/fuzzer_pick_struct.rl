@@ -19,7 +19,7 @@ act subact(ctx Test context_struct) -> Subact:
         t1.a == context_struct.b,
         t1.b > context_struct.a,
         t1.b < subact_frame_var,
-        t1.inner.c == context_struct.b 
+        t1.inner.c == context_struct.b + t1.b
     }
 
 act play() -> Play:
