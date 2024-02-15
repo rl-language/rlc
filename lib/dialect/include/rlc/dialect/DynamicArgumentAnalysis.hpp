@@ -1,6 +1,8 @@
 #include <cassert>
 #include <cstdint>
+#include <ranges>
 #include <strings.h>
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Location.h"
@@ -18,7 +20,7 @@ struct DeducedConstraints {
 };
 
 enum TermType {
-    DEPENDS_ON_UNBOUND_VALUE,
+    DEPENDS_ON_UNBOUND,
     DEPENDS_ON_OTHER_UNKNOWNS,
     KNOWN_VALUE
 };
@@ -65,27 +67,82 @@ enum TermType {
 
     and similarly for the maximum.
 */
+
+
+/*
+    memberAddress is the "path" from the arg to the value we want to pick.
+    Example: arg = arg2, memberAddress = [2, 1] maps to MemberAccess(MemberAccess(arg,2), 1)
+*/
+struct UnboundValue {
+    mlir::Value argument;
+    llvm::SmallVector<uint64_t> memberAddress;
+
+    /*
+        Returns whether this unbound value corressponds to the term.
+    */
+    bool matches(mlir::Value term) {
+        mlir::Value current = term;
+        // walk the member address in reverse, test if it leads to the argument.
+        for(uint64_t & index : std::ranges::reverse_view(memberAddress)) {
+            auto definingOp = current.getDefiningOp();
+            if( not llvm::detail::isPresent(definingOp))
+                return false;
+            if(auto memberAccess = mlir::dyn_cast<mlir::rlc::MemberAccess>(definingOp)) {
+                if (memberAccess.getMemberIndex() != index) {
+                    return false;
+                }
+                current = memberAccess.getValue();
+            } else {
+                return false;
+            }
+        }
+        return current == argument;
+    }
+
+    mlir::Type getType() {
+        auto type = argument.getType();
+        for (auto index : memberAddress) {
+            type = type.cast<mlir::rlc::EntityType>().getBody()[index];
+        }
+        return type;
+    }
+};
+
 class DynamicArgumentAnalysis
 {
     public:
-    explicit DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange knownArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc);
+    explicit DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange boundArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc);
     mlir::Value pickArg(int argIndex);
 
     private:
-    DeducedConstraints deduceIntegerUnboundValueConstraints(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress);
+    DeducedConstraints deduceIntegerUnboundValueConstraints(UnboundValue unbound);
     llvm::SmallVector<llvm::SmallVector<mlir::Value>> expandToDNF(mlir::Value constraint);
-    TermType decideTermType(mlir::Value term, mlir::Value argument, mlir::SmallVector<uint64_t> memberAddress);
+    TermType decideTermType(mlir::Value term, UnboundValue unbound);
     mlir::Value compute(mlir::Value expression);
-    DeducedConstraints findImposedConstraints(mlir::Value constraint, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress);
-    DeducedConstraints findImposedConstraints(mlir::Operation *binaryOperation, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress);
-    DeducedConstraints findImposedConstraints(mlir::rlc::CallOp call, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress);
+    DeducedConstraints findImposedConstraints(mlir::Value constraint, UnboundValue unbound);
+    DeducedConstraints findImposedConstraints(mlir::Operation *binaryOperation, UnboundValue unbound);
+    DeducedConstraints findImposedConstraints(mlir::rlc::CallOp call, UnboundValue unbound);
 
-    mlir::Value pickIntegerUnboundValue(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress);
-    mlir::Value pickUnboundValue(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress);
+    mlir::Value pickIntegerUnboundValue(UnboundValue unbound);
+    mlir::Value pickUnboundValue(UnboundValue unbound);
 
     mlir::rlc::FunctionOp function;
     mlir::Region& precondition;
-    mlir::ValueRange knownArgs;
+
+    llvm::SmallVector<std::pair<UnboundValue, mlir::Value>> bindings;
+    /*
+        If the passed value matches an UnboundValue that has a binding,
+            return the value bound to it.
+        Otherwise returns nullptr.
+    */
+    mlir::Value getBoundValue(mlir::Value expr) {
+        for(auto binding : bindings) {
+            if(binding.first.matches(expr))
+                return binding.second;
+        }
+        return nullptr;
+    }
+    
     mlir::Value argPicker;
     mlir::OpBuilder builder;
     mlir::Location loc;

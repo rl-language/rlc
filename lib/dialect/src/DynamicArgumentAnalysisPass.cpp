@@ -1,8 +1,7 @@
 #include <cassert>
 #include <cstdint>
-#include <iterator>
-#include <ranges>
 #include <strings.h>
+#include <utility>
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
@@ -20,13 +19,17 @@
 #include "rlc/dialect/DynamicArgumentAnalysis.hpp"
 #include "rlc/dialect/Types.hpp"
 
-DynamicArgumentAnalysis::DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange knownArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc): 
+DynamicArgumentAnalysis::DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange boundArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc): 
         function(op),
         precondition(op.getPrecondition()),
-        knownArgs(knownArgs),
         argPicker(argPicker),
         builder(builder),
         loc(loc) {
+    for (auto boundArg : llvm::enumerate(boundArgs)) {
+        UnboundValue arg {op.getPrecondition().getArgument(boundArg.index()), {}};
+        bindings.emplace_back(std::pair(arg, boundArg.value()));
+    }
+
     auto yield = mlir::dyn_cast<mlir::rlc::Yield>(precondition.getBlocks().front().back());
     assert(yield->getNumOperands() == 1);
     conjunctions = expandToDNF(yield->getOperand(0));
@@ -82,35 +85,17 @@ llvm::SmallVector<llvm::SmallVector<mlir::Value>> DynamicArgumentAnalysis::expan
     return conjunctions;
 }
 
-bool matches(mlir::Value term, mlir::Value argument, llvm::SmallVector<uint64_t> memberAddress) {
-    mlir::Value current = term;
-    // walk the member address in reverse, test if it leads to the argument.
-    for(uint64_t & index : std::ranges::reverse_view(memberAddress)) {
-        auto definingOp = current.getDefiningOp();
-        if( not llvm::detail::isPresent(definingOp))
-            return false;
-        if(auto memberAccess = mlir::dyn_cast<mlir::rlc::MemberAccess>(definingOp)) {
-            if (memberAccess.getMemberIndex() != index) {
-                return false;
-            }
-            current = memberAccess.getValue();
-        } else {
-            return false;
-        }
-    }
-    return current == argument;
-}
+TermType DynamicArgumentAnalysis::decideTermType(mlir::Value term, UnboundValue unbound) {
+    if(unbound.matches(term))
+        return DEPENDS_ON_UNBOUND;
 
-TermType DynamicArgumentAnalysis::decideTermType(mlir::Value term, mlir::Value argument, llvm::SmallVector<uint64_t> memberAddress) {
-    if(matches(term, argument, memberAddress))
-        return DEPENDS_ON_UNBOUND_VALUE;
+    auto boundValue = getBoundValue(term);
+    if(boundValue != nullptr)
+        return KNOWN_VALUE;
 
-    if(auto arg = llvm::dyn_cast<mlir::BlockArgument>(term)) {
-        if(arg.getArgNumber() < knownArgs.size())
-            return KNOWN_VALUE;
-        
+    if(term.isa<mlir::BlockArgument>())
         return DEPENDS_ON_OTHER_UNKNOWNS;
-    }
+
 
     auto definingOp = term.getDefiningOp();
 
@@ -124,23 +109,24 @@ TermType DynamicArgumentAnalysis::decideTermType(mlir::Value term, mlir::Value a
     bool dependsOnOtherUnkowns = false;
 
     for(auto operand : definingOp->getOperands()) {
-        auto operandType = decideTermType(operand, argument, memberAddress);
-        if(operandType == DEPENDS_ON_UNBOUND_VALUE)
+        auto operandType = decideTermType(operand, unbound);
+        if(operandType == DEPENDS_ON_UNBOUND)
             dependsOnArg = true;
         else if (operandType == DEPENDS_ON_OTHER_UNKNOWNS)
             dependsOnOtherUnkowns = true;
     }
 
-    if (dependsOnArg) { return DEPENDS_ON_UNBOUND_VALUE; }
+    if (dependsOnArg) { return DEPENDS_ON_UNBOUND; }
     if (dependsOnOtherUnkowns) { return DEPENDS_ON_OTHER_UNKNOWNS; };
     return KNOWN_VALUE;
 }
 
 mlir::Value DynamicArgumentAnalysis::compute(mlir::Value expression) {
-    if(auto arg = llvm::dyn_cast<mlir::BlockArgument>(expression)) {
-        assert(arg.getArgNumber() < knownArgs.size());
-        return knownArgs[arg.getArgNumber()];
-    }
+    auto boundValue = getBoundValue(expression);
+    if(boundValue != nullptr)
+        return boundValue;
+
+    assert(not expression.isa<mlir::BlockArgument>() && "The expression to be computed depends on an unbound argument.");
 
     if (expression.getDefiningOp()->getParentRegion() != precondition)
         return expression;
@@ -166,8 +152,8 @@ mlir::Value DynamicArgumentAnalysis::compute(mlir::Value expression) {
 const int64_t min_int = -800;
 const int64_t max_int = 800;
 
-DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Operation *binaryOperation, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress) {
-    if (matches(binaryOperation->getOperand(0), arg, memberAddress)) {
+DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Operation *binaryOperation, UnboundValue unbound) {
+    if (unbound.matches(binaryOperation->getOperand(0))) {
         auto rhs = compute(binaryOperation->getOperand(1));
 
         if (mlir::isa<mlir::rlc::LessOp>(binaryOperation))
@@ -213,7 +199,7 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Operati
         }
     }
 
-    if(matches(binaryOperation->getOperand(1), arg, memberAddress)) {
+    if(unbound.matches(binaryOperation->getOperand(1))) {
         auto lhs = compute(binaryOperation->getOperand(0));
 
         if (mlir::isa<mlir::rlc::LessOp>(binaryOperation))
@@ -264,7 +250,7 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Operati
     };
 }
 
-DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::CallOp call, mlir::Value arg, mlir::SmallVector<uint64_t> memberAddress) {
+DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::CallOp call, UnboundValue unbound) {
     // LARGE TODO think about this part.    
     if( mlir::rlc::CanOp can = llvm::dyn_cast<mlir::rlc::CanOp>(call.getCallee().getDefiningOp())) {
         auto underlyingFunction = llvm::dyn_cast<mlir::rlc::FunctionOp>(*can.getCallee().getDefiningOp());
@@ -279,14 +265,15 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::Ca
                 continue;
             }
             // and find the index of the argument we're interested in.
-            if(matches(current.value(), arg, memberAddress)) {
+            if(unbound.matches(current.value())) {
                 argIndex = current.index();
                 break;
             }
         }
         assert(argIndex != -1 && "Expected to find the argument.");
         DynamicArgumentAnalysis analysis(underlyingFunction, knownArgsOfUnderlyingFunction, argPicker, builder, loc);
-        return analysis.deduceIntegerUnboundValueConstraints(underlyingFunction.getPrecondition().getArgument(argIndex), {});
+        UnboundValue correspongindUnboundValue {underlyingFunction.getPrecondition().getArgument(argIndex), {}};
+        return analysis.deduceIntegerUnboundValueConstraints(correspongindUnboundValue);
     }
     return {
         builder.create<mlir::rlc::Constant>(loc, min_int),
@@ -295,14 +282,14 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::Ca
 }
 
 
-DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Value constraint, mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress) {
+DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::Value constraint, UnboundValue unbound) {
     auto *definingOp = constraint.getDefiningOp();
     if (definingOp->getOperands().size() == 2) {
-        return findImposedConstraints(definingOp, arg, memberAddress);
+        return findImposedConstraints(definingOp, unbound);
     }
 
     if( mlir::rlc::CallOp call = llvm::dyn_cast<mlir::rlc::CallOp>(definingOp)) {
-        return  findImposedConstraints(call, arg, memberAddress);
+        return  findImposedConstraints(call, unbound);
 	}
 
     return {
@@ -387,16 +374,8 @@ void maybeAssignMax(mlir::Value currentMax, mlir::Value aggregateMax, mlir::Valu
     builder.setInsertionPointAfter(maybeAssignMax);
 }
 
-mlir::Type getUnboundValueType( mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress) {
-    auto type = arg.getType();
-    for (auto index : memberAddress) {
-        type = type.cast<mlir::rlc::EntityType>().getBody()[index];
-    }
-    return type;
-}
-
-DeducedConstraints DynamicArgumentAnalysis::deduceIntegerUnboundValueConstraints(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress) {
-    auto type = getUnboundValueType(arg, memberAddress);
+DeducedConstraints DynamicArgumentAnalysis::deduceIntegerUnboundValueConstraints(UnboundValue unbound) {
+    auto type = unbound.getType();
     assert(type.isa<mlir::rlc::IntegerType>() && "Expected an integer.");
 
     auto minVal = builder.create<mlir::rlc::UninitializedConstruct>(loc, type);
@@ -412,8 +391,8 @@ DeducedConstraints DynamicArgumentAnalysis::deduceIntegerUnboundValueConstraints
         llvm::SmallVector<mlir::Value> conditions;
         // categorize the terms in the conjunction
         for(auto term : conjunction) {
-            TermType type = decideTermType(term, arg, memberAddress);
-            if(type == DEPENDS_ON_UNBOUND_VALUE) {
+            TermType type = decideTermType(term, unbound);
+            if(type == DEPENDS_ON_UNBOUND) {
                 constraints.emplace_back(term);
             } else if (type == KNOWN_VALUE){
                 conditions.emplace_back(term);
@@ -452,7 +431,7 @@ DeducedConstraints DynamicArgumentAnalysis::deduceIntegerUnboundValueConstraints
 
             builder.createBlock(&ifStatement.getTrueBranch());
             for(auto  constraint : constraints) {
-                auto imposedConstraints = findImposedConstraints(constraint, arg, memberAddress);      
+                auto imposedConstraints = findImposedConstraints(constraint, unbound);      
 
                 // if the minimum imposed by this constraint is greater than the current minimum, set the current minimum.
                 assignIfGreaterthan(imposedConstraints.min, minForThisConjunction, builder, loc);
@@ -475,8 +454,8 @@ DeducedConstraints DynamicArgumentAnalysis::deduceIntegerUnboundValueConstraints
     return {minVal, maxVal};
 }
 
-mlir::Value DynamicArgumentAnalysis::pickIntegerUnboundValue(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress) {
-    auto deduced = deduceIntegerUnboundValueConstraints(arg, memberAddress);
+mlir::Value DynamicArgumentAnalysis::pickIntegerUnboundValue(UnboundValue unbound) {
+    auto deduced = deduceIntegerUnboundValueConstraints(unbound);
     auto call = builder.create<mlir::rlc::CallOp>(
         loc,
         argPicker,
@@ -486,24 +465,23 @@ mlir::Value DynamicArgumentAnalysis::pickIntegerUnboundValue(mlir::Value arg, ll
     return call.getResult(0);
 }
 
-/*
-    memberAddress is the "path" from the arg to the value we want to pick.
-    Example: arg = arg2, memberAddress = [2, 1] maps to MemberAccess(MemberAccess(arg,2), 1)
-*/
-mlir::Value DynamicArgumentAnalysis::pickUnboundValue(mlir::Value arg, llvm::SmallVector<uint64_t> memberAddress) {
-    auto type = getUnboundValueType(arg, memberAddress);
+mlir::Value DynamicArgumentAnalysis::pickUnboundValue(UnboundValue unbound) {
+    auto type = unbound.getType();
     if(type.isa<mlir::rlc::IntegerType>()) {
-        return pickIntegerUnboundValue(arg, memberAddress);
+        return pickIntegerUnboundValue(unbound);
     }
 
     if(auto entityType = mlir::dyn_cast<mlir::rlc::EntityType>(type)) {
         auto entity = builder.create<mlir::rlc::UninitializedConstruct>(loc, entityType);
         for( auto memberType : llvm::enumerate(entityType.getBody())) {
-            llvm::SmallVector<uint64_t> newMemberAddress(memberAddress);
+            llvm::SmallVector<uint64_t> newMemberAddress(unbound.memberAddress);
             newMemberAddress.emplace_back(memberType.index());
-            auto value = pickUnboundValue(arg, newMemberAddress);
+            UnboundValue newUnboundValue {unbound.argument, newMemberAddress};
+            auto value = pickUnboundValue(newUnboundValue);
             auto access = builder.create<mlir::rlc::MemberAccess>(loc, entity, memberType.index());
             builder.create<mlir::rlc::BuiltinAssignOp>(loc, access, value);
+            // bind the value of this struct field while we pick the next field.
+            bindings.emplace_back(std::pair(newUnboundValue, value));
         }
         return entity;
     }
@@ -514,7 +492,7 @@ mlir::Value DynamicArgumentAnalysis::pickUnboundValue(mlir::Value arg, llvm::Sma
 
 mlir::Value DynamicArgumentAnalysis::pickArg(int argIndex) {
     auto arg = function.getPrecondition().getArgument(argIndex);
-    return pickUnboundValue(arg, {});
+    return pickUnboundValue({arg, {}});
 }
 
 namespace mlir::rlc
