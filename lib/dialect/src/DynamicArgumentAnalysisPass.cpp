@@ -472,7 +472,24 @@ mlir::Value DynamicArgumentAnalysis::pickUnboundValue(UnboundValue unbound) {
             UnboundValue newUnboundValue {unbound.argument, newMemberAddress};
             auto value = pickUnboundValue(newUnboundValue);
             auto access = builder.create<mlir::rlc::MemberAccess>(loc, entity, memberType.index());
-            builder.create<mlir::rlc::BuiltinAssignOp>(loc, access, value);
+            if(value.getType().isa<mlir::rlc::IntegerType>()) {
+                builder.create<mlir::rlc::BuiltinAssignOp>(loc, access, value);
+            } else {
+                // find and use the assign operator for this data type.
+                auto module = access->getParentOfType<mlir::ModuleOp>();
+                mlir::Value assign = nullptr;
+                for (auto op : module.getOps<mlir::rlc::FunctionOp>()) {
+                    if(op.getUnmangledName().equals(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>())
+                        && op.getArgumentTypes().size() > 0
+                        && op.getArgumentTypes()[0] == memberType.value()) {
+                        assign = op.getResult();
+                        break;
+                    }
+                }
+                assert(assign != nullptr && "Can't find the assignment operator for the data type.");
+                builder.create<mlir::rlc::CallOp>(loc, assign, false, mlir::ValueRange({access, value}));
+            }
+            
             // bind the value of this struct field while we pick the next field.
             bindings.emplace_back(std::pair(newUnboundValue, value));
         }

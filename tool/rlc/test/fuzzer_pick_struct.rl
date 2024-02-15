@@ -4,9 +4,13 @@ import fuzzer.utils
 fun crash() {false}:
     return
 
+ent InnerTest:
+    Int c
+
 ent Test:
     Int a
     Int b
+    InnerTest inner
 
 act subact(ctx Test context_struct) -> Subact:
     frm subact_frame_var : Int
@@ -14,7 +18,8 @@ act subact(ctx Test context_struct) -> Subact:
     act uses_context_struct(Test t1) {
         t1.a == context_struct.b,
         t1.b > context_struct.a,
-        t1.b < subact_frame_var
+        t1.b < subact_frame_var,
+        t1.inner.c == context_struct.b 
     }
 
 act play() -> Play:
@@ -27,8 +32,6 @@ act play() -> Play:
         t.b <= 16
     }
     struct_in_frame = t
-
+    act pick_substruct(InnerTest it)
     subaction*(struct_in_frame) s = subact(struct_in_frame) 
     crash()
-
-
