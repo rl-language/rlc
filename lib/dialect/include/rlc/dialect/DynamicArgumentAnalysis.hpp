@@ -78,10 +78,10 @@ struct UnboundValue {
     llvm::SmallVector<uint64_t> memberAddress;
 
     /*
-        Returns whether this unbound value corressponds to the term.
+        Returns whether this unbound value corressponds to the expression.
     */
-    bool matches(mlir::Value term) {
-        mlir::Value current = term;
+    bool matches(mlir::Value expr) {
+        mlir::Value current = expr;
         // walk the member address in reverse, test if it leads to the argument.
         for(uint64_t & index : std::ranges::reverse_view(memberAddress)) {
             auto definingOp = current.getDefiningOp();
@@ -97,6 +97,32 @@ struct UnboundValue {
             }
         }
         return current == argument;
+    }
+
+    /*
+        Returns true if this unbound value is a recursive member of the given expression.
+    */
+    bool isMemberOf(mlir::Value expr) {
+        mlir::Value current = expr;
+        llvm::SmallVector<uint64_t> indices;
+
+        while(true) {
+            if(current == argument) {
+                for(size_t i = 0; i < indices.size();  i++) {
+                    if(indices[i] != memberAddress[i])
+                        return false;
+                }
+                return true;
+            }
+
+            auto definingOp = current.getDefiningOp();
+            if( not llvm::detail::isPresent(definingOp))
+                return false;
+            if(auto memberAccess = mlir::dyn_cast<mlir::rlc::MemberAccess>(definingOp)) {
+                indices.insert(indices.begin(), memberAccess.getMemberIndex());
+                current = memberAccess.getValue();
+            } else return false;
+        }
     }
 
     mlir::Type getType() {

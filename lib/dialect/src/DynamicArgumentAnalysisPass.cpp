@@ -86,7 +86,7 @@ llvm::SmallVector<llvm::SmallVector<mlir::Value>> DynamicArgumentAnalysis::expan
 }
 
 TermType DynamicArgumentAnalysis::decideTermType(mlir::Value term, UnboundValue unbound) {
-    if(unbound.matches(term))
+    if(unbound.isMemberOf(term))
         return DEPENDS_ON_UNBOUND;
 
     auto boundValue = getBoundValue(term);
@@ -265,14 +265,14 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::Ca
                 continue;
             }
             // and find the index of the argument we're interested in.
-            if(unbound.matches(current.value())) {
+            if(unbound.argument == current.value()) {
                 argIndex = current.index();
                 break;
             }
         }
         assert(argIndex != -1 && "Expected to find the argument.");
         DynamicArgumentAnalysis analysis(underlyingFunction, knownArgsOfUnderlyingFunction, argPicker, builder, loc);
-        UnboundValue correspongindUnboundValue {underlyingFunction.getPrecondition().getArgument(argIndex), {}};
+        UnboundValue correspongindUnboundValue {underlyingFunction.getPrecondition().getArgument(argIndex), unbound.memberAddress};
         return analysis.deduceIntegerUnboundValueConstraints(correspongindUnboundValue);
     }
     return {
@@ -399,13 +399,6 @@ DeducedConstraints DynamicArgumentAnalysis::deduceIntegerUnboundValueConstraints
             }
         }
 
-        llvm::dbgs() << "CONSTRAINTS: \n";
-        for (auto t : constraints) {
-                llvm::dbgs() << "(  ";
-                t.print(llvm::dbgs());
-                llvm::dbgs() << "   ),";
-            }
-            llvm::dbgs() << "\n";
 
         // if there are any constraints on unknown args, emit an if statement for this conjunction.
         if(constraints.size() > 0) {
