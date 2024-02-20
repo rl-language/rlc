@@ -93,6 +93,7 @@ ent<T> Vector:
 		let counter = index
 		while counter < self._size - 1: 
 			self._data[counter]	= self._data[counter + 1]
+			counter = counter + 1
 		self.pop()	
 
 	fun size() -> Int:
