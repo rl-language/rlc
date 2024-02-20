@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -1055,13 +1055,14 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	llvm::SmallVector<mlir::Type, 4> newResultTypes;
 	llvm::SmallVector<std::string, 4> newArgNames;
+	unsigned contextArgCounts = 0;
 	for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 	{
 		auto type = std::get<0>(arg);
 		if (type.isa<mlir::rlc::ContextType>())
 		{
 			getPrecondition().front().insertArgument(
-					static_cast<unsigned>(0), type, getLoc());
+					contextArgCounts++, type, getLoc());
 			newResultTypes.push_back(type);
 			newArgNames.push_back(std::get<1>(arg).cast<mlir::StringAttr>().str());
 		}
