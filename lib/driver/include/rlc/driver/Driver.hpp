@@ -51,6 +51,14 @@ namespace mlir::rlc
 		{
 			emitFuzzer = newEmitFuzzer;
 		}
+		void setFuzzerAvoidsUnavailableSubactions(bool newValue)
+		{
+			fuzzerAvoidsUnavailableSubactions = newValue;
+		}
+		void setFuzzerAnalysesPreconditions(bool newValue)
+		{
+			fuzzerAnalysesPreconditions = newValue;
+		}
 
 		void setIncludeDirs(llvm::SmallVector<std::string, 4> newIncludeDirs)
 		{
@@ -85,6 +93,8 @@ namespace mlir::rlc
 		bool emitPreconditionChecks = true;
 		bool emitBoundChecks = true;
 		bool emitFuzzer = false;
+		bool fuzzerAvoidsUnavailableSubactions = true;
+		bool fuzzerAnalysesPreconditions = true;
 		bool skipParsing = false;
 		bool debug = false;
 

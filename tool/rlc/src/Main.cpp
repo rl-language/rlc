@@ -234,6 +234,20 @@ static cl::opt<bool> emitFuzzer(
 	cl::cat(astDumperCategory)
 );
 
+static cl::opt<bool> fuzzerAvoidsUnavailableSubactions(
+	"fuzzer-avoid-unavailable-subactions",
+	cl::desc("the emitted fuzzer avoids generating unavailable subaction calls."),
+	cl::init(true),
+	cl::cat(astDumperCategory)
+);
+
+static cl::opt<bool> fuzzerAnalysesPreconditions(
+	"fuzzer-analyse-preconditions",
+	cl::desc("the emitted fuzzer analyses subaction function preconditions."),
+	cl::init(true),
+	cl::cat(astDumperCategory)
+);
+
 cl::list<std::string> RPath("rpath", cl::desc("<rpath>"));
 
 
@@ -306,6 +320,8 @@ static mlir::rlc::Driver configureDriver(
 	driver.setExtraObjectFile(ExtraObjectFiles);
 	driver.setRPath(RPath);
 	driver.setEmitFuzzer(emitFuzzer);
+	driver.setFuzzerAvoidsUnavailableSubactions(fuzzerAvoidsUnavailableSubactions);
+	driver.setFuzzerAnalysesPreconditions(fuzzerAnalysesPreconditions);
 	driver.setTargetInfo(&info);
 	driver.setEmitBoundChecks(emitBoundChecks);
 

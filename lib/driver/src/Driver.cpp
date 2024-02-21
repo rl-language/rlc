@@ -35,7 +35,10 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 
 		if (emitFuzzer) {
-			manager.addPass(mlir::rlc::createEmitFuzzTargetPass());
+			manager.addPass(mlir::rlc::createEmitFuzzTargetPass({
+				.avoidUnavailableSubactions = fuzzerAvoidsUnavailableSubactions,
+				.analysePreconditions = fuzzerAnalysesPreconditions
+				}));
 		}
 
 		if (request == Request::dumpCheckedAST)
