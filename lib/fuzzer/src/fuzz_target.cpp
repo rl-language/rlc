@@ -53,7 +53,7 @@ int64_t consume_bits(const char *Data, int num_bits, int &byte_offset, int &bit_
 
 // TODO this is not completely uniform since the number of possible inputs is not a power of two, think about whether or not that's a problem.
 extern "C" void rl_fuzzer_get_input__int64_t_r_int64_t(__int64_t *result, const __int64_t *max) {
-    // printf("Generating input in range [0, %ld)\n", *max);
+    printf("Generating input in range [0, %ld)\n", *max);
     int num_bits = ceil(log2(*max));
     *result = consume_bits(fuzz_input, num_bits, byte_offset, bit_offset) % *max;
 }

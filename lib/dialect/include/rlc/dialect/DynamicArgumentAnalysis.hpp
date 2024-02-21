@@ -137,7 +137,7 @@ struct UnboundValue {
 class DynamicArgumentAnalysis
 {
     public:
-    explicit DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange boundArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc);
+    explicit DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange boundArgs, mlir::Value argPicker, bool analysePreconditions, mlir::OpBuilder builder, mlir::Location loc);
     mlir::Value pickArg(int argIndex);
 
     private:
@@ -169,6 +169,7 @@ class DynamicArgumentAnalysis
         return nullptr;
     }
     
+    bool analysePreconditions;
     mlir::Value argPicker;
     mlir::OpBuilder builder;
     mlir::Location loc;

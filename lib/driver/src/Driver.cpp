@@ -36,8 +36,7 @@ namespace mlir::rlc
 
 		if (emitFuzzer) {
 			manager.addPass(mlir::rlc::createEmitFuzzTargetPass({
-				.avoidUnavailableSubactions = fuzzerAvoidsUnavailableSubactions,
-				.analysePreconditions = fuzzerAnalysesPreconditions
+				.avoidUnavailableSubactions = fuzzerAvoidsUnavailableSubactions
 				}));
 		}
 
@@ -110,7 +109,7 @@ namespace mlir::rlc
 			return;
 		}
 
-		manager.addPass(mlir::rlc::createDynamicArgumentAnalysisPass());
+		manager.addPass(mlir::rlc::createDynamicArgumentAnalysisPass({fuzzerAnalysesPreconditions}));
 
 		manager.addPass(mlir::rlc::createExtractPreconditionPass());
 

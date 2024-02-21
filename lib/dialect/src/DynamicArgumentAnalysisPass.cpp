@@ -19,9 +19,10 @@
 #include "rlc/dialect/DynamicArgumentAnalysis.hpp"
 #include "rlc/dialect/Types.hpp"
 
-DynamicArgumentAnalysis::DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange boundArgs, mlir::Value argPicker, mlir::OpBuilder builder, mlir::Location loc): 
+DynamicArgumentAnalysis::DynamicArgumentAnalysis(mlir::rlc::FunctionOp op, mlir::ValueRange boundArgs, mlir::Value argPicker, bool analysePreconditions, mlir::OpBuilder builder, mlir::Location loc): 
         function(op),
         precondition(op.getPrecondition()),
+        analysePreconditions(analysePreconditions),
         argPicker(argPicker),
         builder(builder),
         loc(loc) {
@@ -271,7 +272,7 @@ DeducedConstraints DynamicArgumentAnalysis::findImposedConstraints(mlir::rlc::Ca
             }
         }
         assert(argIndex != -1 && "Expected to find the argument.");
-        DynamicArgumentAnalysis analysis(underlyingFunction, knownArgsOfUnderlyingFunction, argPicker, builder, loc);
+        DynamicArgumentAnalysis analysis(underlyingFunction, knownArgsOfUnderlyingFunction, argPicker, analysePreconditions, builder, loc);
         for(auto binding: bindings) {
             if(binding.first.memberAddress.size() != 0) {
                 // the binding does not just correspond to an argument.
@@ -459,14 +460,25 @@ DeducedConstraints DynamicArgumentAnalysis::deduceIntegerUnboundValueConstraints
 }
 
 mlir::Value DynamicArgumentAnalysis::pickIntegerUnboundValue(UnboundValue unbound) {
-    auto deduced = deduceIntegerUnboundValueConstraints(unbound);
+    if(analysePreconditions) {
+        auto deduced = deduceIntegerUnboundValueConstraints(unbound);
+        auto call = builder.create<mlir::rlc::CallOp>(
+            loc,
+            argPicker,
+            false,
+            mlir::ValueRange({deduced.min, deduced.max})
+        );
+        return call.getResult(0);
+    }
+    auto min = builder.create<mlir::rlc::Constant>(loc, min_int);
+    auto max = builder.create<mlir::rlc::Constant>(loc, max_int);
     auto call = builder.create<mlir::rlc::CallOp>(
         loc,
         argPicker,
         false,
-        mlir::ValueRange({deduced.min, deduced.max})
+        mlir::ValueRange({min, max})
     );
-    return call.getResult(0);
+    return call->getResult(0);
 }
 
 mlir::Value DynamicArgumentAnalysis::pickUnboundValue(UnboundValue unbound) {
@@ -518,11 +530,13 @@ mlir::Value DynamicArgumentAnalysis::pickArg(int argIndex) {
 
 namespace mlir::rlc
 {
+#define GEN_PASS_DECL_DYNAMICARGUMENTANALYSISPASS
 #define GEN_PASS_DEF_DYNAMICARGUMENTANALYSISPASS
 #include "rlc/dialect/Passes.inc"
 	struct DynamicArgumentAnalysisPass
 			: public impl::DynamicArgumentAnalysisPassBase<DynamicArgumentAnalysisPass>
 	{
+        using impl::DynamicArgumentAnalysisPassBase<DynamicArgumentAnalysisPass>::DynamicArgumentAnalysisPassBase;
 		void getDependentDialects(mlir::DialectRegistry& registry) const override
 		{
 			registry.insert<mlir::rlc::RLCDialect>();
@@ -552,7 +566,7 @@ namespace mlir::rlc
 
                 auto function = llvm::dyn_cast<mlir::rlc::FunctionOp>(pickedArgOp.getFunction().getDefiningOp());
                 assert( function  && "Expected a FunctionOp");
-                DynamicArgumentAnalysis analysis(function, pickedArgOp.getKnownArgs(), argPicker, builder, loc);
+                DynamicArgumentAnalysis analysis(function, pickedArgOp.getKnownArgs(), argPicker, analysePreconditions, builder, loc);
                 auto pickedArg = analysis.pickArg(pickedArgOp.getArgumentIndex());
 
                 pickedArgOp.getResult().replaceAllUsesWith(pickedArg);

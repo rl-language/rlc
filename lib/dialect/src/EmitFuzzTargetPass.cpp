@@ -42,11 +42,6 @@ limitations under the License.
 #include "rlc/dialect/SymbolTable.h"
 #include "rlc/dialect/Types.hpp"
 
-struct Options {
-    bool avoidUnavailableSubactions;
-    bool analysePreconditions;
-};
-
 static mlir::Value findFunction(mlir::ModuleOp module, llvm::StringRef functionName) {
     for (auto op : module.getOps<mlir::rlc::FunctionOp>())
         if(op.getUnmangledName().equals(functionName))
@@ -132,13 +127,13 @@ static mlir::Value emitChosenActionDeclaration(
     mlir::rlc::ActionFunction action,
     mlir::Value actionEntity,
     mlir::Value availableSubactionsVector,
-    Options options,
+    bool avoidUnavailableSubactions,
     mlir::rlc::ModuleBuilder &moduleBuilder,
     mlir::OpBuilder builder
 ) {
     auto ip = builder.saveInsertionPoint();
     mlir::Value chosenAction;
-    if(options.avoidUnavailableSubactions) {
+    if(avoidUnavailableSubactions) {
         auto clearAvailableSubactions = findFunction(action->getParentOfType<mlir::ModuleOp>(), "fuzzer_clear_available_subactions");
         auto addAvailableSubaction = findFunction(action->getParentOfType<mlir::ModuleOp>(), "fuzzer_add_available_subaction");
         auto pickSubaction = findFunction(action->getParentOfType<mlir::ModuleOp>(), "fuzzer_pick_subaction");
@@ -362,7 +357,7 @@ static void emitSubactionCases(
                     ...
                 ...
 */
-static void emitFuzzActionFunction(mlir::rlc::ActionFunction action, Options options) {
+static void emitFuzzActionFunction(mlir::rlc::ActionFunction action, bool avoidUnavailableSubactions) {
     auto loc = action.getLoc();
     mlir::OpBuilder builder(action);
     mlir::rlc::ModuleBuilder moduleBuilder(action->getParentOfType<mlir::ModuleOp>());
@@ -402,7 +397,7 @@ static void emitFuzzActionFunction(mlir::rlc::ActionFunction action, Options opt
     auto whileStmt = builder.create<mlir::rlc::WhileStatement>(loc);
     emitLoopCondition(action, &whileStmt.getCondition(), entityDeclaration, stopFlag.getResult(), builder);
     builder.createBlock(&whileStmt.getBody());
-    auto chosenAction = emitChosenActionDeclaration(action, entityDeclaration, availableSubactions, options, moduleBuilder, builder);
+    auto chosenAction = emitChosenActionDeclaration(action, entityDeclaration, availableSubactions, avoidUnavailableSubactions, moduleBuilder, builder);
     emitSubactionCases(action, &whileStmt.getBody(), entityDeclaration, chosenAction, stopFlag.getResult(), moduleBuilder, builder);
     builder.create<mlir::rlc::Yield>(loc);
     
@@ -431,7 +426,7 @@ namespace mlir::rlc
             // invoke emitFuzzActionFunction on the ActionFunction with the correct unmangledName
             for(auto op :module.getOps<ActionFunction>()) {
                 if(op.getUnmangledName().str() == actionToFuzz)
-				    emitFuzzActionFunction(op, {avoidUnavailableSubactions, analysePreconditions});
+				    emitFuzzActionFunction(op, avoidUnavailableSubactions);
 			}
 		}
 	};

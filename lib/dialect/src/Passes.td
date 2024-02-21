@@ -234,12 +234,14 @@ def EmitFuzzTargetPass : Pass<"rlc-emit-fuzz-target-pass", "mlir::ModuleOp"> {
   let options = [
     Option<"actionToFuzz", "Action to fuzz", "std::string", /*default=*/"\"play\"",
       "Name of the action to generate a fuzzer for">,
-    Option<"avoidUnavailableSubactions", "Avoid unavailable subactions", "bool" , /*default=*/"true", "Whether the fuzzer filters out unavailable subaction calls.">,
-    Option<"analysePreconditions", "Analyse preconditions", "bool" , /*default=*/"true", "Whether the fuzzer analyses subaction preconditions to pick better arguments">,
+    Option<"avoidUnavailableSubactions", "Avoid unavailable subactions", "bool" , /*default=*/"true", "Whether the fuzzer filters out unavailable subaction calls.">
   ];
 }
 
 def DynamicArgumentAnalysisPass : Pass<"rlc-dynamic-argument-analysis-pass", "mlir::ModuleOp"> {
   let summary = "Lower ArgConstraintsOp's to expressions that compute the minimum and maximum value dynamically.";
   let dependentDialects = ["rlc::RLCDialect"];
+  let options = [
+     Option<"analysePreconditions", "Analyse preconditions", "bool" , /*default=*/"true", "Whether the fuzzer analyses subaction preconditions to pick better arguments">
+  ];
 }
