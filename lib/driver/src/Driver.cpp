@@ -107,6 +107,8 @@ namespace mlir::rlc
 			return;
 		}
 
+		manager.addPass(mlir::rlc::createDynamicArgumentAnalysisPass());
+
 		manager.addPass(mlir::rlc::createExtractPreconditionPass());
 
 		if (emitPreconditionChecks)

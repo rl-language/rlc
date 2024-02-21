@@ -1823,3 +1823,9 @@ def RLC_CanOp : RLC_Dialect <"can", [DeclareOpInterfaceMethods<TypeCheckable>]> 
 			build($_builder, $_state, resultType, value);
   }]>];
 }
+
+def RLC_PickedArgOp : RLC_Dialect <"pickedArg", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let arguments = (ins AnyFunctionType:$function, I8Attr:$argument_index, Variadic<AnyType>:$knownArgs);
+
+  let results = (outs AnyType:$argument);
+}

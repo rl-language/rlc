@@ -31,6 +31,7 @@ limitations under the License.
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Region.h"
+#include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/Pass.h"
@@ -207,76 +208,39 @@ static mlir::Value emitChosenActionDeclaration(
     where arg1,arg2,... are the arguments of the subaction.
 */
 static llvm::SmallVector<mlir::Value, 2> emitSubactionArgumentDeclarations(
-    mlir::Value subaction,
+    mlir::Value subactionFunction,
     mlir::Value actionEntity,
-    mlir::Value pickArgument,
     mlir::Value print,
     mlir::Location loc,
     mlir::OpBuilder builder,
     mlir::rlc::ModuleBuilder &moduleBuilder
 ) {
     auto ip = builder.saveInsertionPoint();
-    auto actionStatements = moduleBuilder.actionFunctionValueToActionStatement(subaction);
-
     llvm::SmallVector<mlir::Value, 2> arguments;
     
     // declare the arguments
-    auto inputs = mlir::dyn_cast<mlir::FunctionType>(subaction.getType()).getInputs();
+    auto inputs = mlir::dyn_cast<mlir::FunctionType>(subactionFunction.getType()).getInputs();
     // The first input is the actionEntity, which does not need to be declared here.
-    auto inputsExcludingActionEntity = llvm::drop_begin(inputs);
+    auto inputsExcludingActionEntity = llvm::drop_begin(llvm::enumerate(inputs));
+    // keeps track of arguments that already have been bound.
+    // the action entity is bound before picking the first input, every input becomes bound when it's picked.
+    llvm::SmallVector<mlir::Value> boundArguments {actionEntity};
     for(auto inputType : inputsExcludingActionEntity) {
-        
-        assert(inputType.isa<mlir::rlc::IntegerType>() && "Fuzzing can only handle integer arguments for now.");
-
-        auto argDecl = builder.create<mlir::rlc::UninitializedConstruct>(
+        auto pickedArg = builder.create<mlir::rlc::PickedArgOp>(
             loc,
-            inputType
+            mlir::TypeRange({
+                inputType.value()
+            }),
+            subactionFunction,
+            (uint8_t)inputType.index(),
+            boundArguments
         );
-        arguments.emplace_back(argDecl.getResult());
+        // print the value picked for the argument for debugging purposes.
+        builder.create<mlir::rlc::CallOp>(loc, print, false, pickedArg.getResult());
+        arguments.emplace_back(pickedArg.getResult());
+        boundArguments.emplace_back(pickedArg.getResult());
     }
 
-    // for each action statement, if the resumeIndex matches that of the action statement, assign arguments respecting the action statement's constraints.
-    auto storedResumptionPoint = builder.create<mlir::rlc::MemberAccess>(
-            loc,
-            actionEntity,
-            0
-        );
-    for(auto *actionStatement : actionStatements) {
-        auto cast = mlir::dyn_cast<mlir::rlc::ActionStatement>(*actionStatement);
-        auto ifStatement = builder.create<mlir::rlc::IfStatement>(loc);
-        builder.createBlock(&ifStatement.getCondition());
-        auto subactionResumptionPoint = builder.create<mlir::rlc::Constant>(loc, (int64_t) cast.getResumptionPoint());
-        auto eq = builder.create<mlir::rlc::EqualOp>(loc, storedResumptionPoint, subactionResumptionPoint);
-        builder.create<mlir::rlc::Yield>(loc, eq.getResult());
-
-        builder.createBlock(&ifStatement.getTrueBranch());
-        mlir::rlc::ActionArgumentAnalysis analysis(cast);
-
-        for(auto input : llvm::enumerate(cast.getPrecondition().getArguments())) {
-            auto input_min = builder.create<mlir::rlc::Constant>(
-                loc,
-                analysis.getBoundsOf(input.value()).getMin()
-            );
-            auto input_max = builder.create<mlir::rlc::Constant>(
-                loc,
-                analysis.getBoundsOf(input.value()).getMax()
-            );
-            auto call = builder.create<mlir::rlc::CallOp>(
-                loc,
-                pickArgument,
-                false,
-                mlir::ValueRange({input_min.getResult(), input_max.getResult()})
-            );
-            // print the value picked for the argument for debugging purposes.
-            builder.create<mlir::rlc::CallOp>(loc, print, false, call.getResult(0));
-            builder.create<mlir::rlc::AssignOp>(loc, arguments[input.index()], call.getResult(0));
-        }
-        builder.create<mlir::rlc::Yield>(loc);
-
-        builder.createBlock(&ifStatement.getElseBranch());
-        builder.create<mlir::rlc::Yield>(loc);
-        builder.setInsertionPointAfter(ifStatement);
-    }
     builder.restoreInsertionPoint(ip);
     return arguments;
 }
@@ -304,7 +268,6 @@ static void emitSubactionCases(
     mlir::OpBuilder builder
 ) {
     auto ip = builder.saveInsertionPoint();
-    auto pickArgument = findFunction(action->getParentOfType<mlir::ModuleOp>(), "fuzzer_pick_argument");
     auto print = findFunction(action->getParentOfType<mlir::ModuleOp>(),"fuzzer_print");
     auto skipFuzzInput = findFunction(action->getParentOfType<mlir::ModuleOp>(),"fuzzer_skip_input");
     
@@ -320,7 +283,7 @@ static void emitSubactionCases(
         //      let arg1 = pickArgument(arg_1_size)
         //      ...
         builder.createBlock(&ifActionIsChosen.getTrueBranch());
-        auto args = emitSubactionArgumentDeclarations(subaction.value(), actionEntity, pickArgument, print, action->getLoc(), builder, moduleBuilder);
+        auto args = emitSubactionArgumentDeclarations(subaction.value(), actionEntity, print, action->getLoc(), builder, moduleBuilder);
         args.insert(args.begin(), actionEntity); // the first argument should be the entity itself.
 
         //      if( !can_subaction_function(arg1, arg2, ...))
