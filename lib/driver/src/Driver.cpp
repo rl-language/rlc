@@ -34,7 +34,8 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 
-		if (emitFuzzer) {
+		if (emitFuzzer)
+		{
 			manager.addPass(mlir::rlc::createEmitFuzzTargetPass());
 		}
 
@@ -44,7 +45,6 @@ namespace mlir::rlc
 			return;
 		}
 		manager.addPass(mlir::createCanonicalizerPass());
-
 
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorInvocationsPass());
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
@@ -148,6 +148,7 @@ namespace mlir::rlc
 																					&extraObjectFiles,
 																					dumpIR,
 																					Request::compile == request,
+																					emitSanitizer,
 																					emitFuzzer,
 																					&rPath,
 																					targetInfo }));

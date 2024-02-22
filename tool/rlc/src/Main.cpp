@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,6 +39,7 @@ limitations under the License.
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
+#include "rlc/Fuzzer.hpp"
 #include "rlc/backend/BackEnd.hpp"
 #include "rlc/conversions/RLCToC.hpp"
 #include "rlc/dialect/Dialect.h"
@@ -47,7 +48,6 @@ limitations under the License.
 #include "rlc/parser/MultiFileParser.hpp"
 #include "rlc/python/Interfaces.hpp"
 #include "rlc/python/Passes.hpp"
-#include "rlc/Fuzzer.hpp"
 
 #if NDEBUG
 static constexpr const bool isDebug = false;
@@ -227,15 +227,20 @@ static cl::opt<std::string> customFuzzerLibPath(
 		cl::init(""),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> sanitize(
+		"sanitize",
+		cl::desc("emit the sanitizer instrumentation"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> emitFuzzer(
-	"fuzzer",
-	cl::desc("emit a fuzzer."), // TODO consider passing the action name here.
-	cl::init(false),
-	cl::cat(astDumperCategory)
-);
+		"fuzzer",
+		cl::desc("emit a fuzzer."),	 // TODO consider passing the action name here.
+		cl::init(false),
+		cl::cat(astDumperCategory),
+		cl::callback([](const bool &value) { sanitize.setInitialValue(value); }));
 
 cl::list<std::string> RPath("rpath", cl::desc("<rpath>"));
-
 
 int main(int argc, char *argv[]);
 
@@ -285,11 +290,12 @@ static mlir::rlc::Driver configureDriver(
 	includes.push_back(directory.str());
 	includes.push_back(rlcDirectory);
 
-	if(emitFuzzer)
+	if (emitFuzzer)
 	{
 		string fuzzerLibPath = customFuzzerLibPath.empty()
-			? llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/" + FUZZER_LIBRARY_FILENAME 
-			: customFuzzerLibPath.getValue();
+															 ? llvm::sys::path::parent_path(pathToRlc).str() +
+																		 "/../lib/" + FUZZER_LIBRARY_FILENAME
+															 : customFuzzerLibPath.getValue();
 
 		ExtraObjectFiles.addValue(fuzzerLibPath);
 		RPath.addValue(llvm::sys::path::parent_path(fuzzerLibPath).str());
@@ -306,6 +312,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setExtraObjectFile(ExtraObjectFiles);
 	driver.setRPath(RPath);
 	driver.setEmitFuzzer(emitFuzzer);
+	driver.setEmitSanitizer(sanitize);
 	driver.setTargetInfo(&info);
 	driver.setEmitBoundChecks(emitBoundChecks);
 

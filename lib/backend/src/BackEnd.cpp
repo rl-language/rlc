@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 #include "rlc/backend/BackEnd.hpp"
+
 #include <string>
 #include <vector>
 
@@ -41,8 +42,8 @@ limitations under the License.
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/Transforms/Instrumentation.h"
-#include "llvm/Transforms/Utils/Mem2Reg.h"
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -93,8 +94,8 @@ namespace mlir::rlc
 	}
 }	 // namespace mlir::rlc
 
-
-static void addFuzzerInstrumentationPass (llvm::ModulePassManager &MPM) {
+static void addFuzzerInstrumentationPass(llvm::ModulePassManager &MPM)
+{
 	SanitizerCoverageOptions opts;
 	opts.CoverageType = llvm::SanitizerCoverageOptions::SCK_Edge;
 	opts.IndirectCalls = true;
@@ -104,7 +105,11 @@ static void addFuzzerInstrumentationPass (llvm::ModulePassManager &MPM) {
 	MPM.addPass(SanitizerCoveragePass(opts));
 }
 
-static void runOptimizer(llvm::Module &M, bool optimize, bool emitFuzzer)
+static void runOptimizer(
+		llvm::Module &M,
+		bool optimize,
+		bool emitSanitizerInstrumentation,
+		bool linkAgainsFuzzer)
 {
 	// Create the analysis managers.
 	LoopAnalysisManager LAM;
@@ -134,7 +139,7 @@ static void runOptimizer(llvm::Module &M, bool optimize, bool emitFuzzer)
 		functionPassManager.addPass(llvm::PromotePass());
 		passManager.addPass(
 				createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
-		if(emitFuzzer)
+		if (emitSanitizerInstrumentation)
 			addFuzzerInstrumentationPass(passManager);
 		passManager.run(M, MAM);
 
@@ -155,7 +160,7 @@ static void runOptimizer(llvm::Module &M, bool optimize, bool emitFuzzer)
 	{
 		ModulePassManager MPM =
 				PB.buildO0DefaultPipeline(OptimizationLevel::O0, true);
-		if(emitFuzzer)
+		if (emitSanitizerInstrumentation)
 			addFuzzerInstrumentationPass(MPM);
 		MPM.run(M, MAM);
 	}
@@ -263,7 +268,8 @@ static int linkLibraries(
 		llvm::StringRef clangPath,
 		llvm::StringRef outputFile,
 		bool shared,
-		bool emitFuzzer,
+		bool emitSanitizerInstrumentation,
+		bool linkAgainstFuzzer,
 		const std::vector<std::string> &extraObjectFiles,
 		const std::vector<std::string> &rpaths)
 {
@@ -285,14 +291,21 @@ static int linkLibraries(
 	{
 		argSource.push_back("-no-pie");
 	}
-	if(emitFuzzer)
+	if (emitSanitizerInstrumentation or linkAgainstFuzzer)
 	{
-		argSource.push_back("-fsanitize=fuzzer,address");
+		std::string arg("-fsanitize=");
+		if (emitSanitizerInstrumentation)
+			arg += "address";
+		if (emitSanitizerInstrumentation and linkAgainstFuzzer)
+			arg += ",";
+		if (linkAgainstFuzzer)
+			arg += "fuzzer";
+		argSource.push_back(arg);
 	}
 
-	for(auto rpathEntry :rpaths)
+	for (auto rpathEntry : rpaths)
 		argSource.push_back("-Wl,-rpath=" + rpathEntry);
-	
+
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
 
@@ -327,8 +340,8 @@ namespace mlir::rlc
 			assert(Module);
 			Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
 
-			runOptimizer(*Module, targetInfo->optimize(), emitFuzzer);
-			
+			runOptimizer(*Module, targetInfo->optimize(), emitSanitizer, emitFuzzer);
+
 			if (dumpIR)
 			{
 				Module->print(*OS, nullptr);
@@ -363,6 +376,7 @@ namespace mlir::rlc
 							clangPath,
 							outputFile,
 							targetInfo->isShared(),
+							emitSanitizer,
 							emitFuzzer,
 							*extraObjectFiles,
 							*rpaths) != 0)

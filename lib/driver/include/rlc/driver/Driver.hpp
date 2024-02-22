@@ -42,15 +42,9 @@ namespace mlir::rlc
 		{
 			extraObjectFiles = newExtraObjectFiles;
 		}
-		void setRPath(std::vector<std::string> newRPath)
-		{
-			rPath = newRPath;
-		}
+		void setRPath(std::vector<std::string> newRPath) { rPath = newRPath; }
 
-		void setEmitFuzzer(bool newEmitFuzzer)
-		{
-			emitFuzzer = newEmitFuzzer;
-		}
+		void setEmitFuzzer(bool newEmitFuzzer) { emitFuzzer = newEmitFuzzer; }
 
 		void setIncludeDirs(llvm::SmallVector<std::string, 4> newIncludeDirs)
 		{
@@ -63,6 +57,7 @@ namespace mlir::rlc
 		}
 
 		void setEmitBoundChecks(bool doEmit) { emitBoundChecks = doEmit; }
+		void setEmitSanitizer(bool doEmit) { emitSanitizer = doEmit; }
 
 		void setSkipParsing(bool doIt = true) { skipParsing = doIt; }
 		void setDebug(bool doIt = true) { debug = doIt; }
@@ -85,6 +80,7 @@ namespace mlir::rlc
 		bool emitPreconditionChecks = true;
 		bool emitBoundChecks = true;
 		bool emitFuzzer = false;
+		bool emitSanitizer = false;
 		bool skipParsing = false;
 		bool debug = false;
 
