@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -111,6 +111,23 @@ static void pruneUnrechableBlocks(mlir::Region& op, mlir::IRRewriter& rewriter)
 	}
 }
 
+static void eraseYield(
+		mlir::IRRewriter& rewriter,
+		mlir::rlc::Yield yield,
+		mlir::Operation* newTerminator)
+{
+	assert(yield.getOnEnd().getBlocks().size() <= 1);
+	if (yield.getOnEnd().empty())
+	{
+		yield.erase();
+		return;
+	}
+
+	yield.getOnEnd().front().getTerminator()->erase();
+	rewriter.inlineBlockBefore(&yield.getOnEnd().front(), newTerminator);
+	yield.erase();
+}
+
 static mlir::LogicalResult flatten(
 		mlir::rlc::WhileStatement op, mlir::IRRewriter& rewriter)
 {
@@ -134,15 +151,17 @@ static mlir::LogicalResult flatten(
 	for (auto yield : condTerminators)
 	{
 		rewriter.setInsertionPoint(yield);
-		rewriter.create<mlir::rlc::CondBranch>(
+		auto newTerminator = rewriter.create<mlir::rlc::CondBranch>(
 				yield.getLoc(), yield.getArguments().front(), &bodyBlock, afterBlock);
-		rewriter.eraseOp(yield);
+		eraseYield(rewriter, yield, newTerminator);
 	}
 
 	for (auto yield : bodyTerminators)
 	{
 		rewriter.setInsertionPoint(yield);
-		rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(yield, &conditionBlock);
+		auto newTerminator =
+				rewriter.create<mlir::rlc::Branch>(yield.getLoc(), &conditionBlock);
+		eraseYield(rewriter, yield, newTerminator);
 	}
 
 	rewriter.eraseOp(op);
@@ -207,9 +226,9 @@ static mlir::LogicalResult flatten(
 	for (auto yield : condTerminators)
 	{
 		rewriter.setInsertionPoint(yield);
-		rewriter.create<mlir::rlc::CondBranch>(
+		auto newTerminator = rewriter.create<mlir::rlc::CondBranch>(
 				yield.getLoc(), yield.getArguments().front(), &trueBlock, &falseBlock);
-		rewriter.eraseOp(yield);
+		eraseYield(rewriter, yield, newTerminator);
 	}
 
 	llvm::copy(falseTerminators, std::back_inserter(trueTerminators));
