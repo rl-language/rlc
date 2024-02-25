@@ -9,6 +9,7 @@ The RuleBook Compiler (`RLC`) is an MLIR-based compiler for a domain-specific la
 The elevator pitch description of the `RL` is:
 > **A language that turns a easy-to-write procedural description of a simulation into a easy-to-use and easy-to-reuse efficient library**.
 
+Read the project rationale [here](./docs/where_we_are_going.md)
 Read the language rationale [here](./docs/rationale.md)
 
 At the moment `RLC` is a proof of concept, and is released to gather feedback on the features of the language. Until version 1.0 syntax and semantics may change at any point.

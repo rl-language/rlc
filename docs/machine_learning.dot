@@ -1,0 +1,6 @@
+digraph loop {
+    node[shape=box];
+    "initial state" -> "machine learning" [label="state"];
+    "machine learning" -> "game rules" [label="\naction"];
+    "game rules" -> "machine learning" [label="next state"];
+}
