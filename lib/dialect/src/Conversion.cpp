@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -190,6 +190,17 @@ static mlir::Value getOrCreateGlobalString(
 	mlir::LLVM::GlobalOp global;
 	auto type = mlir::LLVM::LLVMArrayType::get(
 			mlir::IntegerType::get(builder.getContext(), 8), value.size());
+
+	std::string defaultName;
+	if (name == "")
+	{
+		defaultName =
+				(llvm::Twine("anon_") +
+				 llvm::Twine(module.getBodyRegion().front().getOperations().size()))
+						.str();
+		name = defaultName;
+	}
+
 	if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
 	{
 		mlir::OpBuilder::InsertionGuard insertGuard(builder);
@@ -200,7 +211,7 @@ static mlir::Value getOrCreateGlobalString(
 				/*isConstant=*/true,
 				mlir::LLVM::Linkage::Internal,
 				name,
-				builder.getStringAttr(value),
+				mlir::StringAttr::get(loc.getContext(), value),
 				/*alignment=*/0);
 	}
 
@@ -630,6 +641,20 @@ class ArrayAccessRewriter
 					array_type,
 					adaptor.getValue(),
 					mlir::ValueRange({ zeroValue, loaded }));
+			return mlir::LogicalResult::success();
+		}
+		else if (
+				auto casted =
+						op.getValue().getType().dyn_cast<mlir::rlc::StringLiteralType>())
+		{
+			auto array_type = mlir::IntegerType::get(casted.getContext(), 8);
+
+			auto gep = rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
+					op,
+					mlir::LLVM::LLVMPointerType::get(getContext()),
+					array_type,
+					adaptor.getValue(),
+					mlir::ValueRange({ loaded }));
 			return mlir::LogicalResult::success();
 		}
 
@@ -1307,6 +1332,29 @@ class GlobalArrayRewriter
 	}
 };
 
+class LowerStringLiteral
+		: public mlir::OpConversionPattern<mlir::rlc::StringLiteralOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::StringLiteralOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::StringLiteralOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		llvm::SmallVector<char, 4> out;
+		auto str = getOrCreateGlobalString(
+				op.getLoc(),
+				rewriter,
+				"",
+				(op.getValue() + llvm::Twine('\0')).toNullTerminatedStringRef(out),
+				op->getParentOfType<mlir::ModuleOp>());
+		rewriter.replaceOp(op, str);
+		return mlir::LogicalResult::success();
+	}
+};
+
 class IsAlternativeOpRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::IsAlternativeTypeOp>
 {
@@ -1799,6 +1847,7 @@ namespace mlir::rlc
 					.add<InitRewriter>(converter, &getContext())
 					.add<LowerMalloc>(converter, &getContext(), malloc)
 					.add<LowerFree>(converter, &getContext(), free)
+					.add<LowerStringLiteral>(converter, &getContext())
 					.add(makeArith(lowerLess, converter, &getContext()))
 					.add(makeArith(lowerLessEqual, converter, &getContext()))
 					.add(makeArith(lowerGreaterEqual, converter, &getContext()))

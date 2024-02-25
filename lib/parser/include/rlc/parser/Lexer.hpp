@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -95,6 +95,8 @@ namespace rlc
 		Colons,
 		ColonsColons,
 		Identifier,
+		String,
+		Character,
 		Double,
 		Int64,
 		Bool,
@@ -114,6 +116,7 @@ namespace rlc
 
 		[[nodiscard]] int64_t lastInt64() const { return lInt64; }
 		[[nodiscard]] double lastDouble() const { return lDouble; }
+		[[nodiscard]] llvm::StringRef lastString() const { return lString; }
 		[[nodiscard]] llvm::StringRef lastIndent() const { return lIdent; }
 		[[nodiscard]] size_t getCurrentColumn() const { return currentColumn; }
 		[[nodiscard]] size_t getCurrentLine() const { return currentLine; }
@@ -128,6 +131,8 @@ namespace rlc
 		void consumeWhiteSpaceUntilNextMeaningfullChar();
 		std::optional<Token> eatSpaces();
 		std::optional<Token> eatSymbol();
+		Token eatString();
+		char eatCharLiteral();
 		std::optional<Token> twoSymbols(char current);
 		Token eatIdent();
 		Token eatNumber();
@@ -142,6 +147,7 @@ namespace rlc
 		int64_t lInt64{ 0 };
 		double lDouble{ 0 };
 		std::string lIdent{ "" };
+		std::string lString{ "" };
 		size_t deindentToEmit{ 0 };
 	};
 }	 // namespace rlc

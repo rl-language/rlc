@@ -65,6 +65,9 @@ ent<T> Vector:
 			self.append(other.get(counter))
 			counter = counter + 1
 
+	fun back() -> ref T:
+		return self._data[self._size - 1]
+
 	fun get(Int index) -> ref T:
 		return self._data[index]
 
@@ -85,8 +88,8 @@ ent<T> Vector:
 
 	fun pop() -> T:
 		let to_return = self._data[self._size - 1]
-		__builtin_destroy_do_not_use(self._data[self._size])
 		self._size = self._size - 1
+		__builtin_destroy_do_not_use(self._data[self._size])
 		return to_return
 
 	fun erase(Int index):

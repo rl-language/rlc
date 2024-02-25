@@ -42,6 +42,8 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	table.add("Void", mlir::rlc::VoidType::get(mod.getContext()));
 	table.add("Float", mlir::rlc::FloatType::get(mod.getContext()));
 	table.add("Bool", mlir::rlc::BoolType::get(mod.getContext()));
+	table.add(
+			"StringLiteral", mlir::rlc::StringLiteralType::get(mod.getContext()));
 
 	for (auto entityDecl : mod.getOps<mlir::rlc::EntityDeclaration>())
 		table.add(entityDecl.getName(), entityDecl.getType());

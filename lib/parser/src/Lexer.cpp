@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -180,6 +180,10 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Equal";
 		case Token::Identifier:
 			return "Identifier";
+		case Token::String:
+			return "String";
+		case Token::Character:
+			return "Character";
 		case Token::Double:
 			return "Double";
 		case Token::Int64:
@@ -515,6 +519,60 @@ bool Lexer::eatComment()
 	return false;
 }
 
+Token Lexer::eatString()
+{
+	lString = "";
+	eatChar();
+	nestedParentesys++;
+	while (*in != '\"' and *in != '\0')
+	{
+		lString += eatCharLiteral();
+	}
+	if (*in == '\0')
+		return Token::Error;
+	eatChar();
+	nestedParentesys--;
+	return Token::String;
+}
+
+char Lexer::eatCharLiteral()
+{
+	char toReturn;
+	if (*in == '\\')
+	{
+		eatChar();
+		switch (*in)
+		{
+			case '0':
+				toReturn = '\0';
+				break;
+			case 'n':
+				toReturn = '\n';
+				break;
+			case '\\':
+				toReturn = '\\';
+				break;
+			case '\t':
+				toReturn = '\t';
+				break;
+			case '\"':
+				toReturn = '\"';
+				break;
+			case '\'':
+				toReturn = '\'';
+				break;
+		}
+
+		eatChar();
+	}
+	else
+	{
+		toReturn = *in;
+		eatChar();
+	}
+	return toReturn;
+}
+
 Token Lexer::nextWithoutTrailingConsume()
 {
 	if (*in == '\0')
@@ -552,6 +610,19 @@ Token Lexer::nextWithoutTrailingConsume()
 
 	if (isdigit(*in) != 0)
 		return eatNumber();
+
+	if (*in == '\"')
+		return eatString();
+
+	if (*in == '\'')
+	{
+		eatChar();
+		lInt64 = eatCharLiteral();
+		if (*in != '\'')
+			return Token::Error;
+		eatChar();
+		return Token::Character;
+	}
 
 	if (auto val = eatSymbol(); val.has_value())
 	{

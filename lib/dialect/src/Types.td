@@ -43,6 +43,13 @@ def RLC_IntegerType : RLC_Type<"Integer", "int"> {
   let assemblyFormat = "`<` $size`>`";
 }
 
+def RLC_StringLiteralType : RLC_Type<"StringLiteral", "str_literal"> {
+  let summary = "RLC string literal type";
+  let description = [{
+    Implementation agnostic float type.
+  }];
+}
+
 def RLC_VoidType : RLC_Type<"Void", "void"> {
   let summary = "RLC builtin float type";
   let description = [{

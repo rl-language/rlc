@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,10 +36,12 @@ void Parser::next()
 			std::max<int64_t>(1, lexer.getCurrentColumn()));
 	if (current == Token::Identifier)
 		lIdent = lexer.lastIndent();
-	if (current == Token::Int64)
+	if (current == Token::Int64 or current == Token::Character)
 		lInt64 = lexer.lastInt64();
 	if (current == Token::Double)
 		lDouble = lexer.lastDouble();
+	if (current == Token::String)
+		lString = lexer.lastString();
 	current = lexer.next();
 }
 
@@ -95,6 +97,13 @@ llvm::Expected<mlir::Value> Parser::builtinFromArray()
 	EXPECT(Token::RPar);
 
 	return builder.create<mlir::rlc::FromByteArrayOp>(location, *type, *size);
+}
+
+llvm::Expected<mlir::Value> Parser::stringExpression()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::String);
+	return builder.create<mlir::rlc::StringLiteralOp>(location, lString);
 }
 
 // initializerList: "[" (expression ( "," expression)*)? "]"
@@ -193,7 +202,7 @@ Expected<mlir::rlc::FreeOp> Parser::builtinFree()
 /**
  * primaryExpression : Ident ("::" Ident)? | Double | int64 | "true" | "false" |
  * "(" expression ")"  | builtinMalloc | builtinFromArray | builtinToArray |
- * initializerList
+ * initializerList | string
  */
 Expected<mlir::Value> Parser::primaryExpression()
 {
@@ -220,6 +229,9 @@ Expected<mlir::Value> Parser::primaryExpression()
 	if (accept<Token::Int64>())
 		return builder.create<mlir::rlc::Constant>(location, lInt64);
 
+	if (accept<Token::Character>())
+		return builder.create<mlir::rlc::Constant>(location, int8_t(lInt64));
+
 	if (accept<Token::KeywordFalse>())
 		return builder.create<mlir::rlc::Constant>(location, false);
 
@@ -231,6 +243,9 @@ Expected<mlir::Value> Parser::primaryExpression()
 
 	if (current == Token::KeywordFromArray)
 		return builtinFromArray();
+
+	if (current == Token::String)
+		return stringExpression();
 
 	if (current == Token::KeywordToArray)
 		return builtinToArray();

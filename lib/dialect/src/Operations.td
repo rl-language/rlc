@@ -14,7 +14,7 @@ class RLC_Dialect<string mnemonic, list<Trait> traits = []> :
 def AnyRLCScalarType : AnyTypeOf<[RLC_BoolType, RLC_IntegerType, RLC_FloatType, RLC_OwningPtrType, RLC_ReferenceType, RLC_Unknown]>;
 
 def RLCIntegerOrUnkownType : AnyTypeOf<[RLC_IntegerType, RLC_Unknown]>;
-def RLCArrayOrUnkownType : AnyTypeOf<[RLC_ArrayType, RLC_OwningPtrType, RLC_Unknown]>;
+def RLCArrayOrUnkownType : AnyTypeOf<[RLC_ArrayType, RLC_OwningPtrType, RLC_StringLiteralType, RLC_Unknown]>;
 def RLCBoolOrUnkownType : AnyTypeOf<[RLC_BoolType, RLC_Unknown]>;
 def RLCPtrOrUnkownType : AnyTypeOf<[RLC_OwningPtrType, RLC_Unknown]>;
 
@@ -233,6 +233,26 @@ def RLC_ConstantGlobalArrayOp : RLC_Dialect<"global_array"> {
   let assemblyFormat = [{
 	$name $values `:` $result attr-dict 
   }];
+}
+
+def RLC_StringLiteralOp : RLC_Dialect<"string_literal", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant global array";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins StrAttr:$value);
+  let results = (outs RLC_StringLiteralType:$result);
+
+  let assemblyFormat = [{
+	$value `:` type($result) attr-dict 
+  }];
+
+   let builders = [
+        OpBuilder<(ins "mlir::StringRef":$value), [{
+			build($_builder, $_state, mlir::rlc::StringLiteralType::get($_builder.getContext()), value);
+    }]>];
 }
 
 def RLC_InitializerListOp : RLC_Dialect<"initializer_list", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
@@ -986,6 +1006,9 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
 				build($_builder, $_state, resType, value, fieldIndex);
 			} else if (auto real_type = value.getType().dyn_cast<OwningPtrType>()) {
 				auto resType = real_type.getUnderlying();
+				build($_builder, $_state, resType, value, fieldIndex);
+			} else if (auto real_type = value.getType().dyn_cast<StringLiteralType>()) {
+				auto resType = mlir::rlc::IntegerType::getInt8(real_type.getContext()); 
 				build($_builder, $_state, resType, value, fieldIndex);
 			} else 
 			abort();

@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -66,6 +66,7 @@ namespace rlc
 		llvm::Expected<mlir::Value> equalityExpression();
 		llvm::Expected<mlir::Value> andExpression();
 		llvm::Expected<mlir::Value> orExpression();
+		llvm::Expected<mlir::Value> stringExpression();
 		llvm::Expected<mlir::rlc::UsingTypeOp> usingTypeStatement();
 		llvm::Expected<mlir::rlc::EntityDeclaration> entityDeclaration();
 		llvm::Expected<std::pair<std::string, mlir::Type>> entityField();
@@ -134,6 +135,7 @@ namespace rlc
 		int64_t currentTemplateTypeIndex{ 0 };
 		double lDouble{ 0 };
 		std::string lIdent;
+		std::string lString;
 
 		llvm::SmallVector<std::string, 4> importedFiles;
 	};

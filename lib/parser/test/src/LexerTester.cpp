@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -132,4 +132,29 @@ TEST(LexerTest, typeTest)
 	EXPECT_EQ(lexer.next(), Token::EqualEqual);
 	EXPECT_EQ(lexer.next(), Token::Comma);
 	EXPECT_EQ(lexer.next(), Token::KeywordType);
+}
+
+TEST(LexerTest, string)
+{
+	std::string string = "asdasd\nasd";
+	std::string commented = "\"" + string + "\"";
+	Lexer lexer(commented.c_str());
+	EXPECT_EQ(lexer.next(), Token::String);
+	EXPECT_EQ(lexer.lastString(), string);
+}
+
+TEST(LexerTest, special_characters)
+{
+	std::string string = "\"asdasd\\nnasd\"";
+	std::string parsed = "asdasd\nnasd";
+	Lexer lexer(string.c_str());
+	EXPECT_EQ(lexer.next(), Token::String);
+	EXPECT_EQ(lexer.lastString(), parsed);
+}
+
+TEST(LexerTest, char_lit)
+{
+	Lexer lexer("'2'");
+	EXPECT_EQ(lexer.next(), Token::Character);
+	EXPECT_EQ(lexer.lastInt64(), '2');
 }

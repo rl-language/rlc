@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -386,6 +386,11 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		OS << "]";
 		return;
 	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::StringLiteralType>())
+	{
+		OS << "StringLiteral";
+		return;
+	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::ContextType>())
 	{
 		OS << "ctx ";
@@ -508,6 +513,11 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 			OS << ":";
 			typeToMangled(OS, maybeType.getTrait());
 		}
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::StringLiteralType>())
+	{
+		OS << "strlit";
 		return;
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
@@ -763,6 +773,11 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 	if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
 	{
 		return isTemplateType(casted.getUnderlying());
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::StringLiteralType>())
+	{
+		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())

@@ -74,6 +74,9 @@ namespace mlir::rlc
 		converter.addConversion(floatToBuiltinFloat);
 		converter.addConversion(intToBuiltinInt);
 		converter.addConversion(acceptPtrType);
+		converter.addConversion([&](mlir::rlc::StringLiteralType type) -> Type {
+			return mlir::LLVM::LLVMPointerType::get(type.getContext());
+		});
 		converter.addConversion([&](mlir::rlc::OwningPtrType type) -> Type {
 			assert(type.getUnderlying() != nullptr);
 			return mlir::LLVM::LLVMPointerType::get(type.getContext());

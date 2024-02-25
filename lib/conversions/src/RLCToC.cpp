@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,6 +33,8 @@ static std::string nonArrayTypeToString(mlir::Type type)
 				OS << alternative.getMangledName();
 			})
 			.Case<mlir::rlc::FloatType>([&](mlir::rlc::FloatType) { OS << "double"; })
+			.Case<mlir::rlc::StringLiteralType>(
+					[&](mlir::rlc::StringLiteralType) { OS << "char*"; })
 			.Case<mlir::rlc::BoolType>([&](mlir::rlc::BoolType) { OS << "uint8_t"; })
 			.Case<mlir::rlc::IntegerType>([&](mlir::rlc::IntegerType Type) {
 				OS << "int" << Type.getSize() << "_t";
@@ -138,6 +140,7 @@ static void printTypeDefinition(mlir::Type type, llvm::raw_ostream& OS)
 					mlir::rlc::IntegerType,
 					mlir::rlc::BoolType,
 					mlir::rlc::FloatType,
+					mlir::rlc::StringLiteralType,
 					mlir::rlc::OwningPtrType,
 					mlir::rlc::ReferenceType,
 					mlir::rlc::IntegerLiteralType,

@@ -541,13 +541,14 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	if (not getValue().getType().isa<mlir::rlc::ArrayType>() and
-			not getValue().getType().isa<mlir::rlc::OwningPtrType>())
+			not getValue().getType().isa<mlir::rlc::OwningPtrType>() and
+			not getValue().getType().isa<mlir::rlc::StringLiteralType>())
 	{
 		return logError(
 				*this,
 				"Type of argument of array access expression must be a array or a "
 				"owning "
-				"pointer");
+				"pointer or a string literal");
 	}
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());
@@ -1229,6 +1230,12 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 			*this,
 			"Cannot convert byte array to desiderated output, only primitive types "
 			"are supported");
+}
+
+mlir::LogicalResult mlir::rlc::StringLiteralOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
