@@ -4,7 +4,8 @@
 import string
 
 fun main() -> Int:
-    let x : String
-    return x.size()
-
+    let x = "hey"s + "wey"s
+    if x == "heywey"s:
+        return 0
+    return 1
 

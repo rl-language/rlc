@@ -63,7 +63,7 @@ ent String:
             counter = counter + 1
         return true
 
-fun string(StringLiteral literal) -> String:
+fun s(StringLiteral literal) -> String:
     let to_return : String
     to_return.append(literal)
     return to_return

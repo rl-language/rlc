@@ -261,6 +261,7 @@ static mlir::LogicalResult flatten(
 	rewriter.setInsertionPoint(op);
 	auto terminators = getYieldTerminators(op);
 	assert(terminators.size() == 1);
+	auto terminator = terminators.front();
 
 	auto& entryBlock = op.getBody().front();
 	auto* parentBlock = rewriter.getBlock();
@@ -269,13 +270,11 @@ static mlir::LogicalResult flatten(
 	rewriter.inlineRegionBefore(op.getBody(), rewriter.getBlock());
 	rewriter.mergeBlocks(&entryBlock, parentBlock, mlir::ValueRange());
 
-	auto alloca = terminators.front().getArguments();
+	auto alloca = terminator.getArguments();
 	rewriter.replaceOp(op, { alloca });
-	for (auto& terminator : terminators)
-	{
-		rewriter.mergeBlocks(after, terminator->getBlock(), mlir::ValueRange());
-		rewriter.eraseOp(terminator);
-	}
+
+	rewriter.mergeBlocks(after, terminator->getBlock(), mlir::ValueRange());
+	eraseYield(rewriter, terminator, terminator->getNextNode());
 
 	return mlir::LogicalResult::success();
 }

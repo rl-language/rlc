@@ -103,7 +103,18 @@ llvm::Expected<mlir::Value> Parser::stringExpression()
 {
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::String);
-	return builder.create<mlir::rlc::StringLiteralOp>(location, lString);
+	auto value = builder.create<mlir::rlc::StringLiteralOp>(location, lString);
+	if (not accept<Token::Identifier>())
+		return value;
+
+	location = getCurrentSourcePos();
+	auto ref = builder.create<mlir::rlc::UnresolvedReference>(location, lIdent);
+
+	location = getCurrentSourcePos();
+	return builder
+			.create<mlir::rlc::CallOp>(
+					location, unkType(), ref, false, mlir::ValueRange({ value }))
+			.getResult(0);
 }
 
 // initializerList: "[" (expression ( "," expression)*)? "]"
