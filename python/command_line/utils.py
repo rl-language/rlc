@@ -67,6 +67,14 @@ def make_rlc_argparse(name, description):
         nargs="?",
         help="path to .rl source file",
     )
+    parser.add_argument(
+        "--runtime",
+        "-rt",
+        type=str,
+        default="",
+        nargs="?",
+        help="path to runtime library",
+    )
     return parser
 
 
@@ -80,6 +88,6 @@ def load_simulation_from_args(args):
     sim = (
         Simulation(args.wrapper[0])
         if len(args.wrapper) == 1
-        else compile(args.source, args.rlc, args.include)
+        else compile(args.source, args.rlc, args.include, args.runtime)
     )
     return sim

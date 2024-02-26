@@ -45,7 +45,7 @@ add_subdirectory(benchmark)
 ###        Project         ###
 ##############################
 
-project(rlc VERSION 1.0 LANGUAGES CXX)
+project(rlc VERSION 1.0 LANGUAGES CXX C)
 enable_testing()
 include("CPack")
 include(CTest)

@@ -23,6 +23,7 @@ config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 config.substitutions.append(('%stdlib', config.rlc_stdlib))
 config.substitutions.append(('%pyscript', config.python_scripts))
 config.substitutions.append(('%fuzzer_lib', config.rlc_fuzzer_lib))
+config.substitutions.append(("%runtime_lib", config.rlc_runtime_lib))
 llvm_config.with_system_environment(["HOME", "INCLUDE", "LIB", "TMP", "TEMP"], append_path=True)
 llvm_config.use_default_substitutions()
 
@@ -55,3 +56,4 @@ ld_library_path = os.path.pathsep.join((
     config.environment.get("LD_LIBRARY_PATH", "")))
 
 config.environment["LD_LIBRARY_PATH"] = ld_library_path
+config.environment["RLC_RUNTIME_LIB_PATH"] = config.rlc_runtime_lib

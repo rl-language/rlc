@@ -1,0 +1,2 @@
+auto const FUZZER_LIBRARY_FILENAME = "$<TARGET_FILE_NAME:rlc::fuzzer>";
+auto const RUNTIME_LIBRARY_FILENAME = "$<TARGET_FILE_NAME:rlc::runtime>";

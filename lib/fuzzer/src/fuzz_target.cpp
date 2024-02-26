@@ -69,11 +69,11 @@ extern "C" void rl_fuzzer_is_input_long_enough__r_bool(__int8_t *result) {
     *result = (fuzz_input_length - byte_offset) > 10; // TODO handle this better.
 }
 
-extern "C" void rl_fuzzer_print__int64_t_r_void(const __int64_t *message) {
+extern "C" void rl_fuzzer_print__int64_t(const __int64_t *message) {
     // printf("Message: %ld \n", *message);
 }
 
-extern "C" void rl_fuzzer_skip_input__r_void() {
+extern "C" void rl_fuzzer_skip_input_() {
     // printf("skipping the current fuzz input!\n");
 }
 

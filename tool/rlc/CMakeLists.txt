@@ -23,5 +23,6 @@ rlcAddTool(rlc
 	${translation_libs}
 	${llvm_libs})
 
-file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/Fuzzer.hpp INPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/Fuzzer.hpp.in)
+file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/rlc/LibNames.hpp INPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/LibNames.hpp.in)
 target_include_directories(rlc PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
+add_dependencies(rlc rlc::fuzzer rlc::runtime)

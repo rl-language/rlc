@@ -8,8 +8,8 @@ ent<T> CustomDestructor:
 
 # CHECK: rlc.flat_fun "main"
 fun main() -> Int:
-    # CHECK: rlc.ref @rl_m_drop__CustomDestructorTint64_tT_r_void
+    # CHECK: rlc.ref @rl_m_drop__CustomDestructorTint64_tT
     # CHECK-NEXT: rlc.call
     let var : CustomDestructor<Int>
     return 0
-# CHECK-NOT: rlc.ref @rl_m_drop__CustomDestructorTint64_tT_r_void
+# CHECK-NOT: rlc.ref @rl_m_drop__CustomDestructorTint64_tT

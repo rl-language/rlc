@@ -596,7 +596,8 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 			OS << "_";
 			typeToMangled(OS, input);
 		}
-		if (not maybeType.getResults().empty())
+		if (not maybeType.getResults().empty() and
+				not maybeType.getResults().front().isa<mlir::rlc::VoidType>())
 		{
 			OS << "_r_";
 			typeToMangled(OS, maybeType.getResult(0));

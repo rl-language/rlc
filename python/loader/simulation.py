@@ -14,6 +14,7 @@ from collections import defaultdict
 from tempfile import TemporaryDirectory
 from subprocess import run
 from ctypes import Structure, Array
+from sys import stdout, stderr
 
 
 def as_dict(generated_struct):
@@ -449,7 +450,7 @@ class Simulation:
         return None
 
 
-def compile(source, rlc_compiler="rlc", rlc_includes=[]):
+def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
     include_args = []
     for arg in rlc_includes:
         include_args.append("-i")
@@ -468,9 +469,13 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[]):
             ).returncode
             == 0
         )
+        args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]
+        if rlc_runtime_lib != "":
+            args = args + ["--runtime-lib", rlc_runtime_lib]
+        print(args)
         assert (
             run(
-                [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]
+                args
                 + include_args
             ).returncode
             == 0

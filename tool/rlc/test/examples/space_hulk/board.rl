@@ -1,4 +1,4 @@
-# RUN: python %pyscript/test.py --source %s -i %stdlib --rlc rlc
+# RUN: python %pyscript/test.py --source %s -i %stdlib --rlc rlc 
 
 import unit 
 import collections.vector

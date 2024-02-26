@@ -25,6 +25,7 @@ limitations under the License.
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
@@ -39,7 +40,7 @@ limitations under the License.
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
-#include "rlc/Fuzzer.hpp"
+#include "rlc/LibNames.hpp"
 #include "rlc/backend/BackEnd.hpp"
 #include "rlc/conversions/RLCToC.hpp"
 #include "rlc/dialect/Dialect.h"
@@ -227,6 +228,12 @@ static cl::opt<std::string> customFuzzerLibPath(
 		cl::init(""),
 		cl::cat(astDumperCategory));
 
+static cl::opt<std::string> customRuntime(
+		"runtime-lib",
+		cl::desc("path to runtime"),
+		cl::init(""),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> sanitize(
 		"sanitize",
 		cl::desc("emit the sanitizer instrumentation"),
@@ -300,6 +307,18 @@ static mlir::rlc::Driver configureDriver(
 		ExtraObjectFiles.addValue(fuzzerLibPath);
 		RPath.addValue(llvm::sys::path::parent_path(fuzzerLibPath).str());
 	}
+
+	string runtimeLibPath = customRuntime;
+	auto envVal = llvm::sys::Process::GetEnv("RLC_RUNTIME_LIB_PATH");
+	if (runtimeLibPath.empty())
+	{
+		if (envVal.has_value())
+			runtimeLibPath = *envVal;
+		else
+			runtimeLibPath = llvm::sys::path::parent_path(pathToRlc).str() +
+											 "/../lib/" + RUNTIME_LIBRARY_FILENAME;
+	}
+	ExtraObjectFiles.addValue(runtimeLibPath);
 
 	Driver driver(srcManager, InputFilePath, outputFile, OS);
 	driver.setRequest(getRequest());

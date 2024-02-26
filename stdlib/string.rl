@@ -53,6 +53,16 @@ ent String:
         to_ret.append(other)
         return to_ret
 
+    fun equal(StringLiteral other) -> Bool:
+        let counter = 0
+        while counter < self.size():
+            if self.get(counter) != other[counter]:
+                return false
+            if other[counter] == '\0':
+                return false
+            counter = counter + 1
+        return true
+
     fun equal(String other) -> Bool:
         if other.size() != self.size():
             return false
@@ -63,7 +73,28 @@ ent String:
             counter = counter + 1
         return true
 
+    fun reverse():
+        let x = 0
+        let y = self.size() - 1
+        while x < y:
+            let tmp = self._data.get(x)
+            self._data.get(x) = self._data.get(y)
+            self._data.get(y) = tmp
+            x = x + 1
+            y = y - 1
+
 fun s(StringLiteral literal) -> String:
     let to_return : String
     to_return.append(literal)
     return to_return
+
+ext fun to_string(Int x) -> String
+
+ext fun to_string(Byte x) -> String
+
+ext fun to_string(Float x) -> String
+
+fun to_string(Bool x) -> String:
+    if x:
+        return "true"s
+    return "false"s
