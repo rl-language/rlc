@@ -849,8 +849,8 @@ llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 }
 
 /**
- * ifStatement : if expression ':\nindent statementList [else ':\n'
- * statementList ]
+ * ifStatement : if expression ':\nindent statementList ( else ifStatement |
+ * else ':\n' statementList )?
  */
 llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 {
@@ -892,9 +892,16 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 	builder.setInsertionPointToStart(elseB);
 	if (accept<Token::KeywordElse>())
 	{
-		EXPECT(Token::Colons, onExit(*exp));
-		EXPECT(Token::Newline, onExit(*exp));
-		TRY(fBranch, statementList(), onExit(*exp));
+		if (current == Token::KeywordIf)
+		{
+			TRY(fBranch, ifStatement(), onExit(*exp));
+		}
+		else
+		{
+			EXPECT(Token::Colons, onExit(*exp));
+			EXPECT(Token::Newline, onExit(*exp));
+			TRY(fBranch, statementList(), onExit(*exp));
+		}
 	}
 
 	onExit(*exp);
