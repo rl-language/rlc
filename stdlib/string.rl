@@ -73,6 +73,12 @@ ent String:
             counter = counter + 1
         return true
 
+    fun drop_back(Int quantity):
+        self._data.drop_back(quantity)
+
+    fun back() -> ref Byte:
+        return self._data.get(self._data.size() - 2)
+
     fun reverse():
         let x = 0
         let y = self.size() - 1
@@ -88,13 +94,64 @@ fun s(StringLiteral literal) -> String:
     to_return.append(literal)
     return to_return
 
-ext fun to_string(Int x) -> String
+ext fun append_to_string(Int x, String output)
 
-ext fun to_string(Byte x) -> String
+ext fun append_to_string(Byte x, String output) 
 
-ext fun to_string(Float x) -> String
+ext fun append_to_string(Float x, String output)
 
-fun to_string(Bool x) -> String:
+fun append_to_string(Bool x, String output):
     if x:
-        return "true"s
-    return "false"s
+        output.append("true")
+    else:
+        output.append("false")
+
+trait<T> StringSerializable:
+    fun append_to_string(T to_add, String output)
+
+fun<T, Int X> append_to_string(T[X] to_add, String output):
+    let counter = 0
+    output.append('[')
+
+    while counter < X:
+        _to_string_impl(to_add[counter], output)
+        counter = counter + 1
+        if counter != X:
+            output.append(", ")
+
+    output.append(']')
+
+fun<T> append_to_string(Vector<T> to_add, String output):
+    let counter = 0
+    output.append('[')
+    while counter < to_add.size():
+        _to_string_impl(to_add.get(counter), output)
+        counter = counter + 1
+        if counter != to_add.size():
+            output.append(", ")
+
+    output.append(']')
+
+fun<T> _to_string_impl(T to_add, String output):
+    if to_add is StringSerializable:
+        to_add.append_to_string(output)
+    else if to_add is Alternative:
+        let counter = 0
+        for field of to_add:
+            using Type = type(field)
+            if to_add is Type:
+                _to_string_impl(counter, output)
+                _to_string_impl(to_add, output)
+            counter = counter + 1
+    else:
+        output.append('{')
+        for field of to_add:
+            _to_string_impl(field, output)
+            output.append(", ")
+        output.drop_back(1)
+        output.back() = '}'
+
+fun<T> to_string(T to_stringyfi) -> String:
+    let to_return : String
+    _to_string_impl(to_stringyfi, to_return)
+    return to_return

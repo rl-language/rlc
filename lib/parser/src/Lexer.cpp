@@ -34,11 +34,11 @@ char Lexer::eatChar()
 		currentLine++;
 		currentColumn = 1;
 	}
-	if (c == '(' or c == '{' or c == '[')
+	if ((c == '(' or c == '{' or c == '[') and not parsingString)
 	{
 		nestedParentesys++;
 	}
-	if (c == ')' or c == '}' or c == ']')
+	if ((c == ')' or c == '}' or c == ']') and not parsingString)
 	{
 		nestedParentesys--;
 	}
@@ -524,10 +524,12 @@ Token Lexer::eatString()
 	lString = "";
 	eatChar();
 	nestedParentesys++;
+	parsingString = true;
 	while (*in != '\"' and *in != '\0')
 	{
 		lString += eatCharLiteral();
 	}
+	parsingString = false;
 	if (*in == '\0')
 		return Token::Error;
 	eatChar();
@@ -616,11 +618,13 @@ Token Lexer::nextWithoutTrailingConsume()
 
 	if (*in == '\'')
 	{
+		parsingString = true;
 		eatChar();
 		lInt64 = eatCharLiteral();
 		if (*in != '\'')
 			return Token::Error;
 		eatChar();
+		parsingString = false;
 		return Token::Character;
 	}
 

@@ -13,91 +13,98 @@
 # limitations under the License.
 
 ent<T> Vector:
-	OwningPtr<T> _data
-	Int _size
-	Int _capacity
+    OwningPtr<T> _data
+    Int _size
+    Int _capacity
 
-	fun _grow():
-		if self._capacity > self._size:
-			return
+    fun _grow():
+        if self._capacity > self._size:
+            return
 
-		let new_data = __builtin_malloc_do_not_use<T>(self._size * 2)
-		let counter = 0
-		while counter < self._size * 2:
-			let new_element : T
-			new_data[counter] = new_element
-			counter = counter + 1
+        let new_data = __builtin_malloc_do_not_use<T>(self._size * 2)
+        let counter = 0
+        while counter < self._size * 2:
+            let new_element : T
+            new_data[counter] = new_element
+            counter = counter + 1
 
-		counter = 0
-		while counter < self._size:
-			new_data[counter] = self._data[counter] 
-			__builtin_destroy_do_not_use(self._data[counter])
-			counter = counter + 1
+        counter = 0
+        while counter < self._size:
+            new_data[counter] = self._data[counter] 
+            __builtin_destroy_do_not_use(self._data[counter])
+            counter = counter + 1
 
-		__builtin_free_do_not_use(self._data)
-		self._capacity = self._size * 2
-		self._data = new_data
+        __builtin_free_do_not_use(self._data)
+        self._capacity = self._size * 2
+        self._data = new_data
 
-	fun init():
-		self._size = 0
-		self._capacity = 4
-		self._data = __builtin_malloc_do_not_use<T>(4)
-		let counter = 0
-		while counter < self._capacity:
-			let new_element : T
-			self._data[counter] = new_element
-			counter = counter + 1
+    fun init():
+        self._size = 0
+        self._capacity = 4
+        self._data = __builtin_malloc_do_not_use<T>(4)
+        let counter = 0
+        while counter < self._capacity:
+            let new_element : T
+            self._data[counter] = new_element
+            counter = counter + 1
 
-	fun drop():
-		let counter = 0
-		while counter < self._capacity:
-			__builtin_destroy_do_not_use(self._data[counter])
-			counter = counter + 1
-		__builtin_free_do_not_use(self._data)
-		self._size = 0
-		self._capacity = 0
+    fun drop():
+        let counter = 0
+        while counter < self._capacity:
+            __builtin_destroy_do_not_use(self._data[counter])
+            counter = counter + 1
+        __builtin_free_do_not_use(self._data)
+        self._size = 0
+        self._capacity = 0
 
-	fun assign(Vector<T> other):
-		self.drop()
-		self.init()
-		let counter = 0
-		while counter < other._size:
-			self.append(other.get(counter))
-			counter = counter + 1
+    fun assign(Vector<T> other):
+        self.drop()
+        self.init()
+        let counter = 0
+        while counter < other._size:
+            self.append(other.get(counter))
+            counter = counter + 1
 
-	fun back() -> ref T:
-		return self._data[self._size - 1]
+    fun back() -> ref T:
+        return self._data[self._size - 1]
 
-	fun get(Int index) -> ref T:
-		return self._data[index]
+    fun get(Int index) -> ref T:
+        return self._data[index]
 
-	fun set(Int index, T value):
-		self._data[index] = value
+    fun set(Int index, T value):
+        self._data[index] = value
 
-	fun append(T value):
-		self._grow()
-		self._data[self._size] = value
-		self._size = self._size + 1
+    fun append(T value):
+        self._grow()
+        self._data[self._size] = value
+        self._size = self._size + 1
 
-	fun empty() -> Bool:
-		return self._size == 0
+    fun empty() -> Bool:
+        return self._size == 0
 
-	fun clear():
-		while !self.empty():
-			self.pop()
+    fun clear():
+        while !self.empty():
+            self.pop()
 
-	fun pop() -> T:
-		let to_return = self._data[self._size - 1]
-		self._size = self._size - 1
-		__builtin_destroy_do_not_use(self._data[self._size])
-		return to_return
+    fun pop() -> T:
+        let to_return = self._data[self._size - 1]
+        self._size = self._size - 1
+        __builtin_destroy_do_not_use(self._data[self._size])
+        return to_return
 
-	fun erase(Int index):
-		let counter = index
-		while counter < self._size - 1: 
-			self._data[counter]	= self._data[counter + 1]
-			counter = counter + 1
-		self.pop()	
+    fun drop_back(Int quantity):
+        let counter = self._size - quantity
+        while counter < self._size: 
+            __builtin_destroy_do_not_use(self._data[counter])
+            counter = counter + 1
+        self._size = self._size - quantity
 
-	fun size() -> Int:
-		return self._size
+    fun erase(Int index):
+        let counter = index
+        while counter < self._size - 1: 
+            self._data[counter] = self._data[counter + 1]
+            counter = counter + 1
+        self.pop()  
+
+    fun size() -> Int:
+        return self._size

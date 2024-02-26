@@ -19,9 +19,10 @@ limitations under the License.
 
 typedef struct String String;
 void rl_m_init__String(String* self);
-void rl_m_get__String_int64_t_r_int8_tRef(int8_t** out, String* self, int64_t* index);
+void rl_m_get__String_int64_t_r_int8_tRef(
+		int8_t** out, String* self, int64_t* index);
 void rl_m_append__String_strlit(String* self, char* to_append);
-void rl_to_string__int64_t_r_String(String* out, int64_t* member);
-void rl_to_string__int8_t_r_String(String* out, int8_t* member);
-void rl_to_string__double_r_String(String* out, double* member);
+void rl_append_to_string__int64_t_String(int64_t* member, String* out);
+void rl_append_to_string__int8_t_String(int8_t* member, String* out);
+void rl_append_to_string__double_String(double* member, String* out);
 void rl_print__String(String* s);

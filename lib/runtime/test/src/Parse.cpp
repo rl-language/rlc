@@ -33,16 +33,18 @@ extern "C"
 
 	void rl_m_init__String(String* self) {}
 
-    void rl_m_get__String_int64_t_r_int8_tRef(int8_t** out, String* self, int64_t* index) {
-        *out = ((int8_t*)&self->content[*index]);
-    }
+	void rl_m_get__String_int64_t_r_int8_tRef(
+			int8_t** out, String* self, int64_t* index)
+	{
+		*out = ((int8_t*) &self->content[*index]);
+	}
 }
 
 TEST(parseTest, parseInt)
 {
 	String result;
 	int64_t to_parse = -258;
-	rl_to_string__int64_t_r_String(&result, &to_parse);
+	rl_append_to_string__int64_t_String(&to_parse, &result);
 	EXPECT_EQ(result.content, "-258");
 }
 
@@ -50,7 +52,7 @@ TEST(parseTest, parseInt8)
 {
 	String result;
 	int8_t to_parse = -4;
-	rl_to_string__int8_t_r_String(&result, &to_parse);
+	rl_append_to_string__int8_t_String(&to_parse, &result);
 	EXPECT_EQ(result.content, "-4");
 }
 
@@ -58,6 +60,6 @@ TEST(parseTest, parseDouble)
 {
 	String result;
 	double to_parse = -42.3;
-	rl_to_string__double_r_String(&result, &to_parse);
+	rl_append_to_string__double_String(&to_parse, &result);
 	EXPECT_EQ(result.content, "-42.300000");
 }

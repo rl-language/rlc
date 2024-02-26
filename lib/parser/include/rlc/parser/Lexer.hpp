@@ -149,5 +149,6 @@ namespace rlc
 		std::string lIdent{ "" };
 		std::string lString{ "" };
 		size_t deindentToEmit{ 0 };
+		bool parsingString = false;
 	};
 }	 // namespace rlc
