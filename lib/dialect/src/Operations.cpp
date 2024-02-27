@@ -932,6 +932,13 @@ mlir::LogicalResult mlir::rlc::CanOp::typeCheck(
 	return mlir::success();
 }
 
+bool mlir::rlc::ForFieldStatement::hasFieldNameVariable()
+{
+	auto yield = mlir::cast<mlir::rlc::Yield>(
+			getCondition().getBlocks().back().getTerminator());
+	return yield.getArguments().size() + 1 == getNames().size();
+}
+
 mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -942,12 +949,15 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 
 	auto yield = mlir::cast<mlir::rlc::Yield>(
 			getCondition().getBlocks().back().getTerminator());
-	if (yield.getArguments().size() != getNames().size())
+	if (yield.getArguments().size() != getNames().size() and
+			not hasFieldNameVariable())
 	{
 		return logError(
 				*this,
 				"Missmatched count between for induction variables and for "
-				"arguments");
+				"arguments. The number of induction varaibles must be exactly the same "
+				"as the number of expressions, or one more to capture the name of the "
+				"field");
 	}
 
 	for (auto argument : yield.getArguments())
@@ -962,7 +972,15 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 	}
 
 	auto _ = builder.addSymbolTable();
-	for (auto [argument, name] : llvm::zip(getBody().getArguments(), getNames()))
+	if (hasFieldNameVariable())
+	{
+		auto fieldName = getNames().begin()->cast<mlir::StringAttr>();
+		getBody().front().getArguments()[0].setType(
+				mlir::rlc::StringLiteralType::get(getContext()));
+		builder.getSymbolTable().add(fieldName, getBody().getArgument(0));
+	}
+	for (auto [argument, name] :
+			 llvm::zip(getNonFieldNameArgs(), getNonFieldNameNames()))
 		builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), argument);
 
 	for (auto *op : ops(getBody()))

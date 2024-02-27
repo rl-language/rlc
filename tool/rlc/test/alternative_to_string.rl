@@ -6,7 +6,7 @@ import collections.vector
 import serialization.print
 
 ent SomeStruct:
-    Bool x
+    Bool | Float x
     Vector<Int> y
 
 fun main() -> Int:
@@ -14,6 +14,7 @@ fun main() -> Int:
     var.x = true
     var.y.append(3)
     var.y.append(4)
-    if to_string(var) == "{x: true, y: [3, 4]}":
+    if to_string(var) == "{x: Bool{true}, y: [3, 4]}":
         return 0
     return -1
+

@@ -108,6 +108,26 @@ def RLC_ForFieldStatement : RLC_Dialect<"for_field", [DeclareOpInterfaceMethods<
   AnyRegion:$body
   );
 
+  code extraClassDeclaration = [{
+      bool hasFieldNameVariable(); 
+
+      auto getNonFieldNameNames() {
+        auto begin = getNames().begin();
+        if (hasFieldNameVariable()) {
+            begin++; 
+        }
+        return llvm::make_range(begin, getNames().end());
+      }
+
+      auto getNonFieldNameArgs() {
+        auto begin = getBody().getArguments().begin();
+        if (hasFieldNameVariable()) {
+            begin++; 
+        }
+        return llvm::make_range(begin, getBody().getArguments().end());
+      }
+  }];
+
   let assemblyFormat = [{
 	`cond` $condition `body` $body attr-dict
   }];

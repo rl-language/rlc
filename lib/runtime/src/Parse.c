@@ -40,11 +40,17 @@ void rl_append_to_string__double_String(double* toConvert, String* out)
 	rl_m_append__String_strlit(out, buffer);
 }
 
-void rl_print__String(String* s)
+void rl_print_string__String(String* s)
 {
 	int8_t* start = 0;
 	int64_t index = 0;
 	rl_m_get__String_int64_t_r_int8_tRef(&start, s, &index);
 	puts((char*) start);
+	fflush(stdin);
+}
+
+void rl_print_string__strlit(char* s)
+{
+	puts(s);
 	fflush(stdin);
 }

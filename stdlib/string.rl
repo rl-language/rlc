@@ -94,6 +94,9 @@ fun s(StringLiteral literal) -> String:
     to_return.append(literal)
     return to_return
 
+fun append_to_string(StringLiteral x, String output):
+    output.append(x)
+
 ext fun append_to_string(Int x, String output)
 
 ext fun append_to_string(Byte x, String output) 
@@ -137,15 +140,19 @@ fun<T> _to_string_impl(T to_add, String output):
         to_add.append_to_string(output)
     else if to_add is Alternative:
         let counter = 0
-        for field of to_add:
+        for name, field of to_add:
             using Type = type(field)
             if to_add is Type:
-                _to_string_impl(counter, output)
+                _to_string_impl(name, output)
+                output.append("{")
                 _to_string_impl(to_add, output)
+                output.append("}")
             counter = counter + 1
     else:
         output.append('{')
-        for field of to_add:
+        for name, field of to_add:
+            _to_string_impl(name, output)
+            output.append(": ")
             _to_string_impl(field, output)
             output.append(", ")
         output.drop_back(1)

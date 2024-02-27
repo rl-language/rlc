@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,21 +26,30 @@ namespace mlir::rlc
 			mlir::rlc::ModuleBuilder& builder,
 			mlir::IRRewriter& rewriter,
 			mlir::Location loc,
+			llvm::StringRef memberName,
 			mlir::ValueRange members,
 			mlir::Type fieldType,
-			size_t fieldIndex,
 			mlir::rlc::ForFieldStatement toClone)
 	{
 		auto cloned = mlir::cast<mlir::rlc::ForFieldStatement>(
 				rewriter.clone(*toClone.getOperation()));
 
+		if (toClone.hasFieldNameVariable())
+		{
+			mlir::IRRewriter innerRewriter(rewriter.getContext());
+			innerRewriter.setInsertionPoint(&cloned.getBody().front().front());
+			auto name = rewriter.create<mlir::rlc::StringLiteralOp>(
+					toClone.getLoc(), memberName);
+			cloned.getBody().front().getArgument(0).replaceAllUsesWith(name);
+		}
+
 		for (auto [member, argument] :
-				 llvm::zip(members, cloned.getBody().getArguments()))
+				 llvm::zip(members, cloned.getNonFieldNameArgs()))
 			argument.replaceAllUsesWith(member);
 
 		mlir::AttrTypeReplacer replacer;
 		replacer.addReplacement([&](mlir::Type t) -> std::optional<mlir::Type> {
-			if (t == cloned.getBody().getArgument(0).getType())
+			if (t == cloned.getNonFieldNameArgs().begin()->getType())
 				return fieldType;
 			return std::nullopt;
 		});
@@ -101,9 +110,9 @@ namespace mlir::rlc
 						builder,
 						rewriter,
 						op.getLoc(),
+						casted.getFieldNames()[field.index()],
 						members,
 						field.value(),
-						field.index(),
 						op);
 			}
 		}
@@ -124,9 +133,9 @@ namespace mlir::rlc
 						builder,
 						rewriter,
 						op.getLoc(),
+						prettyType(field.value()),
 						members,
 						field.value(),
-						field.index(),
 						op);
 			}
 		}

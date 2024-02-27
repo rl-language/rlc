@@ -14,4 +14,14 @@
 
 import string
 
-ext fun print(String s)
+ext fun print_string(String s)
+ext fun print_string(StringLiteral s)
+
+fun<T> print(T to_print):
+    if to_print is String:
+        print_string(to_print)
+    else if to_print is StringLiteral:
+        print_string(to_print)
+    else:
+        let serialized = to_string(to_print)
+        print_string(serialized) 

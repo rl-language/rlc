@@ -26,3 +26,4 @@ void rl_append_to_string__int64_t_String(int64_t* member, String* out);
 void rl_append_to_string__int8_t_String(int8_t* member, String* out);
 void rl_append_to_string__double_String(double* member, String* out);
 void rl_print__String(String* s);
+void rl_print_string__strlit(char* s);
