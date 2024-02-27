@@ -28,6 +28,17 @@ ent String:
     fun get(Int index) -> ref Byte:
         return self._data.get(index)
 
+    fun substring_matches(StringLiteral lit, Int pos) -> Bool:
+        if pos >= self.size():
+            return false
+
+        let current = 0
+        while lit[current] != '\0':
+            if lit[current] != self.get(pos + current):
+                return false
+            current = current + 1
+        return true
+
     fun size() -> Int:
         return self._data.size() - 1
 
@@ -94,13 +105,14 @@ fun s(StringLiteral literal) -> String:
     to_return.append(literal)
     return to_return
 
+trait<T> StringSerializable:
+    fun append_to_string(T to_add, String output)
+
 fun append_to_string(StringLiteral x, String output):
     output.append(x)
 
 ext fun append_to_string(Int x, String output)
-
 ext fun append_to_string(Byte x, String output) 
-
 ext fun append_to_string(Float x, String output)
 
 fun append_to_string(Bool x, String output):
@@ -108,9 +120,6 @@ fun append_to_string(Bool x, String output):
         output.append("true")
     else:
         output.append("false")
-
-trait<T> StringSerializable:
-    fun append_to_string(T to_add, String output)
 
 fun<T, Int X> append_to_string(T[X] to_add, String output):
     let counter = 0
@@ -144,9 +153,9 @@ fun<T> _to_string_impl(T to_add, String output):
             using Type = type(field)
             if to_add is Type:
                 _to_string_impl(name, output)
-                output.append("{")
+                output.append("(")
                 _to_string_impl(to_add, output)
-                output.append("}")
+                output.append(")")
             counter = counter + 1
     else:
         output.append('{')
@@ -162,3 +171,126 @@ fun<T> to_string(T to_stringyfi) -> String:
     let to_return : String
     _to_string_impl(to_stringyfi, to_return)
     return to_return
+
+trait<T> StringParsable:
+    fun parse_string(T result, String buffer, Int index) -> Bool
+
+fun is_space(Byte b) -> Bool:
+    return b == ' ' or b == '\n' or b == '\t'
+
+ext fun parse_string(Int result, String buffer, Int index) -> Bool
+ext fun parse_string(Byte result, String buffer, Int index) -> Bool
+ext fun parse_string(Float result, String buffer, Int index) -> Bool
+
+fun _consume_space(String buffer, Int index):
+    while is_space(buffer.get(index)):
+        index = index + 1 
+
+fun _consume_literal(String buffer, StringLiteral literal, Int index) -> Bool:
+    _consume_space(buffer, index)
+    if !buffer.substring_matches(literal, index):
+        return false
+    let counter = 0
+    while literal[counter] != '\0':
+        index = index + 1
+        counter = counter + 1
+    return true
+
+fun parse_string(Bool result, String buffer, Int index) -> Bool:
+    _consume_space(buffer, index)
+    if buffer.size() == index: 
+        return false
+
+    if buffer.substring_matches("true", index):
+        result = true
+        index = index + 4
+    else if buffer.substring_matches("false", index):
+        result = true
+        index = index + 5
+    else:
+        return false
+
+    return true
+
+fun<T, Int X> parse_string(T[X] result, String buffer, Int index) -> Bool:
+    _consume_space(buffer, index)
+    let counter = 0
+    if buffer.get(index) != '[':
+        return false
+    index = index + 1
+    _consume_space(buffer, index)
+
+    while counter < X:
+        if !_parse_string_impl(result[counter], buffer, index):
+            return false
+        _consume_space(buffer, index)
+        if counter != X:
+            if buffer.get(index) != ',':
+                return false
+            index = index + 1
+            _consume_space(buffer, index)
+
+    if buffer.get(index) != ']':
+        return false
+    index = index + 1
+    return true
+
+fun<T> parse_string(Vector<T> result, String buffer, Int index) -> Bool:
+    _consume_space(buffer, index)
+    let counter = 0
+    if buffer.get(index) != '[':
+        return false
+    index = index + 1
+    _consume_space(buffer, index)
+
+    let keep_parsing = true
+    while keep_parsing: 
+        let to_parse : T
+        if !_parse_string_impl(to_parse, buffer, index):
+            return false
+        result.append(to_parse)
+        _consume_space(buffer, index)
+        keep_parsing = buffer.get(index) == ','
+        if keep_parsing:
+            index = index + 1
+            _consume_space(buffer, index)
+
+    if buffer.get(index) != ']':
+        return false
+    index = index + 1
+    return true
+
+fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
+    if result is StringParsable:
+        return result.parse_string(buffer, index)
+    else if result is Alternative:
+        for name, field of result:
+            using Type = type(field)
+            if _consume_literal(buffer, name, index):
+                if !_consume_literal(buffer, "(", index):
+                    return false
+                let to_parse : Type 
+                _parse_string_impl(to_parse, buffer, index)
+                result = to_parse
+                if !_consume_literal(buffer, ")", index):
+                    return false
+                return true
+        return false
+    else:
+        if !_consume_literal(buffer, "{", index):
+            return false
+        for name, field of result:
+            if !_consume_literal(buffer, name, index):
+                return false
+            if !_consume_literal(buffer, ":", index):
+                return false
+            _parse_string_impl(field, buffer, index)
+            _consume_literal(buffer, ",", index)
+        if !_consume_literal(buffer, "}", index):
+            return false
+
+        return true
+
+fun<T> from_string(T result, String buffer) -> Bool:
+    let index = 0
+    return _parse_string_impl(result, buffer, index)

@@ -40,7 +40,7 @@ extern "C"
 	}
 }
 
-TEST(parseTest, parseInt)
+TEST(parseTest, printInt64)
 {
 	String result;
 	int64_t to_parse = -258;
@@ -48,7 +48,7 @@ TEST(parseTest, parseInt)
 	EXPECT_EQ(result.content, "-258");
 }
 
-TEST(parseTest, parseInt8)
+TEST(parseTest, printInt8)
 {
 	String result;
 	int8_t to_parse = -4;
@@ -56,10 +56,52 @@ TEST(parseTest, parseInt8)
 	EXPECT_EQ(result.content, "-4");
 }
 
-TEST(parseTest, parseDouble)
+TEST(parseTest, printDouble)
 {
 	String result;
 	double to_parse = -42.3;
 	rl_append_to_string__double_String(&to_parse, &result);
 	EXPECT_EQ(result.content, "-42.300000");
+}
+
+TEST(parseTest, parseInt64)
+{
+	String to_parse;
+	to_parse.content = "-42 asd";
+	int64_t result = 0;
+	int64_t index = 0;
+	bool result_value = false;
+	rl_parse_string__int64_t_String_int64_t_r_bool(
+			&result_value, &result, &to_parse, &index);
+	EXPECT_EQ(result, -42);
+	EXPECT_EQ(result_value, true);
+	EXPECT_EQ(index, 3);
+}
+
+TEST(parseTest, parseInt8)
+{
+	String to_parse;
+	to_parse.content = " -42 asd";
+	int8_t result = 0;
+	int64_t index = 0;
+	bool result_value = false;
+	rl_parse_string__int8_t_String_int64_t_r_bool(
+			&result_value, &result, &to_parse, &index);
+	EXPECT_EQ(result, -42);
+	EXPECT_EQ(result_value, true);
+	EXPECT_EQ(index, 4);
+}
+
+TEST(parseTest, parseDouble)
+{
+	String to_parse;
+	to_parse.content = " -42.3 asd";
+	double result = 0;
+	int64_t index = 0;
+	bool result_value = false;
+	rl_parse_string__double_String_int64_t_r_bool(
+			&result_value, &result, &to_parse, &index);
+	EXPECT_EQ(result, -42.3);
+	EXPECT_EQ(result_value, true);
+	EXPECT_EQ(index, 6);
 }
