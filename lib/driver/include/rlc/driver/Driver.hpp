@@ -44,7 +44,12 @@ namespace mlir::rlc
 		}
 		void setRPath(std::vector<std::string> newRPath) { rPath = newRPath; }
 
-		void setEmitFuzzer(bool newEmitFuzzer) { emitFuzzer = newEmitFuzzer; }
+		void setEmitFuzzer(bool newEmitFuzzer)
+		{
+			emitFuzzer = newEmitFuzzer;
+			if (newEmitFuzzer)
+				inputFile.push_back("fuzzer/utils.rl");
+		}
 
 		void setIncludeDirs(llvm::SmallVector<std::string, 4> newIncludeDirs)
 		{
@@ -64,7 +69,7 @@ namespace mlir::rlc
 
 		Driver(
 				llvm::SourceMgr &srcManager,
-				std::string inputFile,
+				llvm::ArrayRef<std::string> inputFile,
 				std::string outputFile,
 				llvm::raw_ostream &outputStream)
 				: srcManager(&srcManager),
@@ -87,7 +92,7 @@ namespace mlir::rlc
 		std::string clangPath = "clang";
 
 		llvm::SourceMgr *srcManager;
-		std::string inputFile;
+		llvm::SmallVector<std::string, 2> inputFile;
 		std::string outputFile;
 
 		std::vector<std::string> extraObjectFiles = {};

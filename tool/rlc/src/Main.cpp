@@ -320,7 +320,7 @@ static mlir::rlc::Driver configureDriver(
 	}
 	ExtraObjectFiles.addValue(runtimeLibPath);
 
-	Driver driver(srcManager, InputFilePath, outputFile, OS);
+	Driver driver(srcManager, { InputFilePath }, outputFile, OS);
 	driver.setRequest(getRequest());
 	driver.setDebug(debugInfo);
 	driver.setHidePosition(hidePosition);

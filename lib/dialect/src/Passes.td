@@ -170,8 +170,8 @@ def ParseFilePass : Pass<"rlc-parse-file-pass", "mlir::ModuleOp"> {
   let options = [
     Option<"includeDirs", "include dirs", "const llvm::SmallVector<std::string, 4>*", /*default=*/"nullptr",
            "include dirs">,
-    Option<"input", "input file", "std::string", /*default=*/"\"\"",
-           "input file">,
+    Option<"inputs", "input files", "llvm::ArrayRef<std::string>", /*default=*/"llvm::ArrayRef<std::string>{}",
+           "input files">,
     Option<"srcManager", "source manager", "llvm::SourceMgr*", /*default=*/"nullptr",
            "source manager">
   ];

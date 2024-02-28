@@ -1,7 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib --fuzzer --fuzzer-lib=%fuzzer_lib
 # RUN: %t -runs=1000
-import fuzzer.cpp_functions
-import fuzzer.utils
 
 fun crash_on_five(Int input) -> Int {input != 5}:
 	return 0

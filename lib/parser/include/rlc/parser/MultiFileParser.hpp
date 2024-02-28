@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -100,11 +100,12 @@ namespace rlc
 			return llvm::Error::success();
 		}
 
-		llvm::Expected<mlir::ModuleOp> parse(const std::string& fileName)
+		llvm::Expected<mlir::ModuleOp> parse(llvm::ArrayRef<std::string> fileNames)
 		{
 			mlir::IRRewriter rewriter(context);
 			std::set<std::string> alreadyLoaded;
-			llvm::SmallVector<std::string> fileToLoad = { fileName };
+			llvm::SmallVector<std::string> fileToLoad(
+					fileNames.begin(), fileNames.end());
 			if (auto error = recursiveParseFile(alreadyLoaded, fileToLoad))
 				return std::move(error);
 			return module;

@@ -14,8 +14,10 @@ namespace mlir::rlc
 	void Driver::configurePassManager(mlir::PassManager &manager) const
 	{
 		if (not skipParsing)
+		{
 			manager.addPass(mlir::rlc::createParseFilePass(
 					{ &includeDirs, inputFile, srcManager }));
+		}
 		if (request == Request::dumpUncheckedAST)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
