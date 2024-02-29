@@ -38,10 +38,12 @@ namespace mlir::rlc
 		{
 			mlir::IRRewriter innerRewriter(rewriter.getContext());
 			innerRewriter.setInsertionPoint(&cloned.getBody().front().front());
-			auto name = rewriter.create<mlir::rlc::StringLiteralOp>(
+			auto name = innerRewriter.create<mlir::rlc::StringLiteralOp>(
 					toClone.getLoc(), memberName);
 			cloned.getBody().front().getArgument(0).replaceAllUsesWith(name);
 		}
+
+		auto newScope = rewriter.create<mlir::rlc::StatementList>(toClone.getLoc());
 
 		for (auto [member, argument] :
 				 llvm::zip(members, cloned.getNonFieldNameArgs()))
@@ -55,16 +57,17 @@ namespace mlir::rlc
 		});
 		replacer.recursivelyReplaceElementsIn(cloned, true, true, true);
 
-		for (auto& op : cloned.getBody().getOps())
-		{
-			if (mlir::isa<mlir::rlc::Yield>(op))
-				continue;
+		auto* BB = rewriter.createBlock(&newScope.getBody());
+		rewriter.setInsertionPointToStart(BB);
 
-			auto* newOp = rewriter.clone(op);
-			lowerForFields(builder, newOp);
+		while (not cloned.getBody().front().empty())
+		{
+			cloned.getBody().front().front().moveBefore(BB, BB->end());
+			lowerForFields(builder, &BB->front());
 		}
 
 		rewriter.eraseOp(cloned);
+		rewriter.setInsertionPointAfter(newScope);
 	}
 
 	static void lowerForField(
