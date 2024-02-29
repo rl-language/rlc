@@ -2,6 +2,7 @@
 
 import collections.vector
 import serialization.to_byte_vector
+import serialization.print
 import direction
 import math.numeric
 import unit 
@@ -131,6 +132,7 @@ fun gen_printer_parser():
 fun main() -> Int:
   let state = play()
   state.quit()
+  print_indented(state)
   return int(state.is_done()) - 1
 
 fun test_game_marine_can_step_forward() -> Bool:

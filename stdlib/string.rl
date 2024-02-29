@@ -106,6 +106,40 @@ ent String:
             x = x + 1
             y = y - 1
 
+    fun to_indented_lines() -> String:
+        let to_return : String
+
+        let counter = 0
+        let scopes = 0
+        while counter < self.size():
+            if is_open_paren(self.get(counter)):
+                to_return.append(self.get(counter))
+                to_return.append('\n')
+                scopes = scopes + 1
+                _indent_string(to_return, scopes)
+            else if is_close_paren(self.get(counter)):
+                to_return.append('\n')
+                scopes = scopes - 1
+                _indent_string(to_return, scopes)
+                to_return.append(self.get(counter))
+            else if self.get(counter) == ',':
+                to_return.append(self.get(counter))
+                to_return.append('\n')
+                _indent_string(to_return, scopes)
+                if self.get(counter + 1) == ' ':
+                    counter = counter + 1
+            else:
+                to_return.append(self.get(counter))
+            counter = counter + 1
+
+        return to_return
+
+fun _indent_string(String output, Int count):
+    let counter2 = 0
+    while counter2 != count:
+        output.append("  ")
+        counter2 = counter2 + 1
+
 fun s(StringLiteral literal) -> String:
     let to_return : String
     to_return.append(literal)
@@ -191,6 +225,12 @@ trait<T> StringParsable:
 
 fun is_space(Byte b) -> Bool:
     return b == ' ' or b == '\n' or b == '\t'
+
+fun is_open_paren(Byte b) -> Bool:
+    return b == '(' or b == '[' or b == '{'
+
+fun is_close_paren(Byte b) -> Bool:
+    return b == ')' or b == '}' or b == ']'
 
 ext fun parse_string(Int result, String buffer, Int index) -> Bool
 ext fun parse_string(Byte result, String buffer, Int index) -> Bool

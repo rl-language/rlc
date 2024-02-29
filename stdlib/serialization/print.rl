@@ -24,3 +24,11 @@ fun<T> print(T to_print):
         print_string(to_print)
     else:
         print_string(to_string(to_print)) 
+
+fun<T> print_indented(T to_print):
+    if to_print is String:
+        print_string(to_print.to_indented_lines())
+    else if to_print is StringLiteral:
+        print_string(to_print)
+    else:
+        print_string(to_string(to_print).to_indented_lines()) 
