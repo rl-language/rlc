@@ -42,10 +42,21 @@ namespace mlir::rlc
 			if (not maybeAst)
 			{
 				llvm::handleAllErrors(
-						maybeAst.takeError(), [&](const ::rlc::RlcError& e) {
+						maybeAst.takeError(),
+						[&](const ::rlc::RlcError& e) {
 							getContext().getDiagEngine().emit(
 									e.getPosition(), mlir::DiagnosticSeverity::Error)
 									<< e.getText();
+						},
+						[&](const llvm::ErrorInfoBase& e) {
+							std::string toPrint;
+							llvm::raw_string_ostream stream(toPrint);
+							e.log(stream);
+							stream.flush();
+							getContext().getDiagEngine().emit(
+									mlir::UnknownLoc::get(&getContext()),
+									mlir::DiagnosticSeverity::Error)
+									<< toPrint;
 						});
 				signalPassFailure();
 			}
