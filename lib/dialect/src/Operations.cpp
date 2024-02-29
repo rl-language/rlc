@@ -909,9 +909,31 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 	}
 
 	auto type = mlir::rlc::TraitMetaType::get(
-			getContext(), getName(), getTemplateParameter(), types, names);
+			getContext(),
+			getName(),
+			("TraitType" + getTemplateParameter()).str(),
+			types,
+			names);
 	rewriter.setInsertionPointAfter(*this);
-	rewriter.create<mlir::rlc::TraitDefinition>(getLoc(), type);
+	auto op = rewriter.create<mlir::rlc::TraitDefinition>(getLoc(), type);
+
+	// replace the template parameter provided by the user with one prefixed with
+	// TraitType so that it does not clashes with regular names
+	auto templateParameter = getTemplateParameterType();
+	auto renamedTemplateParameter = mlir::rlc::TemplateParameterType::get(
+			op.getContext(),
+			("TraitType" + templateParameter.getName()).str(),
+			templateParameter.getTrait(),
+			templateParameter.getIsIntLiteral());
+	mlir::AttrTypeReplacer replacer;
+	replacer.addReplacement(
+			[templateParameter,
+			 renamedTemplateParameter](mlir::Type t) -> mlir::Type {
+				if (t == templateParameter)
+					return renamedTemplateParameter;
+				return t;
+			});
+	replacer.replaceElementsIn(op, true, false, true);
 	rewriter.eraseOp(*this);
 	return mlir::success();
 }
