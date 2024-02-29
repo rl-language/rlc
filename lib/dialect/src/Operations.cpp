@@ -223,6 +223,62 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 	return newAction;
 }
 
+static void defineGetNameFunction(
+		mlir::rlc::ActionFunction function,
+		mlir::rlc::ModuleBuilder &builder,
+		mlir::Value action,
+		mlir::rlc::ActionStatement statement,
+		mlir::rlc::EntityType actionType)
+{
+	builder.getRewriter().setInsertionPoint(function);
+	llvm::SmallVector<mlir::Type, 4> types({ actionType });
+	llvm::SmallVector<llvm::StringRef, 4> names({ "self" });
+	llvm::SmallVector<mlir::Location, 4> locs({ statement.getLoc() });
+
+	// fun get_type_name(ActionType self) { }
+	//   return "<name>"
+	//
+	auto fType = mlir::FunctionType::get(
+			function.getContext(),
+			types,
+			{ mlir::rlc::StringLiteralType::get(function.getContext()) });
+	auto applyFunction = builder.getRewriter().create<mlir::rlc::FunctionOp>(
+			statement.getLoc(),
+			"get_type_name",
+			fType,
+			builder.getRewriter().getStrArrayAttr(names),
+			false);
+
+	{
+		auto *preconditionBB = builder.getRewriter().createBlock(
+				&applyFunction.getPrecondition(), {}, types, locs);
+
+		builder.getRewriter().setInsertionPointToStart(preconditionBB);
+		auto trueValue = builder.getRewriter().create<mlir::rlc::Constant>(
+				statement.getLoc(), true);
+
+		builder.getRewriter().create<mlir::rlc::Yield>(
+				statement.getLoc(), mlir::ValueRange({ trueValue }));
+	}
+
+	{
+		auto *bodyBB = builder.getRewriter().createBlock(
+				&applyFunction.getBody(), {}, types, locs);
+
+		builder.getRewriter().setInsertionPointToStart(bodyBB);
+
+		auto lit = builder.getRewriter().create<mlir::rlc::StringLiteralOp>(
+				statement.getLoc(), statement.getName());
+
+		auto ret = builder.getRewriter().create<mlir::rlc::ReturnStatement>(
+				statement.getLoc(), lit.getType());
+		auto *BB = builder.getRewriter().createBlock(&ret.getBody());
+
+		builder.getRewriter().create<mlir::rlc::Yield>(
+				statement.getLoc(), mlir::ValueRange({ lit }));
+	}
+}
+
 static void defineApplyFunction(
 		mlir::rlc::ActionFunction function,
 		mlir::rlc::ModuleBuilder &builder,
@@ -307,6 +363,21 @@ static void defineApplyFunction(
 	}
 }
 
+static std::string snakeCaseToCamelCase(llvm::StringRef str)
+{
+	auto toReturn = str.str();
+
+	for (size_t i = 0; i + 1 < toReturn.size(); i++)
+	{
+		if (toReturn[i] == '_')
+			toReturn[i + 1] = llvm::toUpper(toReturn[i + 1]);
+	}
+
+	llvm::erase_if(toReturn, [](char c) { return c == '_'; });
+	toReturn[0] = llvm::toUpper(toReturn[0]);
+	return toReturn;
+}
+
 static void declareActionStatementType(
 		mlir::rlc::ActionFunction function,
 		mlir::rlc::ModuleBuilder &builder,
@@ -316,8 +387,8 @@ static void declareActionStatementType(
 	auto statement = mlir::dyn_cast<mlir::rlc::ActionStatement>(
 			builder.actionFunctionValueToActionStatement(action).front());
 
-	std::string name = function.getEntityType().getName().str() + "_";
-	name += statement.getName();
+	std::string name = function.getEntityType().getName().str();
+	name += snakeCaseToCamelCase(statement.getName());
 
 	llvm::SmallVector<mlir::Type, 4> fieldTypes;
 	llvm::SmallVector<std::string, 4> fieldNames;
@@ -347,6 +418,7 @@ static void declareActionStatementType(
 			builder.getRewriter().getStrArrayAttr(fieldNamesRef),
 			builder.getRewriter().getTypeArrayAttr({}));
 	defineApplyFunction(function, builder, action, statement, type);
+	defineGetNameFunction(function, builder, action, statement, type);
 }
 
 // given a action function X, for each action statement y of X, declares a type

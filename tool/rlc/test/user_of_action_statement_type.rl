@@ -8,7 +8,7 @@ act action() -> Action:
 
 fun main() -> Int:
     let frame = action()
-    let x : Action_to_call
+    let x : ActionToCall
     x.arg = 4
 
     apply(x, frame)

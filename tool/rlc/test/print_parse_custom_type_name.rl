@@ -24,6 +24,6 @@ fun main() -> Int:
     let var3 : SomeStruct
     from_string(var3, string)
     print(var3)
-    if to_string(var3) == "{x: custom({x: true})}":
+    if to_string(var3) == "{x: custom {x: true}}":
         return 0
     return 1

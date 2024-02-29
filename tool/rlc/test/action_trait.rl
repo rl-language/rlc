@@ -7,7 +7,7 @@ act action() -> Action:
         to_return = arg
 
 fun main() -> Int:
-    let x : Action_to_call
+    let x : ActionToCall
     if x is ActionAction:
         return 0
     else:

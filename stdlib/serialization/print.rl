@@ -23,5 +23,4 @@ fun<T> print(T to_print):
     else if to_print is StringLiteral:
         print_string(to_print)
     else:
-        let serialized = to_string(to_print)
-        print_string(serialized) 
+        print_string(to_string(to_print)) 

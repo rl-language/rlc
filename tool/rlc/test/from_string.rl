@@ -10,7 +10,7 @@ ent Asd:
 
 fun main() -> Int:
     let result : Asd
-    if !from_string(result, "{asd: [2, 3], tasd: Bool(true)}"s):
+    if !from_string(result, "{asd: [2, 3], tasd: Bool true}"s):
         return 2
     if result.asd.size() != 2:
         return 1

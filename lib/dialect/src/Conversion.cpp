@@ -496,7 +496,14 @@ class IsOpRewriter: public mlir::OpConversionPattern<mlir::rlc::IsOp>
 				rewriter.getI64IntegerAttr(
 						std::distance(type.getUnderlying().begin(), index)));
 
-		assert(index != type.getUnderlying().end());
+		if (index == type.getUnderlying().end())
+		{
+			auto value = rewriter.create<mlir::LLVM::ConstantOp>(
+					op.getLoc(), rewriter.getI8Type(), rewriter.getI8IntegerAttr(0));
+			makeAlignedStore(rewriter, value, resultAlloca, op.getLoc());
+			rewriter.replaceOp(op, resultAlloca);
+			return mlir::success();
+		}
 
 		auto convertedUnionType = typeConverter
 																	->convertType(mlir::rlc::ProxyType::get(

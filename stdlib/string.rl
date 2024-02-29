@@ -168,9 +168,8 @@ fun<T> _to_string_impl(T to_add, String output):
             using Type = type(field)
             if to_add is Type:
                 _print_type(to_add, name, output)
-                output.append("(")
+                output.append(' ')
                 _to_string_impl(to_add, output)
-                output.append(")")
             counter = counter + 1
     else:
         output.append('{')
@@ -288,13 +287,9 @@ fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
         for name, field of result:
             using Type = type(field)
             if _parse_type(field, buffer, name, index):
-                if !_consume_literal(buffer, "(", index):
-                    return false
                 let to_parse : Type 
                 _parse_string_impl(to_parse, buffer, index)
                 result = to_parse
-                if !_consume_literal(buffer, ")", index):
-                    return false
                 return true
         return false
     else:
