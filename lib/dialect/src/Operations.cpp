@@ -223,8 +223,168 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 	return newAction;
 }
 
+static void defineApplyFunction(
+		mlir::rlc::ActionFunction function,
+		mlir::rlc::ModuleBuilder &builder,
+		mlir::Value action,
+		mlir::rlc::ActionStatement statement,
+		mlir::rlc::EntityType actionType)
+{
+	builder.getRewriter().setInsertionPoint(function);
+	llvm::SmallVector<mlir::Type, 4> types(
+			{ actionType, function.getEntityType() });
+	llvm::SmallVector<llvm::StringRef, 4> names({ "self", "frame" });
+	llvm::SmallVector<mlir::Location, 4> locs(
+			{ statement.getLoc(), statement.getLoc() });
+
+	for (auto [actionType, name] :
+			 llvm::zip(function.getType().getInputs(), function.getArgNames()))
+	{
+		if (auto casted = actionType.dyn_cast<mlir::rlc::ContextType>())
+		{
+			types.push_back(casted.getUnderlying());
+			names.push_back(name.cast<mlir::StringAttr>());
+			locs.push_back(statement.getLoc());
+		}
+	}
+
+	// fun apply(ActionType self, FrameType frame) { casted = can(action);
+	// casted(frame, self...) }
+	//   action(frame, self...)
+	//
+	auto applyFunctionType =
+			mlir::FunctionType::get(function.getContext(), types, {});
+	auto applyFunction = builder.getRewriter().create<mlir::rlc::FunctionOp>(
+			statement.getLoc(),
+			"apply",
+			applyFunctionType,
+			builder.getRewriter().getStrArrayAttr(names),
+			false);
+
+	{
+		auto *preconditionBB = builder.getRewriter().createBlock(
+				&applyFunction.getPrecondition(), {}, types, locs);
+
+		builder.getRewriter().setInsertionPointToStart(preconditionBB);
+		auto canExecuteAction = builder.getRewriter().create<mlir::rlc::CanOp>(
+				statement.getLoc(), action);
+
+		llvm::SmallVector<mlir::Value, 4> args(
+				std::next(preconditionBB->args_begin()), preconditionBB->args_end());
+		for (auto [index, actionType] : llvm::enumerate(actionType.getBody()))
+		{
+			auto member = builder.getRewriter().create<mlir::rlc::MemberAccess>(
+					statement.getLoc(), preconditionBB->getArguments()[0], index);
+			args.push_back(member);
+		}
+
+		auto result = builder.getRewriter().create<mlir::rlc::CallOp>(
+				statement.getLoc(), canExecuteAction, true, args);
+
+		builder.getRewriter().create<mlir::rlc::Yield>(
+				statement.getLoc(), mlir::ValueRange({ result.getResults()[0] }));
+	}
+
+	{
+		auto *bodyBB = builder.getRewriter().createBlock(
+				&applyFunction.getBody(), {}, types, locs);
+
+		builder.getRewriter().setInsertionPointToStart(bodyBB);
+
+		llvm::SmallVector<mlir::Value, 4> args(
+				std::next(bodyBB->args_begin()), bodyBB->args_end());
+		for (auto [index, actionType] : llvm::enumerate(actionType.getBody()))
+		{
+			auto member = builder.getRewriter().create<mlir::rlc::MemberAccess>(
+					statement.getLoc(), bodyBB->getArguments()[0], index);
+			args.push_back(member);
+		}
+
+		builder.getRewriter().create<mlir::rlc::CallOp>(
+				statement.getLoc(), action, true, args);
+		builder.getRewriter().create<mlir::rlc::Yield>(
+				statement.getLoc(), mlir::ValueRange({}));
+	}
+}
+
+static void declareActionStatementType(
+		mlir::rlc::ActionFunction function,
+		mlir::rlc::ModuleBuilder &builder,
+		mlir::Value action)
+{
+	builder.getRewriter().setInsertionPoint(function);
+	auto statement = mlir::dyn_cast<mlir::rlc::ActionStatement>(
+			builder.actionFunctionValueToActionStatement(action).front());
+
+	std::string name = function.getEntityType().getName().str() + "_";
+	name += statement.getName();
+
+	llvm::SmallVector<mlir::Type, 4> fieldTypes;
+	llvm::SmallVector<std::string, 4> fieldNames;
+	llvm::SmallVector<llvm::StringRef, 4> fieldNamesRef;
+
+	for (auto [name, result] :
+			 llvm::zip(statement.getDeclaredNames(), statement.getResults()))
+	{
+		if (result.getType().isa<mlir::rlc::ContextType>())
+			continue;
+		auto type = result.getType();
+		if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+			type = casted.getUnderlying();
+		fieldNames.push_back(name.cast<mlir::StringAttr>().str());
+		fieldNamesRef.push_back(name.cast<mlir::StringAttr>());
+		fieldTypes.push_back(type);
+	}
+
+	auto type = mlir::rlc::EntityType::getNewIdentified(
+			function.getContext(), name, fieldTypes, fieldNames, {});
+
+	auto built = builder.getRewriter().create<mlir::rlc::EntityDeclaration>(
+			statement.getLoc(),
+			type,
+			name,
+			builder.getRewriter().getTypeArrayAttr(fieldTypes),
+			builder.getRewriter().getStrArrayAttr(fieldNamesRef),
+			builder.getRewriter().getTypeArrayAttr({}));
+	defineApplyFunction(function, builder, action, statement, type);
+}
+
+// given a action function X, for each action statement y of X, declares a type
+// called X + y[0].toUppercase() + y[1:] that has a field for each argument of y
+// with the same name and the same type.
+//
+// the generated type contains a function called apply that takes the action
+// frame and ever ctx argument, and invokes the underlying y action statement
+// using the content of the generated type.
+//
+// it declares as well a type called XAction that is a alternative type
+// containing a entry for each generated action type
+static mlir::LogicalResult declareActionTypes(
+		mlir::rlc::ActionFunction function, mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getRewriter().setInsertionPoint(function);
+	builder.getRewriter().create<mlir::rlc::TraitDefinition>(
+			function.getLoc(),
+			mlir::rlc::TraitMetaType::get(
+					function.getContext(),
+					(function.getEntityType().getName() + "Action").str(),
+					"T",
+					{ mlir::FunctionType::get(
+							function.getContext(),
+							{ mlir::rlc::TemplateParameterType::get(
+										function.getContext(), "T", nullptr, false),
+								function.getEntityType() },
+							{}) },
+					{ builder.getRewriter().getStringAttr("apply") }));
+	for (auto action : function.getActions())
+	{
+		declareActionStatementType(function, builder, action);
+	}
+	return mlir::success();
+}
+
 mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
-		mlir::rlc::ActionFunction fun, ValueTable *parentSymbolTable)
+		mlir::rlc::ActionFunction fun, mlir::rlc::ValueTable *parentSymbolTable)
 {
 	mlir::rlc::ModuleBuilder builder(
 			fun->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
@@ -253,6 +413,12 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 
 	assignActionIndicies(fun);
 	auto newF = deduceActionType(fun);
+
+	mlir::rlc::ModuleBuilder builder2(
+			newF->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
+	if (declareActionTypes(newF, builder2).failed())
+		return nullptr;
+
 	return newF;
 }
 
@@ -911,7 +1077,7 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 		return maybeInstantiateAction(builder, newCall->getResults()[0]);
 	}
 
-	if (newCall->getNumResults() == 0 and
+	if (newCall->getNumResults() == 0 and not getResults().empty() and
 			not getResults().front().getUsers().empty())
 	{
 		return logError(

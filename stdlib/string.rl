@@ -108,6 +108,9 @@ fun s(StringLiteral literal) -> String:
 trait<T> StringSerializable:
     fun append_to_string(T to_add, String output)
 
+trait<T> CustomGetTypeName:
+    fun get_type_name(T to_add) -> StringLiteral
+
 fun append_to_string(StringLiteral x, String output):
     output.append(x)
 

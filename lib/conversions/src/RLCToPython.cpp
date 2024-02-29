@@ -199,7 +199,11 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 		for (auto sub : t.getInputs())
 		{
 			auto converted = converter.convertType(sub);
-			assert(converted);
+			if (not converted)
+			{
+				sub.dump();
+				abort();
+			}
 			inputTypes.push_back(converted);
 		}
 		return mlir::FunctionType::get(t.getContext(), inputTypes, resTypes);
