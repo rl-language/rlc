@@ -84,6 +84,12 @@ ent String:
             counter = counter + 1
         return true
 
+    fun not_equal(String other) -> Bool:
+        return !(self.equal(other))
+
+    fun not_equal(StringLiteral other) -> Bool:
+        return !(self.equal(other))
+
     fun drop_back(Int quantity):
         self._data.drop_back(quantity)
 
@@ -147,6 +153,12 @@ fun<T> append_to_string(Vector<T> to_add, String output):
 
     output.append(']')
 
+fun<T> _print_type(T to_add, StringLiteral default_type_name, String output):
+    if to_add is CustomGetTypeName:
+        output.append(to_add.get_type_name())
+    else:
+        _to_string_impl(default_type_name, output)
+
 fun<T> _to_string_impl(T to_add, String output):
     if to_add is StringSerializable:
         to_add.append_to_string(output)
@@ -155,7 +167,7 @@ fun<T> _to_string_impl(T to_add, String output):
         for name, field of to_add:
             using Type = type(field)
             if to_add is Type:
-                _to_string_impl(name, output)
+                _print_type(to_add, name, output)
                 output.append("(")
                 _to_string_impl(to_add, output)
                 output.append(")")
@@ -263,13 +275,19 @@ fun<T> parse_string(Vector<T> result, String buffer, Int index) -> Bool:
     index = index + 1
     return true
 
+fun<T> _parse_type(T to_parse, String buffer, StringLiteral type_name, Int index) -> Bool:
+    if to_parse is CustomGetTypeName:
+        return _consume_literal(buffer, to_parse.get_type_name(), index)
+    else:
+        return _consume_literal(buffer, type_name, index)
+
 fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
     if result is StringParsable:
         return result.parse_string(buffer, index)
     else if result is Alternative:
         for name, field of result:
             using Type = type(field)
-            if _consume_literal(buffer, name, index):
+            if _parse_type(field, buffer, name, index):
                 if !_consume_literal(buffer, "(", index):
                     return false
                 let to_parse : Type 
