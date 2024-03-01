@@ -447,7 +447,7 @@ static mlir::LogicalResult declareActionTypes(
 			mlir::rlc::TraitMetaType::get(
 					function.getContext(),
 					(function.getEntityType().getName() + "Action").str(),
-					"T",
+					{ builder.getRewriter().getStringAttr("T") },
 					{ mlir::FunctionType::get(
 							function.getContext(),
 							{ mlir::rlc::TemplateParameterType::get(
@@ -999,8 +999,8 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 {
 	auto &rewriter = builder.getRewriter();
 	auto _ = builder.addSymbolTable();
-	builder.getConverter().registerType(
-			getTemplateParameter(), getTemplateParameterType());
+	for (auto t : getTemplateParameterTypes())
+		builder.getConverter().registerType(t.getName(), t);
 
 	llvm::SmallVector<mlir::rlc::FunctionOp, 4> Ops(
 			getBody().getOps<mlir::rlc::FunctionOp>());
@@ -1018,32 +1018,38 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 		types.push_back(op.getFunctionType());
 	}
 
+	llvm::SmallVector<mlir::StringAttr> typeNames;
+	for (auto t : getTemplateParameters())
+	{
+		auto name = builder.getRewriter().getStringAttr(
+				"TraitType" + t.cast<mlir::StringAttr>().strref());
+		typeNames.push_back(name);
+	}
+
 	auto type = mlir::rlc::TraitMetaType::get(
-			getContext(),
-			getName(),
-			("TraitType" + getTemplateParameter()).str(),
-			types,
-			names);
+			getContext(), getName(), typeNames, types, names);
 	rewriter.setInsertionPointAfter(*this);
 	auto op = rewriter.create<mlir::rlc::TraitDefinition>(getLoc(), type);
 
-	// replace the template parameter provided by the user with one prefixed with
+	// replace the template parameters provided by the user with one prefixed with
 	// TraitType so that it does not clashes with regular names
-	auto templateParameter = getTemplateParameterType();
-	auto renamedTemplateParameter = mlir::rlc::TemplateParameterType::get(
-			op.getContext(),
-			("TraitType" + templateParameter.getName()).str(),
-			templateParameter.getTrait(),
-			templateParameter.getIsIntLiteral());
-	mlir::AttrTypeReplacer replacer;
-	replacer.addReplacement(
-			[templateParameter,
-			 renamedTemplateParameter](mlir::Type t) -> mlir::Type {
-				if (t == templateParameter)
-					return renamedTemplateParameter;
-				return t;
-			});
-	replacer.replaceElementsIn(op, true, false, true);
+	for (auto templateParameter : getTemplateParameterTypes())
+	{
+		mlir::AttrTypeReplacer replacer;
+		auto renamedTemplateParameter = mlir::rlc::TemplateParameterType::get(
+				op.getContext(),
+				("TraitType" + templateParameter.getName()).str(),
+				templateParameter.getTrait(),
+				templateParameter.getIsIntLiteral());
+		replacer.addReplacement(
+				[templateParameter,
+				 renamedTemplateParameter](mlir::Type t) -> mlir::Type {
+					if (t == templateParameter)
+						return renamedTemplateParameter;
+					return t;
+				});
+		replacer.replaceElementsIn(op, true, false, true);
+	}
 	rewriter.eraseOp(*this);
 	return mlir::success();
 }
@@ -1070,7 +1076,7 @@ static void promoteArgumentOfIsOp(
 					trait.getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
 			auto instantiated = replaceTemplateParameter(
 					methodType,
-					trait.getTemplateParameterType(),
+					trait.getTemplateParameterTypes().back(),
 					isOp.getExpression().getType());
 			auto upcastedValue = rewriter.create<mlir::rlc::TemplateInstantiationOp>(
 					isOp.getLoc(),
@@ -2148,11 +2154,14 @@ mlir::SuccessorOperands mlir::rlc::SelectBranch::getSuccessorOperands(
 			mlir::MutableOperandRange(getOperation(), 0, 0));
 }
 
-mlir::rlc::TemplateParameterType
-mlir::rlc::UncheckedTraitDefinition::getTemplateParameterType()
+llvm::SmallVector<mlir::rlc::TemplateParameterType, 4>
+mlir::rlc::UncheckedTraitDefinition::getTemplateParameterTypes()
 {
-	return mlir::rlc::TemplateParameterType::get(
-			getContext(), getTemplateParameter(), nullptr, false);
+	llvm::SmallVector<mlir::rlc::TemplateParameterType, 4> toReturn;
+	for (auto t : getTemplateParameters())
+		toReturn.push_back(mlir::rlc::TemplateParameterType::get(
+				getContext(), t.cast<mlir::StringAttr>(), nullptr, false));
+	return toReturn;
 }
 
 mlir::LogicalResult mlir::rlc::FunctionOp::isTemplate()

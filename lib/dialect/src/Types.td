@@ -203,13 +203,16 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
   let description = [{
 	 rapresents a trait meta type
   }];
-  let parameters = (ins StringRefParameter<>:$name, StringRefParameter<>:$template_parameter, ArrayRefParameter<"FunctionType">:$requested_function_types, ArrayRefParameter<"mlir::StringAttr">:$requested_function_names);
+  let parameters = (ins StringRefParameter<>:$name, ArrayRefParameter<"mlir::StringAttr">:$template_parameters, ArrayRefParameter<"FunctionType">:$requested_function_types, ArrayRefParameter<"mlir::StringAttr">:$requested_function_names);
 
-  let assemblyFormat = "`<`  $name  `<` $template_parameter `>` `[`$requested_function_types `]` `[` $requested_function_names `]` `>`";
+  let assemblyFormat = "`<`  $name  `<` $template_parameters `>` `[`$requested_function_types `]` `[` $requested_function_names `]` `>`";
 
   let extraClassDeclaration = [{
-	  mlir::rlc::TemplateParameterType getTemplateParameterType() {
-		return mlir::rlc::TemplateParameterType::get(getContext(), getTemplateParameter(), nullptr, false);
+	  llvm::SmallVector<mlir::rlc::TemplateParameterType, 4> getTemplateParameterTypes() {
+        llvm::SmallVector<mlir::rlc::TemplateParameterType, 4> toReturn;
+        for (auto name : getTemplateParameters())
+            toReturn.push_back(mlir::rlc::TemplateParameterType::get(getContext(), name, nullptr, false));
+        return toReturn;
 	  }
 
 	mlir::LogicalResult typeRespectsTrait(mlir::Location callPoint, mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table);

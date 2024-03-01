@@ -55,10 +55,37 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	return table;
 }
 
-static mlir::Type instantiateStructType(mlir::Type type, mlir::TypeRange values)
+static mlir::Type instantiateTemplate(mlir::Type type, mlir::TypeRange values)
 {
 	if (values.empty())
 		return type;
+
+	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
+	{
+		if (casted.getTemplateParameterTypes().size() != values.size() + 1)
+		{
+			mlir::emitError(
+					mlir::UnknownLoc::get(type.getContext()),
+					mlir::Twine("Trait explicit instantiation needed ") +
+							mlir::Twine((casted.getTemplateParameterTypes().size() - 1)) +
+							mlir::Twine(" arguments, but ") + mlir::Twine(values.size()) +
+							mlir::Twine(" where provided"));
+			return nullptr;
+		}
+		mlir::Type toReturn = casted;
+		for (auto pair : llvm::zip(casted.getTemplateParameterTypes(), values))
+		{
+			auto current = std::get<0>(pair);
+			auto replacement = std::get<1>(pair);
+			toReturn = casted.replace([&](mlir::Type t) -> mlir::Type {
+				if (t == current)
+					return replacement;
+				return t;
+			});
+		}
+
+		return toReturn;
+	}
 
 	if (not type.isa<mlir::rlc::EntityType>())
 	{
@@ -67,7 +94,7 @@ static mlir::Type instantiateStructType(mlir::Type type, mlir::TypeRange values)
 			type.dump();
 		mlir::emitError(
 				mlir::UnknownLoc::get(type.getContext()),
-				"explicit template instantiation on non template entity type");
+				"explicit template instantiation on non template entity or trait type");
 		return nullptr;
 	}
 	auto casted = type.cast<mlir::rlc::EntityType>();
@@ -142,8 +169,7 @@ static void registerConversions(
 				{
 					return std::nullopt;
 				}
-				maybeType =
-						instantiateStructType(maybeType, explicitTemplateParameters);
+				maybeType = instantiateTemplate(maybeType, explicitTemplateParameters);
 				if (maybeType == nullptr)
 				{
 					return std::nullopt;
@@ -425,7 +451,7 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 		::makeValueTable(op, getSymbolTable());
 	for (auto trait : op.getOps<mlir::rlc::TraitDefinition>())
 	{
-		auto result = traits.try_emplace(trait.getMetaType(), trait);
+		auto result = traits.try_emplace(trait.getMetaType().getName(), trait);
 		assert(result.second);
 	}
 
@@ -460,7 +486,7 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 mlir::rlc::TraitDefinition mlir::rlc::ModuleBuilder::getTraitDefinition(
 		mlir::rlc::TraitMetaType type)
 {
-	return traits[type];
+	return traits[type.getName()];
 }
 
 mlir::Type mlir::rlc::ModuleBuilder::typeOfAction(mlir::rlc::ActionFunction& f)

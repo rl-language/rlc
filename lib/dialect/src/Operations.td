@@ -43,18 +43,18 @@ def RLC_UncheckedTraitDefinition : RLC_Dialect<"unckecked_trait", [DeclareOpInte
 	rappresentation of a trait before the typechecking	
   }];
 
-  let arguments = (ins StrAttr:$name, StrAttr:$template_parameter);
+  let arguments = (ins StrAttr:$name, StrArrayAttr:$template_parameters);
 
   let regions = (region
 	SizedRegion<1>:$body
   );
 
   let assemblyFormat = [{
-	$name `<` $template_parameter `>` $body attr-dict
+	$name `<`$template_parameters `>` $body attr-dict
   }];
 
   let extraClassDeclaration = [{
-	  mlir::rlc::TemplateParameterType getTemplateParameterType(); 
+	llvm::SmallVector<mlir::rlc::TemplateParameterType, 4> getTemplateParameterTypes(); 
   }];
 }
 

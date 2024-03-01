@@ -706,8 +706,8 @@ mlir::rlc::TraitMetaType::typeRespectsTraitFunctionDeclaration(
 {
 	auto methodType =
 			getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
-	auto instantiated =
-			replaceTemplateParameter(methodType, getTemplateParameterType(), type);
+	auto instantiated = replaceTemplateParameter(
+			methodType, getTemplateParameterTypes().back(), type);
 
 	llvm::StringRef methodName = getRequestedFunctionNames()[index];
 	return sameSignatureMethodExists(callPoint, table, methodName, instantiated);

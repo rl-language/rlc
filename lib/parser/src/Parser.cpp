@@ -1582,13 +1582,20 @@ Expected<mlir::rlc::UncheckedTraitDefinition> Parser::traitDefinition()
 	auto onExit = [&, this]() { builder.restoreInsertionPoint(pos); };
 	EXPECT(Token::KeywordTrait, onExit());
 	EXPECT(Token::LAng, onExit());
-	EXPECT(Token::Identifier, onExit());
-	auto templateParameter = lIdent;
+	llvm::SmallVector<std::string, 3> identifiers;
+	do
+	{
+		EXPECT(Token::Identifier, onExit());
+		identifiers.push_back(lIdent);
+	} while (accept<Token::Comma>());
 	EXPECT(Token::RAng, onExit());
 	EXPECT(Token::Identifier, onExit());
 	auto traitName = lIdent;
 	auto trait = builder.create<mlir::rlc::UncheckedTraitDefinition>(
-			location, traitName, templateParameter);
+			location,
+			traitName,
+			builder.getStrArrayAttr(llvm::SmallVector<llvm::StringRef, 3>(
+					identifiers.begin(), identifiers.end())));
 	builder.createBlock(&trait.getBody());
 	builder.setInsertionPoint(
 			&trait.getBody().front(), trait.getBody().front().begin());

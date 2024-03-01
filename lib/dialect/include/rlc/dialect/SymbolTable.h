@@ -248,6 +248,6 @@ namespace mlir::rlc
 				actionDeclToActionStatements;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<std::string, 4>>
 				actionDeclToActionNames;
-		llvm::DenseMap<mlir::rlc::TraitMetaType, mlir::rlc::TraitDefinition> traits;
+		llvm::StringMap<mlir::rlc::TraitDefinition> traits;
 	};
 }	 // namespace mlir::rlc
