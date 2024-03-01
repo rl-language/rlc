@@ -279,7 +279,7 @@ static void defineGetNameFunction(
 	}
 }
 
-static void defineApplyFunction(
+static mlir::rlc::FunctionOp defineApplyFunction(
 		mlir::rlc::ActionFunction function,
 		mlir::rlc::ModuleBuilder &builder,
 		mlir::Value action,
@@ -361,6 +361,8 @@ static void defineApplyFunction(
 		builder.getRewriter().create<mlir::rlc::Yield>(
 				statement.getLoc(), mlir::ValueRange({}));
 	}
+
+	return applyFunction;
 }
 
 static std::string snakeCaseToCamelCase(llvm::StringRef str)
@@ -378,10 +380,11 @@ static std::string snakeCaseToCamelCase(llvm::StringRef str)
 	return toReturn;
 }
 
-static void declareActionStatementType(
+static mlir::Type declareActionStatementType(
 		mlir::rlc::ActionFunction function,
 		mlir::rlc::ModuleBuilder &builder,
-		mlir::Value action)
+		mlir::Value action,
+		llvm::SmallVector<mlir::rlc::FunctionOp, 4> applyFunctions)
 {
 	builder.getRewriter().setInsertionPoint(function);
 	auto statement = mlir::dyn_cast<mlir::rlc::ActionStatement>(
@@ -417,8 +420,12 @@ static void declareActionStatementType(
 			builder.getRewriter().getTypeArrayAttr(fieldTypes),
 			builder.getRewriter().getStrArrayAttr(fieldNamesRef),
 			builder.getRewriter().getTypeArrayAttr({}));
-	defineApplyFunction(function, builder, action, statement, type);
+	auto applyFunction =
+			defineApplyFunction(function, builder, action, statement, type);
 	defineGetNameFunction(function, builder, action, statement, type);
+	applyFunctions.push_back(applyFunction);
+
+	return type;
 }
 
 // given a action function X, for each action statement y of X, declares a type
@@ -448,10 +455,41 @@ static mlir::LogicalResult declareActionTypes(
 								function.getEntityType() },
 							{}) },
 					{ builder.getRewriter().getStringAttr("apply") }));
+
+	llvm::SmallVector<mlir::Type, 4> declaredTypes;
+	llvm::SmallVector<mlir::rlc::FunctionOp, 4> applyFunctions;
 	for (auto action : function.getActions())
 	{
-		declareActionStatementType(function, builder, action);
+		auto declaredType =
+				declareActionStatementType(function, builder, action, applyFunctions);
+		declaredTypes.push_back(declaredType);
 	}
+
+	builder.getRewriter().setInsertionPoint(function);
+
+	if (declaredTypes.empty())
+		return mlir::success();
+
+	// declares a type that contains the alternative between all possible actions
+	mlir::Type alternative =
+			mlir::rlc::AlternativeType::get(function.getContext(), declaredTypes);
+	auto type = mlir::rlc::EntityType::getNewIdentified(
+			function.getContext(),
+			("Any" + function.getEntityType().getName() + "Action").str(),
+			{ alternative },
+			{ "content" },
+			{});
+
+	builder.getRewriter().create<mlir::rlc::EntityDeclaration>(
+			function.getLoc(),
+			type,
+			type.getName(),
+			builder.getRewriter().getTypeArrayAttr(type.getBody()),
+			builder.getRewriter().getStrArrayAttr(
+					llvm::SmallVector<llvm::StringRef, 2>(
+							type.getFieldNames().begin(), type.getFieldNames().end())),
+			builder.getRewriter().getTypeArrayAttr({}));
+
 	return mlir::success();
 }
 

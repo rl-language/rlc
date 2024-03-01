@@ -557,6 +557,7 @@ static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
 	{
 		size_t i = 0;
+		OS << "alt_";
 		for (auto input : maybeType.getUnderlying())
 		{
 			i++;
