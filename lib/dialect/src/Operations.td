@@ -366,6 +366,19 @@ def RLC_StatementList : RLC_Dialect<"list", [SymbolTable, DeclareOpInterfaceMeth
   }];
 }
 
+def RLC_TypeAliasOp : RLC_Dialect<"alias", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "statement list.";
+
+  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased);
+  let description = [{
+	expression.
+  }];
+
+  let assemblyFormat = [{
+	$name `=` $aliased attr-dict 
+  }];
+}
+
 def RLC_Reference : RLC_Dialect<"ref"> {
   let summary = "statement list.";
 

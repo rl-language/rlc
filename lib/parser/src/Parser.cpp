@@ -302,15 +302,18 @@ mlir::Type Parser::unkType() { return mlir::rlc::UnknownType::get(ctx); }
 /**
  * usingTypeStatement : `using` ident `=` `Type` `(` expression `)`
  */
-Expected<mlir::rlc::UsingTypeOp> Parser::usingTypeStatement()
+Expected<mlir::Operation*> Parser::usingTypeStatement()
 {
-	auto location = getCurrentSourcePos();
-
 	EXPECT(Token::KeywordUsing);
+	auto location = getCurrentSourcePos();
 	EXPECT(Token::Identifier);
 	auto typeName = lIdent;
 	EXPECT(Token::Equal);
-	EXPECT(Token::KeywordType);
+	if (not accept<Token::KeywordType>())
+	{
+		TRY(typeUse, singleTypeUse());
+		return builder.create<mlir::rlc::TypeAliasOp>(location, typeName, *typeUse);
+	}
 	EXPECT(Token::LPar);
 
 	auto usingOp = builder.create<mlir::rlc::UsingTypeOp>(location, lIdent);
@@ -1613,6 +1616,18 @@ Expected<mlir::rlc::UncheckedTraitDefinition> Parser::traitDefinition()
 	return trait;
 }
 
+llvm::Expected<mlir::rlc::TypeAliasOp> Parser::usingStatement()
+{
+	EXPECT(Token::KeywordUsing);
+	EXPECT(Token::Identifier);
+	auto location = getCurrentSourcePos();
+	std::string name = lIdent;
+
+	EXPECT(Token::Equal);
+	TRY(typeUse, singleTypeUse());
+	return builder.create<mlir::rlc::TypeAliasOp>(location, name, *typeUse);
+}
+
 Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 {
 	auto location = getCurrentSourcePos();
@@ -1663,6 +1678,12 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		if (current == Token::KeywordEntity)
 		{
 			TRY(f, entityDeclaration());
+			continue;
+		}
+
+		if (current == Token::KeywordUsing)
+		{
+			TRY(f, usingStatement());
 			continue;
 		}
 

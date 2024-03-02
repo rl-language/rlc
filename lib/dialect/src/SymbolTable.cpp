@@ -52,6 +52,9 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 		table.add(
 				traitDefinition.getMetaType().getName(), traitDefinition.getMetaType());
 
+	for (auto usingStatemenet : mod.getOps<mlir::rlc::TypeAliasOp>())
+		table.add(usingStatemenet.getName(), usingStatemenet.getAliased());
+
 	return table;
 }
 

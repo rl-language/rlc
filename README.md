@@ -181,11 +181,9 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 ### Roadmap
 
 #### near term feature
-* allow declarations to be explicitly refs, in general require the user to specify this stuff and the emits error if its is wrong instead of deducing it
 * require clauses out of line (just allow to call any function i guess?)
 * require clauses on structs
 * inline initializers
-* string support
 * proper support for different architectures
 * add "if x is Y as k:" to allow a way to dodge shadowing
 

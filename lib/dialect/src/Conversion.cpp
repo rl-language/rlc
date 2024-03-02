@@ -545,6 +545,20 @@ class IsOpRewriter: public mlir::OpConversionPattern<mlir::rlc::IsOp>
 	}
 };
 
+class AliasTypeEraser: public mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::TypeAliasOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class FlatActionStatementEraser
 		: public mlir::OpConversionPattern<mlir::rlc::FlatActionStatement>
 {
@@ -1873,6 +1887,7 @@ namespace mlir::rlc
 					.add(makeArith(lowerMult, converter, &getContext()))
 					.add<YieldRewriter>(converter, &getContext())
 					.add<YieldReferenceRewriter>(converter, &getContext())
+					.add<AliasTypeEraser>(converter, &getContext())
 					.add<CopyRewriter>(converter, &getContext())
 					.add<ArrayAccessRewriter>(converter, &getContext())
 					.add<UninitializedConstructRewriter>(converter, &getContext())

@@ -553,6 +553,20 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 	return LogicalResult::success();
 }
 
+mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	auto deducedType = builder.getConverter().convertType(getAliased());
+	if (not deducedType)
+	{
+		return mlir::rlc::logError(
+				*this, "right hand of using is not a valid type");
+	}
+	builder.getConverter().registerType(getName(), deducedType);
+	this->setAliased(deducedType);
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::UnderTypeCheckMarker::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
