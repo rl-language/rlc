@@ -2,6 +2,8 @@
 # RUN: %t
 
 import serialization.to_byte_vector
+import string
+import action
 
 ent Board:
 	Int[9] slots
@@ -78,6 +80,11 @@ fun gen_printer_parser():
 	let state = play()
 	let serialized = as_byte_vector(state)
 	from_byte_vector(state, serialized)
+    let x : AnyTicTacToeAction
+    apply(x.content, state)
+    to_string(state)
+    to_string(x.content)
+    from_string(x.content, ""s)
 
 fun main() -> Int:
 	let game = play()

@@ -39,6 +39,14 @@ def RLC_CTypesFloat : RLC_PythonType<"CTypesFloat", "ctypes_float"> {
 
 }
 
+def RLC_CTypesCharP : RLC_PythonType<"CTypesCharP", "ctypes_char_p"> {
+  let summary = "RLC builtin integer type";
+  let description = [{
+    Implementation agnostic integer type.
+  }];
+
+}
+
 def RLC_CTypeArrayType : RLC_PythonType<"CArray", "ctypes_array"> {
   let parameters = (ins "Type":$sub_type, "int64_t":$size);
 
@@ -85,6 +93,14 @@ def RLC_PythonFloat : RLC_PythonType<"Float", "float"> {
   let summary = "RLC builtin integer type";
   let description = [{
     Implementation agnostic integer type.
+  }];
+
+}
+
+def RLC_PythonString : RLC_PythonType<"Str", "str"> {
+  let summary = "RLC builtin string type";
+  let description = [{
+    python string
   }];
 
 }

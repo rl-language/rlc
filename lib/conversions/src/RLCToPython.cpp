@@ -65,9 +65,7 @@ static void registerBuiltinConversions(
 	});
 
 	converter.addConversion([](mlir::rlc::StringLiteralType t) -> mlir::Type {
-		return mlir::rlc::python::CTypesPointerType::get(
-				t.getContext(),
-				mlir::rlc::python::CTypesIntType::get(t.getContext(), 8));
+		return mlir::rlc::python::StrType::get(t.getContext());
 	});
 
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
@@ -139,9 +137,7 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 	});
 
 	converter.addConversion([](mlir::rlc::StringLiteralType t) -> mlir::Type {
-		return mlir::rlc::python::CTypesPointerType::get(
-				t.getContext(),
-				mlir::rlc::python::CTypesIntType::get(t.getContext(), 8));
+		return mlir::rlc::python::CTypesCharPType::get(t.getContext());
 	});
 
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
@@ -255,6 +251,14 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 					value);
 			values.push_back(res);
 		}
+		else if (value.getType().isa<mlir::rlc::python::StrType>())
+		{
+			auto res = rewriter.create<mlir::rlc::python::PythonCast>(
+					value.getLoc(),
+					mlir::rlc::python::CTypesCharPType::get(value.getContext()),
+					value);
+			values.push_back(res);
+		}
 		else
 		{
 			values.push_back(value);
@@ -272,7 +276,8 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 
 	mlir::Value toReturn = result.getResult(0);
 
-	if (resType.isa<mlir::rlc::python::CTypesFloatType>())
+	if (resType.isa<mlir::rlc::python::CTypesFloatType>() or
+			resType.isa<mlir::rlc::python::StrType>())
 	{
 		toReturn = rewriter.create<mlir::rlc::python::PythonAccess>(
 				result.getLoc(),

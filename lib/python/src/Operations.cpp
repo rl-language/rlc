@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -326,7 +326,10 @@ mlir::LogicalResult mlir::rlc::python::PythonCast::emit(
 
 	writeTypeName(OS, getResult().getType());
 
-	OS << "(" << context.nameOf(getLhs()) << ")\n";
+	if (getResult().getType().isa<mlir::rlc::python::CTypesCharPType>())
+		OS << "(" << context.nameOf(getLhs()) << ".encode(\"utf-8\"))\n";
+	else
+		OS << "(" << context.nameOf(getLhs()) << ")\n";
 	return mlir::success();
 }
 
@@ -391,7 +394,10 @@ mlir::LogicalResult mlir::rlc::python::PythonCall::emit(
 
 	for (auto arg : getArgs())
 	{
-		OS << "byref(" << context.nameOf(arg) << "), ";
+		if (arg.getType().isa<mlir::rlc::python::CTypesCharPType>())
+			OS << context.nameOf(arg) << ", ";
+		else
+			OS << "byref(" << context.nameOf(arg) << "), ";
 	}
 
 	OS << ")\n";

@@ -272,6 +272,18 @@ class State:
         self.simulation = simulation
         self.state = state
 
+    def parse_action(self, action: str):
+        any_action = self.simulation.module.AnyTicTacToeAction()
+        rl_string = self.simulation.to_rl_string(action)
+        self.simulation.module.functions.from_string(any_action.content, rl_string)
+        return any_action
+
+    def print_action(self, action):
+        print(self.simulation.to_python_string(self.simulation.module.functions.to_string(action.content)))
+
+    def apply_action(self, action):
+        self.simulation.module.functions.apply(action.content, self.state)
+
     def execute(self, *arguments):
         return self.simulation.execute([arguments[0], self.state, *arguments[1:]])
 
@@ -287,8 +299,11 @@ class State:
     def is_done(self) -> bool:
         return self.state.resume_index == -1
 
+    def to_string(self) -> str:
+        return self.simulation.to_python_string(self.simulation.module.functions.to_string(self.state))
+
     def dump(self):
-        dump(self.state)
+        print(self.to_string())
 
     @property
     def actions(self) -> [Action]:
@@ -449,6 +464,13 @@ class Simulation:
                 return overload
         return None
 
+    def to_rl_string(self, string):
+        return self.module.rl_s__strlit_r_String(string)
+
+    def to_python_string(self, string):
+        first_character = getattr(getattr(string, "__data"), "__data")
+        return self.module.cast(first_character, self.module.c_char_p).value.decode("utf-8")
+
 
 def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
     include_args = []
@@ -472,7 +494,6 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
         args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]
         if rlc_runtime_lib != "":
             args = args + ["--runtime-lib", rlc_runtime_lib]
-        print(args)
         assert (
             run(
                 args

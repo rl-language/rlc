@@ -11,6 +11,7 @@ import argparse
 from loader.simulation import dump
 from loader import Simulation, compile, State
 from solvers import find_end
+import sys
 from shutil import which
 from command_line import load_simulation_from_args, make_rlc_argparse, load_network
 
@@ -34,11 +35,11 @@ def main():
         default="",
     )
     parser.add_argument(
-        "actions",
+        "action_file",
         type=str,
-        nargs="+",
-        help="actions",
-        default=[],
+        nargs="?",
+        help="path to file containing a action for each line",
+        default="-",
     )
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
@@ -53,9 +54,11 @@ def main():
     if args.load != "":
         state.load(args.load)
 
-    if not state.is_done():
-        print(*args.actions)
-        state.execute(*args.actions)
+    lines = sys.stdin.readlines() if args.action_file == '-' else open(args.action_file, "r").readlines()
+    for line in lines:
+        action = state.parse_action(line)
+        state.print_action(action)
+        state.apply_action(action)
 
     if args.output != "":
         state.write(args.output)
