@@ -275,14 +275,14 @@ class State:
     def parse_action(self, action: str):
         any_action = self.simulation.module.AnyTicTacToeAction()
         rl_string = self.simulation.to_rl_string(action)
-        self.simulation.module.functions.from_string(any_action.content, rl_string)
+        self.simulation.module.functions.from_string(any_action, rl_string)
         return any_action
 
     def print_action(self, action):
-        print(self.simulation.to_python_string(self.simulation.module.functions.to_string(action.content)))
+        print(self.simulation.to_python_string(self.simulation.module.functions.to_string(action)))
 
     def apply_action(self, action):
-        self.simulation.module.functions.apply(action.content, self.state)
+        self.simulation.module.functions.apply(action, self.state)
 
     def execute(self, *arguments):
         return self.simulation.execute([arguments[0], self.state, *arguments[1:]])

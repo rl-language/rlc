@@ -48,6 +48,19 @@ def RLC_PythonAccess : RLC_PythonOp<"access", [DeclareOpInterfaceMethods<EmitPyt
   }];
 }
 
+def RLC_PythonTypeAliasOp : RLC_PythonOp<"alias", [DeclareOpInterfaceMethods<EmitPython>]> {
+  let summary = "type alias";
+
+  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased);
+  let description = [{
+	expression.
+  }];
+
+  let assemblyFormat = [{
+	$name `=` $aliased attr-dict 
+  }];
+}
+
 def RLC_PythonReturn : RLC_PythonOp<"return", [DeclareOpInterfaceMethods<EmitPython>, Terminator]> {
   let arguments = (ins Variadic<AnyType>:$lhs);
 

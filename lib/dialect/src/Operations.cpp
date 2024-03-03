@@ -473,22 +473,11 @@ static mlir::LogicalResult declareActionTypes(
 	// declares a type that contains the alternative between all possible actions
 	mlir::Type alternative =
 			mlir::rlc::AlternativeType::get(function.getContext(), declaredTypes);
-	auto type = mlir::rlc::EntityType::getNewIdentified(
-			function.getContext(),
-			("Any" + function.getEntityType().getName() + "Action").str(),
-			{ alternative },
-			{ "content" },
-			{});
 
-	builder.getRewriter().create<mlir::rlc::EntityDeclaration>(
+	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
 			function.getLoc(),
-			type,
-			type.getName(),
-			builder.getRewriter().getTypeArrayAttr(type.getBody()),
-			builder.getRewriter().getStrArrayAttr(
-					llvm::SmallVector<llvm::StringRef, 2>(
-							type.getFieldNames().begin(), type.getFieldNames().end())),
-			builder.getRewriter().getTypeArrayAttr({}));
+			("Any" + function.getEntityType().getName() + "Action").str(),
+			alternative);
 
 	return mlir::success();
 }

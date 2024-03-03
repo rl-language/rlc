@@ -333,6 +333,16 @@ mlir::LogicalResult mlir::rlc::python::PythonCast::emit(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::python::PythonTypeAliasOp::emit(
+		llvm::raw_ostream& OS, SerializationContext& context)
+{
+	OS.indent(context.getIndent() * 4);
+	OS << getName() << " = ";
+	writeTypeName(OS, getAliased());
+	OS << "\n";
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::python::PythonArgumentConstraint::emit(
 		llvm::raw_ostream& OS, SerializationContext& context)
 {

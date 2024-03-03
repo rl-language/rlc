@@ -341,6 +341,24 @@ class EnumDeclarationToNothing
 	}
 };
 
+class TypeAliasConverter
+		: public mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>
+{
+	public:
+	using mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::TypeAliasOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type = getTypeConverter()->convertType(op.getAliased());
+		rewriter.replaceOpWithNewOp<mlir::rlc::python::PythonTypeAliasOp>(
+				op, op.getName(), type);
+		return mlir::success();
+	}
+};
+
 class TraitDeclarationToNothing
 		: public mlir::OpConversionPattern<mlir::rlc::TraitDefinition>
 {
@@ -615,6 +633,7 @@ namespace mlir::python
 					&lib, &rlcBuilder, converter, &getContext());
 			patterns.add<TraitDeclarationToNothing>(converter, &getContext());
 			patterns.add<EnumDeclarationToNothing>(converter, &getContext());
+			patterns.add<TypeAliasConverter>(converter, &getContext());
 			patterns.add<ConstantGlobalArrayOpToNothing>(converter, &getContext());
 			patterns.add<EntityDeclarationToNothing>(converter, &getContext());
 			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());

@@ -58,7 +58,6 @@ ent Board:
 
 act play() -> TicTacToe:
 	frm board : Board
-	frm score = 10
 	while !board.full():
 		act mark(Int x, Int y) {
 			x < 3,
@@ -67,7 +66,6 @@ act play() -> TicTacToe:
 			y >= 0,
 			board.get(x, y) == 0
 		}
-		score = score - 1
 
 		board.set(x, y, board.current_player())
 
@@ -81,10 +79,10 @@ fun gen_printer_parser():
 	let serialized = as_byte_vector(state)
 	from_byte_vector(state, serialized)
     let x : AnyTicTacToeAction
-    apply(x.content, state)
+    apply(x, state)
     to_string(state)
-    to_string(x.content)
-    from_string(x.content, ""s)
+    to_string(x)
+    from_string(x, ""s)
 
 fun main() -> Int:
 	let game = play()

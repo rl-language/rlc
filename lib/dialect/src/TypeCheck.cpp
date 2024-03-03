@@ -316,7 +316,6 @@ static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 
 	for (auto& decl : decls)
 	{
-		decl->dump();
 		if (auto casted = mlir::dyn_cast<mlir::rlc::EntityDeclaration>(decl))
 		{
 			if (deduceEntityBody(op, casted).failed())

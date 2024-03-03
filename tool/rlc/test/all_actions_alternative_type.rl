@@ -10,7 +10,7 @@ act play() -> Name:
 fun main() -> Int:
     let any_action : AnyNameAction
     let second_action : NameSecond
-    any_action.content = second_action
-    if to_string(any_action.content) == "second {asd: 0}":
+    any_action= second_action
+    if to_string(any_action) == "second {asd: 0}":
         return 0
     return 1
