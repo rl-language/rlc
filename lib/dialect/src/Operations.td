@@ -1861,6 +1861,25 @@ def RLC_AssertOp : RLC_Dialect<"assert"> {
   let assemblyFormat = "$assertion type($assertion) attr-dict";
 }
 
+def RLC_UncheckedCanOp : RLC_Dialect <"unchecked_can", [DeclareOpInterfaceMethods<TypeCheckable>, NoTerminator, NoRegionArguments]> {
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+        $body attr-dict `:` type($result)
+    }];
+
+  let regions = (region
+    AnyRegion:$body
+  );
+
+  let builders = [
+        OpBuilder<(ins), [{
+			auto resultType = mlir::rlc::UnknownType::get(
+					$_builder.getContext());
+			build($_builder, $_state, resultType);
+  }]>];
+}
+
 def RLC_CanOp : RLC_Dialect <"can", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let arguments = (ins AnyFunctionType:$callee);
 

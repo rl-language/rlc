@@ -284,6 +284,9 @@ class State:
     def apply_action(self, action):
         self.simulation.module.functions.apply(action, self.state)
 
+    def can_apply_action(self, action) -> bool:
+        return self.simulation.module.functions.can_apply_impl(action, self.state)
+
     def execute(self, *arguments):
         return self.simulation.execute([arguments[0], self.state, *arguments[1:]])
 

@@ -50,6 +50,7 @@ namespace rlc
 
 		llvm::Expected<mlir::Value> primaryExpression();
 		llvm::Expected<mlir::Value> postFixExpression();
+		llvm::Expected<mlir::Value> canCallExpression();
 		llvm::Expected<mlir::Value> builtinMalloc();
 		llvm::Expected<mlir::Value> builtinFromArray();
 		llvm::Expected<mlir::Value> builtinToArray();

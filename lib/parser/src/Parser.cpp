@@ -335,6 +335,24 @@ Expected<mlir::Operation*> Parser::usingTypeStatement()
 	return usingOp;
 }
 
+// canExpression : "can"? postFixExpression
+llvm::Expected<mlir::Value> Parser::canCallExpression()
+{
+	auto location = getCurrentSourcePos();
+	if (not accept<Token::KeywordCan>())
+		return postFixExpression();
+
+	auto canExp = builder.create<mlir::rlc::UncheckedCanOp>(location);
+	auto* bb = builder.createBlock(&canExp.getBody());
+	builder.setInsertionPointToStart(bb);
+
+	auto onExit = [&]() { builder.setInsertionPointAfter(canExp); };
+
+	TRY(exp, postFixExpression(), onExit());
+	onExit();
+	return canExp;
+}
+
 /**
  * postFixExpression :
  *			((postFixExpression)*
@@ -444,7 +462,7 @@ Expected<mlir::Value> Parser::unaryExpression()
 		return builder.create<mlir::rlc::NotOp>(location, unkType(), *exp);
 	}
 
-	return postFixExpression();
+	return canCallExpression();
 }
 
 /**

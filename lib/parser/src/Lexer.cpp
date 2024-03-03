@@ -82,6 +82,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordRule";
 		case Token::KeywordEvent:
 			return "KeywordEvent";
+		case Token::KeywordCan:
+			return "KeywordCan";
 		case Token::KeywordAction:
 			return "KeywordAction";
 		case Token::KeywordSubAction:
@@ -416,6 +418,9 @@ Token Lexer::eatIdent()
 
 	if (name == "ctx")
 		return Token::KeywordCtx;
+
+	if (name == "can")
+		return Token::KeywordCan;
 
 	if (name == "true")
 		return Token::KeywordTrue;

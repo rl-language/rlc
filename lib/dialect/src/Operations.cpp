@@ -556,6 +556,40 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::UncheckedCanOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	for (auto *child : ops(getBody()))
+	{
+		if (mlir::rlc::typeCheck(*child, builder).failed())
+			return mlir::failure();
+	}
+	auto call = mlir::dyn_cast<mlir::rlc::CallOp>(getBody().front().back());
+	if (call == nullptr)
+	{
+		return mlir::rlc::logError(
+				*this, "can expression can only refer to a function call");
+	}
+
+	while (not getBody().front().empty())
+		getBody().front().front().moveBefore(*this);
+
+	builder.getRewriter().setInsertionPoint(call);
+	auto properCanOp = builder.getRewriter().create<mlir::rlc::CanOp>(
+			getLoc(), call.getCallee());
+	auto newCall = builder.getRewriter().create<mlir::rlc::CallOp>(
+			call.getLoc(), properCanOp, call.getIsMemberCall(), call.getArgs());
+	if (call.getNumResults() == 1)
+	{
+		call.replaceAllUsesWith(newCall.getResults());
+	}
+	call.erase();
+	replaceAllUsesWith(newCall.getResults()[0]);
+	erase();
+
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::UnderTypeCheckMarker::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {

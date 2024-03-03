@@ -57,7 +57,10 @@ def main():
     lines = sys.stdin.readlines() if args.action_file == '-' else open(args.action_file, "r").readlines()
     for line in lines:
         action = state.parse_action(line)
-        state.print_action(action)
+        if not state.can_apply_action(action):
+            print("Cannot apply action")
+            state.print_action(action)
+            break
         state.apply_action(action)
 
     if args.output != "":
