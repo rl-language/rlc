@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import collections.vector
+import serialization.to_byte_vector
 import fuzzer.cpp_functions
+import action
 
 fun fuzzer_init_available_subactions() -> Vector<Int>:
     let res : Vector<Int>

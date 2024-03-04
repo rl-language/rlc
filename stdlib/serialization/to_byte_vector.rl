@@ -72,9 +72,11 @@ fun<T> as_byte_vector(T to_convert) -> Vector<Byte>:
     return vec
 
 trait<T> ByteVectorParsable:
-    fun parse_from_vector(T result, Vector<Byte> input, Int index) 
+    fun parse_from_vector(T result, Vector<Byte> input, Int index) -> Bool
 
-fun parse_from_vector(Int result, Vector<Byte> input, Int index):
+fun parse_from_vector(Int result, Vector<Byte> input, Int index) -> Bool:
+    if input.size() < index + 8:
+        return false
     let to_parse : Byte[8]
     let counter = 0
     while counter < 8:
@@ -82,8 +84,11 @@ fun parse_from_vector(Int result, Vector<Byte> input, Int index):
         index = index + 1   
         counter = counter + 1 
     result = __builtin_from_array<Int>(to_parse)    
+    return true
 
-fun parse_from_vector(Float result, Vector<Byte> input, Int index):
+fun parse_from_vector(Float result, Vector<Byte> input, Int index) -> Bool:
+    if input.size() < index + 8:
+        return false
     let to_parse : Byte[8]
     let counter = 0
     while counter < 8:
@@ -91,50 +96,70 @@ fun parse_from_vector(Float result, Vector<Byte> input, Int index):
         index = index + 1   
         counter = counter + 1 
     result = __builtin_from_array<Float>(to_parse)  
+    return true
 
-fun parse_from_vector(Bool result, Vector<Byte> input, Int index):
+fun parse_from_vector(Bool result, Vector<Byte> input, Int index) -> Bool:
+    if input.size() < index:
+        return false
     let to_parse : Byte[1]
     to_parse[0] = input.get(index)
     index = index + 1   
     result = __builtin_from_array<Bool>(to_parse)   
+    return true
 
-fun parse_from_vector(Byte result, Vector<Byte> input, Int index):
+fun parse_from_vector(Byte result, Vector<Byte> input, Int index) -> Bool:
+    if input.size() <= index:
+        return false
     result = input.get(index)
     index = index + 1
+    return true
 
-fun<T> parse_from_vector(Vector<T> output, Vector<Byte> input, Int index):
+fun<T> parse_from_vector(Vector<T> output, Vector<Byte> input, Int index) -> Bool:
     let size : Int
-    parse_from_vector(size, input, index)
+    if !parse_from_vector(size, input, index):
+        return false
     let counter = 0
     while counter < size:
         let raw : T
-        _from_vector_impl(raw, input, index)
+        if !_from_vector_impl(raw, input, index):
+            return false
         output.append(raw)
         counter = counter + 1 
+    return true
 
-fun<T, Int X> parse_from_vector(T[X] to_add, Vector<Byte> input, Int index):
+fun<T, Int X> parse_from_vector(T[X] to_add, Vector<Byte> input, Int index) -> Bool:
     let counter = 0
     while counter < X:
-        _from_vector_impl(to_add[counter], input, index)
+        if !_from_vector_impl(to_add[counter], input, index):
+            return false
         counter = counter + 1
+    return true
 
-fun<T> _from_vector_impl(T to_add, Vector<Byte> input, Int index):
+fun<T> _from_vector_impl(T to_add, Vector<Byte> input, Int index) -> Bool:
     if to_add is ByteVectorParsable:
-        to_add.parse_from_vector(input, index)
+        return to_add.parse_from_vector(input, index)
     else if to_add is Alternative:
         let counter = 0
-        _from_vector_impl(counter, input, index)
+        if !_from_vector_impl(counter, input, index):
+            return false
         for field of to_add:
             if counter == 0:
                 using Type = type(field)
                 let to_parse : Type
-                _from_vector_impl(to_parse, input, index)
+                if !_from_vector_impl(to_parse, input, index):
+                    return false
                 to_add = to_parse
-                return
+                return true
             counter = counter - 1
+        return false
     else:
         for field of to_add:
-            _from_vector_impl(field, input, index)
+            if !_from_vector_impl(field, input, index):
+                return false
+        return true
 
-fun<T> from_byte_vector(T result, Vector<Byte> input):
-    _from_vector_impl(result, input, 0)
+fun<T> from_byte_vector(T result, Vector<Byte> input) -> Bool:
+    return _from_vector_impl(result, input, 0)
+
+fun<T> from_byte_vector(T result, Vector<Byte> input, Int read_bytes) -> Bool:
+    return _from_vector_impl(result, input, read_bytes)

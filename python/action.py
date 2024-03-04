@@ -61,6 +61,7 @@ def main():
             print("Cannot apply action")
             state.print_action(action)
             break
+        state.print_action(action)
         state.apply_action(action)
 
     if args.output != "":
