@@ -36,11 +36,6 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 
-		if (emitFuzzer)
-		{
-			manager.addPass(mlir::rlc::createEmitFuzzTargetPass());
-		}
-
 		if (request == Request::dumpCheckedAST)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));

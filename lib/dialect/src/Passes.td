@@ -230,11 +230,3 @@ def LowerInitializerListsPass : Pass<"rlc-lower-initializer-lists", "mlir::Modul
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
-def EmitFuzzTargetPass : Pass<"rlc-emit-fuzz-target-pass", "mlir::ModuleOp"> {
-  let summary = "emit the fuzzer_fuzz_action_function function to be used by the fuzzer.";
-  let dependentDialects = ["rlc::RLCDialect"];
-  let options = [
-    Option<"actionToFuzz", "Action to fuzz", "std::string", /*default=*/"\"play\"",
-      "Name of the action to generate a fuzzer for">,
-  ];
-}

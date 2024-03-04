@@ -44,12 +44,7 @@ namespace mlir::rlc
 		}
 		void setRPath(std::vector<std::string> newRPath) { rPath = newRPath; }
 
-		void setEmitFuzzer(bool newEmitFuzzer)
-		{
-			emitFuzzer = newEmitFuzzer;
-			if (newEmitFuzzer)
-				inputFile.push_back("fuzzer/utils.rl");
-		}
+		void setEmitFuzzer(bool newEmitFuzzer) { emitFuzzer = newEmitFuzzer; }
 
 		void setIncludeDirs(llvm::SmallVector<std::string, 4> newIncludeDirs)
 		{
