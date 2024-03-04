@@ -1141,6 +1141,36 @@ mlir::LogicalResult mlir::rlc::TemplateInstantiationOp::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	auto &rewriter = builder.getRewriter();
+	for (auto *op : ops(getLhs()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	for (auto *op : ops(getRhs()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	auto &rewriter = builder.getRewriter();
+	for (auto *op : ops(getLhs()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	for (auto *op : ops(getRhs()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -2112,6 +2142,76 @@ void mlir::rlc::SubActionStatement::getRegionInvocationBounds(
 		invocationBounds.push_back(mlir::InvocationBounds(1, 1));
 	else
 		invocationBounds.push_back(mlir::InvocationBounds(0, std::nullopt));
+}
+
+void mlir::rlc::ShortCircuitingOr::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the lhs once
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+
+	// executes the rhs once or zero times
+	invocationBounds.push_back(mlir::InvocationBounds(0, 1));
+}
+
+void mlir::rlc::ShortCircuitingAnd::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the lhs once
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+
+	// executes the rhs once or zero times
+	invocationBounds.push_back(mlir::InvocationBounds(0, 1));
+}
+
+void mlir::rlc::ShortCircuitingOr::getSuccessorRegions(
+		mlir::RegionBranchPoint succ,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// when you reach the op, you jump in to the right hand
+	if (succ.isParent())
+		regions.push_back(
+				mlir::RegionSuccessor(&getLhs(), getLhs().front().getArguments()));
+
+	// from the LHS region you can either jump out, or to the lhs region
+	if (succ.getRegionOrNull() == &getLhs())
+	{
+		regions.push_back(
+				mlir::RegionSuccessor(&getRhs(), getRhs().front().getArguments()));
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+
+	// from the RHS region you jump to the exit
+	if (succ.getRegionOrNull() == &getRhs())
+	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+}
+
+void mlir::rlc::ShortCircuitingAnd::getSuccessorRegions(
+		mlir::RegionBranchPoint succ,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// when you reach the op, you jump in to the right hand
+	if (succ.isParent())
+		regions.push_back(
+				mlir::RegionSuccessor(&getLhs(), getLhs().front().getArguments()));
+
+	// from the LHS region you can either jump out, or to the lhs region
+	if (succ.getRegionOrNull() == &getLhs())
+	{
+		regions.push_back(
+				mlir::RegionSuccessor(&getRhs(), getRhs().front().getArguments()));
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+
+	// from the RHS region you jump to the exit
+	if (succ.getRegionOrNull() == &getRhs())
+	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
 }
 
 void mlir::rlc::SubActionStatement::getSuccessorRegions(

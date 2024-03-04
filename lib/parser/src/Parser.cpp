@@ -577,15 +577,56 @@ Expected<mlir::Value> Parser::equalityExpression()
  */
 Expected<mlir::Value> Parser::andExpression()
 {
-	TRY(exp, equalityExpression());
+	auto preLocation = getCurrentSourcePos();
+	// precreate the and, if it is not needed, erase it afterwad
+	auto andOp = builder.create<mlir::rlc::ShortCircuitingAnd>(preLocation);
+
+	auto* lhs = builder.createBlock(&andOp.getLhs());
+	builder.setInsertionPointToStart(lhs);
+
+	// if we fail or there is not `and`, move all operations before the andOp
+	// containg them and erase the andOp
+	auto onExitWithoutAnd = [&, this]() {
+		while (not lhs->empty())
+			lhs->front().moveBefore(andOp);
+
+		builder.setInsertionPointAfter(andOp);
+		andOp.erase();
+	};
+
+	TRY(exp, equalityExpression(), onExitWithoutAnd());
 
 	auto location = getCurrentSourcePos();
-	if (accept<Token::KeywordAnd>())
+	if (not accept<Token::KeywordAnd>())
 	{
-		TRY(rhs, andExpression());
-		return builder.create<mlir::rlc::AndOp>(location, unkType(), *exp, *rhs);
+		onExitWithoutAnd();
+		return *exp;
 	}
-	return std::move(*exp);
+
+	// otherwise make sure we are yielding the lhs expression
+	builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), *exp);
+
+	// fix the location so that it points to the and token
+	andOp->setLoc(location);
+
+	auto* rhs = builder.createBlock(&andOp.getRhs());
+	builder.setInsertionPointToStart(rhs);
+
+	// if we have parsed the lhs correctly, then on failure wee need to clean up
+	// the rhs . the insertion point must be after the andOp and we must yield
+	// something
+	auto onExitWithAnd = [&, this](mlir::Value toYield) {
+		if (toYield == nullptr)
+			toYield = builder.create<mlir::rlc::Constant>(location, false);
+
+		builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), toYield);
+		builder.setInsertionPointAfter(andOp);
+	};
+
+	TRY(rhsExp, andExpression(), onExitWithAnd(nullptr));
+	onExitWithAnd(*rhsExp);
+
+	return andOp;
 }
 
 /**
@@ -593,15 +634,56 @@ Expected<mlir::Value> Parser::andExpression()
  */
 Expected<mlir::Value> Parser::orExpression()
 {
-	TRY(exp, andExpression());
+	auto preLocation = getCurrentSourcePos();
+	// precreate the and, if it is not needed, erase it afterwad
+	auto orOp = builder.create<mlir::rlc::ShortCircuitingOr>(preLocation);
+
+	auto* lhs = builder.createBlock(&orOp.getLhs());
+	builder.setInsertionPointToStart(lhs);
+
+	// if we fail or there is not `and`, move all operations before the orOp
+	// containg them and erase the orOp
+	auto onExitWithoutAnd = [&, this]() {
+		while (not lhs->empty())
+			lhs->front().moveBefore(orOp);
+
+		builder.setInsertionPointAfter(orOp);
+		orOp.erase();
+	};
+
+	TRY(exp, andExpression(), onExitWithoutAnd());
 
 	auto location = getCurrentSourcePos();
-	if (accept<Token::KeywordOr>())
+	if (not accept<Token::KeywordOr>())
 	{
-		TRY(rhs, orExpression());
-		return builder.create<mlir::rlc::OrOp>(location, unkType(), *exp, *rhs);
+		onExitWithoutAnd();
+		return *exp;
 	}
-	return std::move(*exp);
+
+	// otherwise make sure we are yielding the lhs expression
+	builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), *exp);
+
+	// fix the location so that it points to the and token
+	orOp->setLoc(location);
+
+	auto* rhs = builder.createBlock(&orOp.getRhs());
+	builder.setInsertionPointToStart(rhs);
+
+	// if we have parsed the lhs correctly, then on failure wee need to clean up
+	// the rhs . the insertion point must be after the orOp and we must yield
+	// something
+	auto onExitWithAnd = [&, this](mlir::Value toYield) {
+		if (toYield == nullptr)
+			toYield = builder.create<mlir::rlc::Constant>(location, false);
+
+		builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), toYield);
+		builder.setInsertionPointAfter(orOp);
+	};
+
+	TRY(rhsExp, orExpression(), onExitWithAnd(nullptr));
+	onExitWithAnd(*rhsExp);
+
+	return orOp;
 }
 
 Expected<mlir::Value> Parser::expression() { return orExpression(); }
@@ -712,28 +794,52 @@ llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
 }
 
 /**
- * prerequsitites: "req"" expression [Indent (expression* \n) Deindent ] \n
+ * requirementList: "{" expression ( ',' expression) * "}"
  */
 llvm::Expected<bool> Parser::requirementList()
 {
-	llvm::SmallVector<mlir::Value, 4> values;
-
-	auto onExit = [&, this]() {
-		builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), values);
-	};
-
-	if (accept<Token::LBracket>())
+	if (!accept<Token::LBracket>())
 	{
-		do
-		{
-			TRY(rest, expression(), onExit());
-			values.push_back(*rest);
-		} while (accept<Token::Comma>());
-
-		EXPECT(Token::RBracket, onExit());
+		builder.create<mlir::rlc::Yield>(getCurrentSourcePos());
+		return true;
 	}
 
+	mlir::rlc::ShortCircuitingAnd lastAnd = nullptr;
+
+	auto onExit = [&]() {
+		auto lastAndYield =
+				mlir::cast<mlir::rlc::Yield>(lastAnd.getLhs().front().getTerminator());
+		lastAnd.replaceAllUsesWith(lastAndYield
+
+																	 .getArguments()[0]);
+		lastAndYield.erase();
+		while (!lastAnd.getLhs().front().empty())
+			lastAnd.getLhs().front().front().moveBefore(lastAnd);
+
+		lastAnd.erase();
+	};
+
+	// constructs a patter such as (and x, (and y, (and z, <empty>))) and then it
+	// remove the inner most and turning into (and x, (and y, z))
+	do
+	{
+		auto location = getCurrentSourcePos();
+		lastAnd = builder.create<mlir::rlc::ShortCircuitingAnd>(location);
+		builder.create<mlir::rlc::Yield>(
+				getCurrentSourcePos(), mlir::ValueRange{ lastAnd });
+
+		auto lhs = builder.createBlock(&lastAnd.getLhs());
+
+		TRY(rest, expression(), onExit());
+		builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), *rest);
+
+		auto rhs = builder.createBlock(&lastAnd.getRhs());
+
+	} while (accept<Token::Comma>());
+
+	EXPECT(Token::RBracket, onExit());
 	onExit();
+
 	return true;
 }
 

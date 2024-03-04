@@ -146,9 +146,8 @@ namespace mlir::rlc
 		mlir::IRRewriter rewiter(root.getContext());
 		llvm::SmallVector<mlir::Operation*, 4> ops;
 		for (auto& ins : action.getPrecondition().front().getOperations())
-		{
-			ops.push_back(&ins);
-		}
+			ins.walk([&](mlir::Operation* op) { ops.push_back(op); });
+
 		for (auto& ins : ops)
 		{
 			for (auto& operand : ins->getOpOperands())

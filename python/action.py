@@ -58,7 +58,7 @@ def main():
     for line in lines:
         action = state.parse_action(line)
         if not state.can_apply_action(action):
-            print("Cannot apply action")
+            print("Cannot apply the following action:")
             state.print_action(action)
             break
         state.print_action(action)
@@ -68,7 +68,6 @@ def main():
         state.write(args.output)
     else:
         state.dump()
-
 
 if __name__ == "__main__":
     main()

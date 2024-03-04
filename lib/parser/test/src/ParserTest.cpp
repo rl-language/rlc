@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -88,7 +88,7 @@ TEST(ParserTest, testExpression)
 	context.loadAllAvailableDialects();
 	Parser p(&context, "3.14", "fileName");
 
-	auto exp = p.expression();
+	auto exp = p.primaryExpression();
 	if (!exp)
 		FAIL();
 
@@ -106,7 +106,7 @@ TEST(ParserTest, testAdditiveExpression)
 	context.loadAllAvailableDialects();
 	Parser p(&context, "3.14 + 2", "fileName");
 
-	auto exp = p.expression();
+	auto exp = p.additiveExpression();
 	if (!exp)
 		FAIL();
 

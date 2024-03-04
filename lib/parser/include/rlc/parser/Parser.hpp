@@ -115,6 +115,8 @@ namespace rlc
 			return importedFiles;
 		}
 
+		mlir::Builder& getBuilder() { return builder; }
+
 		private:
 		mlir::Type unkType();
 		mlir::MLIRContext* ctx;

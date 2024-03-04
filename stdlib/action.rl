@@ -6,6 +6,7 @@
 
 import collections.vector
 import serialization.to_byte_vector
+import serialization.print
 
 trait<FrameType, ActionType> ApplicableTo:
     fun apply(ActionType action, FrameType frame)
@@ -25,10 +26,12 @@ fun<FrameType, ActionType> apply(ActionType action, FrameType frame) { can_apply
             if action is ApplicableTo<FrameType>:
                 action.apply(frame)
 
+
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input, Int read_bytes):
-    while read_bytes != input.size():
+    while read_bytes + 8 < input.size():
         from_byte_vector(variant, input, read_bytes)
         if can apply(variant, state):
+            print(variant)
             apply(variant, state)
 
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input):

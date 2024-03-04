@@ -8,6 +8,7 @@ import math.numeric
 import unit 
 import board 
 import move
+import action
 
 fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
   let x = x1 - x2
@@ -160,3 +161,10 @@ fun test_game_marine_can_end_turn() -> Bool:
 fun test_max() -> Bool:
   let x = max(3, 4)
   return x == 4
+
+fun fuzz(Vector<Byte> input):
+    if input.size() == 0:
+        return
+    let state = play()
+    let action : AnyGameAction
+    parse_and_execute(state, action, input) 

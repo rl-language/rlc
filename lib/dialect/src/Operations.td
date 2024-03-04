@@ -76,6 +76,56 @@ def RLC_TraitDefinition : RLC_Dialect<"trait"> {
   }]>];
 }
 
+def RLC_ShortCircuitingOr : RLC_Dialect<"short_circuiting_or", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
+  let summary = "short circuiting and that makes sure right and is not executed if not necessary";
+
+  let results = (outs RLC_BoolType:$result);
+
+  let description = [{
+	expression.
+  }];
+
+  let regions = (region
+      AnyRegion:$lhs,
+      AnyRegion:$rhs
+  );
+
+  let assemblyFormat = [{
+	$lhs $rhs `->` type($result) attr-dict
+  }];
+
+   let builders = [
+        OpBuilder<(ins ), [{
+            mlir::ValueRange val;
+            build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()));
+    }]>];
+}
+
+def RLC_ShortCircuitingAnd : RLC_Dialect<"short_circuiting_and", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
+  let summary = "short circuiting and that makes sure right and is not executed if not necessary";
+
+  let results = (outs RLC_BoolType:$result);
+
+  let description = [{
+	expression.
+  }];
+
+  let regions = (region
+      AnyRegion:$lhs,
+      AnyRegion:$rhs
+  );
+
+  let assemblyFormat = [{
+	$lhs $rhs `->` type($result) attr-dict
+  }];
+
+   let builders = [
+        OpBuilder<(ins ), [{
+            mlir::ValueRange val;
+            build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()));
+    }]>];
+}
+
 def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "expression.";
 

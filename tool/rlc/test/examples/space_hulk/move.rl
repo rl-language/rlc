@@ -17,6 +17,8 @@ act move_unit(ctx Board board, frm Int unit_id) -> Move:
     actions:
       act turn(Int id, Int absolute_direction) {
         absolute_direction_is_valid(absolute_direction),
+        board.units.size() > id,
+        0 <= id,
         board.units.get(id).can_turn_to(absolute_direction, false),
         unit_id == id,
         can_turn

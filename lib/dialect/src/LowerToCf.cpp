@@ -202,6 +202,110 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
+		mlir::rlc::ShortCircuitingOr op, mlir::IRRewriter& rewriter)
+{
+	rewriter.setInsertionPoint(op);
+	auto lhsTerminators = getYieldTerminators(op.getLhs());
+	auto rhsTerminators = getYieldTerminators(op.getRhs());
+
+	auto& lhsBlock = op.getLhs().front();
+	auto& rhsBlock = op.getRhs().front();
+	auto* previousBlock = rewriter.getBlock();
+	auto* afterBlock =
+			rewriter.splitBlock(previousBlock, rewriter.getInsertionPoint());
+
+	rewriter.inlineRegionBefore(op.getLhs(), rewriter.getBlock());
+	rewriter.inlineRegionBefore(op.getRhs(), afterBlock);
+
+	rewriter.setInsertionPointToStart(&lhsBlock);
+	auto boolToReturn = rewriter.create<mlir::rlc::UninitializedConstruct>(
+			op.getLoc(), mlir::rlc::BoolType::get(rewriter.getContext()));
+
+	rewriter.mergeBlocks(&lhsBlock, previousBlock, mlir::ValueRange());
+
+	// redirect all rlhs yields to jump to either the exit or the rhs
+	for (auto yield : lhsTerminators)
+	{
+		rewriter.setInsertionPoint(yield);
+		// store the computed result of the right and into the actual result
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
+				op.getLoc(), boolToReturn, yield.getArguments()[0]);
+		auto newTerminator = rewriter.create<mlir::rlc::CondBranch>(
+				yield.getLoc(), yield.getArguments().front(), afterBlock, &rhsBlock);
+		eraseYield(rewriter, yield, newTerminator);
+	}
+
+	// redirect all rhs yields to jump to the exit
+	for (auto yield : rhsTerminators)
+	{
+		rewriter.setInsertionPoint(yield);
+		// store the computed result of the right and into the actual result
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
+				op.getLoc(), boolToReturn, yield.getArguments()[0]);
+		auto newTerminator =
+				rewriter.create<mlir::rlc::Branch>(yield.getLoc(), afterBlock);
+		eraseYield(rewriter, yield, newTerminator);
+	}
+	auto* parent = op->getParentOp();
+	op.replaceAllUsesWith(boolToReturn.getResult());
+	op.erase();
+
+	return mlir::LogicalResult::success();
+}
+
+static mlir::LogicalResult flatten(
+		mlir::rlc::ShortCircuitingAnd op, mlir::IRRewriter& rewriter)
+{
+	rewriter.setInsertionPoint(op);
+	auto lhsTerminators = getYieldTerminators(op.getLhs());
+	auto rhsTerminators = getYieldTerminators(op.getRhs());
+
+	auto& lhsBlock = op.getLhs().front();
+	auto& rhsBlock = op.getRhs().front();
+	auto* previousBlock = rewriter.getBlock();
+	auto* afterBlock =
+			rewriter.splitBlock(previousBlock, rewriter.getInsertionPoint());
+
+	rewriter.inlineRegionBefore(op.getLhs(), rewriter.getBlock());
+	rewriter.inlineRegionBefore(op.getRhs(), afterBlock);
+
+	rewriter.setInsertionPointToStart(&lhsBlock);
+	auto boolToReturn = rewriter.create<mlir::rlc::UninitializedConstruct>(
+			op.getLoc(), mlir::rlc::BoolType::get(rewriter.getContext()));
+
+	rewriter.mergeBlocks(&lhsBlock, previousBlock, mlir::ValueRange());
+
+	// redirect all rlhs yields to jump to either the exit or the rhs
+	for (auto yield : lhsTerminators)
+	{
+		rewriter.setInsertionPoint(yield);
+		// store the computed result of the right and into the actual result
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
+				op.getLoc(), boolToReturn, yield.getArguments()[0]);
+		auto newTerminator = rewriter.create<mlir::rlc::CondBranch>(
+				yield.getLoc(), yield.getArguments().front(), &rhsBlock, afterBlock);
+		eraseYield(rewriter, yield, newTerminator);
+	}
+
+	// redirect all rhs yields to jump to the exit
+	for (auto yield : rhsTerminators)
+	{
+		rewriter.setInsertionPoint(yield);
+		// store the computed result of the right and into the actual result
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
+				op.getLoc(), boolToReturn, yield.getArguments()[0]);
+		auto newTerminator =
+				rewriter.create<mlir::rlc::Branch>(yield.getLoc(), afterBlock);
+		eraseYield(rewriter, yield, newTerminator);
+	}
+	auto* parent = op->getParentOp();
+	op.replaceAllUsesWith(boolToReturn.getResult());
+	op.erase();
+
+	return mlir::LogicalResult::success();
+}
+
+static mlir::LogicalResult flatten(
 		mlir::rlc::IfStatement op, mlir::IRRewriter& rewriter)
 {
 	rewriter.setInsertionPoint(op);
@@ -358,6 +462,14 @@ static mlir::LogicalResult squashCF(
 			return res;
 
 		if (auto res = dispatch.operator()<mlir::rlc::ActionsStatement>();
+				res.failed())
+			return res;
+
+		if (auto res = dispatch.operator()<mlir::rlc::ShortCircuitingAnd>();
+				res.failed())
+			return res;
+
+		if (auto res = dispatch.operator()<mlir::rlc::ShortCircuitingOr>();
 				res.failed())
 			return res;
 	}
