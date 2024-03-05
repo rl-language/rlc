@@ -670,11 +670,16 @@ class ArrayAccessRewriter
 		{
 			auto array_type = mlir::IntegerType::get(casted.getContext(), 8);
 
+			auto loadedPointerToString = makeAlignedLoad(
+					rewriter,
+					mlir::LLVM::LLVMPointerType::get(getContext()),
+					adaptor.getValue(),
+					op.getLoc());
 			auto gep = rewriter.replaceOpWithNewOp<mlir::LLVM::GEPOp>(
 					op,
 					mlir::LLVM::LLVMPointerType::get(getContext()),
 					array_type,
-					adaptor.getValue(),
+					loadedPointerToString,
 					mlir::ValueRange({ loaded }));
 			return mlir::LogicalResult::success();
 		}
@@ -1371,7 +1376,15 @@ class LowerStringLiteral
 				"",
 				(op.getValue() + llvm::Twine('\0')).toNullTerminatedStringRef(out),
 				op->getParentOfType<mlir::ModuleOp>());
-		rewriter.replaceOp(op, str);
+
+		auto alloca = makeAlloca(
+				rewriter,
+				mlir::LLVM::LLVMPointerType::get(op.getContext()),
+				op.getLoc());
+
+		makeAlignedStore(rewriter, str, alloca, op.getLoc());
+
+		rewriter.replaceOp(op, alloca);
 		return mlir::LogicalResult::success();
 	}
 };

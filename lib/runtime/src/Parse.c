@@ -24,21 +24,24 @@ void rl_append_to_string__int64_t_String(int64_t* toConvert, String* out)
 {
 	char buffer[256];
 	sprintf(buffer, "%" PRId64, *toConvert);
-	rl_m_append__String_strlit(out, buffer);
+	char* addres = buffer;
+	rl_m_append__String_strlit(out, &addres);
 }
 
 void rl_append_to_string__int8_t_String(int8_t* toConvert, String* out)
 {
 	char buffer[256];
 	sprintf(buffer, "%" PRId8, *toConvert);
-	rl_m_append__String_strlit(out, buffer);
+	char* addres = buffer;
+	rl_m_append__String_strlit(out, &addres);
 }
 
 void rl_append_to_string__double_String(double* toConvert, String* out)
 {
 	char buffer[256];
 	sprintf(buffer, "%f", *toConvert);
-	rl_m_append__String_strlit(out, buffer);
+	char* addres = buffer;
+	rl_m_append__String_strlit(out, &addres);
 }
 
 void rl_print_string__String(String* s)
@@ -47,13 +50,13 @@ void rl_print_string__String(String* s)
 	int64_t index = 0;
 	rl_m_get__String_int64_t_r_int8_tRef(&start, s, &index);
 	puts((char*) start);
-	fflush(stdin);
+	fflush(stdout);
 }
 
-void rl_print_string__strlit(char* s)
+void rl_print_string_lit__strlit(char** s)
 {
-	puts(s);
-	fflush(stdin);
+	puts(*s);
+	fflush(stdout);
 }
 
 // fun parse_string(Int result, String buffer, Int index)

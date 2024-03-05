@@ -135,7 +135,6 @@ fun make_board() -> Board:
   ]
   board.command_points.content = 0
   board.command_points.owner = 1
-  board.units.init()
   board.units.append(make_marine(2, 13))
   board.units.get(0).direction = Direction::right
   return board

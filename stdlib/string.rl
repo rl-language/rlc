@@ -207,13 +207,18 @@ fun<T> _to_string_impl(T to_add, String output):
             counter = counter + 1
     else:
         output.append('{')
+        let added_one = false
         for name, field of to_add:
             _to_string_impl(name, output)
             output.append(": ")
             _to_string_impl(field, output)
             output.append(", ")
-        output.drop_back(1)
-        output.back() = '}'
+            added_one = true
+        if added_one:
+            output.drop_back(1)
+            output.back() = '}'
+        else:
+            output.append('}')
 
 fun<T> to_string(T to_stringyfi) -> String:
     let to_return : String

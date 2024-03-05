@@ -26,9 +26,9 @@ extern "C"
 {
 #include "rlc/runtime/Runtime.h"
 
-	void rl_m_append__String_strlit(String* self, char* to_append)
+	void rl_m_append__String_strlit(String* self, char** to_append)
 	{
-		self->content.append(to_append);
+		self->content.append(*to_append);
 	}
 
 	void rl_m_init__String(String* self) {}

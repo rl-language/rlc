@@ -28,7 +28,7 @@ void rl_m_get__String_int64_t_r_int8_tRef(
 		int8_t** out, String* self, int64_t* index);
 
 // fun append(String self, StringLiteral l)
-void rl_m_append__String_strlit(String* self, char* to_append);
+void rl_m_append__String_strlit(String* self, char** to_append);
 
 // fun append(String self, Int to_append)
 void rl_append_to_string__int64_t_String(int64_t* member, String* out);
@@ -40,7 +40,7 @@ void rl_append_to_string__double_String(double* member, String* out);
 // fun print(String self)
 void rl_print__String(String* s);
 // fun print(StringLiteral self)
-void rl_print_string__strlit(char* s);
+void rl_print_string__strlit(char** s);
 
 // fun parse_string(Int result, String buffer, Int index) -> Bool
 void rl_parse_string__int64_t_String_int64_t_r_bool(

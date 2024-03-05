@@ -163,8 +163,6 @@ fun test_max() -> Bool:
   return x == 4
 
 fun fuzz(Vector<Byte> input):
-    if input.size() == 0:
-        return
     let state = play()
     let action : AnyGameAction
     parse_and_execute(state, action, input) 
