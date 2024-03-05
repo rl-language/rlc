@@ -30,8 +30,8 @@ fun<FrameType, ActionType> apply(ActionType action, FrameType frame) { can_apply
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input, Int read_bytes):
     while read_bytes + 8 < input.size():
         from_byte_vector(variant, input, read_bytes)
+        print(variant)
         if can apply(variant, state):
-            print(variant)
             apply(variant, state)
 
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input):

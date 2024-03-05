@@ -2,3 +2,4 @@ vulture
 pytest
 pylint
 torch==2.0.1
+torchviz

@@ -197,7 +197,7 @@ def main():
             rlc_infrastructure,
             git,
             "clone",
-            "git@github.com:drblallo/llvm.git",
+            "https://github.com/drblallo/llvm.git",
             "--depth",
             "1",
             "-b",

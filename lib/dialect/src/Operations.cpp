@@ -69,13 +69,13 @@ static void assignActionIndicies(mlir::rlc::ActionFunction fun)
 	}
 }
 
-static llvm::SmallVector<mlir::Type, 3> getFunctionsTypesGeneratedByAction(
-		mlir::rlc::ModuleBuilder &builder, mlir::rlc::ActionFunction fun)
+static mlir::LogicalResult getFunctionsTypesGeneratedByAction(
+		mlir::rlc::ModuleBuilder &builder,
+		mlir::rlc::ActionFunction fun,
+		llvm::SmallVector<mlir::Type, 3> &out)
 {
 	auto funType = builder.typeOfAction(fun);
-	llvm::SmallVector<mlir::Type, 3> ToReturn;
-	using OverloadKey = std::pair<std::string, const void *>;
-	std::set<OverloadKey> added;
+	llvm::StringMap<mlir::Type> added;
 	// for each subaction invoked by this action, add it to generatedFunctions
 	for (const auto &op : builder.actionStatementsOfAction(fun))
 	{
@@ -89,16 +89,29 @@ static llvm::SmallVector<mlir::Type, 3> getFunctionsTypesGeneratedByAction(
 
 		auto ftype =
 				mlir::FunctionType::get(op->getContext(), args, mlir::TypeRange());
-		OverloadKey overloadKey(
-				llvm::cast<mlir::rlc::ActionStatement>(op).getName().str(),
-				ftype.getAsOpaquePointer());
+		auto overloadKey = llvm::cast<mlir::rlc::ActionStatement>(op).getName();
 		if (added.contains(overloadKey))
+		{
+			if (added[overloadKey] != ftype)
+			{
+				auto _ = mlir::rlc::logError(
+						op,
+						"Multiple definitions of actions with same name but different "
+						"argument types");
+				added[overloadKey].dump();
+				auto _2 = mlir::rlc::logRemark(
+						op,
+						"previous type was " + mlir::rlc::prettyType(added[overloadKey]));
+				return mlir::rlc::logRemark(
+						op, "current type is " + mlir::rlc::prettyType(ftype));
+			}
 			continue;
+		}
 
-		ToReturn.emplace_back(ftype);
-		added.insert(overloadKey);
+		out.emplace_back(ftype);
+		added[overloadKey] = ftype;
 	}
-	return ToReturn;
+	return mlir::success();
 }
 
 std::pair<mlir::rlc::ActionFrameContent, mlir::rlc::ActionFrameContent>
@@ -200,7 +213,10 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 
 	mlir::Type actionType = fun.getType();
 
-	auto generatedFunctions = getFunctionsTypesGeneratedByAction(builder, fun);
+	llvm::SmallVector<mlir::Type, 3> generatedFunctions;
+	if (getFunctionsTypesGeneratedByAction(builder, fun, generatedFunctions)
+					.failed())
+		return nullptr;
 
 	// rewrite the Action Function Operation with the generatedFunctions.
 	rewriter.setInsertionPoint(fun);
@@ -512,6 +528,8 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 
 	assignActionIndicies(fun);
 	auto newF = deduceActionType(fun);
+	if (not newF)
+		return nullptr;
 
 	mlir::rlc::ModuleBuilder builder2(
 			newF->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
@@ -2360,6 +2378,10 @@ mlir::OpFoldResult mlir::rlc::InitializerListOp::fold(
 	for (auto arg : yield.getArguments())
 	{
 		llvm::SmallVector<mlir::OpFoldResult, 4> attr;
+		// if it is a argument, do nothing
+		if (arg.getDefiningOp() == nullptr)
+			return nullptr;
+
 		auto res = arg.getDefiningOp()->fold(attr);
 		assert(res.succeeded());
 		assert(attr.size() == 1);

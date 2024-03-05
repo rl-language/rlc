@@ -346,10 +346,13 @@ llvm::Expected<mlir::Value> Parser::canCallExpression()
 	auto* bb = builder.createBlock(&canExp.getBody());
 	builder.setInsertionPointToStart(bb);
 
-	auto onExit = [&]() { builder.setInsertionPointAfter(canExp); };
+	auto onExit = [&]() {
+		canExp.erase();
+		builder.setInsertionPointAfter(canExp);
+	};
 
 	TRY(exp, postFixExpression(), onExit());
-	onExit();
+	builder.setInsertionPointAfter(canExp);
 	return canExp;
 }
 
@@ -806,9 +809,25 @@ llvm::Expected<bool> Parser::requirementList()
 
 	mlir::rlc::ShortCircuitingAnd lastAnd = nullptr;
 
+	auto location = getCurrentSourcePos();
 	auto onExit = [&]() {
-		auto lastAndYield =
-				mlir::cast<mlir::rlc::Yield>(lastAnd.getLhs().front().getTerminator());
+		mlir::rlc::Yield lastAndYield = nullptr;
+
+		// if we faild to parse and there is no yield, just create one returning
+		// false.
+		if (lastAnd.getLhs().front().empty() or
+				!mlir::isa<mlir::rlc::Yield>(lastAnd.getLhs().front().back()))
+		{
+			auto toYield = builder.create<mlir::rlc::Constant>(location, false);
+			lastAndYield = builder.create<mlir::rlc::Yield>(
+					location, mlir::ValueRange{ toYield });
+		}
+		else
+		{
+			lastAndYield =
+					mlir::cast<mlir::rlc::Yield>(lastAnd.getLhs().front().back());
+		}
+
 		lastAnd.replaceAllUsesWith(lastAndYield
 
 																	 .getArguments()[0]);

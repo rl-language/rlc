@@ -16,10 +16,10 @@ At the moment `RLC` is a proof of concept, and is released to gather feedback on
 
 Before version 1.0 we want for users to be able to produce:
 * a compiled library implementing such simulation (DONE)
-* a serialization and deserialization mechanism both in textual and binary format (binary format DONE)
-* a simple network protocol able to run the simulation remotely (not yet started)
-* a fuzzer able to find bugs in the simulation (development started)
+* a serialization and deserialization mechanism both in textual and binary format (DONE)
+* a fuzzer able to find bugs in the simulation (DONE)
 * machine learning algorithms able to analyze the simulation. (development started)
+* a simple network protocol able to run the simulation remotely (not yet started)
 
 ### Example: tic tac toe
 ```

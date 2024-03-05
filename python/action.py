@@ -41,6 +41,8 @@ def main():
         help="path to file containing a action for each line",
         default="-",
     )
+    parser.add_argument("--ignore-invalid", "-ii", action="store_true", default=False)
+    parser.add_argument("--print-before-validity", "-pb", action="store_true", default=False)
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
     args = parser.parse_args()
@@ -57,11 +59,17 @@ def main():
     lines = sys.stdin.readlines() if args.action_file == '-' else open(args.action_file, "r").readlines()
     for line in lines:
         action = state.parse_action(line)
-        if not state.can_apply_action(action):
-            print("Cannot apply the following action:")
+        if args.print_before_validity:
             state.print_action(action)
-            break
-        state.print_action(action)
+        if not state.can_apply_action(action):
+            if args.ignore_invalid:
+                continue
+            else:
+                print("Cannot apply the following action:")
+                state.print_action(action)
+                break
+        if not args.print_before_validity:
+            state.print_action(action)
         state.apply_action(action)
 
     if args.output != "":
