@@ -137,6 +137,7 @@ fun make_board() -> Board:
   board.command_points.owner = 1
   board.units.append(make_marine(2, 13))
   board.units.get(0).direction = Direction::right
+  board.units.append(make_genestealer(15, 13))
   return board
 
 fun test_is_walkable() -> Bool:

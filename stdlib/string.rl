@@ -366,7 +366,8 @@ fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
                 return false
             if !_consume_literal(buffer, ":", index):
                 return false
-            _parse_string_impl(field, buffer, index)
+            if !_parse_string_impl(field, buffer, index):
+                return false
             _consume_literal(buffer, ",", index)
         if !_consume_literal(buffer, "}", index):
             return false

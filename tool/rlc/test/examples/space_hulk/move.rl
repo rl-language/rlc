@@ -39,14 +39,14 @@ act move_unit(ctx Board board, frm Int unit_id) -> Move:
 
   if board.units.get(unit_id).kind.faction() == Faction::genestealer:
     actions:
-      act shoot(Int shooter_id, Int target_id) {
+      act shoot(Int unit_id, Int target_id) {
         board.unit_id_is_valid(unit_id),
         board.unit_id_is_valid(target_id),
         unit_id == target_id,
         board.can_shoot(board.units.get(unit_id), board.units.get(target_id), true),
         board.units.get(unit_id).is_overwatching
       }
-      if board.shoot_at(board.units.get(shooter_id), board.units.get(target_id), true):
+      if board.shoot_at(board.units.get(unit_id), board.units.get(target_id), true):
         board.units.erase(target_id)
 
       act do_nothing()

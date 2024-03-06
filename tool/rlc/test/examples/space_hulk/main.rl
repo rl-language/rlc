@@ -126,9 +126,9 @@ act play() -> Game:
         subaction*(board) genestealer_frame = action_phase(board, Faction::genestealer)
 
 fun gen_printer_parser():
-  let state = play()
-  let serialized = as_byte_vector(state)
-  from_byte_vector(state, serialized)
+    let state : Game
+    let any_action :  AnyGameAction
+    gen_python_methods(state, any_action)
 
 fun main() -> Int:
   let state = play()

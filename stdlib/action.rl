@@ -31,7 +31,6 @@ fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsV
     while read_bytes + 8 <= input.size():
         if from_byte_vector(variant, input, read_bytes):
             if can apply(variant, state):
-                print(variant)
                 apply(variant, state)
 
 fun<AllActionsVariant> parse_actions(AllActionsVariant variant, Vector<Byte> input, Int read_bytes) -> Vector<AllActionsVariant>:

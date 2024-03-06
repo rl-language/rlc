@@ -42,7 +42,7 @@ def make_rlc_argparse(name, description):
         type=str,
         nargs="?",
         help="path to wrapper to load",
-        default="wrapper.py",
+        default="",
     )
     parser.add_argument(
         "--include",
@@ -86,8 +86,8 @@ def load_simulation_from_args(args):
     )
 
     sim = (
-        Simulation(args.wrapper[0])
-        if len(args.wrapper) == 1
+        Simulation(args.wrapper)
+        if args.wrapper != ""
         else compile(args.source, args.rlc, args.include, args.runtime)
     )
     return sim

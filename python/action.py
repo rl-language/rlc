@@ -56,8 +56,13 @@ def main():
     if args.load != "":
         state.load(args.load)
 
+    failed = False
+
     lines = sys.stdin.readlines() if args.action_file == '-' else open(args.action_file, "r").readlines()
     for line in lines:
+        if line.strip() == "" or line.strip().startswith("#"):
+            continue
+
         if args.print_all:
             state.print_action(line)
 
@@ -67,7 +72,7 @@ def main():
                 continue
             else:
                 print("Cannot parse the following action:")
-                state.print_action(line)
+                print(line)
                 break
 
         if not state.can_apply_action(action):
@@ -75,6 +80,7 @@ def main():
                 continue
             else:
                 print("Cannot apply the following action:")
+                failed = True
                 state.print_action(action)
                 break
 
@@ -87,6 +93,9 @@ def main():
             output.write(state.to_string())
     else:
         state.dump()
+
+    if failed:
+        exit(-1)
 
 if __name__ == "__main__":
     main()
