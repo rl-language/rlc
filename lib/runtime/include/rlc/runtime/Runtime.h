@@ -53,3 +53,6 @@ void rl_parse_string__double_String_int64_t_r_bool(
 // fun parse_string(Byte result, String buffer, Int index) -> Bool
 void rl_parse_string__int8_t_String_int64_t_r_bool(
 		bool* return_value, int8_t* result, String* buffer, int64_t* current);
+
+// fun parse_string(Byte result, String buffer, Int index) -> Bool
+void rl_is_alphanumeric__int8_t_r_bool(bool* return_value, int8_t* input_char);

@@ -231,6 +231,8 @@ trait<T> StringParsable:
 fun is_space(Byte b) -> Bool:
     return b == ' ' or b == '\n' or b == '\t'
 
+ext fun is_alphanumeric(Byte b) -> Bool
+
 fun is_open_paren(Byte b) -> Bool:
     return b == '(' or b == '[' or b == '{'
 
@@ -253,6 +255,24 @@ fun _consume_literal(String buffer, StringLiteral literal, Int index) -> Bool:
     while literal[counter] != '\0':
         index = index + 1
         counter = counter + 1
+
+    return true
+
+fun _consume_literal_token(String buffer, StringLiteral literal, Int index) -> Bool:
+    _consume_space(buffer, index)
+    if !buffer.substring_matches(literal, index):
+        return false
+    let counter = 0
+    while literal[counter] != '\0':
+        counter = counter + 1
+
+    # if there is a trailing alphanumeric character it means
+    # we did not perfectly matched the name we were looking for
+    if is_alphanumeric(buffer.get(index + counter)):
+        return false
+
+    index = index + counter
+
     return true
 
 fun parse_string(Bool result, String buffer, Int index) -> Bool:
@@ -321,9 +341,9 @@ fun<T> parse_string(Vector<T> result, String buffer, Int index) -> Bool:
 
 fun<T> _parse_type(T to_parse, String buffer, StringLiteral type_name, Int index) -> Bool:
     if to_parse is CustomGetTypeName:
-        return _consume_literal(buffer, to_parse.get_type_name(), index)
+        return _consume_literal_token(buffer, to_parse.get_type_name(), index)
     else:
-        return _consume_literal(buffer, type_name, index)
+        return _consume_literal_token(buffer, type_name, index)
 
 fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
     if result is StringParsable:
@@ -333,7 +353,8 @@ fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
             using Type = type(field)
             if _parse_type(field, buffer, name, index):
                 let to_parse : Type 
-                _parse_string_impl(to_parse, buffer, index)
+                if !_parse_string_impl(to_parse, buffer, index):
+                    return false
                 result = to_parse
                 return true
         return false
@@ -341,7 +362,7 @@ fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
         if !_consume_literal(buffer, "{", index):
             return false
         for name, field of result:
-            if !_consume_literal(buffer, name, index):
+            if !_consume_literal_token(buffer, name, index):
                 return false
             if !_consume_literal(buffer, ":", index):
                 return false

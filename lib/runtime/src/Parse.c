@@ -103,3 +103,8 @@ void rl_parse_string__double_String_int64_t_r_bool(
 	*return_value = scanned == 1;
 	*current += (int64_t) (c);
 }
+
+void rl_is_alphanumeric__int8_t_r_bool(bool* return_value, int8_t* input_char)
+{
+	*return_value = isalpha(*input_char) || isdigit(*input_char);
+}

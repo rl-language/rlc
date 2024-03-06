@@ -66,6 +66,9 @@ fun<T> _to_vector_impl(T to_add, Vector<Byte> output):
         for field of to_add:
             _to_vector_impl(field, output)
 
+fun<T> append_to_byte_vector(T to_convert, Vector<Byte> out):
+    _to_vector_impl(to_convert, out)
+
 fun<T> as_byte_vector(T to_convert) -> Vector<Byte>:
     let vec : Vector<Byte>
     _to_vector_impl(to_convert, vec)
@@ -75,7 +78,7 @@ trait<T> ByteVectorParsable:
     fun parse_from_vector(T result, Vector<Byte> input, Int index) -> Bool
 
 fun parse_from_vector(Int result, Vector<Byte> input, Int index) -> Bool:
-    if input.size() < index + 8:
+    if index + 8 > input.size():
         return false
     let to_parse : Byte[8]
     let counter = 0
@@ -108,7 +111,7 @@ fun parse_from_vector(Bool result, Vector<Byte> input, Int index) -> Bool:
     return true
 
 fun parse_from_vector(Byte result, Vector<Byte> input, Int index) -> Bool:
-    if input.size() <= index:
+    if input.size() < index:
         return false
     result = input.get(index)
     index = index + 1

@@ -1,4 +1,3 @@
-#
 # This file is part of the RLC project.
 #
 # RLC is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 2 as published by the Free Software Foundation.
@@ -8,8 +7,8 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 import argparse
-from loader.simulation import dump
 from loader import Simulation, compile, State
+from loader.simulation import dump
 from solvers import find_end
 import sys
 from shutil import which
@@ -41,52 +40,17 @@ def main():
         help="path to file containing a action for each line",
         default="-",
     )
-    parser.add_argument("--ignore-invalid", "-ii", action="store_true", default=False)
-    parser.add_argument("--print-all", "-all", action="store_true", default=False)
-    parser.add_argument("--show-actions", "-a", action="store_true", default=False)
-
     args = parser.parse_args()
     sim = load_simulation_from_args(args)
 
-    if args.show_actions:
-        sim.dump()
-        return
-
-    state = sim.start(["play"])
-    if args.load != "":
-        state.load(args.load)
-
-    lines = sys.stdin.readlines() if args.action_file == '-' else open(args.action_file, "r").readlines()
-    for line in lines:
-        if args.print_all:
-            state.print_action(line)
-
-        action = sim.parse_action(line)
-        if action is None:
-            if args.ignore_invalid:
-                continue
-            else:
-                print("Cannot parse the following action:")
-                state.print_action(line)
-                break
-
-        if not state.can_apply_action(action):
-            if args.ignore_invalid:
-                continue
-            else:
-                print("Cannot apply the following action:")
-                state.print_action(action)
-                break
-
-        if not args.print_all:
-            state.print_action(action)
-        state.apply_action(action)
-
-    if args.output != "":
-        with open(args.output, "w+") as output:
-            output.write(state.to_string())
-    else:
-        state.dump()
+    lines = sys.stdin.read() if args.action_file == '-' else open(args.action_file, "rb").read()
+    actions = sim.parse_actions_from_binary_buffer(lines)
+    for action in actions:
+        string = sim.action_to_string(action)
+        if args.output != "":
+            state.write(string)
+        else:
+            print(string)
 
 if __name__ == "__main__":
     main()

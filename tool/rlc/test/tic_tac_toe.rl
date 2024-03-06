@@ -75,14 +75,9 @@ act play() -> TicTacToe:
         board.next_turn()
 
 fun gen_printer_parser():
-    let state = play()
-    let serialized = as_byte_vector(state)
-    from_byte_vector(state, serialized)
-    let x : AnyTicTacToeAction
-    apply(x, state)
-    to_string(state)
-    to_string(x)
-    from_string(x, ""s)
+    let state : TicTacToe
+    let any_action :  AnyTicTacToeAction
+    gen_python_methods(state, any_action)
 
 fun fuzz(Vector<Byte> input):
     if input.size() == 0:

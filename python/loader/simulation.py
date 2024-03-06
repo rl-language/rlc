@@ -272,12 +272,6 @@ class State:
         self.simulation = simulation
         self.state = state
 
-    def parse_action(self, action: str):
-        any_action = self.simulation.module.AnyTicTacToeAction()
-        rl_string = self.simulation.to_rl_string(action)
-        self.simulation.module.functions.from_string(any_action, rl_string)
-        return any_action
-
     def print_action(self, action):
         print(self.simulation.to_python_string(self.simulation.module.functions.to_string(action)))
 
@@ -304,6 +298,10 @@ class State:
 
     def to_string(self) -> str:
         return self.simulation.to_python_string(self.simulation.module.functions.to_string(self.state))
+
+    def from_string(self, string: str) -> bool:
+        rl_string = self.simulation.to_rl_string(str)
+        return self.simulation.module.functions.from_string(self.state, rl_string)
 
     def dump(self):
         print(self.to_string())
@@ -334,10 +332,15 @@ class State:
             file.write(self.as_byte_vector())
             file.flush()
 
-    def load(self, path: str):
+    def load_binary(self, path: str):
         with open(path, mode="rb") as file:
             bytes = file.read()
             self.from_byte_vector(bytes)
+
+    def load(self, path: str) -> bool:
+        with open(path, mode="r") as file:
+            bytes = file.read()
+            return self.from_string(bytes)
 
     def score(self):
         return self.state.score
@@ -394,6 +397,32 @@ class Simulation:
 
     def get_actions(self) -> [Action]:
         return self.actions
+
+    def parse_action(self, action: str):
+        any_action = self.module.actionToAnyFunctionType["play"]()
+        rl_string = self.to_rl_string(action)
+        if self.module.functions.from_string(any_action, rl_string):
+            return any_action
+        else:
+            return None
+
+    def action_to_string(self, action) -> str:
+        return self.to_python_string(self.module.functions.to_string(action))
+
+    def parse_actions_from_binary_buffer(self, actions: bytes) -> [list]:
+        vector = self.bytes_to_byte_vector(actions)
+        any_action = self.module.actionToAnyFunctionType["play"]()
+        vec = self.module.functions.parse_actions(any_action, vector)
+        to_return = []
+        for i in range(getattr(vec, "__size")):
+            to_return.append(getattr(vec, "__data")[i])
+        return to_return
+
+    def bytes_to_byte_vector(self, byte_vector: bytes):
+        vector = self.module.VectorTint8_tT()
+        for byte in byte_vector:
+            self.module.functions.append(vector, byte)
+        return vector
 
     @property
     def action_names(self) -> [str]:

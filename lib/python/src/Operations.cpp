@@ -227,6 +227,13 @@ static void emitStruct(
 	OS << "\n\n";
 }
 
+mlir::LogicalResult mlir::rlc::python::AddToMap::emit(
+		llvm::raw_ostream& OS, SerializationContext& context)
+{
+	OS << getDictName() << "[" << getKey() << "] = " << getValue() << "\n\n";
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
 		llvm::raw_ostream& OS, SerializationContext& context)
 {
@@ -314,6 +321,7 @@ mlir::LogicalResult mlir::rlc::python::CTypesLoad::emit(
 	OS << "wrappers = defaultdict(list)\n";
 	OS << "args_info = {}\n";
 	OS << "signatures = {}\n";
+	OS << "actionToAnyFunctionType= {}\n";
 
 	return mlir::success();
 }
@@ -404,10 +412,7 @@ mlir::LogicalResult mlir::rlc::python::PythonCall::emit(
 
 	for (auto arg : getArgs())
 	{
-		if (arg.getType().isa<mlir::rlc::python::CTypesCharPType>())
-			OS << context.nameOf(arg) << ", ";
-		else
-			OS << "byref(" << context.nameOf(arg) << "), ";
+		OS << "byref(" << context.nameOf(arg) << "), ";
 	}
 
 	OS << ")\n";

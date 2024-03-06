@@ -487,149 +487,150 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 	t.dump();
 	assert(false && "unrechable");
 }
-
-static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
+namespace mlir::rlc
 {
-	if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
+	static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	{
-		OS << maybeType.getName();
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ContextType>())
-	{
-		typeToMangled(OS, maybeType.getUnderlying());
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::FrameType>())
-	{
-		typeToMangled(OS, maybeType.getUnderlying());
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
-	{
-		OS << maybeType.getName();
-		if (maybeType.getTrait() != nullptr)
+		if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
 		{
-			OS << ":";
-			typeToMangled(OS, maybeType.getTrait());
+			OS << maybeType.getName();
+			return;
 		}
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::StringLiteralType>())
-	{
-		OS << "strlit";
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
-	{
-		OS << "int" << int64_t(maybeType.getSize()) << "_t";
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
-	{
-		OS << "double";
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::BoolType>())
-	{
-		OS << "bool";
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::VoidType>())
-	{
-		OS << "void";
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::EntityType>())
-	{
-		OS << maybeType.getName();
-		if (not maybeType.getExplicitTemplateParameters().empty())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::ContextType>())
 		{
-			OS << "T";
-			for (auto type : maybeType.getExplicitTemplateParameters())
+			typeToMangled(OS, maybeType.getUnderlying());
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::FrameType>())
+		{
+			typeToMangled(OS, maybeType.getUnderlying());
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+		{
+			OS << maybeType.getName();
+			if (maybeType.getTrait() != nullptr)
 			{
-				typeToMangled(OS, type);
-				OS << "T";
+				OS << ":";
+				typeToMangled(OS, maybeType.getTrait());
 			}
+			return;
 		}
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
-	{
-		size_t i = 0;
-		OS << "alt_";
-		for (auto input : maybeType.getUnderlying())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::StringLiteralType>())
 		{
-			i++;
-			typeToMangled(OS, input);
-
-			if (i != maybeType.getUnderlying().size())
-				OS << "_or_";
+			OS << "strlit";
+			return;
 		}
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
-	{
-		typeToMangled(OS, maybeType.getUnderlying());
-		OS << "_";
-		OS << maybeType.getArraySize();
-		return;
-	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ReferenceType>())
-	{
-		typeToMangled(OS, maybeType.getUnderlying());
-		OS << "Ref";
-		return;
-	}
-
-	if (auto maybeType = t.dyn_cast<mlir::rlc::OwningPtrType>())
-	{
-		typeToMangled(OS, maybeType.getUnderlying());
-		OS << "Ptr";
-		return;
-	}
-
-	if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
-	{
-		assert(maybeType.getResults().size() <= 1);
-		for (auto input : maybeType.getInputs())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
 		{
+			OS << "int" << int64_t(maybeType.getSize()) << "_t";
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
+		{
+			OS << "double";
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::BoolType>())
+		{
+			OS << "bool";
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::VoidType>())
+		{
+			OS << "void";
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::EntityType>())
+		{
+			OS << maybeType.getName();
+			if (not maybeType.getExplicitTemplateParameters().empty())
+			{
+				OS << "T";
+				for (auto type : maybeType.getExplicitTemplateParameters())
+				{
+					typeToMangled(OS, type);
+					OS << "T";
+				}
+			}
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
+		{
+			size_t i = 0;
+			OS << "alt_";
+			for (auto input : maybeType.getUnderlying())
+			{
+				i++;
+				typeToMangled(OS, input);
+
+				if (i != maybeType.getUnderlying().size())
+					OS << "_or_";
+			}
+			return;
+		}
+		if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
+		{
+			typeToMangled(OS, maybeType.getUnderlying());
 			OS << "_";
-			typeToMangled(OS, input);
+			OS << maybeType.getArraySize();
+			return;
 		}
-		if (not maybeType.getResults().empty() and
-				not maybeType.getResults().front().isa<mlir::rlc::VoidType>())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::ReferenceType>())
 		{
-			OS << "_r_";
-			typeToMangled(OS, maybeType.getResult(0));
+			typeToMangled(OS, maybeType.getUnderlying());
+			OS << "Ref";
+			return;
 		}
-		return;
-	}
 
-	t.dump();
-	assert(false && "unrechable");
+		if (auto maybeType = t.dyn_cast<mlir::rlc::OwningPtrType>())
+		{
+			typeToMangled(OS, maybeType.getUnderlying());
+			OS << "Ptr";
+			return;
+		}
+
+		if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
+		{
+			assert(maybeType.getResults().size() <= 1);
+			for (auto input : maybeType.getInputs())
+			{
+				OS << "_";
+				typeToMangled(OS, input);
+			}
+			if (not maybeType.getResults().empty() and
+					not maybeType.getResults().front().isa<mlir::rlc::VoidType>())
+			{
+				OS << "_r_";
+				typeToMangled(OS, maybeType.getResult(0));
+			}
+			return;
+		}
+
+		t.dump();
+		assert(false && "unrechable");
+	}
+}	 // namespace mlir::rlc
+
+std::string mlir::rlc::typeToMangled(mlir::Type t)
+{
+	std::string s;
+	llvm::raw_string_ostream OS(s);
+
+	typeToMangled(OS, t);
+	OS.flush();
+
+	return s;
 }
 
 std::string mlir::rlc::EntityType::mangledName()
 {
-	std::string s;
-	llvm::raw_string_ostream OS(s);
-
-	typeToMangled(OS, *this);
-	OS.flush();
-
-	return s;
+	return typeToMangled(*this);
 }
 
 std::string mlir::rlc::AlternativeType::getMangledName()
 {
-	std::string s;
-	llvm::raw_string_ostream OS(s);
-
-	typeToMangled(OS, *this);
-	OS.flush();
-
-	return s;
+	return typeToMangled(*this);
 }
 
 std::string mlir::rlc::mangledName(

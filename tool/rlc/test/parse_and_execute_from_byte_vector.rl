@@ -13,7 +13,7 @@ act play() -> Game:
                 counter = counter + x
 
 fun main() -> Int:
-    let action_vector : Vector<AnyGameAction>
+    let serialized : Vector<Byte>
 
     let action1 : GameCount
     action1.x = 4
@@ -22,13 +22,11 @@ fun main() -> Int:
 
     let to_append : AnyGameAction
     to_append = action1
-    action_vector.append(to_append)
+    append_to_byte_vector(to_append, serialized)
 
     let to_append2 : AnyGameAction
     to_append = action2
-    action_vector.append(to_append2)
-
-    let serialized = as_byte_vector(action_vector)
+    append_to_byte_vector(to_append2, serialized)
 
     let frame = play()
 
@@ -37,6 +35,6 @@ fun main() -> Int:
 
     if !frame.is_done():
         return -1
-    else if frame.counter != 0:
+    else if frame.counter != 4:
         return 1
     return 0

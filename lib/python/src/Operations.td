@@ -22,6 +22,14 @@ def RLC_CTypesLoad : RLC_PythonOp<"load_lib", [DeclareOpInterfaceMethods<EmitPyt
 }
 
 
+def RLC_AddToMap : RLC_PythonOp<"add_to_map", [DeclareOpInterfaceMethods<EmitPython>]> {
+  let arguments = (ins StrAttr:$dict_name, StrAttr:$key, StrAttr:$value);
+
+  let assemblyFormat = [{
+	$dict_name $key $value attr-dict 
+  }];
+}
+
 def RLC_CTypeStructDecl : RLC_PythonOp<"CTypeStruct", [DeclareOpInterfaceMethods<EmitPython>]> {
   let arguments = (ins TypeAttr:$type, StrArrayAttr:$field_names);
 

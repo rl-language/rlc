@@ -520,6 +520,15 @@ class ActionDeclToTNothing
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
+		auto types = builder->getConverter().getTypes().get(
+				("Any" + op.getEntityType().getName() + "Action").str());
+		if (not types.empty())
+			rewriter.create<mlir::rlc::python::AddToMap>(
+					op.getLoc(),
+					"actionToAnyFunctionType",
+					("\"" + op.getUnmangledName() + "\"").str(),
+					("Any" + op.getEntityType().getName() + "Action").str());
+
 		auto f = emitFunctionWrapper(
 				op.getLoc(),
 				library,
