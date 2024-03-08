@@ -136,8 +136,7 @@ namespace mlir::rlc
 			return;
 		}
 		if (debug)
-			manager.addNestedPass<mlir::LLVM::LLVMFuncOp>(
-					mlir::LLVM::createDIScopeForLLVMFuncOpPass());
+			manager.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 		manager.addPass(mlir::rlc::createRLCBackEndPass(
 				mlir::rlc::RLCBackEndPassOptions{ OS,
 																					clangPath,

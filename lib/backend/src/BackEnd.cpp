@@ -77,7 +77,6 @@ namespace mlir::rlc
 		// For codegen passes, only passes that do IR to IR transformation are
 		// supported.
 		initializeExpandMemCmpLegacyPassPass(Registry);
-		initializeCodeGenPreparePass(Registry);
 		initializeAtomicExpandPass(Registry);
 		initializeWinEHPreparePass(Registry);
 		initializeSafeStackLegacyPassPass(Registry);

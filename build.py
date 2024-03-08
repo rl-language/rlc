@@ -89,7 +89,7 @@ def build_llvm(
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;",
         "-DLLVM_USE_LINKER=lld" if use_lld else "",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
-        "-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi",
+        "-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi;libunwind",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
         "-G",
@@ -197,11 +197,11 @@ def main():
             rlc_infrastructure,
             git,
             "clone",
-            "https://github.com/drblallo/llvm.git",
+            "https://github.com/llvm/llvm-project.git",
             "--depth",
             "1",
             "-b",
-            "main",
+            "release/18.x",
         )
 
     if debug_llvm and not exists(llvm_install_debug_dir) and args.llvm_dir == "":
