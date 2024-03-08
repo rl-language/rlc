@@ -582,11 +582,17 @@ mlir::LogicalResult mlir::rlc::UncheckedCanOp::typeCheck(
 		if (mlir::rlc::typeCheck(*child, builder).failed())
 			return mlir::failure();
 	}
+
+	if (getBody().front().empty())
+	{
+		return mlir::rlc::logError(
+				*this, "can expressions can only refer to a function call");
+	}
 	auto call = mlir::dyn_cast<mlir::rlc::CallOp>(getBody().front().back());
 	if (call == nullptr)
 	{
 		return mlir::rlc::logError(
-				*this, "can expression can only refer to a function call");
+				*this, "can expressions can only refer to a function call");
 	}
 
 	while (not getBody().front().empty())
@@ -1700,7 +1706,16 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 		{
 			auto _ =
 					logError(*this, "initializer list has arguments of different type");
-			return logRemark(element.getDefiningOp(), "missmatched argument here");
+			if (element.getDefiningOp() == nullptr)
+			{
+				return logRemark(
+						element.getParentBlock()->getParentOp(),
+						"missmatched argument here");
+			}
+			else
+			{
+				return logRemark(element.getDefiningOp(), "missmatched argument here");
+			}
 		}
 	}
 
@@ -1776,6 +1791,12 @@ mlir::LogicalResult mlir::rlc::BuiltinAssignOp::typeCheck(
 mlir::LogicalResult mlir::rlc::AssignOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	if (getLhs().getType().isa<mlir::FunctionType>() or
+			getRhs().getType().isa<mlir::FunctionType>())
+	{
+		return logError(
+				*this, "Assigns cannot have operands that are function types");
+	}
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ImplicitAssignOp>(
 			*this, getLhs(), getRhs());
 	return mlir::success();
