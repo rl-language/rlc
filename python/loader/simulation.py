@@ -317,8 +317,8 @@ class State:
     def as_byte_vector(self):
         result = self.simulation.module.functions.as_byte_vector(self.state)
         real_content = []
-        for i in range(result.size):
-            real_content.append(result.data[i] + 128)
+        for i in range(getattr(result, "__size")):
+            real_content.append(getattr(result, "__data")[i] + 128)
         return bytes(real_content)
 
     def from_byte_vector(self, byte_vector):

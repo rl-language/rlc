@@ -58,6 +58,7 @@ ent Board:
 
 act play() -> TicTacToe:
     frm board : Board
+    frm score = 10
     while !board.full():
         act mark(Int x, Int y) {
             x < 3,
@@ -67,6 +68,7 @@ act play() -> TicTacToe:
             board.get(x, y) == 0
         }
 
+        score = score - 1
         board.set(x, y, board.current_player())
 
         if board.three_in_a_line_player(board.current_player()):
