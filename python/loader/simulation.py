@@ -128,7 +128,7 @@ class Argument:
         if self.type == int:
             if len(raw_bytes) < 1:
                 return None
-            parsed = int.from_bytes(raw_bytes[:1], "big")
+            parsed = int.from_bytes(raw_bytes[:1], "big") if raw_bytes[:1] < 256 else 255
             lerped = integer_lerp(self.min, self.max + 1, parsed)
             out.append(lerped)
             return raw_bytes[1:]
@@ -438,7 +438,9 @@ class Simulation:
 
     def parse_action_only_from_raw_bytes(self, raw_bytes) -> Action:
         action_index = integer_lerp(1, len(self.actions), raw_bytes[0])
-        return self.actions[action_index]
+        if action_index < len(self.actions):
+            return self.actions[action_index]
+        return None
 
     def args_as_canonical_raw_bytes(self, action, args):
         action_index = category_leader(1, len(self.actions), action.index)
@@ -446,12 +448,14 @@ class Simulation:
 
     def parse_action_from_raw_bytes(self, raw_bytes: bytes):
         action = self.parse_action_only_from_raw_bytes(raw_bytes)
+        if action is None:
+            return (None, None)
         args = action.parse_args_from_raw_byte(raw_bytes[1:])
         return (action, args)
 
     def execute_action_from_raw_bytes(self, state: State, raw_bytes: bytes):
         (action, args) = self.parse_action_from_raw_bytes(raw_bytes)
-        if args is None:
+        if args is None or action is None:
             return None
         if not action.can_run(state, *args):
             return None
