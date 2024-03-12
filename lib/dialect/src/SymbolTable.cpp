@@ -257,6 +257,7 @@ static void registerConversions(
 	converter.addConversion([](mlir::rlc::VoidType t) { return t; });
 	converter.addConversion([](mlir::rlc::BoolType t) { return t; });
 	converter.addConversion([](mlir::rlc::FloatType t) { return t; });
+	converter.addConversion([](mlir::rlc::IntegerLiteralType t) { return t; });
 	converter.addConversion([&](mlir::rlc::OwningPtrType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
 		if (converted == nullptr)

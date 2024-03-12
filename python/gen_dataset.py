@@ -1,14 +1,19 @@
 #
-# This file is part of the RLC project.
+#Copyright 2024 Massimo Fioravanti
 #
-# RLC is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 2 as published by the Free Software Foundation.
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
 #
-# RLC is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 #
 import argparse
-from loader.simulation import dump
 import os
 from loader import Simulation, compile
 from solvers import find_end, explore, ml_mcts, play_game
@@ -23,7 +28,7 @@ def organize_simulations_result(entry):
     list_to_save = []
     for (state, moves_and_scores) in entry:
         list_moves = []
-        state.dump()
+        print(str(state))
         for move_score in moves_and_scores:
             action = move_score.action
             args = move_score.args
@@ -47,7 +52,7 @@ def main():
     args = parser.parse_args()
     sim = load_simulation_from_args(args)
 
-    state = sim.start(["play"])
+    state = sim.start("play")
     # find_end(Simulation, state)
 
     transformer = load_network(args.network, 256, "cpu")
@@ -58,7 +63,7 @@ def main():
         with torch.inference_mode():
             with open(args.output, "wb+" if not args.append else "ab") as f:
                 for entry in ml_mcts(
-                    lambda: sim.start(["play"]), oracle, args.turn_limit, 200, args.runs
+                    lambda: sim.start("play"), oracle, args.turn_limit, 200, args.runs
                 ):
                     pickle.dump(organize_simulations_result(entry), f)
 

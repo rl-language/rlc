@@ -8,7 +8,6 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 import argparse
-from loader.simulation import dump
 from loader import Simulation, compile
 from solvers import find_end
 from shutil import which
@@ -20,9 +19,9 @@ def main():
     args = parser.parse_args()
     sim = load_simulation_from_args(args)
 
-    state = sim.start(["play"])
+    state = sim.start("play")
 
-    state.dump()
+    print(state)
     find_end(sim, state)
 
 

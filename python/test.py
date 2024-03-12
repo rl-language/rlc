@@ -9,7 +9,6 @@
 #
 import argparse
 import time
-from loader.simulation import dump
 from loader import Simulation, compile
 from solvers import find_end
 from shutil import which

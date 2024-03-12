@@ -79,6 +79,10 @@ static void collectEntityUsedTyepNames(
 			collectEntityUsedTyepNames(subType, out);
 		return;
 	}
+	if (auto casted = type.dyn_cast<mlir::rlc::IntegerLiteralType>())
+	{
+		return;
+	}
 	llvm_unreachable("unrechable");
 }
 

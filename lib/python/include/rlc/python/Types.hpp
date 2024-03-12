@@ -124,7 +124,8 @@ namespace mlir::rlc
 			for (auto type : llvm::enumerate(maybeType.getSubTypes()))
 			{
 				writeTypeName(OS, type.value(), ctypesSyntax);
-				if (type.index() != maybeType.getSubTypes().size() - 1)
+				if (type.index() != maybeType.getSubTypes().size() - 1 or
+						maybeType.getSubTypes().size() == 1)
 					OS << "Or";
 			}
 

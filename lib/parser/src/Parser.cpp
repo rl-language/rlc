@@ -1380,8 +1380,16 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleNonArrayTypeUse()
 	{
 		do
 		{
-			TRY(templateParameter, singleTypeUse());
-			templateParametersTypes.push_back(*templateParameter);
+			if (accept<Token::Int64>())
+			{
+				templateParametersTypes.push_back(
+						mlir::rlc::IntegerLiteralType::get(builder.getContext(), lInt64));
+			}
+			else
+			{
+				TRY(templateParameter, singleTypeUse());
+				templateParametersTypes.push_back(*templateParameter);
+			}
 		} while (accept<Token::Comma>());
 		EXPECT(Token::RAng);
 	}

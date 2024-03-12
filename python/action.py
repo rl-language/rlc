@@ -8,7 +8,6 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 import argparse
-from loader.simulation import dump
 from loader import Simulation, compile, State
 from solvers import find_end
 import sys
@@ -52,7 +51,7 @@ def main():
         sim.dump()
         return
 
-    state = sim.start(["play"])
+    state = sim.start("play")
     if args.load != "":
         state.load(args.load)
 
@@ -75,24 +74,24 @@ def main():
                 print(line)
                 break
 
-        if not state.can_apply_action(action):
+        if not action.can_run(state):
             if args.ignore_invalid:
                 continue
             else:
                 print("Cannot apply the following action:")
                 failed = True
-                state.print_action(action)
+                print(action)
                 break
 
         if not args.print_all:
-            state.print_action(action)
-        state.apply_action(action)
+            print(action)
+        action.run(state)
 
     if args.output != "":
         with open(args.output, "w+") as output:
-            output.write(state.to_string())
+            output.write(state)
     else:
-        state.dump()
+        print(state)
 
     if failed:
         exit(-1)

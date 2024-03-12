@@ -12,27 +12,30 @@ from random import uniform
 from copy import deepcopy
 
 
-class ArgumentStub:
-    def get_min_max(self):
-        return (0, 2)
-
 
 class ActionStub:
+    def __init__(self, implementation, x, y):
+        self.implementation = implementation
+        self.x = x
+        self.y = y
+
+    def can_run(self, state):
+        assert self.x < 3 and self.x >= 0 and self.y < 3 and self.y >= 0
+        return state.board[self.x][self.y] == 0
+
+    def run(self, state):
+        state.mark(self.x, self.y)
+        return state
+
+class ActionStubType:
     def __init__(self, implementation):
         self.implementation = implementation
 
-    @property
-    def args(self):
-        return [ArgumentStub(), ArgumentStub(), ArgumentStub()]
+    def get_arg_min_maxs(self):
+        return [(0, 2), (0, 2)]
 
-    def can_run(self, state, x, y):
-        assert x < 3 and x >= 0 and y < 3 and y >= 0
-        return state.board[x][y] == 0
-
-    def run(self, state, x, y):
-        state.mark(x, y)
-        return state
-
+    def materialize(self, *args):
+        return ActionStub(self.implementation, args[0], args[1])
 
 class Tris:
     def __init__(self):
@@ -65,7 +68,7 @@ class Tris:
 
     @property
     def actions(self):
-        return [ActionStub(self.mark)]
+        return [ActionStubType(self)]
 
 
 class TrisMoveOracle:

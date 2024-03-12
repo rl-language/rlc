@@ -16,7 +16,6 @@ from solvers import find_viable_actions
 @dataclass
 class MoveAndScore:
     action: Action
-    args: [int]
     score: float
 
 
@@ -56,12 +55,12 @@ def sample_expected_value(
 ) -> [MoveAndScore]:
     to_return = []
 
-    for (action, args) in find_viable_actions(state):
+    for action in find_viable_actions(state):
         copied_state = state.copy()
-        action.run(copied_state, *args)
+        action.run(copied_state)
         score = playout(copied_state, moves_oracle, turn_limit, rollouts)
         if score is not None:
-            to_return.append(MoveAndScore(action, args, score))
+            to_return.append(MoveAndScore(action, score))
 
     return to_return
 

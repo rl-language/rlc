@@ -21,8 +21,12 @@ class RawBytesActionInvoker:
             return None
         if state.is_done():
             return state
-        return state.execute_from_raw_bytes(self.raw_bytes)
-
+        action = state.simulation.action_from_byte_vector(self.raw_bytes)
+        if action is None:
+            return None
+        if not action.can_run(state):
+            return None
+        return action.run(state)
 
 class ActionOracle:
     def __init__(self, transformer: RLCTransformer):
@@ -52,6 +56,6 @@ class ActionOracle:
             if state is None:
                 result.append(RawBytesActionInvoker(None))
             else:
-                result.append(RawBytesActionInvoker(result_bytes[:, index]))
+                result.append(RawBytesActionInvoker(result_bytes[:, index].tolist()))
                 index = index + 1
         return result

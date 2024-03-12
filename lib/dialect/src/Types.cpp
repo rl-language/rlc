@@ -606,6 +606,11 @@ namespace mlir::rlc
 			}
 			return;
 		}
+		if (auto casted = t.dyn_cast<mlir::rlc::IntegerLiteralType>())
+		{
+			OS << casted.getValue();
+			return;
+		}
 
 		t.dump();
 		assert(false && "unrechable");

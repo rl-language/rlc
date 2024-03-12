@@ -12,36 +12,35 @@ from itertools import product
 from typing import Tuple, Iterator
 
 
-def find_viable_actions(state: State) -> Iterator[Tuple[Action, list[int]]]:
+def find_viable_actions(state: State) -> Iterator[Action]:
     for action in state.actions:
-        min_max = [argument.get_min_max() for argument in action.args[1:]]
+        min_max = action.get_arg_min_maxs()
 
         for args in product(*[range(begin, end + 1) for begin, end in min_max]):
-            if not action.can_run(state, *args):
+            materialized = action.materialize(*args)
+            if not materialized.can_run(state):
                 continue
 
-            yield (action, args)
+            yield materialized
 
 
 def execute_action(simulation: Simulation, state: State) -> bool:
-    viable_actions = [(x, y) for (x, y) in find_viable_actions(state)]
+    viable_actions = [x for x in find_viable_actions(state)]
     if len(viable_actions) == 0:
         return False
 
-    (action, args) = viable_actions[0]
-    print(action.name, args)
-    action.run(state, *args)
+    action = viable_actions[0]
+    action.run(state)
     return True
 
 
 def find_end(simulation: Simulation, state: State):
     while not state.is_done():
         assert execute_action(simulation, state)
-        state.dump()
+        print(state)
 
 
 def explore(simulation: Simulation, state: State, output: [Tuple[State, int]]) -> int:
-    print(len(output))
     if state.is_done():
         output.append((state, state.state.size))
         return state.state.size
