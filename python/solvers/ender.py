@@ -11,17 +11,20 @@ from loader import Simulation, State, Action
 from itertools import product
 from typing import Tuple, Iterator
 
-
-def find_viable_actions(state: State) -> Iterator[Action]:
-    for action in state.actions:
+def all_actions(simulation: Simulation) -> Iterator[Action]:
+    for action in simulation.actions:
         min_max = action.get_arg_min_maxs()
 
-        for args in product(*[range(begin, end + 1) for begin, end in min_max]):
-            materialized = action.materialize(*args)
-            if not materialized.can_run(state):
-                continue
+        for args in product(*[range(begin, end) for begin, end in min_max]):
+            yield action.materialize(*args)
 
-            yield materialized
+
+def find_viable_actions(state: State) -> Iterator[Action]:
+    for action in all_actions(state.simulation):
+        if not action.can_run(state):
+            continue
+
+        yield action
 
 
 def execute_action(simulation: Simulation, state: State) -> bool:

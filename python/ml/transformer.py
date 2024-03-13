@@ -60,10 +60,8 @@ def next_probabilities(model, data: Tensor, output: Tensor, device, ntokens):
         data = data.view(-1, 1)
     if output.dim() == 1:
         output = output.view(-1, 1)
-    previous_iter = torch.cat([get_start_of_sequence(1, ntokens, device), output])
-    mask = generate_square_subsequent_mask(previous_iter.size(0))
-    (output, _) = model(data, previous_iter, mask)
-    return output[-1, 0]
+    output = model(data)
+    return output[0, :]
 
 
 def run_once(
@@ -73,16 +71,12 @@ def run_once(
         data = data.view(-1, 1)
 
     result = get_start_of_sequence(data.size(1), ntokens, device)
-    encoder_output = None
     for i in range(iterations):
         mask = generate_square_subsequent_mask(i + 1)
         previous_tokens = result
 
-        (output, encoder_output) = (
-            model(data, previous_tokens, mask)
-            if encoder_output is None
-            else model.decoder_only(encoder_output, previous_tokens, mask)
-        )
+        output = model(data)
+
         last_tokens = output[-1]
         indexes = (
             torch.multinomial(torch.softmax(last_tokens, dim=1), 1).int()
@@ -115,13 +109,10 @@ class TransformerModel(nn.Module):
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.encoder = nn.Embedding(ntoken, d_model)
+        self.encoder = nn.Embedding(257, d_model)
         self.d_model = d_model
-        decoder_layers = TransformerDecoderLayer(d_model, nhead, d_hid, dropout)
-        self.pos_decoder = PositionalEncoding(d_model, dropout)
-        self.decoder_embeddings = nn.Embedding(ntoken, d_model)
-        self.decoder = TransformerDecoder(decoder_layers, 2)
-        self.final_linear = nn.Linear(d_model, ntoken)
+        self.final_linear = nn.Linear(d_model, 1)
+        self.final_linear2 = nn.Linear(89, ntoken)
 
         self.init_weights()
 
@@ -130,16 +121,11 @@ class TransformerModel(nn.Module):
         self.encoder.weight.data.uniform_(-initrange, initrange)
         self.final_linear.weight.data.uniform_(-initrange, initrange)
         self.final_linear.bias.data.zero_()
+        self.final_linear2.weight.data.uniform_(-initrange, initrange)
+        self.final_linear2.bias.data.zero_()
 
-    def decoder_only(
-        self, encoder_output: Tensor, result: Tensor, src_mask: Tensor
-    ) -> Tensor:
-        result = self.decoder_embeddings(result) * math.sqrt(self.d_model)
-        result = self.pos_decoder(result)
-        output = self.decoder(result, encoder_output, src_mask)
-        return (self.final_linear(output), encoder_output)
 
-    def forward(self, src: Tensor, result: Tensor, mask: Tensor) -> Tensor:
+    def forward(self, src: Tensor) -> Tensor:
         """
         Arguments:
             src: Tensor, shape ``[seq_len, batch_size]``
@@ -149,12 +135,14 @@ class TransformerModel(nn.Module):
             output Tensor of shape ``[seq_len, batch_size, ntoken]``
         """
         src = self.encoder(src) * math.sqrt(self.d_model)
-        src = self.pos_encoder(src)
-        encoder_output = self.transformer_encoder(src)
-        result = self.decoder_embeddings(result) * math.sqrt(self.d_model)
-        result = self.pos_decoder(result)
-        output = self.decoder(result, encoder_output, mask)
-        return (self.final_linear(output), encoder_output)
+        # src = self.pos_encoder(src)
+        # encoder_output = self.transformer_encoder(src)
+        result = self.final_linear(src)
+        result = torch.squeeze(result, dim=2)
+        result = result.view(result.size(1), result.size(0))
+        result = torch.relu(result)
+        output = self.final_linear2(result)
+        return output
 
 
 class PositionalEncoding(nn.Module):
@@ -207,15 +195,11 @@ class RLCTransformer:
         for i in range(0, train_data.size(0)):
             self.optimizer.zero_grad()
             data = train_data[i]
-            decoder_input = torch.argmax(result_data[i], dim=2)
 
-            end_of_sequences = get_end_of_sequence(
-                data.size(1), self.ntokens, self.ntokens, self.device
-            )
-            targets = torch.cat([result_data[i, 1:], end_of_sequences])
+            targets = result_data[i, :]
 
             targets_reshaped = targets
-            (output, encoder_output) = self.model(data, decoder_input, src_mask)
+            output = self.model(data)
             loss = self.criterion(output, targets_reshaped)
 
             loss.backward()
@@ -224,8 +208,6 @@ class RLCTransformer:
 
             total_loss += loss.item()
             if i % log_interval == 0 and i > 0:
-                print(torch.argmax(output, dim=2)[:, 1])
-                print(torch.argmax(targets_reshaped, dim=2)[:, 1])
                 lr = self.scheduler.get_last_lr()[0]
                 ms_per_batch = (time.time() - start_time) * 1000 / log_interval
                 cur_loss = total_loss / log_interval
@@ -246,14 +228,9 @@ class RLCTransformer:
         with torch.no_grad():
             for i in range(0, eval_data.size(0)):
                 data = eval_data[i]
-                end_of_sequences = get_end_of_sequence(
-                    data.size(1), self.ntokens, self.ntokens, self.device
-                )
-                decoder_input = torch.argmax(result_data[i], dim=2)
-
-                targets = torch.cat([result_data[i, 1:], end_of_sequences])
+                targets = result_data[i, :]
                 seq_len = result_data[i].size(0)
-                (output, encoder_output) = self.model(data, decoder_input, src_mask)
+                output  = self.model(data)
                 total_loss += seq_len * self.criterion(output, targets).item()
         return total_loss / (len(eval_data) - 1)
 

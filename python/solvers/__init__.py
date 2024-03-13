@@ -7,5 +7,5 @@
 #
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
-from .ender import find_end, explore, find_viable_actions
+from .ender import find_end, explore, find_viable_actions, all_actions
 from .monte_carlo import ml_mcts, play_game

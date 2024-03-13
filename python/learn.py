@@ -39,11 +39,11 @@ def byte_arrays_to_training_data(byte_arrays: [[bytes]], score: [int]):
 
 # returns table of expected scores [sequence_lenght, num_tokens]
 def actions_and_scores_to_table(actions_and_scores):
-    table = [[0 for x in range(258)] for x in range(4)]
+    table = [[1.0 for x in range(9)]]
     for (action, score) in actions_and_scores:
-        for i, byte in enumerate(action):
-            table[i + 1][byte] = max(table[i + 1][byte], score)
-    table[0][256] = 100
+        if score == -1:
+            table[0][action] = 0.0
+    print(table)
     return table
 
 

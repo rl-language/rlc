@@ -97,7 +97,7 @@ class TrainingData:
             val_data_result,
             test_data,
             test_data_result,
-            258,
+            9,
         )
 
     def __init__(

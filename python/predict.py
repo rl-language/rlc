@@ -24,10 +24,10 @@ def main():
 
     transformer = load_network(cl_args.network, 256, "cpu")
 
-    state = sim.start(["play"])
+    state = sim.start("play")
     if cl_args.load != "":
-        state.load(cl_args.load)
-    state.dump()
+        state.load_binary(cl_args.load)
+    print(str(state))
 
     input = torch.LongTensor([state.as_byte_vector()]).t()
 

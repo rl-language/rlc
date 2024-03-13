@@ -43,7 +43,11 @@ def main():
     args = parser.parse_args()
     sim = load_simulation_from_args(args)
 
-    lines = sys.stdin.read() if args.action_file == '-' else open(args.action_file, "rb").read()
+    lines = (
+        sys.stdin.read()
+        if args.action_file == "-"
+        else open(args.action_file, "rb").read()
+    )
     actions = sim.parse_actions_from_binary_buffer(lines)
     for action in actions:
         string = sim.action_to_string(action)
@@ -51,6 +55,7 @@ def main():
             state.write(string)
         else:
             print(string)
+
 
 if __name__ == "__main__":
     main()

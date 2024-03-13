@@ -1,36 +1,27 @@
 #
-# This file is part of the RLC project.
+# Copyright 2024 Massimo Fioravanti
 #
-# RLC is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 2 as published by the Free Software Foundation.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# RLC is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 from loader import State
 import torch
 from ml import RLCTransformer, run_once
 
 
-class RawBytesActionInvoker:
-    def __init__(self, raw_bytes: bytes):
-        self.raw_bytes = raw_bytes
-
-    def __call__(self, state: State):
-        if state is None:
-            return None
-        if state.is_done():
-            return state
-        action = state.simulation.action_from_byte_vector(self.raw_bytes)
-        if action is None:
-            return None
-        if not action.can_run(state):
-            return None
-        return action.run(state)
-
 class ActionOracle:
-    def __init__(self, transformer: RLCTransformer):
+    def __init__(self, transformer: RLCTransformer, action_table):
         self.transformer = transformer
+        self.action_table = action_table
 
     def __call__(self, states: State):
         non_null_states = [state for state in states if state is not None]
@@ -54,8 +45,17 @@ class ActionOracle:
         index = 0
         for state in states:
             if state is None:
-                result.append(RawBytesActionInvoker(None))
+                result.append(None)
             else:
-                result.append(RawBytesActionInvoker(result_bytes[:, index].tolist()))
+                num = result_bytes[0, index]
+                num = num % len(self.action_table)
+                if num >= len(self.action_table) or num < 0:
+                    result.append(None)
+                else:
+                    action = self.action_table[num]
+                    if not action.can_run(state):
+                        result.append(None)
+                    else:
+                        result.append(action)
                 index = index + 1
         return result

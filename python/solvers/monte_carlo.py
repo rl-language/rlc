@@ -1,21 +1,27 @@
 #
-# This file is part of the RLC project.
+# Copyright 2024 Massimo Fioravanti
 #
-# RLC is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 2 as published by the Free Software Foundation.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# RLC is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 from typing import List, Tuple, Dict
 from loader import State, Action
 from dataclasses import dataclass
-from solvers import find_viable_actions
+from solvers import find_viable_actions, all_actions
 
 
 @dataclass
 class MoveAndScore:
-    action: Action
+    action: int
     score: float
 
 
@@ -28,7 +34,7 @@ def single_playout(states: [State], moves_oracle, turn_limit=100) -> [float]:
     ):
         turn_counter = turn_counter + 1
         actions = moves_oracle(states)
-        states = [action(state) for (action, state) in zip(actions, states)]
+        states = [(None if action is None else action.run(state)) for (action, state) in zip(actions, states)]
 
     to_return = []
     for state in states:
@@ -55,12 +61,16 @@ def sample_expected_value(
 ) -> [MoveAndScore]:
     to_return = []
 
-    for action in find_viable_actions(state):
+    for (index, action) in enumerate(all_actions(state.simulation)):
+        if not action.can_run(state):
+            to_return.append(MoveAndScore(index, -1.0))
+            continue
+
         copied_state = state.copy()
         action.run(copied_state)
         score = playout(copied_state, moves_oracle, turn_limit, rollouts)
         if score is not None:
-            to_return.append(MoveAndScore(action, score))
+            to_return.append(MoveAndScore(index, score))
 
     return to_return
 
@@ -75,7 +85,7 @@ def play_game(
         to_return.append((state, samples))
 
         move = moves_oracle([state])[0]
-        state = move(state.copy())
+        state = None if move is None else move.run(state.copy())
         turn_counter = turn_counter + 1
 
     return to_return

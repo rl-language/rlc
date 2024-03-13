@@ -1,17 +1,17 @@
 #
-#Copyright 2024 Massimo Fioravanti
+# Copyright 2024 Massimo Fioravanti
 #
-#Licensed under the Apache License, Version 2.0 (the "License");
-#you may not use this file except in compliance with the License.
-#You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
 #   http://www.apache.org/licenses/LICENSE-2.0
 #
-#Unless required by applicable law or agreed to in writing, software
-#distributed under the License is distributed on an "AS IS" BASIS,
-#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#See the License for the specific language governing permissions and
-#limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 from importlib import import_module, machinery, util
 import inspect
@@ -22,12 +22,14 @@ from subprocess import run
 from ctypes import Structure, Array
 from sys import stdout, stderr
 
+
 def import_file(name, file_path):
     loader = machinery.SourceFileLoader(name, file_path)
     spec = util.spec_from_loader(name, loader)
     mod = util.module_from_spec(spec)
     loader.exec_module(mod)
     return mod
+
 
 class Action:
     def __init__(self, action, simulation):
@@ -49,10 +51,12 @@ class Action:
         return self.functions.can_apply_impl(self.action, state.state)
 
     def run(self, state):
-        return self.functions.apply(self.action, state.state)
+        self.functions.apply(self.action, state.state)
+        return state
 
     def copy(self):
         return Action(self.state.copy(), self.simulation)
+
 
 class ActionType:
     def __init__(self, action_type, action_id, simulation):
@@ -72,6 +76,7 @@ class ActionType:
         self.simulation.module.functions.assign(empty_action.action, current_action)
         return empty_action
 
+
 class State:
     def __init__(self, simulation, state):
         self.simulation = simulation
@@ -84,7 +89,9 @@ class State:
         return self.state.resume_index == -1
 
     def __str__(self) -> str:
-        return self.simulation.to_python_string(self.simulation.module.functions.to_string(self.state))
+        return self.simulation.to_python_string(
+            self.simulation.module.functions.to_string(self.state)
+        )
 
     def from_string(self, string: str) -> bool:
         rl_string = self.simulation.to_rl_string(str)
@@ -107,7 +114,7 @@ class State:
             self.simulation.module.functions.append(vector, byte - 128)
         self.simulation.module.functions.from_byte_vector(self.state, vector)
 
-    def write(self, path: str):
+    def write_binary(self, path: str):
         with open(path, mode="wb") as file:
             file.write(self.as_byte_vector())
             file.flush()
@@ -136,7 +143,10 @@ class Simulation:
             any_action_union = getattr(self.any_action(), "content")
             alternatives = getattr(any_action_union, "_fields_")
 
-            self.actions = [ActionType(action_type, i, self) for (i, (_, action_type)) in enumerate(alternatives)]
+            self.actions = [
+                ActionType(action_type, i, self)
+                for (i, (_, action_type)) in enumerate(alternatives)
+            ]
 
     def get_actions(self) -> [Action]:
         return self.actions
@@ -180,7 +190,9 @@ class Simulation:
 
     def to_python_string(self, string):
         first_character = getattr(getattr(string, "__data"), "__data")
-        return self.module.cast(first_character, self.module.c_char_p).value.decode("utf-8")
+        return self.module.cast(first_character, self.module.c_char_p).value.decode(
+            "utf-8"
+        )
 
     def action_from_string(self, string: str) -> Action:
         rl_string = self.to_rl_string(str)
@@ -197,6 +209,7 @@ class Simulation:
         if not self.module.functions.parse_action_optimized(action, vector, 0):
             return None
         return Action(action, self)
+
 
 def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
     include_args = []
@@ -220,11 +233,5 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
         args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]
         if rlc_runtime_lib != "":
             args = args + ["--runtime-lib", rlc_runtime_lib]
-        assert (
-            run(
-                args
-                + include_args
-            ).returncode
-            == 0
-        )
+        assert run(args + include_args).returncode == 0
         return Simulation(tmp_dir + "/wrapper.py")

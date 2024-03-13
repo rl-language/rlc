@@ -12,7 +12,6 @@ from random import uniform
 from copy import deepcopy
 
 
-
 class ActionStub:
     def __init__(self, implementation, x, y):
         self.implementation = implementation
@@ -27,12 +26,13 @@ class ActionStub:
         state.mark(self.x, self.y)
         return state
 
+
 class ActionStubType:
     def __init__(self, implementation):
         self.implementation = implementation
 
     def get_arg_min_maxs(self):
-        return [(0, 2), (0, 2)]
+        return [(0, 3), (0, 3)]
 
     def materialize(self, *args):
         return ActionStub(self.implementation, args[0], args[1])
@@ -42,6 +42,7 @@ class Tris:
         self.board = [[0 for _ in range(3)] for _ in range(3)]
         self.turn_count = 0
         self.current_player = 1
+        self.simulation = self
 
     def copy(self):
         return deepcopy(self)
@@ -79,7 +80,7 @@ class TrisMoveOracle:
         for y in range(3):
             for x in range(3):
                 if state.board[x][y] == 0:
-                    return lambda state: state.mark(x, y)
+                    return ActionStub(state, x, y)
         assert False
 
 

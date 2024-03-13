@@ -57,7 +57,11 @@ def main():
 
     failed = False
 
-    lines = sys.stdin.readlines() if args.action_file == '-' else open(args.action_file, "r").readlines()
+    lines = (
+        sys.stdin.readlines()
+        if args.action_file == "-"
+        else open(args.action_file, "r").readlines()
+    )
     for line in lines:
         if line.strip() == "" or line.strip().startswith("#"):
             continue
@@ -88,13 +92,13 @@ def main():
         action.run(state)
 
     if args.output != "":
-        with open(args.output, "w+") as output:
-            output.write(state)
+        state.write_binary(args.output)
     else:
         print(state)
 
     if failed:
         exit(-1)
+
 
 if __name__ == "__main__":
     main()
