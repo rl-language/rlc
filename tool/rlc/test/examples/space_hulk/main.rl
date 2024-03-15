@@ -10,19 +10,6 @@ import board
 import move
 import action
 
-fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
-  let x = x1 - x2
-  let y = y1 - y2 
-  if x < 0:
-    x = -x
-  if y < 0:
-    y = -y
-  return x + y
-
-fun score(Game state) -> Int:
-  let x = state.board.units.get(0).x
-  let y = state.board.units.get(0).y
-  return 100 - manhattan_distance(x, 22, y, 5)
 
 act do_assault(ctx Board board, frm Int unit_id) -> Assault:
   ref source = board.units.get(unit_id)

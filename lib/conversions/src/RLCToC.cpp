@@ -53,6 +53,8 @@ static std::string typeToString(mlir::Type type)
 {
 	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 		type = casted.getUnderlying();
+	else if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
+		type = casted.getUnderlying();
 
 	std::string O;
 	llvm::raw_string_ostream OS(O);
@@ -76,6 +78,8 @@ static void printTypeField(
 		llvm::StringRef fieldName, mlir::Type type, llvm::raw_ostream& OS)
 {
 	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+		type = casted.getUnderlying();
+	else if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
 		type = casted.getUnderlying();
 
 	llvm::TypeSwitch<mlir::Type>(type)
@@ -301,14 +305,11 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 				fun.getArgNames(),
 				OS);
 
-		llvm::iterator_range<mlir::Operation**> actionsStatements =
-				builder.actionStatementsOfAction(fun);
-
 		using ActionKey = std::pair<std::string, const void*>;
 		std::set<ActionKey> alreadyAdded;
-		for (const auto& [action, type] :
-				 llvm::zip(actionsStatements, fun.getActions()))
+		for (const auto type : fun.getActions())
 		{
+			auto* action = builder.actionFunctionValueToActionStatement(type).front();
 			auto casted = mlir::cast<mlir::rlc::ActionStatement>(action);
 			ActionKey key(casted.getName(), type.getAsOpaquePointer());
 			if (alreadyAdded.contains(key))

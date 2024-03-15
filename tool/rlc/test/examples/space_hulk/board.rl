@@ -8,6 +8,10 @@ ent Board:
   HiddenInformation<Int> command_points
   Vector<Unit> units
   Bool is_done
+  Bool is_marine_decision
+
+  fun marine_must_act() -> Bool:
+    return self.is_marine_decision
 
   fun can_move_to(Unit unit, Direction direction) -> Bool:
     let cost = unit.move_cost(direction)
@@ -100,6 +104,20 @@ ent Board:
     result = none()
     return result
 
+  fun score() -> Float:
+    let x = self.units.get(0).x
+    let y = self.units.get(0).y
+    return float(100 - (manhattan_distance(x, 22, y, 5))) / 100.0
+
+fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
+  let x = x1 - x2
+  let y = y1 - y2 
+  if x < 0:
+    x = -x
+  if y < 0:
+    y = -y
+  return x + y
+
 fun make_board() -> Board:
   let board : Board
   board.is_done = false
@@ -139,6 +157,7 @@ fun make_board() -> Board:
   board.units.get(0).direction = Direction::right
   board.units.append(make_genestealer(15, 13))
   return board
+
 
 fun test_is_walkable() -> Bool:
     let board = make_board()
