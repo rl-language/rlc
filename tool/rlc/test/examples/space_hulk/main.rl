@@ -32,13 +32,16 @@ act do_assault(ctx Board board, frm UnitArgType unit_id) -> Assault:
     frm source_roll = source.roll_melee()
     frm target_roll = target.roll_melee()
 
+    frm current_player = board.is_marine_decision 
     if target.is_guarding:
+      board.is_marine_decision = true 
       act guard_reroll(Bool do_it)
       if do_it:
         target_roll = max(target_roll, roll())
 
       # if defender has not lost, allow to turn
       if source_roll <= target_roll and !attacker_direction.is_facing(board.units.get(index).direction):
+        board.is_marine_decision = current_player
         act face_attacker(Bool do_it)
         if do_it:
           board.units.get(index).direction = attacker_direction.opposite()
@@ -51,56 +54,71 @@ act do_assault(ctx Board board, frm UnitArgType unit_id) -> Assault:
       if source_roll > target_roll:
         maybe_dead_unit = index
 
-act action_phase(ctx Board board, Faction current_faction) -> ActionPhase:
+act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
   while true:
+    board.is_marine_decision = current_faction == Faction::marine
     actions:
       act begin_move(UnitArgType unit_id) {
-        board.unit_id_is_valid(unit_id.value)
+        board.unit_id_is_valid(unit_id.value),
+        board.units.get(unit_id.value).action_points > 0,
+        board.units.get(unit_id.value).faction() == current_faction
       }
         subaction*(board) movement = move_unit(board, unit_id)
 
       act turn(UnitArgType unit_id, DirectionArgType absolute_direction){
         board.unit_id_is_valid(unit_id.value),
-        board.units.get(unit_id.value).can_turn_to(absolute_direction.value, false)
+        board.units.get(unit_id.value).can_turn_to(absolute_direction.value, false),
+        board.units.get(unit_id.value).faction() == current_faction
       }
         board.units.get(unit_id.value).turn_direction(absolute_direction.value, false)
 
       act shoot(UnitArgType unit_id, UnitArgType target_id) {
         board.unit_id_is_valid(unit_id.value),
         board.unit_id_is_valid(target_id.value),
-        board.can_shoot(board.units.get(unit_id.value), board.units.get(target_id.value), false)
+        board.can_shoot(board.units.get(unit_id.value), board.units.get(target_id.value), false),
+        board.units.get(unit_id.value).faction() == current_faction,
+        !(board.units.get(target_id.value).faction() == current_faction)
       }
         if board.shoot_at(board.units.get(unit_id.value), board.units.get(target_id.value), false):
+          board.gsc_killed = board.gsc_killed + 1
           board.units.erase(target_id.value)
 
       act overwatch(UnitArgType unit_id) {
         board.unit_id_is_valid(unit_id.value),
-        board.units.get(unit_id.value).can_overwatch()
+        board.units.get(unit_id.value).can_overwatch(),
+        board.units.get(unit_id.value).faction() == current_faction
       }
+        board.units.get(unit_id.value).action_points = board.units.get(unit_id.value).action_points - 2
         board.units.get(unit_id.value).is_overwatching = true
         board.units.get(unit_id.value).is_guarding = false
 
       act guard(UnitArgType unit_id) {
         board.unit_id_is_valid(unit_id.value),
-        board.units.get(unit_id.value).can_guard()
+        board.units.get(unit_id.value).can_guard(),
+        board.units.get(unit_id.value).faction() == current_faction
       }
+        board.units.get(unit_id.value).action_points = board.units.get(unit_id.value).action_points - 2
         board.units.get(unit_id.value).is_guarding = true
         board.units.get(unit_id.value).is_overwatching = false
 
       act assault(UnitArgType unit_id) {
         board.unit_id_is_valid(unit_id.value),
-        board.can_assault(board.units.get(unit_id.value))
+        board.can_assault(board.units.get(unit_id.value)),
+        board.units.get(unit_id.value).faction() == current_faction
       }
         subaction*(board) assault_frame = do_assault(board, unit_id)
         let to_kill = assault_frame.maybe_dead_unit
         if to_kill is Int:
+          if current_faction == Faction::marine:
+              board.gsc_killed = board.gsc_killed + 1
+          else:
+              board.marine_killed = board.marine_killed + 1
           board.units.erase(to_kill)
 
       act pass_turn()
         return
-      
+
       act quit()
-        board.is_done = true
         return
 
 act play() -> Game:
@@ -109,6 +127,8 @@ act play() -> Game:
     while !(board.is_done):
         board.new_turn()
         subaction*(board) marine_frame = action_phase(board, Faction::marine)
+        if board.is_done:
+            return
         subaction*(board) genestealer_frame = action_phase(board, Faction::genestealer)
 
 fun gen_printer_parser():

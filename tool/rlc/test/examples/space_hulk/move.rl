@@ -19,11 +19,11 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
       act turn(UnitArgType id, DirectionArgType absolute_direction) {
         board.units.size() > id.value,
         0 <= id.value,
-        board.units.get(id.value).can_turn_to(absolute_direction.value, false),
+        board.units.get(id.value).can_turn_to(absolute_direction.value, can_turn),
         unit_id == id,
         can_turn
       }
-      board.units.get(unit_id.value).turn_direction(absolute_direction.value, true)
+      board.units.get(unit_id.value).turn_direction(absolute_direction.value, can_turn)
       can_turn = false
 
       act move(DirectionArgType absolute_direction) {
@@ -33,10 +33,13 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
       board.units.get(unit_id.value).move(absolute_direction.value)
       has_moved = true
 
-      act end_move()
+      act end_move() 
+      if !has_moved:
+        board.units.get(unit_id.value).action_points = board.units.get(unit_id.value).action_points - 1
       is_done = true
 
   if board.units.get(unit_id.value).kind.faction() == Faction::genestealer:
+    board.is_marine_decision = false 
     actions:
       act shoot(UnitArgType unit_id, UnitArgType target_id) {
         board.unit_id_is_valid(unit_id.value),
@@ -47,6 +50,7 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
       }
       if board.shoot_at(board.units.get(unit_id.value), board.units.get(target_id.value), true):
         board.units.erase(target_id.value)
+        board.gsc_killed = board.gsc_killed + 1
 
       act do_nothing()
 

@@ -4,11 +4,15 @@ import unit
 import collections.vector
 
 ent Board:
-  Int[29][28] map
+  Byte[29][28] map
   HiddenInformation<Int> command_points
   Vector<Unit> units
   Bool is_done
   Bool is_marine_decision
+  Int turn_count
+
+  Int gsc_killed
+  Int marine_killed
 
   fun marine_must_act() -> Bool:
     return self.is_marine_decision
@@ -41,12 +45,16 @@ ent Board:
         return false 
       iter = iter + 1
 
-    return self.map[y][x] == 0
+    return self.map[y][x] == byte(0)
 
   fun unit_id_is_valid(Int unit_id) -> Bool:
     return unit_id >= 0 and unit_id < 10 and unit_id < self.units.size()
 
   fun new_turn():
+    self.turn_count = self.turn_count + 1
+    if self.turn_count == 10:
+        self.is_done = true
+        return
     let i = 0
     while i < self.units.size():
       self.units.get(i).action_points = self.units.get(i).action_point_allowance()
@@ -105,9 +113,17 @@ ent Board:
     return result
 
   fun score() -> Float:
+    if self.marine_killed == 1:
+      return -1.0
     let x = self.units.get(0).x
     let y = self.units.get(0).y
-    return float(100 - (manhattan_distance(x, 22, y, 5))) / 100.0
+    let original_distance = manhattan_distance(22, 2, 5, 13)
+    let current_distance = manhattan_distance(x, 22, y, 5)
+    if original_distance > current_distance:
+        return 0.9 - (float(current_distance) / 30.0) + (float(self.gsc_killed) / 10.0)
+    if original_distance < current_distance:
+        return -0.4 - (float(current_distance) / 30.0) + (float(self.gsc_killed) / 10.0)
+    return + (float(self.gsc_killed) / 10.0)
 
 fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
   let x = x1 - x2
@@ -120,8 +136,9 @@ fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
 
 fun make_board() -> Board:
   let board : Board
+  board.is_marine_decision = true
   board.is_done = false
-  board.map = [
+  let copy = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -151,6 +168,14 @@ fun make_board() -> Board:
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   ]
+  let x = 29
+  while x != 0:
+    x = x - 1
+      let y = 28
+      while y != 0:
+          y = y - 1
+          board.map[y][x] = byte(copy[y][x])
+
   board.command_points.content = 0
   board.command_points.owner = 1
   board.units.append(make_marine(2, 13))

@@ -48,6 +48,9 @@ ent Unit:
   fun action_point_allowance() -> Int:
     return self.kind.action_point_allowance()
 
+  fun faction() -> Faction:
+    return self.kind.faction()
+
   fun move_cost(Direction dir) -> Int | Nothing:
     let result : Int | Nothing
     if self.kind == UnitKind::blip:
@@ -93,7 +96,7 @@ ent Unit:
     direction.value = absolute_direction
     let cost = self.turn_cost(direction, genestealer_free_turn)
     if cost is Int:
-      return cost > self.action_points
+      return cost < self.action_points
     return false
 
   fun get_weapon_ap_cost() -> Int:
@@ -109,6 +112,7 @@ ent Unit:
     if cost is Int:
       self.action_points = self.action_points - cost
       self.direction = direction 
+      return 
 
   fun move(Int absolute_direction):
     let direction : Direction
@@ -124,7 +128,7 @@ ent Unit:
     return self.action_points >= 2 and self.kind == UnitKind::marine
 
   fun can_guard() -> Bool:
-    return self.action_points >= 2 and self.kind == UnitKind::marine
+    return self.action_points >= 2 and self.kind == UnitKind::marine and !self.is_guarding
 
   fun roll_melee() -> Int:
     # ToDo: implement marine sergent
