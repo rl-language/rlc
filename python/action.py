@@ -67,7 +67,7 @@ def main():
             continue
 
         if args.print_all:
-            state.print_action(line)
+            print(line)
 
         action = sim.parse_action(line)
         if action is None:

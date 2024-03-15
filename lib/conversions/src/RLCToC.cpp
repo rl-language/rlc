@@ -255,6 +255,12 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	OS << "#ifdef RLC_GET_TYPE_DECLS\n";
 	for (auto type : postOrderTypes(Module))
 		printTypeDefinition(type, OS);
+
+	for (auto alias : Module.getOps<mlir::rlc::TypeAliasOp>())
+	{
+		OS << "typedef " << typeToString(alias.getAliased()) << " "
+			 << alias.getName() << ";\n";
+	}
 	OS << "#undef RLC_GET_TYPE_DECLS\n";
 	OS << "#endif\n\n";
 

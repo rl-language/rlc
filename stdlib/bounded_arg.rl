@@ -17,6 +17,9 @@ import string
 ent<Int min, Int max> BoundedArg:
     Int value
 
+    fun equal(Int other) -> Bool:
+        return self.value == other
+
     fun equal(BoundedArg<min, max> other) -> Bool:
         return self.value == other.value
 
@@ -42,15 +45,27 @@ ent<Int min, Int max> BoundedArg:
         return to_return
 
 fun<Int min, Int max> append_to_vector(BoundedArg<min, max> to_add, Vector<Byte> output):
-    let to_append = to_add.value - min
-    append_to_vector(to_append, output)
+    if max - min < 256:
+        let to_append = byte(to_add.value - min)
+        append_to_vector(to_append, output)
+    else:
+        let to_append = to_add.value - min
+        append_to_vector(to_append, output)
 
 fun<Int min, Int max> parse_from_vector(BoundedArg<min, max> to_add, Vector<Byte> output, Int index) -> Bool:
-    let value : Int
-    if !parse_from_vector(value, output, index):
-        return false
-    to_add.value = (value % (max - min)) + min
-    return true
+    if max - min < 256:
+        let value : Byte 
+        if !parse_from_vector(value, output, index):
+            return false
+        value = value % byte(max - min)
+        to_add.value = int(value) + min
+        return true
+    else:
+        let value : Int
+        if !parse_from_vector(value, output, index):
+            return false
+        to_add.value = (value % (max - min)) + min
+        return true
 
 fun<Int min, Int max> append_to_string(BoundedArg<min, max> to_add, String output):
     append_to_string(to_add.value, output)
@@ -61,3 +76,11 @@ fun<Int min, Int max> parse_string(BoundedArg<min, max> to_add, String input, In
     if to_add.value < min or to_add.value >= max:
         return false
     return true
+
+fun<Int min, Int max> enumerate(BoundedArg<min, max> to_add, Vector<BoundedArg<min, max>> output):
+    let counter = min
+    while counter < max:
+        let x : BoundedArg<min, max>
+        x.value = counter
+        output.append(x)
+        counter = counter + 1

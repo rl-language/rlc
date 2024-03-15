@@ -102,7 +102,7 @@ fun parse_from_vector(Float result, Vector<Byte> input, Int index) -> Bool:
     return true
 
 fun parse_from_vector(Bool result, Vector<Byte> input, Int index) -> Bool:
-    if input.size() < index:
+    if input.size() <= index:
         return false
     let to_parse : Byte[1]
     to_parse[0] = input.get(index)
@@ -111,7 +111,7 @@ fun parse_from_vector(Bool result, Vector<Byte> input, Int index) -> Bool:
     return true
 
 fun parse_from_vector(Byte result, Vector<Byte> input, Int index) -> Bool:
-    if input.size() < index:
+    if input.size() <= index:
         return false
     result = input.get(index)
     index = index + 1

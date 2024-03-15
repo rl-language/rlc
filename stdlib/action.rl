@@ -80,6 +80,7 @@ fun<AllActionsVariant> parse_actions(AllActionsVariant variant, Vector<Byte> inp
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input):
     parse_and_execute(state, variant, input, 0)
 
+
 fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActionsVariant variant):
     let state : FrameType
     let serialized = as_byte_vector(state)
@@ -93,3 +94,59 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     parse_actions(x, serialized)
     from_byte_vector(x, serialized)
     parse_action_optimized(x, serialized, 0)
+    enumerate(x)
+
+trait<T> Enumerable:
+    fun enumerate(T obj, Vector<T> output)
+
+fun enumerate(Bool b, Vector<Bool> output):
+    output.append(true)
+    output.append(false)
+
+fun<T> _enumerate_impl(T obj, Int current_argument, Vector<T> out, Int num_args):
+    let counter = 0
+    for field of obj:
+        if counter == current_argument:
+            if field is Enumerable:
+                using Type = type(field)
+                let vec : Vector<Type>
+                field.enumerate(vec)
+
+                let next_current_argument = current_argument + 1
+                let is_last_one = next_current_argument == num_args
+                let counter_2 = 0
+                while counter_2 != vec.size():
+                    field = vec.get(counter_2)
+                    if is_last_one:
+                        out.append(obj)
+                    else:
+                        _enumerate_impl(obj, next_current_argument, out, num_args)
+                    counter_2 = counter_2 + 1
+            return
+        counter = counter + 1
+
+
+fun<T> enumerate(T obj) -> Vector<T>:
+    let to_return : Vector<T>
+    if obj is Enumerable:
+        obj.enumerate(to_return)
+    else if obj is Alternative:
+        for field of obj:
+            using Type = type(field)
+            let field : Type 
+            let alternatives = enumerate(field)
+            let counter = 0
+            while counter < alternatives.size():
+                obj = alternatives.get(counter)
+                to_return.append(obj) 
+                counter = counter + 1
+    else:
+        let num_fields = 0
+        for field of obj:
+            num_fields = num_fields + 1
+        if num_fields == 0:
+            to_return.append(obj)
+            return to_return
+        _enumerate_impl(obj, 0, to_return, num_fields)
+
+    return to_return

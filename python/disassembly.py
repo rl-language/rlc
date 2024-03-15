@@ -8,7 +8,6 @@
 #
 import argparse
 from loader import Simulation, compile, State
-from loader.simulation import dump
 from solvers import find_end
 import sys
 from shutil import which
@@ -48,13 +47,12 @@ def main():
         if args.action_file == "-"
         else open(args.action_file, "rb").read()
     )
+    output = sys.stdout if args.output == "" else open(args.output, "w")
     actions = sim.parse_actions_from_binary_buffer(lines)
     for action in actions:
-        string = sim.action_to_string(action)
-        if args.output != "":
-            state.write(string)
-        else:
-            print(string)
+        string = sim.to_python_string(sim.module.functions.to_string(action))
+        output.write(string)
+        output.write("\n")
 
 
 if __name__ == "__main__":

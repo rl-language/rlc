@@ -11,8 +11,8 @@ import move
 import action
 
 
-act do_assault(ctx Board board, frm Int unit_id) -> Assault:
-  ref source = board.units.get(unit_id)
+act do_assault(ctx Board board, frm UnitArgType unit_id) -> Assault:
+  ref source = board.units.get(unit_id.value)
   frm maybe_dead_unit : Int | Nothing
   maybe_dead_unit = none()
   source.is_overwatching = false
@@ -45,7 +45,7 @@ act do_assault(ctx Board board, frm Int unit_id) -> Assault:
 
       # defender won
       if source_roll < target_roll:
-        maybe_dead_unit = unit_id
+        maybe_dead_unit = unit_id.value
 
       # attacker won
       if source_roll > target_roll:
@@ -54,43 +54,42 @@ act do_assault(ctx Board board, frm Int unit_id) -> Assault:
 act action_phase(ctx Board board, Faction current_faction) -> ActionPhase:
   while true:
     actions:
-      act begin_move(Int unit_id) {
-        board.unit_id_is_valid(unit_id)
+      act begin_move(UnitArgType unit_id) {
+        board.unit_id_is_valid(unit_id.value)
       }
         subaction*(board) movement = move_unit(board, unit_id)
 
-      act turn(Int unit_id, Int absolute_direction){
-        board.unit_id_is_valid(unit_id),
-        absolute_direction_is_valid(absolute_direction),
-        board.units.get(unit_id).can_turn_to(absolute_direction, false)
+      act turn(UnitArgType unit_id, DirectionArgType absolute_direction){
+        board.unit_id_is_valid(unit_id.value),
+        board.units.get(unit_id.value).can_turn_to(absolute_direction.value, false)
       }
-        board.units.get(unit_id).turn_direction(absolute_direction, false)
+        board.units.get(unit_id.value).turn_direction(absolute_direction.value, false)
 
-      act shoot(Int unit_id, Int target_id) {
-        board.unit_id_is_valid(unit_id),
-        board.unit_id_is_valid(target_id),
-        board.can_shoot(board.units.get(unit_id), board.units.get(target_id), false)
+      act shoot(UnitArgType unit_id, UnitArgType target_id) {
+        board.unit_id_is_valid(unit_id.value),
+        board.unit_id_is_valid(target_id.value),
+        board.can_shoot(board.units.get(unit_id.value), board.units.get(target_id.value), false)
       }
-        if board.shoot_at(board.units.get(unit_id), board.units.get(target_id), false):
-          board.units.erase(target_id)
+        if board.shoot_at(board.units.get(unit_id.value), board.units.get(target_id.value), false):
+          board.units.erase(target_id.value)
 
-      act overwatch(Int unit_id) {
-        board.unit_id_is_valid(unit_id),
-        board.units.get(unit_id).can_overwatch()
+      act overwatch(UnitArgType unit_id) {
+        board.unit_id_is_valid(unit_id.value),
+        board.units.get(unit_id.value).can_overwatch()
       }
-        board.units.get(unit_id).is_overwatching = true
-        board.units.get(unit_id).is_guarding = false
+        board.units.get(unit_id.value).is_overwatching = true
+        board.units.get(unit_id.value).is_guarding = false
 
-      act guard(Int unit_id) {
-        board.unit_id_is_valid(unit_id),
-        board.units.get(unit_id).can_guard()
+      act guard(UnitArgType unit_id) {
+        board.unit_id_is_valid(unit_id.value),
+        board.units.get(unit_id.value).can_guard()
       }
-        board.units.get(unit_id).is_guarding = true
-        board.units.get(unit_id).is_overwatching = false
+        board.units.get(unit_id.value).is_guarding = true
+        board.units.get(unit_id.value).is_overwatching = false
 
-      act assault(Int unit_id) {
-        board.unit_id_is_valid(unit_id),
-        board.can_assault(board.units.get(unit_id))
+      act assault(UnitArgType unit_id) {
+        board.unit_id_is_valid(unit_id.value),
+        board.can_assault(board.units.get(unit_id.value))
       }
         subaction*(board) assault_frame = do_assault(board, unit_id)
         let to_kill = assault_frame.maybe_dead_unit
@@ -123,10 +122,24 @@ fun main() -> Int:
   print_indented(state)
   return int(state.is_done()) - 1
 
+fun test_enumerate() -> Bool:
+  let state = play()
+  let action : GameBeginMove
+  let enumeration = enumerate(action) 
+
+  if enumeration.size() == 10:
+    return true
+  else:
+    return false
+
 fun test_game_marine_can_step_forward() -> Bool:
   let game = play()
-  game.begin_move(0)
-  game.move(1)
+  let arg : UnitArgType
+  arg.value = 0
+  game.begin_move(arg)
+  let arg2 : DirectionArgType 
+  arg2.value = 1
+  game.move(arg2)
   game.end_move()
   return game.board.units.get(0).x == 3
 
@@ -134,8 +147,12 @@ fun test_game_marine_can_end_turn() -> Bool:
     let game = play()
     if game.board.units.get(0).action_points != 4:
         return false
-    game.begin_move(0)
-    game.move(1)
+    let arg : UnitArgType
+    arg.value = 0
+    game.begin_move(arg)
+    let arg2 : DirectionArgType 
+    arg2.value = 1
+    game.move(arg2)
     game.end_move()
 
     if game.board.units.get(0).action_points != 3:
