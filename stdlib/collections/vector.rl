@@ -24,8 +24,7 @@ ent<T> Vector:
         let new_data = __builtin_malloc_do_not_use<T>(self._size * 2)
         let counter = 0
         while counter < self._size * 2:
-            let new_element : T
-            new_data[counter] = new_element
+            __builtin_construct_do_not_use(new_data[counter])
             counter = counter + 1
 
         counter = 0
@@ -44,8 +43,7 @@ ent<T> Vector:
         self._data = __builtin_malloc_do_not_use<T>(4)
         let counter = 0
         while counter < self._capacity:
-            let new_element : T
-            self._data[counter] = new_element
+            __builtin_construct_do_not_use(self._data[counter])
             counter = counter + 1
 
     fun drop():

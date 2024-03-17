@@ -1136,6 +1136,20 @@ def RLC_DestroyOp : RLC_Dialect<"destroy", [DeclareOpInterfaceMethods<TypeChecka
   }];
 }
 
+def RLC_InplaceInitializeOp : RLC_Dialect<"inplace_initialize", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value);
+
+  let assemblyFormat = [{
+		$value `:` type($value) attr-dict
+  }];
+}
+
 def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "constant.";
 

@@ -38,6 +38,7 @@ namespace rlc
 		KeywordEnum,
 		KeywordMalloc,
 		KeywordDestroy,
+		KeywordContstruct,
 		KeywordCan,
 		KeywordFree,
 		KeywordRef,

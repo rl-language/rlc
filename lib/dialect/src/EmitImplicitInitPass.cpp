@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,29 +27,36 @@ namespace mlir::rlc
 					 type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::BoolType>();
 	}
 
+	static mlir::rlc::Constant emitBuiltinZero(
+			mlir::IRRewriter& rewriter, mlir::Type t, mlir::Location loc)
+	{
+		if (auto casted = t.dyn_cast<mlir::rlc::IntegerType>())
+		{
+			return rewriter.create<mlir::rlc::Constant>(
+					loc,
+					casted,
+					rewriter.getIntegerAttr(
+							rewriter.getIntegerType(casted.getSize()), 0));
+		}
+		if (t.isa<mlir::rlc::FloatType>())
+		{
+			return rewriter.create<mlir::rlc::Constant>(loc, double(0.0));
+		}
+		if (t.isa<mlir::rlc::BoolType>())
+		{
+			return rewriter.create<mlir::rlc::Constant>(loc, bool(false));
+		}
+		t.dump();
+		llvm_unreachable("unrechable");
+		return nullptr;
+	}
+
 	static void emitBuiltinInits(
 			mlir::IRRewriter& rewriter, mlir::rlc::ConstructOp op)
 	{
 		rewriter.setInsertionPoint(op);
-		if (auto casted = op.getType().dyn_cast<mlir::rlc::IntegerType>())
-		{
-			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(
-					op,
-					casted,
-					rewriter.getIntegerAttr(
-							rewriter.getIntegerType(casted.getSize()), 0));
-			return;
-		}
-		if (op.getType().isa<mlir::rlc::FloatType>())
-		{
-			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, double(0.0));
-			return;
-		}
-		if (op.getType().isa<mlir::rlc::BoolType>())
-		{
-			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, bool(false));
-			return;
-		}
+		rewriter.replaceOp(
+				op, emitBuiltinZero(rewriter, op.getType(), op.getLoc()));
 	}
 
 	static mlir::Value declareImplicitInit(
@@ -90,10 +97,17 @@ namespace mlir::rlc
 		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
 
 		llvm::SmallVector<mlir::rlc::ConstructOp, 2> ops;
+		llvm::SmallVector<mlir::rlc::InplaceInitializeOp, 2> inplaceInitialize;
+
 		llvm::SmallVector<mlir::Type, 2> types;
 		op.walk([&](mlir::rlc::ConstructOp op) {
 			ops.push_back(op);
 			types.push_back(op.getType());
+		});
+
+		op.walk([&](mlir::rlc::InplaceInitializeOp op) {
+			inplaceInitialize.push_back(op);
+			types.push_back(op.getValue().getType());
 		});
 
 		op.walk([&](mlir::rlc::EntityDeclaration op) {
@@ -157,6 +171,44 @@ namespace mlir::rlc
 			auto newOp = rewriter.create<mlir::rlc::ExplicitConstructOp>(
 					init.getLoc(), toCall);
 			init.replaceAllUsesWith(newOp.getResult());
+			init.erase();
+		}
+
+		for (auto init : inplaceInitialize)
+		{
+			if (isBuiltinType(init.getValue().getType()))
+			{
+				rewriter.setInsertionPoint(init);
+				auto zero =
+						emitBuiltinZero(rewriter, init.getValue().getType(), init.getLoc());
+				rewriter.create<mlir::rlc::BuiltinAssignOp>(
+						init.getLoc(), init.getValue(), zero);
+
+				init.erase();
+				continue;
+			}
+
+			if (isTemplateType(init.getValue().getType()).succeeded())
+				continue;
+
+			rewriter.setInsertionPoint(init);
+			auto toCall = typeToFunction[init.getValue().getType()];
+			assert(toCall);
+
+			if (isTemplateType(toCall.getType()).succeeded())
+			{
+				auto castedType = toCall.getType().cast<mlir::FunctionType>();
+				toCall = rewriter.create<mlir::rlc::TemplateInstantiationOp>(
+						init.getLoc(),
+						mlir::FunctionType::get(
+								toCall.getContext(),
+								{ init.getValue().getType() },
+								castedType.getResults()),
+						toCall);
+			}
+
+			auto newOp = rewriter.create<mlir::rlc::CallOp>(
+					init.getLoc(), toCall, true, mlir::ValueRange({ init.getValue() }));
 			init.erase();
 		}
 	}

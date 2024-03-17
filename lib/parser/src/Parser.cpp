@@ -179,6 +179,19 @@ Expected<mlir::Operation*> Parser::builtinDestroy()
 	return builder.create<mlir::rlc::DestroyOp>(location, *arg);
 }
 
+// builtinMalloc : "__builtin_construct_do_not_use(" expression ")"
+Expected<mlir::Operation*> Parser::builtinConstruct()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordContstruct);
+	EXPECT(Token::LPar);
+	TRY(arg, expression());
+	EXPECT(Token::RPar);
+	EXPECT(Token::Newline);
+
+	return builder.create<mlir::rlc::InplaceInitializeOp>(location, *arg);
+}
+
 // builtinMalloc : "__builtin_malloc_do_not_use<" typeUse ">(" expression ")"
 Expected<mlir::Value> Parser::builtinMalloc()
 {
@@ -1235,6 +1248,9 @@ Expected<mlir::Operation*> Parser::statement()
 
 	if (current == Token::KeywordDestroy)
 		return builtinDestroy();
+
+	if (current == Token::KeywordContstruct)
+		return builtinConstruct();
 
 	if (current == Token::Indent)
 	{

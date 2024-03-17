@@ -98,6 +98,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordEntity";
 		case Token::KeywordDestroy:
 			return "KeywordDestroy";
+		case Token::KeywordContstruct:
+			return "KeywordContstruct";
 		case Token::KeywordEnum:
 			return "KeywordEnum";
 		case Token::KeywordExtern:
@@ -484,6 +486,9 @@ Token Lexer::eatIdent()
 
 	if (name == "__builtin_destroy_do_not_use")
 		return Token::KeywordDestroy;
+
+	if (name == "__builtin_construct_do_not_use")
+		return Token::KeywordContstruct;
 
 	if (name == "__builtin_free_do_not_use")
 		return Token::KeywordFree;
