@@ -5,7 +5,7 @@ import action
 import serialization.print
 import bounded_arg
 
-using Alt = Bool | BoundedArg<0, 10>
+using Alt = Bool | BInt<0, 10>
 
 fun main() -> Int:
     let content : Alt 

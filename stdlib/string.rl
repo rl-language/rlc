@@ -42,6 +42,15 @@ ent String:
     fun size() -> Int:
         return self._data.size() - 1
 
+    fun count(Byte b) -> Int:
+        let to_return = 0
+        let index = 0
+        while index != self.size():
+            if self.get(index) == b:
+                to_return = to_return + 1
+            index = index + 1
+        return to_return
+
     fun append(StringLiteral str):
         self._data.pop()
         let val = 0

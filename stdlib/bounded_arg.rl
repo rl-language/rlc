@@ -14,20 +14,31 @@
 import serialization.to_byte_vector
 import string 
 
-ent<Int min, Int max> BoundedArg:
+ent<Int min, Int max> BInt:
     Int value
 
     fun equal(Int other) -> Bool:
         return self.value == other
 
-    fun equal(BoundedArg<min, max> other) -> Bool:
+    fun equal(BInt<min, max> other) -> Bool:
         return self.value == other.value
 
-    fun not_equal(BoundedArg<min, max> other) -> Bool:
+    fun assign(Int other):
+        self.value = min + (other % (max - min))
+
+    fun not_equal(Int other) -> Bool:
+        return self.value != other
+
+    fun not_equal(BInt<min, max> other) -> Bool:
         return self.value != other.value
 
-    fun add(BoundedArg<min, max> other) -> BoundedArg<min, max>:
-        let to_return : BoundedArg<min, max>
+    fun add(Int val) -> BInt<min, max>:
+        let other : BInt<min, max>
+        other.value = val
+        return self + other
+
+    fun add(BInt<min, max> other) -> BInt<min, max>:
+        let to_return : BInt<min, max>
         to_return.value = self.value + other.value
         if to_return.value >= max:
             to_return.value = max - 1
@@ -35,8 +46,8 @@ ent<Int min, Int max> BoundedArg:
             to_return.value = min
         return to_return
 
-    fun sub(BoundedArg<min, max> other) -> BoundedArg<min, max>:
-        let to_return : BoundedArg<min, max>
+    fun sub(BInt<min, max> other) -> BInt<min, max>:
+        let to_return : BInt<min, max>
         to_return.value = self.value - other.value
         if to_return.value >= max:
             to_return.value = max - 1
@@ -44,21 +55,22 @@ ent<Int min, Int max> BoundedArg:
             to_return.value = min
         return to_return
 
-fun<Int min, Int max> append_to_vector(BoundedArg<min, max> to_add, Vector<Byte> output):
+fun<Int min, Int max> append_to_vector(BInt<min, max> to_add, Vector<Byte> output):
     if max - min < 256:
-        let to_append = byte(to_add.value - min)
+        let to_append = byte(to_add.value - min - 128)
         append_to_vector(to_append, output)
     else:
         let to_append = to_add.value - min
         append_to_vector(to_append, output)
 
-fun<Int min, Int max> parse_from_vector(BoundedArg<min, max> to_add, Vector<Byte> output, Int index) -> Bool:
+fun<Int min, Int max> parse_from_vector(BInt<min, max> to_add, Vector<Byte> output, Int index) -> Bool:
     if max - min < 256:
         let value : Byte 
         if !parse_from_vector(value, output, index):
             return false
-        value = value % byte(max - min)
-        to_add.value = int(value) + min
+        let value_casted = int(value) + 128
+        value_casted = value_casted % (max - min)
+        to_add.value = int(value_casted) + min
         return true
     else:
         let value : Int
@@ -67,20 +79,20 @@ fun<Int min, Int max> parse_from_vector(BoundedArg<min, max> to_add, Vector<Byte
         to_add.value = (value % (max - min)) + min
         return true
 
-fun<Int min, Int max> append_to_string(BoundedArg<min, max> to_add, String output):
+fun<Int min, Int max> append_to_string(BInt<min, max> to_add, String output):
     append_to_string(to_add.value, output)
 
-fun<Int min, Int max> parse_string(BoundedArg<min, max> to_add, String input, Int index) -> Bool:
+fun<Int min, Int max> parse_string(BInt<min, max> to_add, String input, Int index) -> Bool:
     if !parse_string(to_add.value, input, index):
         return false
     if to_add.value < min or to_add.value >= max:
         return false
     return true
 
-fun<Int min, Int max> enumerate(BoundedArg<min, max> to_add, Vector<BoundedArg<min, max>> output):
+fun<Int min, Int max> enumerate(BInt<min, max> to_add, Vector<BInt<min, max>> output):
     let counter = min
     while counter < max:
-        let x : BoundedArg<min, max>
+        let x : BInt<min, max>
         x.value = counter
         output.append(x)
         counter = counter + 1

@@ -7,7 +7,7 @@ import bounded_arg
 
 ent Content:
     Bool asd
-    BoundedArg<3, 13> asd2
+    BInt<3, 13> asd2
 
 
 fun main() -> Int:

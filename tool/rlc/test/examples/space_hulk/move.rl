@@ -5,8 +5,8 @@ import board
 import direction
 import bounded_arg
 
-using UnitArgType = BoundedArg<0, 10>
-using DirectionArgType = BoundedArg<0, 4>
+using UnitArgType = BInt<0, 10>
+using DirectionArgType = BInt<0, 4>
 
 act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
   board.units.get(unit_id.value).is_overwatching = false

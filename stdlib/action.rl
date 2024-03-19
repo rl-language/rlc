@@ -17,6 +17,8 @@
 import collections.vector
 import serialization.to_byte_vector
 import serialization.print
+import bounded_arg
+import math.numeric
 
 trait<FrameType, ActionType> ApplicableTo:
     fun apply(ActionType action, FrameType frame)
@@ -95,6 +97,9 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     from_byte_vector(x, serialized)
     parse_action_optimized(x, serialized, 0)
     enumerate(x)
+    let v : Vector<Float>
+    to_observation_tensor(state, v)
+    observation_tensor_size(state)
 
 trait<T> Enumerable:
     fun enumerate(T obj, Vector<T> output)
@@ -151,4 +156,129 @@ fun<T> enumerate(T obj) -> Vector<T>:
 
     return to_return
 
+trait<T> Tensorable:
+    fun write_in_observation_tensor(T obj, Vector<Float> output, Int counter) 
+    fun size_as_observation_tensor(T obj) -> Int
 
+fun write_in_observation_tensor(Int value, Int min, Int max, Vector<Float> output, Int index):
+    let counter = min
+    while counter < max:
+        if counter == value:
+            output.get(index) = 1.0
+        else:
+            output.get(index) = 0.0
+        index = index + 1
+        counter = counter + 1
+
+
+fun write_in_observation_tensor(Int obj, Vector<Float> output, Int index) :
+    return
+
+fun size_as_observation_tensor(Int obj) -> Int :
+    return 0
+
+fun write_in_observation_tensor(Float obj, Vector<Float> output, Int index) {false}:
+    return
+
+fun size_as_observation_tensor(Float obj) -> Int {false}:
+    return 0
+
+fun write_in_observation_tensor(Bool obj, Vector<Float> output, Int index):
+    if obj:
+        output.get(index) = 1.0
+    else:
+        output.get(index) = 0.0
+    index = index + 1
+
+fun size_as_observation_tensor(Bool obj) -> Int:
+    return 1
+
+fun write_in_observation_tensor(Byte obj, Vector<Float> output, Int index):
+    write_in_observation_tensor(int(obj), -128, 127, output, index)
+
+fun size_as_observation_tensor(Byte obj) -> Int:
+    return 256
+
+fun<T, Int X> write_in_observation_tensor(T[X] obj, Vector<Float> output, Int index):
+    let counter = 0
+    while counter < X:
+        _to_observation_tensor(obj[counter], output, index)
+        counter = counter + 1
+
+fun<T, Int X> size_as_observation_tensor(T[X] obj) -> Int:
+    return _size_as_observation_tensor_impl(obj[0]) * X
+
+fun<T> write_in_observation_tensor(Vector<T> obj, Vector<Float> output, Int index):
+    let counter = 0
+    while counter < obj.size():
+        _to_observation_tensor(obj.get(counter), output, index)
+        counter = counter + 1
+
+fun<T> size_as_observation_tensor(Vector<T> obj) -> Int:
+    return _size_as_observation_tensor_impl(obj.get(0)) * obj.size()
+
+fun<Int min, Int max> write_in_observation_tensor(BInt<min, max> obj, Vector<Float> output, Int index):
+    write_in_observation_tensor(obj.value, min, max, output, index)
+
+fun<Int min, Int max> size_as_observation_tensor(BInt<min, max> obj) -> Int:
+    return max - min 
+
+fun<T> _size_as_observation_tensor_impl(T obj) -> Int:
+    if obj is Tensorable:
+        return obj.size_as_observation_tensor()
+    else if obj is Alternative:
+        let alternative_count = 0
+        for field of obj:
+            alternative_count = alternative_count + 1
+        let max_size = 0
+        for field of obj:
+            using Type = type(field)
+            let fake : Type
+            max_size = max(_size_as_observation_tensor_impl(fake), max_size)
+        return max_size + alternative_count
+    else:
+        let to_return = 0
+        for field of obj:
+            to_return = to_return + _size_as_observation_tensor_impl(field)
+        return to_return
+
+fun<T> _to_observation_tensor(T obj, Vector<Float> output, Int index):
+    if obj is Tensorable:
+        obj.write_in_observation_tensor(output, index)
+        return
+    else if obj is Alternative:
+        let alternative_count = 0
+        for field of obj:
+            alternative_count = alternative_count + 1
+        let current = 0
+        let largest_field = _size_as_observation_tensor_impl(obj) - alternative_count
+        for field of obj:
+            using Type = type(field)
+            if obj is Type:
+                let zeros_to_add = largest_field - _size_as_observation_tensor_impl(obj)
+                write_in_observation_tensor(current, 0, alternative_count, output, index)
+                _to_observation_tensor(field, output, index)
+                while zeros_to_add != 0:
+                    zeros_to_add = zeros_to_add - 1
+                    output.get(index) = 0.0
+                    index = index + 1 
+                return
+            current = current + 1
+    else:
+        for field of obj:
+            _to_observation_tensor(field, output, index)
+
+fun<T> to_observation_tensor(T obj, Vector<Float> output):
+    _to_observation_tensor(obj, output, 0)
+
+fun<T> to_observation_tensor(T obj) -> Vector<Float>:
+    let output : Vector<Float> 
+    let x = _size_as_observation_tensor_impl(obj)
+    while x != 0:
+        x = x - 1
+        output.append(0.0)
+    _to_observation_tensor(obj, output, 0)
+    return output
+
+fun<T> observation_tensor_size(T obj) -> Int:
+    return _size_as_observation_tensor_impl(obj)
