@@ -184,19 +184,40 @@ namespace mlir::rlc
 			mlir::rlc::ActionStatement actionStatement,
 			mlir::IRRewriter& rewriter)
 	{
-		auto& yield = block->back();
-		rewriter.setInsertionPoint(&yield);
-		auto savedResumptionIndex = rewriter.create<MemberAccess>(
-				actionStatement.getLoc(), block->getArgument(0), 0);
-		auto expectedResumptionIndex = rewriter.create<Constant>(
-				actionStatement.getLoc(),
-				(int64_t) actionStatement.getResumptionPoint());
-		auto eq = rewriter.create<EqualOp>(
-				actionStatement->getLoc(),
-				savedResumptionIndex,
-				expectedResumptionIndex);
-		yield.insertOperands(
-				yield.getNumOperands(), ValueRange({ eq.getResult() }));
+		auto emitResumeIndexCondition = [&]() {
+			auto savedResumptionIndex = rewriter.create<MemberAccess>(
+					actionStatement.getLoc(), block->getArgument(0), 0);
+			auto expectedResumptionIndex = rewriter.create<Constant>(
+					actionStatement.getLoc(),
+					(int64_t) actionStatement.getResumptionPoint());
+			auto eq = rewriter.create<EqualOp>(
+					actionStatement->getLoc(),
+					savedResumptionIndex,
+					expectedResumptionIndex);
+			rewriter.create<mlir::rlc::Yield>(
+					actionStatement.getLoc(), mlir::ValueRange{ eq });
+		};
+
+		auto yield = mlir::dyn_cast<mlir::rlc::Yield>(block->back());
+		rewriter.setInsertionPointToStart(block);
+		if (yield.getArguments().empty())
+		{
+			emitResumeIndexCondition();
+			yield.erase();
+			return;
+		}
+
+		auto andOp = rewriter.create<mlir::rlc::ShortCircuitingAnd>(yield.getLoc());
+		auto* rhs = rewriter.createBlock(&andOp.getRhs());
+		while (block->getOperations().size() != 1)
+			block->back().moveBefore(rhs, rhs->begin());
+		auto* lhs = rewriter.createBlock(&andOp.getLhs());
+
+		emitResumeIndexCondition();
+
+		rewriter.setInsertionPointAfter(andOp);
+		rewriter.create<mlir::rlc::Yield>(
+				actionStatement.getLoc(), mlir::ValueRange{ andOp });
 	}
 
 	static void emitActionArgsAssignsToFrame(

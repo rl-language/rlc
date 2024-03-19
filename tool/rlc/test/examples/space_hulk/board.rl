@@ -12,7 +12,7 @@ ent Board:
   Vector<Unit> units
   Bool is_done
   Bool is_marine_decision
-  BInt<0, 10> turn_count
+  BInt<0, 11> turn_count
 
   BInt<0, 10> gsc_killed
   BInt<0, 10> marine_killed
@@ -36,6 +36,11 @@ ent Board:
     return self.can_move_to(unit, direction)
 
   fun is_walkable(Int x, Int y) -> Bool:
+    if x < 0:
+      return false
+    if y < 0:
+      return false
+
     if x > 20:
       return false
 

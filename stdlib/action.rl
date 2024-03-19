@@ -96,7 +96,7 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     parse_actions(x, serialized)
     from_byte_vector(x, serialized)
     parse_action_optimized(x, serialized, 0)
-    enumerate(x)
+    enumerate(x).size()
     let v : Vector<Float>
     to_observation_tensor(state, v)
     observation_tensor_size(state)

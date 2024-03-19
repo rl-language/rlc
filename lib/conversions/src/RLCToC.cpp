@@ -116,6 +116,13 @@ static void printTypeField(
 	}
 }
 
+static bool isFunctionSelfAssign(
+		llvm::StringRef name, mlir::FunctionType type, mlir::Type self)
+{
+	return name == "assign" and type.getNumInputs() == 2 and
+				 type.getInputs()[0] == self and type.getInputs()[1] == self;
+}
+
 static void printMethodOfType(
 		llvm::raw_ostream& OS,
 		mlir::Type self,
@@ -126,6 +133,7 @@ static void printMethodOfType(
 		mlir::rlc::ModuleBuilder& builder,
 		bool isDecl)
 {
+	bool isSelfAssign = isFunctionSelfAssign(name, type, self);
 	bool returnsVoid = type.getResults().empty() or
 										 type.getResults()[0].isa<mlir::rlc::VoidType>();
 	if (not isDecl)
@@ -137,7 +145,7 @@ static void printMethodOfType(
 	{
 		// nothing to print
 	}
-	else if (name == "assign")
+	else if (isSelfAssign)
 		OS << mlir::rlc::typeToMangled(self) << "& ";
 	else if (returnsVoid)
 		OS << "void ";
@@ -214,7 +222,7 @@ static void printMethodOfType(
 		OS << "return _rl__result.payload;\n";
 	}
 
-	if (name == "assign")
+	if (isSelfAssign)
 	{
 		OS << "return *this;\n";
 	}
@@ -253,7 +261,7 @@ static void printMethodsOfType(
 					f.getIsDoneFunctionType(),
 					"is_done",
 					mlir::rlc::mangledName("is_done", true, f.getIsDoneFunctionType()),
-					f.getArgNames(),
+					builder.getRewriter().getStrArrayAttr({ "self" }),
 					builder,
 					isDecl);
 
@@ -390,12 +398,50 @@ static void printTypeDecl(mlir::Type type, llvm::raw_ostream& OS)
 }
 
 static void printSpecialFunctions(
-		llvm::StringRef typeName, llvm::raw_ostream& OS)
+		llvm::StringRef typeName,
+		llvm::raw_ostream& OS,
+		llvm::DenseSet<mlir::Value>& methods)
 {
-	OS << typeName << "(const " << typeName << "& other) : " << typeName
-		 << "() {*this = const_cast<" << typeName << "&>(other);}\n";
+	if (llvm::count_if(methods, [&](mlir::Value value) -> bool {
+				auto casted = value.getDefiningOp<mlir::rlc::FunctionOp>();
+				if (casted == nullptr)
+					return false;
+				if (casted.getFunctionType().getNumInputs() == 0)
+					return false;
+				return isFunctionSelfAssign(
+						casted.getUnmangledName(),
+						casted.getFunctionType(),
+						casted.getFunctionType().getInput(0));
+			}) == 0)
+	{
+		OS << typeName << "& operator=(const " << typeName
+			 << "& other) = delete;\n";
+	}
+	else
+		OS << typeName << "(const " << typeName << "& other) : " << typeName
+			 << "() {*this = const_cast<" << typeName << "&>(other);}\n";
+
 	OS << typeName << "(" << typeName << "&& other) = delete;\n";
 	OS << typeName << "& operator=(" << typeName << "&& other) = delete;\n";
+
+	if (llvm::count_if(methods, [&](mlir::Value value) -> bool {
+				auto casted = value.getDefiningOp<mlir::rlc::FunctionOp>();
+				if (casted == nullptr)
+					return false;
+				return casted.getUnmangledName() == "init";
+			}) == 0)
+	{
+		OS << typeName << "() {}\n";
+	}
+	if (llvm::count_if(methods, [&](mlir::Value value) -> bool {
+				auto casted = value.getDefiningOp<mlir::rlc::FunctionOp>();
+				if (casted == nullptr)
+					return false;
+				return casted.getUnmangledName() == "drop";
+			}) == 0)
+	{
+		OS << "~" << typeName << "() {}\n";
+	}
 }
 
 static void printTypeDefinition(
@@ -432,7 +478,7 @@ static void printTypeDefinition(
 
 				OS << "#ifdef __cplusplus\n";
 				printMethodsOfType(type, OS, methods, builder, true);
-				printSpecialFunctions(alternative.getMangledName(), OS);
+				printSpecialFunctions(alternative.getMangledName(), OS, methods);
 				OS << "#endif\n";
 
 				OS << "};\n";
@@ -453,7 +499,7 @@ static void printTypeDefinition(
 
 				OS << "#ifdef __cplusplus\n";
 				printMethodsOfType(type, OS, methods, builder, true);
-				printSpecialFunctions(Entity.mangledName(), OS);
+				printSpecialFunctions(Entity.mangledName(), OS, methods);
 				OS << "#endif\n";
 
 				OS << "} " << Entity.mangledName() << ";\n";
