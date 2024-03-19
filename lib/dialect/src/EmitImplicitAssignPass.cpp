@@ -109,6 +109,14 @@ namespace mlir::rlc
 
 				auto toCall = declareImplicitAssign(
 						builder.getRewriter(), builder.getSymbolTable(), op, subtype);
+				if (isTemplateType(toCall.getType()).succeeded())
+					builder.getRewriter().create<mlir::rlc::TemplateInstantiationOp>(
+							toCall.getLoc(),
+							mlir::FunctionType::get(
+									type.getContext(),
+									{ type, type },
+									{ mlir::rlc::VoidType::get(type.getContext()) }),
+							toCall);
 			};
 
 			type.walk(emitAllNeedSubtypes);

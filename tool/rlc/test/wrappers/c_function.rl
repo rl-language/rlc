@@ -15,6 +15,7 @@ fun to_invoke() -> Int:
 
 #--- to_run.c
 #include <stdint.h>
+#include <stdbool.h>
 #define RLC_GET_FUNCTION_DECLS
 #define RLC_GET_TYPE_DECLS
 #include "./header.h"

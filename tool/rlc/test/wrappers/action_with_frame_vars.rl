@@ -15,15 +15,18 @@ act to_invoke(frm Int arg) -> Frame:
 
 #--- to_run.c
 #include <stdint.h>
+#include <stdbool.h>
 #define RLC_GET_FUNCTION_DECLS
 #define RLC_GET_TYPE_DECLS
+#define RLC_GET_TYPE_DEFS
+#undef __cplusplus
 #include "./header.h"
 
 int main() {
   Frame result;
   int64_t arg = 7;
   rl_to_invoke__int64_t_r_Frame(&result, &arg);
-  return 11 - (result.to_return + result.arg);
+  return 11 - (result.content.to_return + result.content.arg);
 }
 
 

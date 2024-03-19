@@ -35,7 +35,7 @@ static std::string nonArrayTypeToString(mlir::Type type)
 			.Case<mlir::rlc::FloatType>([&](mlir::rlc::FloatType) { OS << "double"; })
 			.Case<mlir::rlc::StringLiteralType>(
 					[&](mlir::rlc::StringLiteralType) { OS << "char*"; })
-			.Case<mlir::rlc::BoolType>([&](mlir::rlc::BoolType) { OS << "uint8_t"; })
+			.Case<mlir::rlc::BoolType>([&](mlir::rlc::BoolType) { OS << "bool"; })
 			.Case<mlir::rlc::IntegerType>([&](mlir::rlc::IntegerType Type) {
 				OS << "int" << Type.getSize() << "_t";
 			})
@@ -69,13 +69,20 @@ static std::string typeToString(mlir::Type type)
 				OS << typeToString(ptr.getUnderlying());
 				OS << "*";
 			})
+			.Case<mlir::rlc::ReferenceType>([&](mlir::rlc::ReferenceType ptr) {
+				OS << typeToString(ptr.getUnderlying());
+				OS << "*";
+			})
 			.Default([&](auto type) { OS << nonArrayTypeToString(type); });
 	OS.flush();
 	return O;
 }
 
 static void printTypeField(
-		llvm::StringRef fieldName, mlir::Type type, llvm::raw_ostream& OS)
+		llvm::StringRef fieldName,
+		mlir::Type type,
+		llvm::raw_ostream& OS,
+		bool isRef = false)
 {
 	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 		type = casted.getUnderlying();
@@ -84,7 +91,7 @@ static void printTypeField(
 
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case<mlir::rlc::ArrayType>([&](mlir::rlc::ArrayType array) {
-				printTypeField(fieldName, array.getUnderlying(), OS);
+				printTypeField(fieldName, array.getUnderlying(), OS, isRef);
 				OS << "["
 					 << array.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()
 					 << "]";
@@ -100,17 +107,315 @@ static void printTypeField(
 			.Default([&](auto type) { OS << nonArrayTypeToString(type); });
 
 	if (not type.isa<mlir::rlc::ArrayType>())
+	{
+		if (isRef)
+			OS << "(&";
 		OS << " " << fieldName;
+		if (isRef)
+			OS << ")";
+	}
 }
 
-static void printTypeDefinition(mlir::Type type, llvm::raw_ostream& OS)
+static void printMethodOfType(
+		llvm::raw_ostream& OS,
+		mlir::Type self,
+		mlir::FunctionType type,
+		llvm::StringRef name,
+		llvm::StringRef mangledName,
+		mlir::ArrayAttr argNames,
+		mlir::rlc::ModuleBuilder& builder,
+		bool isDecl)
+{
+	bool returnsVoid = type.getResults().empty() or
+										 type.getResults()[0].isa<mlir::rlc::VoidType>();
+	if (not isDecl)
+		OS << "inline ";
+
+	bool needReturnType = name != "drop" and name != "init";
+
+	if (not needReturnType)
+	{
+		// nothing to print
+	}
+	else if (name == "assign")
+		OS << mlir::rlc::typeToMangled(self) << "& ";
+	else if (returnsVoid)
+		OS << "void ";
+	else
+		OS << typeToString(type.getResults()[0]) << " ";
+
+	if (not isDecl)
+		OS << mlir::rlc::typeToMangled(self) << "::";
+
+	if (name == "drop")
+	{
+		OS << "~" << mlir::rlc::typeToMangled(self) << "(";
+	}
+	else if (name == "init")
+	{
+		OS << mlir::rlc::typeToMangled(self) << "(";
+	}
+	else if (name == "assign")
+	{
+		OS << "operator=(";
+	}
+	else if (name == "equal")
+	{
+		OS << "operator==(";
+	}
+	else
+	{
+		OS << name << "(";
+	}
+
+	for (size_t i = 1; i < argNames.size(); i++)
+	{
+		printTypeField(
+				argNames[i].cast<mlir::StringAttr>().strref(),
+				type.getInput(i),
+				OS,
+				true);
+		if (i + 1 != argNames.size())
+			OS << ", ";
+	}
+	OS << ")";
+	if (isDecl)
+	{
+		OS << ";\n";
+		return;
+	}
+	OS << " {\n";
+	if (not returnsVoid)
+	{
+		bool needsToInvokeDestructor =
+				type.getResult(0).isa<mlir::rlc::EntityType>() or
+				type.getResult(0).isa<mlir::rlc::AlternativeType>();
+		OS.indent(1);
+		OS << "union ToReturn { " << typeToString(type.getResult(0))
+			 << " payload; ToReturn() {}; ~ToReturn() {";
+		if (needsToInvokeDestructor)
+			OS << " payload.~" << typeToString(type.getResult(0)) << "();";
+		OS << " } }	_rl__result;\n";
+	}
+	OS.indent(1);
+	OS << mangledName << "(";
+	if (not returnsVoid)
+	{
+		OS << "&_rl__result.payload, ";
+	}
+	OS << "this";
+	for (size_t i = 1; i < argNames.size(); i++)
+		OS << ", &" << argNames[i].cast<mlir::StringAttr>().strref();
+
+	OS << ");\n";
+	if (not returnsVoid)
+	{
+		OS.indent(1);
+		OS << "return _rl__result.payload;\n";
+	}
+
+	if (name == "assign")
+	{
+		OS << "return *this;\n";
+	}
+
+	OS << "}\n";
+}
+
+static void printMethodsOfType(
+		mlir::Type type,
+		llvm::raw_ostream& OS,
+		llvm::DenseSet<mlir::Value>& methods,
+		mlir::rlc::ModuleBuilder& builder,
+		bool isDecl)
+{
+	if (methods.empty())
+		return;
+	for (auto method : methods)
+	{
+		if (auto f = method.getDefiningOp<mlir::rlc::FunctionOp>())
+		{
+			printMethodOfType(
+					OS,
+					type,
+					f.getFunctionType(),
+					f.getUnmangledName(),
+					f.getMangledName(),
+					f.getArgNames(),
+					builder,
+					isDecl);
+		}
+		if (auto f = method.getDefiningOp<mlir::rlc::ActionFunction>())
+		{
+			printMethodOfType(
+					OS,
+					type,
+					f.getIsDoneFunctionType(),
+					"is_done",
+					mlir::rlc::mangledName("is_done", true, f.getIsDoneFunctionType()),
+					f.getArgNames(),
+					builder,
+					isDecl);
+
+			for (auto value : f.getActions())
+			{
+				auto action = mlir::cast<mlir::rlc::ActionStatement>(
+						builder.actionFunctionValueToActionStatement(value).front());
+
+				llvm::SmallVector<mlir::Attribute, 2> attrs(
+						{ mlir::StringAttr::get(action.getContext(), "self") });
+				for (auto attr :
+						 action.getDeclaredNames().getAsRange<mlir::StringAttr>())
+					attrs.push_back(attr);
+				printMethodOfType(
+						OS,
+						type,
+						value.getType().cast<mlir::FunctionType>(),
+						action.getName(),
+						mlir::rlc::mangledName(
+								action.getName(),
+								true,
+								value.getType().cast<mlir::FunctionType>()),
+						builder.getRewriter().getArrayAttr(attrs),
+						builder,
+						isDecl);
+			}
+		}
+	}
+}
+
+static void printCPPOverload(
+		llvm::raw_ostream& OS,
+		mlir::FunctionType type,
+		llvm::StringRef name,
+		llvm::StringRef mangledName,
+		mlir::ArrayAttr argNames,
+		mlir::rlc::ModuleBuilder& builder)
+{
+	// do not emit a proper wrapper for arrays, it is not clear how to do that
+	for (auto t : type.getInputs())
+		if (t.isa<mlir::rlc::ArrayType>())
+			return;
+
+	if (name == "main")
+		return;
+
+	bool returnsVoid = type.getResults().empty() or
+										 type.getResults()[0].isa<mlir::rlc::VoidType>();
+	OS << "inline ";
+
+	if (returnsVoid)
+		OS << "void ";
+	else
+		OS << typeToString(type.getResults()[0]) << " ";
+
+	OS << name << "(";
+
+	for (size_t i = 0; i < argNames.size(); i++)
+	{
+		printTypeField(
+				argNames[i].cast<mlir::StringAttr>().strref(),
+				type.getInput(i),
+				OS,
+				true);
+		if (i + 1 != argNames.size())
+			OS << ", ";
+	}
+	OS << ")";
+	OS << " {\n";
+	if (not returnsVoid)
+	{
+		bool needsToInvokeDestructor =
+				type.getResult(0).isa<mlir::rlc::EntityType>() or
+				type.getResult(0).isa<mlir::rlc::AlternativeType>();
+		OS.indent(1);
+		OS << "union ToReturn { " << typeToString(type.getResult(0))
+			 << " payload; ToReturn() {}; ~ToReturn() {";
+		if (needsToInvokeDestructor)
+			OS << " payload.~" << typeToString(type.getResult(0)) << "();";
+		OS << " } }	_rl__result;\n";
+	}
+	OS.indent(1);
+	OS << mangledName << "(";
+	if (not returnsVoid)
+	{
+		OS << "&_rl__result.payload ";
+		if (0 != argNames.size())
+			OS << ", ";
+	}
+	for (size_t i = 0; i < argNames.size(); i++)
+	{
+		OS << "&" << argNames[i].cast<mlir::StringAttr>().strref();
+		if (i + 1 != argNames.size())
+			OS << ", ";
+	}
+
+	OS << ");\n";
+	if (not returnsVoid)
+	{
+		OS.indent(1);
+		OS << "return _rl__result.payload;\n";
+	}
+
+	OS << "}\n";
+}
+
+static void printTypeDecl(mlir::Type type, llvm::raw_ostream& OS)
+{
+	llvm::TypeSwitch<mlir::Type>(type)
+			.Case([&](mlir::rlc::AlternativeType alternative) {
+				OS << "struct " << alternative.getMangledName() << ";\n";
+			})
+			.Case([&](mlir::rlc::EntityType Entity) {
+				OS << "typedef union " << Entity.mangledName() << " "
+					 << Entity.mangledName() << ";\n";
+			})
+			.Case<
+					mlir::rlc::IntegerType,
+					mlir::rlc::BoolType,
+					mlir::rlc::FloatType,
+					mlir::rlc::StringLiteralType,
+					mlir::rlc::OwningPtrType,
+					mlir::rlc::ReferenceType,
+					mlir::rlc::IntegerLiteralType,
+					mlir::rlc::ArrayType,
+					mlir::rlc::VoidType,
+					mlir::FunctionType>([&](auto) {	 // Pass, already defined by C
+			})
+			.Default([](auto type) {
+				type.dump();
+				llvm_unreachable(
+						"while emitting c header, recieved  a unexpected type");
+			});
+}
+
+static void printSpecialFunctions(
+		llvm::StringRef typeName, llvm::raw_ostream& OS)
+{
+	OS << typeName << "(const " << typeName << "& other) : " << typeName
+		 << "() {*this = const_cast<" << typeName << "&>(other);}\n";
+	OS << typeName << "(" << typeName << "&& other) = delete;\n";
+	OS << typeName << "& operator=(" << typeName << "&& other) = delete;\n";
+}
+
+static void printTypeDefinition(
+		mlir::Type type,
+		llvm::raw_ostream& OS,
+		llvm::DenseSet<mlir::Value>& methods,
+		mlir::rlc::ModuleBuilder& builder)
 {
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case([&](mlir::rlc::AlternativeType alternative) {
 				OS << "struct " << alternative.getMangledName() << " {\n";
 
 				OS.indent(2);
-				OS << "union {\n";
+				OS << "union _Content {\n";
+
+				OS.indent(4);
+				OS << "#ifdef __cplusplus\n";
+				OS << "_Content() {};\n";
+				OS << "~_Content() {};\n";
+				OS << "#endif\n";
 				for (auto field : llvm::enumerate(alternative.getUnderlying()))
 				{
 					OS.indent(4);
@@ -125,18 +430,31 @@ static void printTypeDefinition(mlir::Type type, llvm::raw_ostream& OS)
 				OS.indent(2);
 				OS << "int64_t active_index;\n";
 
+				OS << "#ifdef __cplusplus\n";
+				printMethodsOfType(type, OS, methods, builder, true);
+				printSpecialFunctions(alternative.getMangledName(), OS);
+				OS << "#endif\n";
+
 				OS << "};\n";
 			})
 			.Case([&](mlir::rlc::EntityType Entity) {
-				OS << "typedef struct {\n";
+				OS << "typedef union " << Entity.mangledName() << " {\n";
 
+				OS << "struct _Content {\n";
 				for (const auto& [name, fieldType] :
 						 llvm::zip(Entity.getFieldNames(), Entity.getBody()))
 				{
-					OS.indent(2);
+					OS.indent(4);
 					printTypeField(name, fieldType, OS);
 					OS << ";\n";
 				}
+				OS.indent(2);
+				OS << "} content;\n";
+
+				OS << "#ifdef __cplusplus\n";
+				printMethodsOfType(type, OS, methods, builder, true);
+				printSpecialFunctions(Entity.mangledName(), OS);
+				OS << "#endif\n";
 
 				OS << "} " << Entity.mangledName() << ";\n";
 			})
@@ -234,6 +552,7 @@ static void printFunctionSignature(
 
 void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 {
+	mlir::rlc::ModuleBuilder builder(Module);
 	OS << "#ifndef RLC_HEADER\n";
 	OS << "#ifdef RLC_C_HEADER\n#undef RLC_C_HEADER\n#define RLC_HEADER\n";
 	OS << R""""(
@@ -254,13 +573,8 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 	OS << "#ifdef RLC_GET_TYPE_DECLS\n";
 	for (auto type : postOrderTypes(Module))
-		printTypeDefinition(type, OS);
+		printTypeDecl(type, OS);
 
-	for (auto alias : Module.getOps<mlir::rlc::TypeAliasOp>())
-	{
-		OS << "typedef " << typeToString(alias.getAliased()) << " "
-			 << alias.getName() << ";\n";
-	}
 	OS << "#undef RLC_GET_TYPE_DECLS\n";
 	OS << "#endif\n\n";
 
@@ -300,7 +614,6 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 				OS);
 	}
 
-	mlir::rlc::ModuleBuilder builder(Module);
 	for (auto fun : Module.getOps<mlir::rlc::ActionFunction>())
 	{
 		printFunctionSignature(
@@ -356,6 +669,67 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	OS << "#ifdef RLC_VISIT_FUNCTION\n";
 	OS << "#undef RLC_VISIT_FUNCTION\n";
 	OS << "#endif\n";
+
+	std::map<const void*, llvm::DenseSet<mlir::Value>> typeToMethods;
+	for (auto op : Module.getOps<mlir::rlc::FunctionOp>())
+		if (op.getIsMemberFunction() and not op.isInternal() and
+				(op.getArgumentTypes()[0].isa<mlir::rlc::EntityType>() or
+				 op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>()))
+		{
+			typeToMethods[op.getArgumentTypes()[0].getAsOpaquePointer()].insert(op);
+		}
+
+	for (auto op : Module.getOps<mlir::rlc::ActionFunction>())
+		typeToMethods[op.getEntityType().getAsOpaquePointer()].insert(
+				op.getResult());
+
+	OS << "#ifdef RLC_GET_TYPE_DEFS\n";
+	for (auto type : postOrderTypes(Module))
+		printTypeDefinition(
+				type, OS, typeToMethods[type.getAsOpaquePointer()], builder);
+
+	OS << "#ifdef __cplusplus\n";
+	for (auto& pair : typeToMethods)
+		printMethodsOfType(
+				mlir::Type::getFromOpaquePointer(pair.first),
+				OS,
+				pair.second,
+				builder,
+				false);
+	OS << "#endif\n";
+
+	for (auto alias : Module.getOps<mlir::rlc::TypeAliasOp>())
+	{
+		OS << "typedef " << typeToString(alias.getAliased()) << " "
+			 << alias.getName() << ";\n";
+	}
+
+	OS << "#ifdef __cplusplus\n";
+	for (auto op : Module.getOps<mlir::rlc::FunctionOp>())
+		if (not op.isInternal() and
+				(not op.getIsMemberFunction() or
+				 (not op.getArgumentTypes()[0].isa<mlir::rlc::EntityType>() and
+					not op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>())))
+			printCPPOverload(
+					OS,
+					op.getFunctionType(),
+					op.getUnmangledName(),
+					op.getMangledName(),
+					op.getArgNames(),
+					builder);
+
+	for (auto op : Module.getOps<mlir::rlc::ActionFunction>())
+		printCPPOverload(
+				OS,
+				op.getFunctionType(),
+				op.getUnmangledName(),
+				op.getMangledName(),
+				op.getArgNames(),
+				builder);
+	OS << "#endif\n";
+
+	OS << "#undef RLC_GET_TYPE_DEFS\n";
+	OS << "#endif\n\n";
 }
 
 static std::string unmangledName(

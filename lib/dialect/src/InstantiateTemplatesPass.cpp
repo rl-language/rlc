@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -68,8 +68,6 @@ namespace mlir::rlc
 			mlir::rlc::EntityType type,
 			mlir::rlc::EntityDeclaration originalDecl)
 	{
-		if (type == originalDecl.getType())
-			return;
 		assert(isTemplateType(originalDecl.getType()).succeeded());
 		mlir::IRRewriter rewriter(op.getContext());
 		rewriter.setInsertionPoint(originalDecl);
@@ -82,25 +80,25 @@ namespace mlir::rlc
 				rewriter.getArrayAttr({}));
 	}
 
-	static void declareInstantiatedStructs(mlir::ModuleOp op)
+	static void declareInstantiatedStructs(
+			llvm::StringMap<mlir::rlc::EntityDeclaration>& originalDecls,
+			llvm::DenseSet<mlir::Type>& alreadyDeclared,
+			mlir::ModuleOp op)
 	{
 		llvm::StringMap<llvm::DenseSet<mlir::rlc::EntityType>>
 				outwardExposedTemplateTypes;
 
 		collectAllTypesOnFunctionAndActions(op, outwardExposedTemplateTypes);
-		llvm::StringMap<mlir::rlc::EntityDeclaration> decls;
-		for (auto decl : op.getOps<mlir::rlc::EntityDeclaration>())
-		{
-			decls[decl.getName()] = decl;
-		}
 
 		for (auto& pair : outwardExposedTemplateTypes)
 			for (auto type : pair.second)
-				instantiateStructDeclarationIfNeeded(op, type, decls[pair.first()]);
-
-		for (auto& originalDecl : decls)
-			if (isTemplateType(originalDecl.second.getType()).succeeded())
-				originalDecl.second.erase();
+			{
+				if (alreadyDeclared.contains(type))
+					continue;
+				instantiateStructDeclarationIfNeeded(
+						op, type, originalDecls[type.getName()]);
+				alreadyDeclared.insert(type);
+			}
 	}
 
 	struct InstantiateTemplatesPass
@@ -235,9 +233,19 @@ namespace mlir::rlc
 			std::map<AlreadyReplacedMapEntry, mlir::Value> alreadyReplaced;
 			mlir::IRRewriter rewriter(&getContext());
 
+			llvm::DenseSet<mlir::Type> alreadDeclared;
+			llvm::StringMap<mlir::rlc::EntityDeclaration> originalEntiDecl;
+			for (auto decl : getOperation().getOps<mlir::rlc::EntityDeclaration>())
+			{
+				alreadDeclared.insert(decl.getType());
+				originalEntiDecl[decl.getName()] = decl;
+			}
+
 			bool replacedAtLeastOne = true;
 			while (replacedAtLeastOne)
 			{
+				declareInstantiatedStructs(
+						originalEntiDecl, alreadDeclared, getOperation());
 				emitImplicitAssign(getOperation());
 				emitImplicitInits(getOperation());
 				mlir::rlc::ModuleBuilder builder(getOperation());
@@ -294,7 +302,14 @@ namespace mlir::rlc
 				op.erase();
 			}
 
-			declareInstantiatedStructs(getOperation());
+			llvm::DenseSet<mlir::rlc::EntityDeclaration> templateDecl;
+			for (auto decl : getOperation().getOps<mlir::rlc::EntityDeclaration>())
+			{
+				if (isTemplateType(decl.getType()).succeeded())
+					templateDecl.insert(decl);
+			}
+			for (auto& originalDecl : templateDecl)
+				originalDecl.erase();
 
 			getOperation().walk([&](mlir::rlc::TemplateInstantiationOp op) {
 				op->getParentOfType<mlir::rlc::FunctionOp>().dump();
