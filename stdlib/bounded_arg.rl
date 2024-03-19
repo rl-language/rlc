@@ -23,6 +23,30 @@ ent<Int min, Int max> BInt:
     fun equal(BInt<min, max> other) -> Bool:
         return self.value == other.value
 
+    fun less(BInt<min, max> other) -> Bool:
+        return self.value < other.value
+
+    fun less(Int other) -> Bool:
+        return self.value < other
+
+    fun greater(BInt<min, max> other) -> Bool:
+        return self.value > other.value
+
+    fun greater(Int other) -> Bool:
+        return self.value > other
+
+    fun greater_equal(BInt<min, max> other) -> Bool:
+        return self.value >= other.value
+
+    fun greater_equal(Int other) -> Bool:
+        return self.value >= other
+
+    fun less_equal(BInt<min, max> other) -> Bool:
+        return self.value <= other.value
+
+    fun less_equal(Int other) -> Bool:
+        return self.value <= other
+
     fun assign(Int other):
         self.value = min + (other % (max - min))
 
@@ -54,6 +78,17 @@ ent<Int min, Int max> BInt:
         if to_return.value < min:
             to_return.value = min
         return to_return
+
+    fun sub(Int val) -> BInt<min, max>:
+        let other : BInt<min, max>
+        other.value = val
+        return self - other
+
+
+fun<Int min, Int max> max(BInt<min, max> l, BInt<min, max> r) -> BInt<min, max>:
+  if l < r:
+    return r
+  return l
 
 fun<Int min, Int max> append_to_vector(BInt<min, max> to_add, Vector<Byte> output):
     if max - min < 256:

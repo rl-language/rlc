@@ -1,18 +1,21 @@
 # RUN: python %pyscript/test.py --source %s -i %stdlib --rlc rlc 
 
 import unit 
+import bounded_arg
 import collections.vector
 
+using UnitArgType = BInt<0, 10>
+
 ent Board:
-  Byte[29][28] map
-  HiddenInformation<Int> command_points
+  BInt<0, 2>[29][28] map
+  HiddenInformation<BInt<0, 5>> command_points
   Vector<Unit> units
   Bool is_done
   Bool is_marine_decision
-  Int turn_count
+  BInt<0, 10> turn_count
 
-  Int gsc_killed
-  Int marine_killed
+  BInt<0, 10> gsc_killed
+  BInt<0, 10> marine_killed
 
   fun marine_must_act() -> Bool:
     return self.is_marine_decision
@@ -20,10 +23,10 @@ ent Board:
   fun can_move_to(Unit unit, Direction direction) -> Bool:
     let cost = unit.move_cost(direction)
     if cost is Int:
-      if cost > unit.action_points:
+      if cost > unit.action_points.value:
         return false
       else:
-        return self.is_walkable(unit.x + direction.to_x(), unit.y + direction.to_y())
+        return self.is_walkable(unit.x.value + direction.to_x(), unit.y.value + direction.to_y())
     else:
       return false
 
@@ -45,7 +48,7 @@ ent Board:
         return false 
       iter = iter + 1
 
-    return self.map[y][x] == byte(0)
+    return self.map[y][x] == 0
 
   fun unit_id_is_valid(Int unit_id) -> Bool:
     return unit_id >= 0 and unit_id < 10 and unit_id < self.units.size()
@@ -74,7 +77,7 @@ ent Board:
     if !self.is_in_line_of_sight(source, target):
       return false
 
-    if !overwatch and source.get_weapon_ap_cost() > source.action_points:
+    if !overwatch and source.get_weapon_ap_cost() > source.action_points.value:
       return false
 
     return true
@@ -94,18 +97,20 @@ ent Board:
     let target_x = source.x + source.direction.to_x()
     let target_y = source.x + source.direction.to_y()
 
-    let maybe_index = self.get_index_of_unit_at(target_x, target_y)
-    if maybe_index is Int:
-      return !(self.units.get(maybe_index).kind == source.kind)
+    let maybe_index = self.get_index_of_unit_at(target_x.value, target_y.value)
+    if maybe_index is UnitArgType:
+      return !(self.units.get(maybe_index.value).kind == source.kind)
     else:
       return false
 
-  fun get_index_of_unit_at(Int x, Int y) -> Int | Nothing:
-    let result : Int | Nothing
+  fun get_index_of_unit_at(Int x, Int y) -> UnitArgType | Nothing:
+    let result : UnitArgType | Nothing
+    let content : UnitArgType 
     let i = 0
     while i < self.units.size():
       if self.units.get(i).x == x and self.units.get(i).y == y:
-        result = i
+        content = i
+        result = content
         return result
       i = i + 1
 
@@ -118,12 +123,12 @@ ent Board:
     let x = self.units.get(0).x
     let y = self.units.get(0).y
     let original_distance = manhattan_distance(22, 2, 5, 13)
-    let current_distance = manhattan_distance(x, 22, y, 5)
+    let current_distance = manhattan_distance(x.value, 22, y.value, 5)
     if original_distance > current_distance:
-        return 0.9 - (float(current_distance) / 30.0) + (float(self.gsc_killed) / 10.0)
+        return 0.9 - (float(current_distance) / 30.0) + (float(self.gsc_killed.value) / 10.0)
     if original_distance < current_distance:
-        return -0.4 - (float(current_distance) / 30.0) + (float(self.gsc_killed) / 10.0)
-    return + (float(self.gsc_killed) / 10.0)
+        return -0.4 - (float(current_distance) / 30.0) + (float(self.gsc_killed.value) / 10.0)
+    return + (float(self.gsc_killed.value) / 10.0)
 
 fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
   let x = x1 - x2
@@ -174,7 +179,7 @@ fun make_board() -> Board:
       let y = 28
       while y != 0:
           y = y - 1
-          board.map[y][x] = byte(copy[y][x])
+          board.map[y][x] = copy[y][x]
 
   board.command_points.content = 0
   board.command_points.owner = 1
@@ -210,7 +215,7 @@ fun test_get_unit_at() -> Bool:
     if !(expected_none is Nothing):
         return false
     let res = board.get_index_of_unit_at(2, 13)
-    if res is Int:
-        return res == 0
+    if res is UnitArgType:
+        return res.value == 0
     return false
 

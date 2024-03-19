@@ -5,7 +5,6 @@ import board
 import direction
 import bounded_arg
 
-using UnitArgType = BInt<0, 10>
 using DirectionArgType = BInt<0, 4>
 
 act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:

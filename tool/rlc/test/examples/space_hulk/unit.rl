@@ -4,10 +4,13 @@ import collections.hidden_information
 import direction 
 import math.numeric
 import none
+import bounded_arg
 
-fun roll() -> Int:
+fun roll() -> BInt<1, 7>:
   # ToDo: implement random rolls
-  return 6
+  let x : BInt<1, 7>
+  x = 6
+  return x
 
 enum Faction:
   genestealer
@@ -15,6 +18,12 @@ enum Faction:
 
   fun equal(Faction r) -> Bool:
     return self.value == r.value
+
+fun write_in_observation_tensor(Faction obj, Vector<Float> output, Int index) :
+    write_in_observation_tensor(obj.value, 0, 2, output, index)
+
+fun size_as_observation_tensor(Faction obj) -> Int :
+    return 2
 
 enum UnitKind:
   genestealer
@@ -34,16 +43,22 @@ enum UnitKind:
       return 4
     return 6
 
+fun write_in_observation_tensor(UnitKind obj, Vector<Float> output, Int index) :
+    write_in_observation_tensor(obj.value, 0, 3, output, index)
+
+fun size_as_observation_tensor(UnitKind obj) -> Int :
+    return 3
+
 ent Unit:
   Bool is_overwatching
   Bool is_guarding 
   UnitKind kind
-  HiddenInformation<Int> genestealer_count
+  HiddenInformation<BInt<0, 4>> genestealer_count
   Direction direction
-  Int action_points
+  BInt<0, 7> action_points
   Bool has_acted
-  Int x
-  Int y
+  BInt<0, 30> x
+  BInt<0, 30> y
 
   fun action_point_allowance() -> Int:
     return self.kind.action_point_allowance()
@@ -96,7 +111,7 @@ ent Unit:
     direction.value = absolute_direction
     let cost = self.turn_cost(direction, genestealer_free_turn)
     if cost is Int:
-      return cost < self.action_points
+      return self.action_points > cost
     return false
 
   fun get_weapon_ap_cost() -> Int:
@@ -130,7 +145,7 @@ ent Unit:
   fun can_guard() -> Bool:
     return self.action_points >= 2 and self.kind == UnitKind::marine and !self.is_guarding
 
-  fun roll_melee() -> Int:
+  fun roll_melee() -> BInt<1, 7>:
     # ToDo: implement marine sergent
     if self.kind == UnitKind::marine:
       return max(roll(), roll())

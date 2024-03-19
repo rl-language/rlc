@@ -13,7 +13,7 @@ import action
 
 act do_assault(ctx Board board, frm UnitArgType unit_id) -> Assault:
   ref source = board.units.get(unit_id.value)
-  frm maybe_dead_unit : Int | Nothing
+  frm maybe_dead_unit : UnitArgType | Nothing
   maybe_dead_unit = none()
   source.is_overwatching = false
   source.is_guarding = false
@@ -23,11 +23,11 @@ act do_assault(ctx Board board, frm UnitArgType unit_id) -> Assault:
   let target_x = source.x + source.direction.to_x()
   let target_y = source.y + source.direction.to_y()
 
-  let maybe_index = board.get_index_of_unit_at(target_x, target_y)
-  if maybe_index is Int:
+  let maybe_index = board.get_index_of_unit_at(target_x.value, target_y.value)
+  if maybe_index is UnitArgType:
     frm index = maybe_index
-    frm attacker_direction = board.units.get(index).direction
-    ref target = board.units.get(maybe_index)
+    frm attacker_direction = board.units.get(index.value).direction
+    ref target = board.units.get(maybe_index.value)
 
     frm source_roll = source.roll_melee()
     frm target_roll = target.roll_melee()
@@ -40,15 +40,15 @@ act do_assault(ctx Board board, frm UnitArgType unit_id) -> Assault:
         target_roll = max(target_roll, roll())
 
       # if defender has not lost, allow to turn
-      if source_roll <= target_roll and !attacker_direction.is_facing(board.units.get(index).direction):
+      if source_roll <= target_roll and !attacker_direction.is_facing(board.units.get(index.value).direction):
         board.is_marine_decision = current_player
         act face_attacker(Bool do_it)
         if do_it:
-          board.units.get(index).direction = attacker_direction.opposite()
+          board.units.get(index.value).direction = attacker_direction.opposite()
 
       # defender won
       if source_roll < target_roll:
-        maybe_dead_unit = unit_id.value
+        maybe_dead_unit = unit_id
 
       # attacker won
       if source_roll > target_roll:
@@ -108,12 +108,12 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
       }
         subaction*(board) assault_frame = do_assault(board, unit_id)
         let to_kill = assault_frame.maybe_dead_unit
-        if to_kill is Int:
+        if to_kill is UnitArgType:
           if current_faction == Faction::marine:
               board.gsc_killed = board.gsc_killed + 1
           else:
               board.marine_killed = board.marine_killed + 1
-          board.units.erase(to_kill)
+          board.units.erase(to_kill.value)
 
       act pass_turn()
         return
@@ -140,6 +140,7 @@ fun main() -> Int:
   let state = play()
   state.quit()
   print_indented(state)
+  print(observation_tensor_size(state))
   return int(state.is_done()) - 1
 
 fun test_enumerate() -> Bool:
