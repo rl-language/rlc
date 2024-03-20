@@ -138,9 +138,8 @@ fun gen_printer_parser():
 
 fun main() -> Int:
   let state = play()
-  state.quit()
   print_indented(state)
-  print(observation_tensor_size(state))
+  state.board.pretty_print_board()
   return int(state.is_done()) - 1
 
 fun test_enumerate() -> Bool:

@@ -168,8 +168,7 @@ namespace mlir::rlc
 		auto lhs = block->getArgument(0);
 		auto rhs = block->getArgument(1);
 
-		auto decl = rewriter.create<mlir::rlc::UninitializedConstruct>(
-				fun.getLoc(), mlir::rlc::IntegerType::getInt64(fun.getContext()));
+		auto decl = rewriter.create<mlir::rlc::Constant>(fun.getLoc(), int64_t(0));
 		auto zero = rewriter.create<mlir::rlc::Constant>(fun.getLoc(), int64_t(0));
 		rewriter.create<mlir::rlc::BuiltinAssignOp>(fun.getLoc(), decl, zero);
 
