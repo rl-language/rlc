@@ -48,7 +48,11 @@ ent<Int min, Int max> BInt:
         return self.value <= other
 
     fun assign(Int other):
-        self.value = min + (other % (max - min))
+        self.value = other
+        if self.value >= max:
+            self.value = max - 1 
+        if self.value < min:
+            self.value = min 
 
     fun not_equal(Int other) -> Bool:
         return self.value != other
