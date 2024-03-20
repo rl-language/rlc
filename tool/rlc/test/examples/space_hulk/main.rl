@@ -138,7 +138,12 @@ fun gen_printer_parser():
 
 fun main() -> Int:
   let state = play()
-  print_indented(state)
+  let x : UnitArgType
+  x = 0
+  let gs : UnitArgType
+  gs = 1
+  let m : DirectionArgType 
+  m.value = Direction::right.value
   state.shoot(x, gs)
   state.quit()
   state.quit()
@@ -244,7 +249,9 @@ fun main() -> Int:
   state.end_move()
   state.quit()
   state.quit()
+  print_indented(state)
   state.board.pretty_print_board()
+  print(state.board.score())
   return int(state.is_done()) - 1
 
 fun test_enumerate() -> Bool:

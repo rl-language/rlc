@@ -146,11 +146,11 @@ ent Board:
     let x = self.units.get(0).x
     let y = self.units.get(0).y
     let original_distance = manhattan_distance(22, 2, 5, 13)
-    let current_distance = manhattan_distance(x.value, 22, y.value, 5)
+    let current_distance = manhattan_distance(x.value, 21, y.value, 4)
     if original_distance > current_distance:
-        return 0.9 - (float(current_distance) / 30.0) + (float(self.gsc_killed.value) / 10.0)
+        return (0.9 - (float(current_distance) / 30.0)) + (float(self.gsc_killed.value) / 10.0)
     if original_distance < current_distance:
-        return -0.4 - (float(current_distance) / 30.0) + (float(self.gsc_killed.value) / 10.0)
+        return (-0.4 - (float(current_distance) / 30.0)) + (float(self.gsc_killed.value) / 10.0)
     return + (float(self.gsc_killed.value) / 10.0)
 
 fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
