@@ -212,6 +212,7 @@ static cl::opt<bool> Optimize(
 		cl::desc("Optimize"),
 		cl::callback([](const bool &value) {
 			emitPreconditionChecks.setInitialValue(!value);
+			emitBoundChecks.setInitialValue(!value);
 		}),
 		cl::init(false),
 		cl::cat(astDumperCategory));

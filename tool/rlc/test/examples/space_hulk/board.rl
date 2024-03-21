@@ -3,11 +3,13 @@
 import unit 
 import bounded_arg
 import collections.vector
+import machine_learning
 
 using UnitArgType = BInt<0, 10>
 
+
 ent Board:
-  BInt<0, 2>[29][28] map
+  Hidden<BInt<0, 2>[29][28]> map
   HiddenInformation<BInt<0, 5>> command_points
   Vector<Unit> units
   Bool is_done
@@ -38,7 +40,7 @@ ent Board:
         while x != 29:
           if !(self.get_index_of_unit_at(x, y) is Nothing):
             to_print.append('o')
-          else if self.map[y][x] == 1:
+          else if self.map.value[y][x] == 1:
             to_print.append('X')
           else:
             to_print.append(' ')
@@ -71,7 +73,7 @@ ent Board:
         return false 
       iter = iter + 1
 
-    return self.map[y][x] == 0
+    return self.map.value[y][x] == 0
 
   fun unit_id_is_valid(Int unit_id) -> Bool:
     return unit_id >= 0 and unit_id < 10 and unit_id < self.units.size()
@@ -202,7 +204,7 @@ fun make_board() -> Board:
       let y = 28
       while y != 0:
           y = y - 1
-          board.map[y][x] = copy[y][x]
+          board.map.value[y][x] = copy[y][x]
 
   board.command_points.content = 0
   board.command_points.owner = 1

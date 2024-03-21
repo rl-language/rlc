@@ -229,6 +229,9 @@ fun<T> _to_string_impl(T to_add, String output):
         else:
             output.append('}')
 
+fun<T> to_string(T to_stringyfi, String output):
+    _to_string_impl(to_stringyfi, output)
+
 fun<T> to_string(T to_stringyfi) -> String:
     let to_return : String
     _to_string_impl(to_stringyfi, to_return)
@@ -385,4 +388,7 @@ fun<T> _parse_string_impl(T result, String buffer, Int index) -> Bool:
 
 fun<T> from_string(T result, String buffer) -> Bool:
     let index = 0
+    return _parse_string_impl(result, buffer, index)
+
+fun<T> from_string(T result, String buffer, Int index) -> Bool:
     return _parse_string_impl(result, buffer, index)
