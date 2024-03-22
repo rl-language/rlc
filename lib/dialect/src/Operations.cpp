@@ -52,7 +52,8 @@ static void assignActionIndicies(mlir::rlc::ActionFunction fun)
 		rewriter.setInsertionPoint(statement);
 
 		int64_t resumePoint;
-		if (auto parent = statement->getParentOfType<mlir::rlc::ActionsStatement>())
+		if (auto parent = mlir::dyn_cast<mlir::rlc::ActionsStatement>(
+						statement->getParentOp()))
 		{
 			if (asctionsToResumePoint.count(parent) == 0)
 				asctionsToResumePoint[parent] = lastResumePoint++;
@@ -717,11 +718,13 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		for (auto type :
 				 llvm::drop_begin(referred.getResultTypes(), getForwardedArgs().size()))
-			resultTypes.push_back(type);
-
-		for (auto type :
-				 llvm::drop_begin(referred.getResultTypes(), getForwardedArgs().size()))
+		{
+			if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+				resultTypes.push_back(casted.getUnderlying());
+			else
+				resultTypes.push_back(type);
 			resultLoc.push_back(actions.getLoc());
+		}
 
 		for (auto name : llvm::drop_begin(
 						 referred.getDeclaredNames(), getForwardedArgs().size()))

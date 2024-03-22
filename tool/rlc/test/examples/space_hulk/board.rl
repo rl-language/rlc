@@ -13,14 +13,29 @@ ent Board:
   HiddenInformation<BInt<0, 5>> command_points
   Vector<Unit> units
   Bool is_done
-  Bool is_marine_decision
+  BInt<0, 3> current_player
   BInt<0, 11> turn_count
 
   BInt<0, 10> gsc_killed
   BInt<0, 10> marine_killed
 
+  fun set_is_marine_decision():
+    self.current_player = 1
+
+  fun set_is_gsc_decision():
+    self.current_player = 2
+
+  fun set_is_random_decision():
+    self.current_player = 0
+
   fun marine_must_act() -> Bool:
-    return self.is_marine_decision
+    return self.current_player.value == 1
+
+  fun gsc_must_act() -> Bool:
+    return self.current_player.value == 2
+
+  fun random_action() -> Bool:
+    return self.current_player.value == 0
 
   fun can_move_to(Unit unit, Direction direction) -> Bool:
     let cost = unit.move_cost(direction)
@@ -107,20 +122,20 @@ ent Board:
 
     return true
 
-  fun shoot_at(Unit source, Unit target, Bool overwatch) -> Bool:
+  fun shoot_at(Unit source, Unit target, Bool overwatch, BInt<1, 7> roll1, BInt<1, 7> roll2) -> Bool:
     if !overwatch:
       source.action_points = source.action_points - source.get_weapon_ap_cost()
     if overwatch:
       source.is_overwatching = false
     source.is_guarding = false
-    return roll() == 6 or roll() == 6
+    return roll1 == 6 or roll2 == 6
 
   fun can_assault(Unit source) -> Bool:
     if source.action_points < 1:
       return false
 
     let target_x = source.x + source.direction.to_x()
-    let target_y = source.x + source.direction.to_y()
+    let target_y = source.y + source.direction.to_y()
 
     let maybe_index = self.get_index_of_unit_at(target_x.value, target_y.value)
     if maybe_index is UnitArgType:
@@ -147,12 +162,12 @@ ent Board:
       return -1.0
     let x = self.units.get(0).x
     let y = self.units.get(0).y
-    let original_distance = manhattan_distance(22, 2, 5, 13)
+    let original_distance = manhattan_distance(21, 2, 4, 13)
     let current_distance = manhattan_distance(x.value, 21, y.value, 4)
     if original_distance > current_distance:
         return (0.9 - (float(current_distance) / 30.0)) + (float(self.gsc_killed.value) / 10.0)
     if original_distance < current_distance:
-        return (-0.4 - (float(current_distance) / 30.0)) + (float(self.gsc_killed.value) / 10.0)
+        return (-0.4 - (float(current_distance) / 30.0)) + (float(self.gsc_killed.value) / 30.0)
     return + (float(self.gsc_killed.value) / 10.0)
 
 fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
@@ -166,7 +181,7 @@ fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
 
 fun make_board() -> Board:
   let board : Board
-  board.is_marine_decision = true
+  board.set_is_marine_decision()
   board.is_done = false
   let copy = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -210,7 +225,9 @@ fun make_board() -> Board:
   board.command_points.owner = 1
   board.units.append(make_marine(2, 13))
   board.units.get(0).direction = Direction::right
-  board.units.append(make_genestealer(27, 13))
+  board.units.append(make_genestealer(27, 10))
+  board.units.append(make_genestealer(22, 10))
+  board.units.append(make_genestealer(18, 10))
   return board
 
 

@@ -6,6 +6,7 @@ import direction
 import bounded_arg
 
 using DirectionArgType = BInt<0, 4>
+using DiceRoll = BInt<1, 7>
 
 act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
   board.units.get(unit_id.value).is_overwatching = false
@@ -38,18 +39,21 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
       is_done = true
 
   if board.units.get(unit_id.value).kind.faction() == Faction::genestealer:
-    board.is_marine_decision = false 
+    board.set_is_marine_decision()
     actions:
-      act shoot(UnitArgType unit_id, UnitArgType target_id) {
-        board.unit_id_is_valid(unit_id.value),
+      act shoot(frm UnitArgType unit_id2, frm UnitArgType target_id) {
+        board.unit_id_is_valid(unit_id2.value),
         board.unit_id_is_valid(target_id.value),
-        unit_id == target_id,
-        board.can_shoot(board.units.get(unit_id.value), board.units.get(target_id.value), true),
-        board.units.get(unit_id.value).is_overwatching
+        unit_id2 == target_id,
+        board.can_shoot(board.units.get(unit_id2.value), board.units.get(target_id.value), true),
+        board.units.get(unit_id2.value).is_overwatching
       }
-      if board.shoot_at(board.units.get(unit_id.value), board.units.get(target_id.value), true):
-        board.units.erase(target_id.value)
-        board.gsc_killed = board.gsc_killed + 1
+        act roll_dice(DiceRoll roll1)
+        frm roll = roll1
+        act roll_dice(DiceRoll roll2)
+        if board.shoot_at(board.units.get(unit_id2.value), board.units.get(target_id.value), true, roll, roll2):
+          board.units.erase(target_id.value)
+          board.gsc_killed = board.gsc_killed + 1
 
       act do_nothing()
 

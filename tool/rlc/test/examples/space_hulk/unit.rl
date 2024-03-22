@@ -6,12 +6,6 @@ import math.numeric
 import none
 import bounded_arg
 
-fun roll() -> BInt<1, 7>:
-  # ToDo: implement random rolls
-  let x : BInt<1, 7>
-  x = 6
-  return x
-
 enum Faction:
   genestealer
   marine
@@ -145,11 +139,6 @@ ent Unit:
   fun can_guard() -> Bool:
     return self.action_points >= 2 and self.kind == UnitKind::marine and !self.is_guarding
 
-  fun roll_melee() -> BInt<1, 7>:
-    # ToDo: implement marine sergent
-    if self.kind == UnitKind::marine:
-      return max(roll(), roll())
-    return max(roll(), max(roll(), roll()))
 
 fun make_blip(Int blip_count, Int x, Int y) -> Unit:
   let unit : Unit
