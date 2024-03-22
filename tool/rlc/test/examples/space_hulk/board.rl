@@ -104,7 +104,22 @@ ent Board:
       i = i + 1
 
   fun is_in_line_of_sight(Unit source, Unit target) -> Bool:
-    # ToDO: implement actual line of sight
+    if source.x != target.x and source.y != target.y:
+      return false
+    
+    if source.x == target.x:
+        let y = min(source.y, target.y)
+        while y != max(source.y, target.y):
+            if self.map.value[y.value][source.x.value] != 0:
+                return false
+            y = y + 1
+    if source.y == target.y:
+        let x = min(source.x, target.x)
+        while x != max(source.x, target.x):
+            if self.map.value[source.y.value][x.value] != 0:
+                return false
+            x = x + 1
+    # ToDO: implement correctly actual line of sight
     return true
 
   fun can_shoot(Unit source, Unit target, Bool overwatch) -> Bool:
@@ -225,7 +240,7 @@ fun make_board() -> Board:
   board.command_points.owner = 1
   board.units.append(make_marine(2, 13))
   board.units.get(0).direction = Direction::right
-  board.units.append(make_genestealer(27, 10))
+  board.units.append(make_genestealer(27, 13))
   board.units.append(make_genestealer(22, 10))
   board.units.append(make_genestealer(18, 10))
   return board

@@ -62,7 +62,7 @@ def main():
         if args.action_file == "-"
         else open(args.action_file, "r").readlines()
     )
-    # sim.module.functions.pretty_print_board(state.state.board)
+    sim.module.functions.pretty_print_board(state.state.board)
     for line in lines:
         if line.strip() == "" or line.strip().startswith("#"):
             continue
@@ -91,7 +91,7 @@ def main():
         if not args.print_all:
             print(action)
         action.run(state)
-        # sim.module.functions.pretty_print_board(state.state.board)
+        sim.module.functions.pretty_print_board(state.state.board)
 
     if args.output != "":
         state.write_binary(args.output)

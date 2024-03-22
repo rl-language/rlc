@@ -94,6 +94,12 @@ fun<Int min, Int max> max(BInt<min, max> l, BInt<min, max> r) -> BInt<min, max>:
     return r
   return l
 
+
+fun<Int min, Int max> min(BInt<min, max> l, BInt<min, max> r) -> BInt<min, max>:
+  if r < l:
+    return r
+  return l
+
 fun<Int min, Int max> append_to_vector(BInt<min, max> to_add, Vector<Byte> output):
     if max - min < 256:
         let to_append = byte(to_add.value - min - 128)

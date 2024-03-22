@@ -17,3 +17,7 @@ fun max(Int a, Int b) -> Int:
     return a
   return b
 
+fun min(Int a, Int b) -> Int:
+  if b > a:
+    return a
+  return b
