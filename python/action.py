@@ -11,6 +11,7 @@ import argparse
 from loader import Simulation, compile, State
 from solvers import find_end
 import sys
+import os
 from shutil import which
 from command_line import load_simulation_from_args, make_rlc_argparse, load_network
 
@@ -62,7 +63,6 @@ def main():
         if args.action_file == "-"
         else open(args.action_file, "r").readlines()
     )
-    sim.module.functions.pretty_print_board(state.state.board)
     for line in lines:
         if line.strip() == "" or line.strip().startswith("#"):
             continue
@@ -91,7 +91,6 @@ def main():
         if not args.print_all:
             print(action)
         action.run(state)
-        sim.module.functions.pretty_print_board(state.state.board)
 
     if args.output != "":
         state.write_binary(args.output)
