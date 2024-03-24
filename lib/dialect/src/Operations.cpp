@@ -502,6 +502,30 @@ static mlir::LogicalResult declareActionTypes(
 mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 		mlir::rlc::ActionFunction fun, mlir::rlc::ValueTable *parentSymbolTable)
 {
+	if (fun.getUnmangledName() == "init")
+	{
+		auto _ = logError(
+				fun,
+				"Actions cannot be called init, that is a reserved name, use a "
+				"different one");
+		return nullptr;
+	}
+	if (fun.getUnmangledName() == "drop")
+	{
+		auto _ = logError(
+				fun,
+				"Actions cannot be called drop, that is a reserved name, use a "
+				"different one");
+		return nullptr;
+	}
+	if (fun.getUnmangledName() == "assign")
+	{
+		auto _ = logError(
+				fun,
+				"Actions cannot be called drop, that is a reserved name, use a "
+				"different one");
+		return nullptr;
+	}
 	mlir::rlc::ModuleBuilder builder(
 			fun->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
 
@@ -2413,7 +2437,8 @@ mlir::OpFoldResult mlir::rlc::InitializerListOp::fold(
 			return nullptr;
 
 		auto res = arg.getDefiningOp()->fold(attr);
-		assert(res.succeeded());
+		if (res.failed())
+			return nullptr;
 		assert(attr.size() == 1);
 		assert(not attr[0].isNull());
 		toReturn.push_back(mlir::cast<mlir::Attribute>(attr[0]));

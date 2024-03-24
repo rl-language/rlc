@@ -42,6 +42,7 @@ namespace mlir::rlc
 			return;
 		}
 		manager.addPass(mlir::createCanonicalizerPass());
+		manager.addPass(mlir::rlc::createLowerInitializerListsPass());
 
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorInvocationsPass());
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorsPass());
@@ -113,7 +114,7 @@ namespace mlir::rlc
 
 		manager.addPass(mlir::rlc::createLowerAssertsPass());
 
-		manager.addPass(mlir::rlc::createLowerInitializerListsPass());
+		manager.addPass(mlir::rlc::createConstantArrayToGlobalPass());
 
 		manager.addPass(mlir::rlc::createLowerToCfPass());
 		manager.addPass(mlir::rlc::createActionStatementsToCoroPass());

@@ -67,4 +67,4 @@ fun test_move_move_forward() -> Bool:
   arg2.value = 1
   game.move(board, arg2)
   game.end_move(board)
-  return board.units.get(0).x == 3
+  return board.units.get(0).x == 5

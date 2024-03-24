@@ -160,19 +160,13 @@ fun main() -> Int:
   let x : UnitArgType
   x = 0
   let gs : UnitArgType
-  gs = 1
+  gs = 3
   let dice : DiceRoll 
   dice = 6
   let m : DirectionArgType 
   m.value = Direction::right.value
   state.quit()
   state.quit()
-  state.begin_move(x)
-  state.move(m)
-  state.end_move()
-  state.begin_move(x)
-  state.move(m)
-  state.end_move()
   state.begin_move(x)
   state.move(m)
   state.end_move()
@@ -246,7 +240,7 @@ fun main() -> Int:
   state.move(m)
   state.end_move()
   state.quit()
-  gs = 2
+  gs = 3
   state.assault(gs)
   state.roll_dice(dice)
   state.roll_dice(dice)
@@ -272,7 +266,7 @@ fun test_enumerate() -> Bool:
 fun test_game_marine_can_roll() -> Bool:
   let game = play()
   let gs : UnitArgType
-  gs = 1
+  gs = 3
 
   let arg : UnitArgType
   arg.value = 0
@@ -302,7 +296,7 @@ fun test_game_marine_can_step_forward() -> Bool:
   arg2.value = 1
   game.move(arg2)
   game.end_move()
-  return game.board.units.get(0).x == 3
+  return game.board.units.get(0).x == 5
 
 fun test_game_marine_can_end_turn() -> Bool:
     let game = play()

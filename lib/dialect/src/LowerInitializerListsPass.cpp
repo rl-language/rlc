@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,6 +23,7 @@ namespace mlir::rlc
 {
 
 #define GEN_PASS_DEF_LOWERINITIALIZERLISTSPASS
+#define GEN_PASS_DEF_CONSTANTARRAYTOGLOBALPASS
 #include "rlc/dialect/Passes.inc"
 
 	static mlir::Value rewriteAsInitialization(
@@ -72,22 +73,17 @@ namespace mlir::rlc
 		return global;
 	}
 
-	struct LowerInitializerListsPass
-			: impl::LowerInitializerListsPassBase<LowerInitializerListsPass>
+	struct ConstantArrayToGlobalPass
+			: impl::ConstantArrayToGlobalPassBase<ConstantArrayToGlobalPass>
 	{
-		using impl::LowerInitializerListsPassBase<
-				LowerInitializerListsPass>::LowerInitializerListsPassBase;
+		using impl::ConstantArrayToGlobalPassBase<
+				ConstantArrayToGlobalPass>::ConstantArrayToGlobalPassBase;
 
 		void runOnOperation() override
 		{
 			llvm::SmallVector<mlir::rlc::Constant, 4> toGlobals;
-			llvm::SmallVector<mlir::rlc::InitializerListOp, 4> initializerLists;
 			mlir::IRRewriter rewriter(&getContext());
 			size_t emittedGlobals = 0;
-
-			getOperation().walk([&](mlir::rlc::InitializerListOp initializer) {
-				initializerLists.push_back(initializer);
-			});
 
 			getOperation().walk([&](mlir::rlc::Constant initializer) {
 				if (initializer.getType().isa<mlir::rlc::ArrayType>())
@@ -104,6 +100,24 @@ namespace mlir::rlc
 						getOperation().getBody(), getOperation().getBody()->begin());
 				emittedGlobals++;
 			}
+		}
+	};
+
+	struct LowerInitializerListsPass
+			: impl::LowerInitializerListsPassBase<LowerInitializerListsPass>
+	{
+		using impl::LowerInitializerListsPassBase<
+				LowerInitializerListsPass>::LowerInitializerListsPassBase;
+
+		void runOnOperation() override
+		{
+			llvm::SmallVector<mlir::rlc::InitializerListOp, 4> initializerLists;
+			mlir::IRRewriter rewriter(&getContext());
+			size_t emittedGlobals = 0;
+
+			getOperation().walk([&](mlir::rlc::InitializerListOp initializer) {
+				initializerLists.push_back(initializer);
+			});
 
 			for (auto op :
 					 llvm::make_range(initializerLists.rbegin(), initializerLists.rend()))

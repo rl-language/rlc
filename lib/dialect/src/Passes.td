@@ -225,8 +225,13 @@ def ValidateStorageQualifiersPass : Pass<"rlc-validate-storage-qualifiers", "mli
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def ConstantArrayToGlobalPass: Pass<"rlc-constant-array-to-global", "mlir::ModuleOp"> {
+  let summary = "lower array constants to global objects";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def LowerInitializerListsPass : Pass<"rlc-lower-initializer-lists", "mlir::ModuleOp"> {
-  let summary = "lower initializer list either to global or to regular array";
+  let summary = "lower initializer list either to regular array";
   let dependentDialects = ["rlc::RLCDialect"];
 }
 

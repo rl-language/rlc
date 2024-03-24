@@ -349,6 +349,7 @@ namespace mlir::rlc
 						 mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>()))
 		{
 			auto fun = op.getDefiningOp<mlir::rlc::FunctionOp>();
+			assert(fun != nullptr);
 			if (not fun.getBody().empty())
 				continue;
 

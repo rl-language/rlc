@@ -238,8 +238,12 @@ fun make_board() -> Board:
 
   board.command_points.content = 0
   board.command_points.owner = 1
+  board.units.append(make_marine(4, 13))
+  board.units.append(make_marine(3, 13))
   board.units.append(make_marine(2, 13))
   board.units.get(0).direction = Direction::right
+  board.units.get(1).direction = Direction::right
+  board.units.get(2).direction = Direction::right
   board.units.append(make_genestealer(27, 13))
   board.units.append(make_genestealer(22, 10))
   board.units.append(make_genestealer(18, 10))
@@ -252,7 +256,7 @@ fun test_is_walkable() -> Bool:
         return false
     if board.is_walkable(2, 12):
         return false
-    if !board.is_walkable(3, 13):
+    if !board.is_walkable(5, 13):
         return false
     return true
 
@@ -273,6 +277,6 @@ fun test_get_unit_at() -> Bool:
         return false
     let res = board.get_index_of_unit_at(2, 13)
     if res is UnitArgType:
-        return res.value == 0
+        return res.value == 2
     return false
 
