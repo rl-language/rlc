@@ -54,6 +54,9 @@ ent Unit:
   BInt<0, 30> x
   BInt<0, 30> y
 
+  fun is_marine() -> Bool:
+    return self.kind == UnitKind::marine
+
   fun action_point_allowance() -> Int:
     return self.kind.action_point_allowance()
 
