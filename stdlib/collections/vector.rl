@@ -17,11 +17,11 @@ ent<T> Vector:
     Int _size
     Int _capacity
 
-    fun _grow():
-        if self._capacity > self._size:
+    fun _grow(Int target_size):
+        if self._capacity > self._size + target_size:
             return
 
-        let new_data = __builtin_malloc_do_not_use<T>(self._size * 2)
+        let new_data = __builtin_malloc_do_not_use<T>(target_size * 2)
         let counter = 0
         while counter < self._size * 2:
             __builtin_construct_do_not_use(new_data[counter])
@@ -34,7 +34,7 @@ ent<T> Vector:
             counter = counter + 1
 
         __builtin_free_do_not_use(self._data)
-        self._capacity = self._size * 2
+        self._capacity = target_size * 2
         self._data = new_data
 
     fun init():
@@ -63,6 +63,16 @@ ent<T> Vector:
             self.append(other.get(counter))
             counter = counter + 1
 
+    fun resize(Int new_size):
+        if new_size > self._size:
+          self._grow(new_size)
+          let x : T
+          while self._size != new_size:
+            self.append(x)
+        else:
+          while self._size > new_size:
+            self.pop()
+
     fun back() -> ref T:
         return self._data[self._size - 1]
 
@@ -73,7 +83,7 @@ ent<T> Vector:
         self._data[index] = value
 
     fun append(T value):
-        self._grow()
+        self._grow(self._size + 1)
         self._data[self._size] = value
         self._size = self._size + 1
 

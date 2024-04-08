@@ -46,6 +46,7 @@ fun size_as_observation_tensor(UnitKind obj) -> Int :
 ent Unit:
   Bool is_overwatching
   Bool is_guarding 
+  Bool is_jammed
   UnitKind kind
   HiddenInformation<BInt<0, 4>> genestealer_count
   Direction direction
@@ -142,6 +143,11 @@ ent Unit:
   fun can_guard() -> Bool:
     return self.action_points >= 2 and self.kind == UnitKind::marine and !self.is_guarding
 
+  fun x_of_cell_in_front() -> Int:
+    return self.x.value + self.direction.to_x()
+
+  fun y_of_cell_in_front() -> Int:
+    return self.y.value + self.direction.to_y()
 
 fun make_blip(Int blip_count, Int x, Int y) -> Unit:
   let unit : Unit
@@ -165,6 +171,7 @@ fun make_genestealer(Int x, Int y) -> Unit:
   unit.kind = UnitKind::genestealer
   unit.x = x
   unit.y = y
+  unit.action_points = unit.action_point_allowance()
   return unit
 
 fun test_unit_kind_faction() -> Bool:

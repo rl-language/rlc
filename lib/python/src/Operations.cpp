@@ -165,6 +165,8 @@ static void emitStructImplicitMethods(
 	OS.indent((context.getIndent() + 1) * 4);
 	OS << "def __init__(self):\n";
 	OS.indent((context.getIndent() + 2) * 4);
+	OS << "self.to_erase = True\n";
+	OS.indent((context.getIndent() + 2) * 4);
 	OS << "functions.init(self)\n";
 	OS << "\n";
 
@@ -179,9 +181,11 @@ static void emitStructImplicitMethods(
 	OS << "\n";
 
 	OS.indent((context.getIndent() + 1) * 4);
-	OS << "def __drop__(self):\n";
+	OS << "def __del__(self):\n";
 	OS.indent((context.getIndent() + 2) * 4);
-	OS << "return functions.drop(" << name << "(), self)\n";
+	OS << "if hasattr(self, \"to_erase\") and self.to_erase:\n";
+	OS.indent((context.getIndent() + 3) * 4);
+	OS << "functions.drop(self)\n";
 	OS << "\n";
 }
 

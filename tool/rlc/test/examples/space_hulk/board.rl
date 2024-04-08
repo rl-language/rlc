@@ -5,16 +5,16 @@ import bounded_arg
 import collections.vector
 import machine_learning
 
-using UnitArgType = BInt<0, 10>
+using UnitArgType = BInt<0, 30>
 
 
 ent Board:
-  Hidden<BInt<0, 2>[29][28]> map
+  BInt<0, 5>[29][28] map
   HiddenInformation<BInt<0, 5>> command_points
   Vector<Unit> units
   Bool is_done
   BInt<0, 3> current_player
-  BInt<0, 11> turn_count
+  BInt<0, 16> turn_count
 
   BInt<0, 10> gsc_killed
   BInt<0, 10> marine_killed
@@ -47,16 +47,50 @@ ent Board:
     else:
       return false
 
+  fun is_facing_door(Unit u) -> Bool:
+    let x = u.x_of_cell_in_front()
+    let y = u.y_of_cell_in_front()
+    if x < 0:
+      return false
+    if y < 0:
+      return false
+
+    if x >= 28:
+      return false
+
+    if y >= 28:
+      return false
+
+    return self.map[y][x] == 4 or self.map[y][x] == 3
+
+  fun toggle_door(Unit u):
+    let x = u.x_of_cell_in_front()
+    let y = u.y_of_cell_in_front()
+    if self.map[y][x] == 4:
+       self.map[y][x] = 3
+    else if self.map[y][x] == 3:
+       self.map[y][x] = 4
+
   fun pretty_print_board():
     let to_print : String
     let y = 0 
     while y != 28:
         let x = 0 
         while x != 29:
-          if !(self.get_index_of_unit_at(x, y) is Nothing):
-            to_print.append('o')
-          else if self.map.value[y][x] == 1:
+          let index = self.get_index_of_unit_at(x, y)
+          if index is UnitArgType:
+            if self.units.get(index.value).is_marine():
+              to_print.append('M')
+            else:
+              to_print.append('G') 
+          else if self.map[y][x] == 1:
             to_print.append('X')
+          else if self.map[y][x] == 2:
+            to_print.append('S')
+          else if self.map[y][x] == 4:
+            to_print.append('#')
+          else if self.map[y][x] == 3:
+            to_print.append(' ')
           else:
             to_print.append(' ')
           x = x + 1
@@ -88,14 +122,14 @@ ent Board:
         return false 
       iter = iter + 1
 
-    return self.map.value[y][x] == 0
+    return self.map[y][x] == 0 or self.map[y][x] == 3
 
   fun unit_id_is_valid(Int unit_id) -> Bool:
-    return unit_id >= 0 and unit_id < 10 and unit_id < self.units.size()
+    return unit_id >= 0 and unit_id < self.units.size()
 
   fun new_turn():
     self.turn_count = self.turn_count + 1
-    if self.turn_count == 10:
+    if self.turn_count == 15:
         self.is_done = true
         return
     let i = 0
@@ -108,15 +142,16 @@ ent Board:
       return false
     
     if source.x == target.x:
-        let y = min(source.y, target.y)
-        while y != max(source.y, target.y):
-            if self.map.value[y.value][source.x.value] != 0:
+        let y = min(source.y, target.y).value + 1
+        while y <  max(source.y, target.y).value:
+            if !self.is_walkable(source.x.value, y): 
                 return false
             y = y + 1
+
     if source.y == target.y:
-        let x = min(source.x, target.x)
-        while x != max(source.x, target.x):
-            if self.map.value[source.y.value][x.value] != 0:
+        let x = min(source.x, target.x).value + 1
+        while x < max(source.x, target.x).value:
+            if !self.is_walkable(x, source.y.value): 
                 return false
             x = x + 1
     # ToDO: implement correctly actual line of sight
@@ -135,13 +170,18 @@ ent Board:
     if !overwatch and source.get_weapon_ap_cost() > source.action_points.value:
       return false
 
+    if source.is_jammed:
+      return false
+
     return true
 
   fun shoot_at(Unit source, Unit target, Bool overwatch, BInt<1, 7> roll1, BInt<1, 7> roll2) -> Bool:
     if !overwatch:
       source.action_points = source.action_points - source.get_weapon_ap_cost()
-    if overwatch:
       source.is_overwatching = false
+    if overwatch:
+      if roll1 == roll2:
+        source.is_jammed = true
     source.is_guarding = false
     return roll1 == 6 or roll2 == 6
 
@@ -175,36 +215,82 @@ ent Board:
   fun _single_marine_score(Unit u) -> Float:
     let x = u.x
     let y = u.y
-    let original_distance = manhattan_distance(21, 3, 4, 13)
-    let current_distance = manhattan_distance(x.value, 21, y.value, 4)
-    return (float(original_distance) - float(current_distance)) / 30.0
+    let current_distance = manhattan_distance(x.value, 21, y.value, 7)
+    return float(current_distance) / 20.0
+
+  fun _single_gsc_score(Unit marine, Unit gsc) -> Float:
+    let d = manhattan_distance(marine.x.value, gsc.x.value, marine.y.value, gsc.y.value)
+    return 1.0 - (float(d) / 60.0) 
 
   fun _all_marine_average_score() -> Float:
     let sum : Float
     let count : Float
     let x = 0
-    while x < 3:
+    while x < 5:
         if self.units.get(x).is_marine():
             sum = sum + self._single_marine_score(self.units.get(x))
             count = count + 1.0
         x = x + 1
     return 1.0 - (sum / count)
 
-  fun _any_marine_won() -> Bool:
+  fun _all_gsc_average_score() -> Float:
+    let sum : Float
+    let count : Float
     let x = 0
-    while x < 3:
-        if self.units.get(x).is_marine():
-            if self._single_marine_score(self.units.get(x)) == 1.0:
-                return true
+    while x < self.units.size():
+        if !self.units.get(x).is_marine():
+            sum = sum + (float(manhattan_distance(self.units.get(x).x.value, self.units.get(0).x.value, self.units.get(x).y.value, self.units.get(0).y.value)) / 30.0)
+            count = count + 1.0
         x = x + 1
+    if count == 0.0:
+        return 0.0
+    return 1.0 - (sum / count)
+
+  fun any_marine_won() -> Bool:
+    let x = 0
+    while x < 5:
+      if self.units.get(x).is_marine():
+        ref marine = self.units.get(x)
+        if manhattan_distance(marine.x.value, 21, marine.y.value, 7) == 0:
+          return true
+      x = x + 1
     return false
 
+  fun euristics() -> Float:
+    let score = self._all_marine_average_score()
+    return score
+
+  fun gsc_euristics() -> Float:
+    let score = self._all_gsc_average_score() + float(self.marine_killed.value)
+    return score
+
   fun score() -> Float:
-    if self.marine_killed == 3:
-      return -1.0
-    if self._any_marine_won():
-        return 1.0
-    return ((self._all_marine_average_score() / 2.0) + (float(self.gsc_killed.value) / 30.0)) - (float(self.marine_killed.value) / 30.0)
+    if self.marine_killed == 5:
+      return self.euristics() - 100.0
+    if self.any_marine_won():
+      return self.euristics() + 100.0
+    return self.euristics()
+
+  fun gsc_score() -> Float:
+    if self.marine_killed == 5:
+      return self.gsc_euristics() + 100.0
+    if self.any_marine_won():
+      return self.gsc_euristics() - 100.0
+    return self.gsc_euristics()
+
+  fun get_spawn_point(Int spawn_index, Int x_out, Int y_out):
+    let x = 29
+    while x != 0:
+      x = x - 1
+        let y = 28
+        while y != 0:
+          y = y - 1
+          if self.map[y][x] == 2:
+            if spawn_index == 0:
+              x_out = x
+              y_out = y
+              return
+            spawn_index = spawn_index - 1
 
 fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
   let x = x1 - x2
@@ -226,24 +312,24 @@ fun make_board() -> Board:
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 2, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 2, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 2, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -255,19 +341,20 @@ fun make_board() -> Board:
       let y = 28
       while y != 0:
           y = y - 1
-          board.map.value[y][x] = copy[y][x]
+          board.map[y][x] = copy[y][x]
 
   board.command_points.content = 0
   board.command_points.owner = 1
-  board.units.append(make_marine(4, 13))
   board.units.append(make_marine(3, 13))
+  board.units.append(make_marine(5, 13))
+  board.units.append(make_marine(4, 13))
   board.units.append(make_marine(2, 13))
+  board.units.append(make_marine(1, 13))
   board.units.get(0).direction = Direction::right
   board.units.get(1).direction = Direction::right
   board.units.get(2).direction = Direction::right
-  board.units.append(make_genestealer(27, 13))
-  board.units.append(make_genestealer(22, 10))
-  board.units.append(make_genestealer(18, 10))
+  board.units.get(3).direction = Direction::right
+  board.units.get(4).direction = Direction::right
   return board
 
 

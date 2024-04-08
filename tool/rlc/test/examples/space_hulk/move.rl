@@ -38,13 +38,13 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
         board.units.get(unit_id.value).action_points = board.units.get(unit_id.value).action_points - 1
       is_done = true
 
-  if board.units.get(unit_id.value).kind.faction() == Faction::genestealer:
+  if board.units.get(unit_id.value).kind.faction() == Faction::genestealer or true:
     board.set_is_marine_decision()
     actions:
       act shoot(frm UnitArgType unit_id2, frm UnitArgType target_id) {
         board.unit_id_is_valid(unit_id2.value),
         board.unit_id_is_valid(target_id.value),
-        unit_id2 == target_id,
+        unit_id == target_id or unit_id2 == unit_id,
         board.can_shoot(board.units.get(unit_id2.value), board.units.get(target_id.value), true),
         board.units.get(unit_id2.value).is_overwatching
       }

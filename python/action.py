@@ -63,12 +63,13 @@ def main():
         if args.action_file == "-"
         else open(args.action_file, "r").readlines()
     )
-    for line in lines:
+    state.simulation.module.functions.pretty_print_board(state.state.board)
+    for i, line in enumerate(lines):
         if line.strip() == "" or line.strip().startswith("#"):
             continue
 
         if args.print_all:
-            print(line)
+            print(i, line)
 
         action = sim.parse_action(line)
         if action is None:
@@ -76,7 +77,7 @@ def main():
                 continue
             else:
                 print("Cannot parse the following action:")
-                print(line)
+                print(i, line)
                 break
 
         if not action.can_run(state):
@@ -85,17 +86,21 @@ def main():
             else:
                 print("Cannot apply the following action:")
                 failed = True
-                print(action)
+                print(i, action)
                 break
 
+        input()
+        os.system("clear")
+        state.simulation.module.functions.pretty_print_board(state.state.board)
         if not args.print_all:
-            print(action)
+            print(i, action)
         action.run(state)
 
     if args.output != "":
         state.write_binary(args.output)
     else:
-        print(state)
+        pass
+        # print(state)
 
     if failed:
         exit(-1)
