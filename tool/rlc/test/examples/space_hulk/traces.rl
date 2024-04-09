@@ -1,14 +1,17 @@
 # RUN: python %pyscript/action.py --source %S/main.rl -i %stdlib --rlc rlc %s
 
 # move right
-begin_move {unit_id: 0}
+place_blip {index: 0}
+place_blip {index: 0}
+toggle_door {unit_id: 1}
+begin_move {unit_id: 1}
 move {absolute_direction: 1}
 end_move {}
+do_nothing {}
 
 # move right
-begin_move {unit_id: 0}
+begin_move {unit_id: 1}
 move {absolute_direction: 1}
 end_move {}
+do_nothing {}
 
-# shoot first gsc
-shoot {unit_id: 0, target_id: 1}

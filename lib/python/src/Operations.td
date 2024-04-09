@@ -31,10 +31,10 @@ def RLC_AddToMap : RLC_PythonOp<"add_to_map", [DeclareOpInterfaceMethods<EmitPyt
 }
 
 def RLC_CTypeStructDecl : RLC_PythonOp<"CTypeStruct", [DeclareOpInterfaceMethods<EmitPython>]> {
-  let arguments = (ins TypeAttr:$type, StrArrayAttr:$field_names);
+  let arguments = (ins TypeAttr:$type, StrArrayAttr:$field_names, BoolAttr:$custom_destructor);
 
   let assemblyFormat = [{
-	$type $field_names attr-dict 
+	$type $field_names $custom_destructor attr-dict 
   }];
 }
 

@@ -160,7 +160,8 @@ static void emitStructShort(
 static void emitStructImplicitMethods(
 		mlir::rlc::python::SerializationContext& context,
 		llvm::raw_ostream& OS,
-		llvm::StringRef name)
+		llvm::StringRef name,
+		bool hasCustomDestructor)
 {
 	OS.indent((context.getIndent() + 1) * 4);
 	OS << "def __init__(self):\n";
@@ -180,13 +181,16 @@ static void emitStructImplicitMethods(
 	OS << "return copy\n";
 	OS << "\n";
 
-	OS.indent((context.getIndent() + 1) * 4);
-	OS << "def __del__(self):\n";
-	OS.indent((context.getIndent() + 2) * 4);
-	OS << "if hasattr(self, \"to_erase\") and self.to_erase:\n";
-	OS.indent((context.getIndent() + 3) * 4);
-	OS << "functions.drop(self)\n";
-	OS << "\n";
+	if (hasCustomDestructor)
+	{
+		OS.indent((context.getIndent() + 1) * 4);
+		OS << "def __del__(self):\n";
+		OS.indent((context.getIndent() + 2) * 4);
+		OS << "if hasattr(self, \"to_erase\") and self.to_erase:\n";
+		OS.indent((context.getIndent() + 3) * 4);
+		OS << "functions.drop(self)\n";
+		OS << "\n";
+	}
 }
 
 static void emitStructGetter(
@@ -226,10 +230,11 @@ static void emitStruct(
 		bool isUnion,
 		llvm::StringRef name,
 		llvm::ArrayRef<mlir::StringRef> fieldNames,
-		mlir::TypeRange fieldTypes)
+		mlir::TypeRange fieldTypes,
+		bool hasCustomDestructor)
 {
 	emitStructShort(context, OS, isUnion, name, fieldNames, fieldTypes);
-	emitStructImplicitMethods(context, OS, name);
+	emitStructImplicitMethods(context, OS, name, hasCustomDestructor);
 	emitStructGetters(context, OS, fieldNames, fieldTypes);
 
 	OS << "\n\n";
@@ -253,7 +258,13 @@ mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
 		for (auto name : getFieldNames())
 			fieldNames.push_back(name.cast<mlir::StringAttr>());
 		emitStruct(
-				context, OS, false, type.getName(), fieldNames, type.getSubTypes());
+				context,
+				OS,
+				false,
+				type.getName(),
+				fieldNames,
+				type.getSubTypes(),
+				getCustomDestructor());
 	}
 	else
 	{
@@ -273,7 +284,7 @@ mlir::LogicalResult mlir::rlc::python::CTypeStructDecl::emit(
 				name,
 				{ "content", "active_index" },
 				{ "_" + name, "c_longlong" });
-		emitStructImplicitMethods(context, OS, name);
+		emitStructImplicitMethods(context, OS, name, getCustomDestructor());
 		emitStructGetter(context, OS, "content", "_" + name);
 		emitStructGetter(context, OS, "active_index", "c_longlong");
 	}

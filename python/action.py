@@ -43,6 +43,7 @@ def main():
     )
     parser.add_argument("--ignore-invalid", "-ii", action="store_true", default=False)
     parser.add_argument("--print-all", "-all", action="store_true", default=False)
+    parser.add_argument("--pretty-print", "-pp", action="store_true", default=False)
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
     args = parser.parse_args()
@@ -63,7 +64,9 @@ def main():
         if args.action_file == "-"
         else open(args.action_file, "r").readlines()
     )
-    state.simulation.module.functions.pretty_print_board(state.state.board)
+    if args.pretty_print:
+      state.simulation.module.functions.pretty_print_board(state.state.board)
+      input()
     for i, line in enumerate(lines):
         if line.strip() == "" or line.strip().startswith("#"):
             continue
@@ -89,18 +92,18 @@ def main():
                 print(i, action)
                 break
 
-        input()
-        os.system("clear")
-        state.simulation.module.functions.pretty_print_board(state.state.board)
+        if args.pretty_print:
+          input()
+          os.system("clear")
+          state.simulation.module.functions.pretty_print_board(state.state.board)
         if not args.print_all:
             print(i, action)
         action.run(state)
 
     if args.output != "":
         state.write_binary(args.output)
-    else:
-        pass
-        # print(state)
+    elif not args.pretty_print:
+        print(state)
 
     if failed:
         exit(-1)

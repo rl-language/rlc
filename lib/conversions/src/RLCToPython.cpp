@@ -276,8 +276,7 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 
 	mlir::Value toReturn = result.getResult(0);
 
-	if (resType.isa<mlir::rlc::python::CTypesFloatType>() or
-			resType.isa<mlir::rlc::python::StrType>())
+	if (resType.isa<mlir::rlc::python::StrType>())
 	{
 		toReturn = rewriter.create<mlir::rlc::python::PythonAccess>(
 				result.getLoc(),
@@ -657,7 +656,8 @@ namespace mlir::python
 			mlir::Location loc,
 			mlir::Type type,
 			mlir::IRRewriter& rewriter,
-			const mlir::TypeConverter& converter)
+			const mlir::TypeConverter& converter,
+			bool hasCustomDestructor)
 	{
 		mlir::Type converted = converter.convertType(type);
 		llvm::SmallVector<std::string, 2> names;
@@ -683,7 +683,7 @@ namespace mlir::python
 			refs.push_back(name);
 
 		rewriter.create<mlir::rlc::python::CTypeStructDecl>(
-				loc, converted, rewriter.getStrArrayAttr(refs));
+				loc, converted, rewriter.getStrArrayAttr(refs), hasCustomDestructor);
 	}
 
 #define GEN_PASS_DEF_RLCTYPESTOPYTHONTYPESPASS
@@ -706,8 +706,22 @@ namespace mlir::python
 			mlir::IRRewriter rewriter(&getContext());
 
 			rewriter.setInsertionPointToStart(getOperation().getBody());
+			mlir::DenseSet<mlir::Type> hasCustomDestructor;
+			for (auto fun : getOperation().getBody()->getOps<mlir::rlc::FunctionOp>())
+			{
+				if (fun.getIsMemberFunction() and fun.getUnmangledName() == "drop" and
+						fun.getArgumentTypes().size() == 1)
+				{
+					hasCustomDestructor.insert(fun.getArgumentTypes()[0]);
+				}
+			}
 			for (auto t : ::rlc::postOrderTypes(getOperation()))
-				emitDeclaration(getOperation().getLoc(), t, rewriter, ctypesConverter);
+				emitDeclaration(
+						getOperation().getLoc(),
+						t,
+						rewriter,
+						ctypesConverter,
+						hasCustomDestructor.contains(t));
 		}
 	};
 }	 // namespace mlir::python

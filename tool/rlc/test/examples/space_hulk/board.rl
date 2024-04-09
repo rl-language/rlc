@@ -360,18 +360,20 @@ fun make_board() -> Board:
 
 fun test_is_walkable() -> Bool:
     let board = make_board()
-    if board.is_walkable(2, 13):
+    if !board.is_walkable(7, 13):
         return false
     if board.is_walkable(2, 12):
         return false
-    if !board.is_walkable(5, 13):
+    # door
+    if board.is_walkable(6, 13):
         return false
     return true
 
 fun test_move_right() -> Bool:
     let board = make_board()
-    board.units.get(0).action_points = 6
-    return board.can_move_to(board.units.get(0), Direction::right)
+    board.map[13][6] = 0
+    board.units.get(1).action_points = 6
+    return board.can_move_to(board.units.get(1), Direction::right)
 
 fun test_connot_move_up() -> Bool:
     let board = make_board()
@@ -385,6 +387,6 @@ fun test_get_unit_at() -> Bool:
         return false
     let res = board.get_index_of_unit_at(2, 13)
     if res is UnitArgType:
-        return res.value == 2
+        return res.value == 3
     return false
 

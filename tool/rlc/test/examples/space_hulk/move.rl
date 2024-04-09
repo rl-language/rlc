@@ -59,12 +59,13 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
 
 fun test_move_move_forward() -> Bool:
   let board = make_board()
-  board.units.get(0).action_points = 6
+  board.units.get(1).action_points = 6
   let arg : UnitArgType
-  arg.value = 0
+  arg.value = 1
   let game = move_unit(board, arg)
   let arg2 : DirectionArgType 
+  board.map[13][6] = 0
   arg2.value = 1
   game.move(board, arg2)
   game.end_move(board)
-  return board.units.get(0).x == 5
+  return board.units.get(1).x == 6

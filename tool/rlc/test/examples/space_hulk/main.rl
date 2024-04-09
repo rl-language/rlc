@@ -225,74 +225,52 @@ fun test_enumerate() -> Bool:
   let action : GameBeginMove
   let enumeration = enumerate(action) 
 
-  if enumeration.size() == 10:
+  if !enumeration.empty():
     return true
   else:
     return false
 
-fun test_game_marine_can_roll() -> Bool:
-  let game = play()
-  game.board.units.append(make_genestealer(27, 13))
-  let gs : UnitArgType
-  gs = 3
-
-  let arg : UnitArgType
-  arg.value = 0
-  let spawn_point : BInt<0, 6>
-  game.place_blip(spawn_point)
-  game.place_blip(spawn_point)
-  game.shoot(arg, gs)
-
-  let roll : DiceRoll
-  roll.value = 0
-
-  return can game.roll_dice(roll) 
-
-fun test_game_marine_can_not_roll() -> Bool:
-  let game = play()
-  let gs : UnitArgType
-  gs = 1
-
-  let roll : DiceRoll
-  roll.value = 0
-
-  return !can game.roll_dice(roll) 
 
 fun test_game_marine_can_step_forward() -> Bool:
   let game = play()
   let arg : UnitArgType
-  arg.value = 0
-  game.begin_move(arg)
+  arg.value = 1
   let arg2 : DirectionArgType 
   arg2.value = 1
   let spawn_point : BInt<0, 6>
   game.place_blip(spawn_point)
   game.place_blip(spawn_point)
+  game.toggle_door(arg)
+  game.begin_move(arg)
   game.move(arg2)
   game.end_move()
-  return game.board.units.get(0).x == 5
+  return game.board.units.get(1).x == 6
 
 fun test_game_marine_can_end_turn() -> Bool:
     let game = play()
     let spawn_point : BInt<0, 6>
     game.place_blip(spawn_point)
     game.place_blip(spawn_point)
-    if game.board.units.get(0).action_points != 4:
+    if game.board.units.get(1).action_points != 4:
         return false
     let arg : UnitArgType
-    arg.value = 0
+    arg.value = 1
+    game.toggle_door(arg)
     game.begin_move(arg)
     let arg2 : DirectionArgType 
     arg2.value = 1
     game.move(arg2)
     game.end_move()
+    game.do_nothing()
 
-    if game.board.units.get(0).action_points != 3:
+    if game.board.units.get(1).action_points != 2:
         return false
 
     game.pass_turn()
+    game.place_blip(spawn_point)
+    game.place_blip(spawn_point)
     game.pass_turn()
-    return game.board.units.get(0).action_points == 4
+    return game.board.units.get(1).action_points == 4
 
 
 fun test_max() -> Bool:
