@@ -138,6 +138,12 @@ static cl::opt<bool> printIROnFailure(
 		cl::init(isDebug),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpBeforeTemplate(
+		"before-template",
+		cl::desc("dumps ir before template expansion"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpCWrapper(
 		"header",
 		cl::desc("dumps the c wrapper and exits"),
@@ -279,6 +285,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpMLIR;
 	if (compileOnly)
 		return Driver::Request::compile;
+	if (dumpBeforeTemplate)
+		return Driver::Request::dumpBeforeTemplate;
 	return Driver::Request::executable;
 }
 

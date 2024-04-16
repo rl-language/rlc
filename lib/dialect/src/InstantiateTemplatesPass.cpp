@@ -253,7 +253,9 @@ namespace mlir::rlc
 				llvm::SmallVector<mlir::rlc::TemplateInstantiationOp, 4> ops;
 				getOperation().walk([&](mlir::rlc::TemplateInstantiationOp op) {
 					if (isFullyDeterminedInstantiation(op))
+					{
 						ops.push_back(op);
+					}
 				});
 
 				for (auto op : ops)

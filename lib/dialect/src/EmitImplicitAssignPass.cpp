@@ -114,7 +114,7 @@ namespace mlir::rlc
 							toCall.getLoc(),
 							mlir::FunctionType::get(
 									type.getContext(),
-									{ type, type },
+									{ subtype, subtype },
 									{ mlir::rlc::VoidType::get(type.getContext()) }),
 							toCall);
 			};

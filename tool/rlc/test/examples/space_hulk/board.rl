@@ -231,6 +231,8 @@ ent Board:
             sum = sum + self._single_marine_score(self.units.get(x))
             count = count + 1.0
         x = x + 1
+    if count == 0.0:
+      return 0.0
     return 1.0 - (sum / count)
 
   fun _all_gsc_average_score() -> Float:
@@ -265,17 +267,13 @@ ent Board:
     return score
 
   fun score() -> Float:
-    if self.marine_killed == 5:
-      return self.euristics() - 100.0
     if self.any_marine_won():
-      return self.euristics() + 100.0
+      return 100.0
     return self.euristics()
 
   fun gsc_score() -> Float:
     if self.marine_killed == 5:
       return self.gsc_euristics() + 100.0
-    if self.any_marine_won():
-      return self.gsc_euristics() - 100.0
     return self.gsc_euristics()
 
   fun get_spawn_point(Int spawn_index, Int x_out, Int y_out):

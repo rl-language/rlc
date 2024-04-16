@@ -15,6 +15,7 @@ namespace mlir::rlc
 			dumpDot,
 			dumpCheckedAST,
 			dumpCWrapper,
+			dumpBeforeTemplate,
 			dumpGodotWrapper,
 			dumpPythonAST,
 			dumpPythonWrapper,

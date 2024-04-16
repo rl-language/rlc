@@ -52,6 +52,11 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createLowerConstructOpPass());
 		manager.addPass(mlir::rlc::createLowerDestructorsPass());
 
+		if (request == Request::dumpBeforeTemplate)
+		{
+			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
+			return;
+		}
 		manager.addPass(mlir::rlc::createInstantiateTemplatesPass());
 
 		manager.addPass(mlir::rlc::createLowerConstructOpPass());
