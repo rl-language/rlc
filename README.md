@@ -240,9 +240,9 @@ The reason for this will become clear with an example later, for the moment just
 
 As described in the assumptions above, we have a finite ( but decently big ) lattice of elements. To start we can define our interval as 
 
-$$ \mathbb{I}=\{x\in\mathbb{Z}:\textrm{INT\_MIN}\leq x \leq\textrm{INT\_MAX}\ \} $$
+$$ \mathbb{I}=\{ x\in\mathbb{Z}:INT \textunderscore MIN\leq x \leq INT \textunderscore MAX\ \} $$
 
-Where we remind that $\textrm{INT\_MIN}=-2^{31}$ and $\textrm{INT\_MAX}=+2^{31}$ for 32 bit integer values.
+Where we remind that $INT \textunderscore MIN=-2^{31}$ and  $INT \textunderscore MAX=+2^{31}$ for 32 bit integer values.
 
 Before describing the lattice we are missing another important piece, which is that any of our functions can either return true or false, so we define it simply as $B=\{0,1\}$ (or true/false, as you prefer).
 
@@ -250,9 +250,9 @@ Now our complete definition of the lattice is:
 
 $$ E=\{\mathbb{I}\times\mathbb{I}\}\times B $$
 
-But for simplicity we can just take it as $ E=\mathbb{I}\times\mathbb{I} $ ( hopefully remembering that we have to keep track of both )
+But for simplicity we can just take it as $E=\mathbb{I}\times\mathbb{I}$ ( hopefully remembering that we have to keep track of both )
 
-We can impose a partial ordering on it, but this will be done in the next section when we analyze a the funny join function
+We can impose a partial ordering on it, but this will be done in the next section when we analyze the funny join function
 
 NB: to be extremely precise the real lattice is a subset of the one described above since we work under the assumption that the left hand side (minimum) is less than the right hand side (maximum).
 
@@ -277,7 +277,7 @@ $$ J((a,b),(c,d))=(\min(a,c),\max(b,d)) $$
 
 Notice how this works also at the bounds of our domain.
 
-Notice also how this creates a partial ordering relation, indeed for the minimum bound we have: $\textrm{INT\_MIN}>\textrm{INT\_MIN}+1>\cdots>0>1>\cdots\textrm{INT\_MAX}-1>\textrm{INT\_MAX}$ and for the maximum is reversed. 
+Notice also how this creates a partial ordering relation, indeed for the minimum bound we have: $INT \textunderscore MIN>INT \textunderscore MIN+1>\cdots>0>1>\cdots INT \textunderscore MAX-1>INT \textunderscore MAX$ and for the maximum is reversed. 
 
 Why? well because we define a partial ordering as $a\subseteq b \Longleftrightarrow J(a,b)=b$.
 
@@ -313,7 +313,7 @@ end
 Now this is a simple program with a simple control-flow-graph (CFG). It is immediate to see that for the two returns the possible value of *a* is:
 
 * $true: a\in(1,7)$
-* $false: a\in(\textrm{INT\_MIN},\textrm{INT\_MAX})\setminus true $
+* $false: a\in(INT \textunderscore MIN,INT \textunderscore MAX)\setminus true $
 
 Note that we want disjointed sets ( we can also overestimate if we want )
 
@@ -334,51 +334,51 @@ Here we know that we arrived from a false branch so the conditional `(a > 0)` ha
 | TRUE |       | FALSE |       |
 |------|-------|-------|-------|
 | a    | temp1 | a     | temp1 |
-| -    | -     | $(\textrm{INT\_MIN},0)$| - |
+| -    | -     | $(INT \textunderscore MIN,0)$| - |
 
 We can take another branch for example `if(temp1 < 10) //false -> return false;`. Here things start to become a bit funky but we can still work with it. Now we can do the same reasoning as above and the new table becomes:
 
 | TRUE |       | FALSE |       |
 |------|-------|-------|-------|
 | a    | temp1 | a     | temp1 |
-| -    | -     | $(\textrm{INT\_MIN},0)$| $(10,\textrm{INT\_MAX})$ |
+| -    | -     | $(INT \textunderscore MIN,0)$| $(10,INT \textunderscore MAX)$ |
 
 We can continue going up this branch and encounter the operation `temp1 = a + 2` Which can be rewritten as `a = temp1 - 2` (NB: this for binary operations is a pretty easy transformation). Then if we are moving into false we can update our table but remaining very careful because we have already infromation about *a* in it, so we need to join:
 
 | TRUE |       | FALSE |       |
 |------|-------|-------|-------|
 | a    | temp1 | a     | temp1 |
-| -    | -     | $J((\textrm{INT\_MIN},0),(8,\textrm{INT\_MAX-2}))$| $(10,\textrm{INT\_MAX})$ |
+| -    | -     | $J((INT \textunderscore MIN,0),(8,INT \textunderscore MAX-2))$| $(10,INT \textunderscore MAX)$ |
 
 Now performing the join we can collapse the information as :
 
 | TRUE |       | FALSE |       |
 |------|-------|-------|-------|
 | a    | temp1 | a     | temp1 |
-| -    | -     | $(\textrm{INT\_MIN},\textrm{INT\_MAX-2})$| $(10,\textrm{INT\_MAX})$ |
+| -    | -     | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
 
-The only thing that we are left with in this branch is the fact that we arrive from `if(a > 0) //true`, so we should add to our table the information $(1,\textrm{INT\_MAX})$ but we get the same, since it is a subset.
+The only thing that we are left with in this branch is the fact that we arrive from `if(a > 0) //true`, so we should add to our table the information $(1,INT \textunderscore MAX)$ but we get the same, since it is a subset.
 
 We are missing only one branch which is `if(temp1 < 10) //true -> return true;`. Now it should be pretty easy to compile the table since we understood how the algorithm works, so we start with
 
 | TRUE |       | FALSE |       |
 |------|-------|-------|-------|
 | a    | temp1 | a     | temp1 |
-| -    | $(\textrm{INT\_MIN},9)$ | $(\textrm{INT\_MIN},\textrm{INT\_MAX-2})$| $(10,\textrm{INT\_MAX})$ |
+| -    | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MIN -2)$| $(10,INT \textunderscore MAX)$ |
 
 Now we pass in `temp1 = a + 2` which gives a new value to *a* :
 
 | TRUE |       | FALSE |       |
 |------|-------|-------|-------|
 | a    | temp1 | a     | temp1 |
-| $(\textrm{INT\_MIN-2},7)$ | $(\textrm{INT\_MIN},9)$ | $(\textrm{INT\_MIN},\textrm{INT\_MAX-2})$| $(10,\textrm{INT\_MAX})$ |
+| $(INT \textunderscore MIN -2,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX)$| $(10,INT \textunderscore MAX)$ |
 
 And finally we know that we passed from `if(a > 0) //true` but remember, this is not a join but a transformation of our interval. So in the end the final table we compile is :
 
 | TRUE |       | FALSE |       |
 |------|-------|-------|-------|
 | a    | temp1 | a     | temp1 |
-| $(1,7)$ | $(\textrm{INT\_MIN},9)$ | $(\textrm{INT\_MIN},\textrm{INT\_MAX-2})$| $(10,\textrm{INT\_MAX})$ |
+| $(1,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
 
 At the end we can discard the temporary information and perform a disjunction of the sets to obtain the result above.
 
@@ -546,7 +546,7 @@ Then under these assumptions the operation becomes actually quite simple, indeed
 
 Assume $a,b,c,d\in\mathbb{I}^{+}$, then
 
-$$ (a,b)\%(c,d):(0,\max(b,d)) $$
+$$ (a,b)rem(c,d):(0,\max(b,d)) $$
 
 With $\mathbb{I}^{+}=\{a\in\mathbb{I}:a\geq0\}$
 
