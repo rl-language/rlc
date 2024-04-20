@@ -67,8 +67,6 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createEmitImplicitAssignPass());
 		manager.addPass(mlir::rlc::createEmitImplicitInitPass());
 		manager.addPass(mlir::rlc::createLowerArrayCallsPass());
-		
-		manager.addPass(mlir::rlc::createConstraintsPass());
 
 		if (emitBoundChecks)
 			manager.addPass(mlir::rlc::createAddOutOfBoundsCheckPass());
