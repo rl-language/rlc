@@ -1,7 +1,7 @@
 include "mlir/Pass/PassBase.td"
 include "mlir/Rewrite/PassUtil.td"
 
-def ConstraintsPass : Pass<"rlc-constraints", "mlir::ModuleOp"> {
+def ConstraintsPass : Pass<"rlc-test-function-constraints", "mlir::ModuleOp"> {
   let summary = "get minimum and maximum of function arguments";
   let dependentDialects = ["mlir::rlc::RLCDialect"];
 }
