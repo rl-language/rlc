@@ -4,13 +4,13 @@
 # Example found also in the branch README.md
 
 fun main() -> Int:
-	let exit_code = trivial(7)
+	let exit_code = trivial(7,0)
 	if exit_code == true:
 		return 0
 	else:
 		return -1
 
-fun trivial(Int a) -> Bool:
+fun trivial(Int a,Int b) -> Bool:
 	if a > 0:
 		let temp1 = a+2 
 		if temp1 < 10:
