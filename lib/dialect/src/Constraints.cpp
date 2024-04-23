@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 #include "llvm/ADT/TypeSwitch.h"
-#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/MLIRContext.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
-#include "rlc/dialect/conversion/TypeConverter.h"
+#include "rlc/dialect/Types.hpp"
 #include <iostream>
+#include <limits>
 
 namespace mlir::rlc
 {
@@ -26,41 +27,28 @@ namespace mlir::rlc
 #define GEN_PASS_DEF_CONSTRAINTSPASS
 #include "rlc/dialect/Passes.inc"
 
-	/*
-	static void resolveConstructOp(
-			mlir::rlc::ModuleBuilder& builder, mlir::rlc::ConstructOp op)
-	{
-		if (isTemplateType(op.getType()).succeeded())
-			return;
+	void calculateConstraintsOp(mlir::Operation* op){
+		
+		//For the moment leave it like this
+		using MyFunction=mlir::rlc::FlatFunctionOp;
 
-		builder.getRewriter().setInsertionPoint(op);
-		OverloadResolver resolver(builder.getSymbolTable());
-		auto overload = resolver.instantiateOverload(
-				builder.getRewriter(),
-				true,
-				op.getLoc(),
-				builtinOperatorName<mlir::rlc::InitOp>(),
-				mlir::TypeRange({ op.getResult().getType() }));
-
-		// if the init method is nto avilable now, delay the resolution until when
-		// all implicit init methods have been generated
-		if (not overload)
-			return;
-
-		assert(isTemplateType(overload.getType()).failed());
-
-		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ExplicitConstructOp>(
-				op, overload);
-	}
-
-	void lowerConstructOps(mlir::rlc::ModuleBuilder& builder, mlir::Operation* op)
-	{
-		llvm::SmallVector<mlir::rlc::ConstructOp, 2> ops;
-		op->walk([&](mlir::rlc::ConstructOp op) { ops.push_back(op); });
-		for (auto op : ops)
-			resolveConstructOp(builder, op);
-	}
-	*/
+		//Get all the functions
+		llvm::SmallVector<MyFunction> all_functions;
+		op->walk([&](MyFunction fun){all_functions.push_back(fun);});
+		//Now try to understand which are the arguments passed to the functions
+		for(auto fun : all_functions){
+			//If I uncomment the /*rlc:::*/ it does not work -> I guess it is because there is no automatic conversion from a dialect type to a builtin type
+			//fun->setAttr("rlc.TEST",mlir::IntegerAttr::get(mlir::/*rlc::*/IntegerType::get(fun->getContext(),32),i++));
+			size_t attr_num=0;
+			//For each argument of the function I Iattach some attributes to it -> should i use an array ?
+			//NB: arg is a mlir::Type 
+			for(auto arg: fun.getFunctionType().getInputs()){
+				fun->setAttr("rlc.attr"+std::to_string(attr_num)+"min",mlir::IntegerAttr::get(mlir::/*rlc::*/IntegerType::get(fun->getContext(),32),INT_MIN));
+				fun->setAttr("rlc.attr"+std::to_string(attr_num)+"MAX",mlir::IntegerAttr::get(mlir::/*rlc::*/IntegerType::get(fun->getContext(),32),INT_MAX));
+				attr_num++;
+			}
+		}
+		}
 
 	struct ConstraintsPass
 			: impl::ConstraintsPassBase<ConstraintsPass>
@@ -72,6 +60,7 @@ namespace mlir::rlc
 		{
 			//mlir::rlc::ModuleBuilder builder(getOperation());
 			//lowerConstructOps(builder, getOperation());
+			calculateConstraintsOp(getOperation());
 			std::cout<<"FUNZIA :)"<<std::endl;
 		}
 	};
