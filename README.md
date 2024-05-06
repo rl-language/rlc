@@ -947,3 +947,38 @@ $$ (a,b)rem(c,d):(0,\max(b,d)) $$
 With $\mathbb{I}^{+}=\{a\in\mathbb{I}:a\geq0\}$
 
 Also here we notice an important loss of information that we need to cope with.
+
+## ACTUAL ALGORITHM
+
+Now everyone can do this kind of reasoning, but we need someone that integrates this analysis using a real tool (shame on you mathematicians! ). Aaaand here I am implementing it (or at least trying to).
+
+More or less I have an idea of what the algorithm should do. Indeed a pseudo-pseudo code should be:
+
+```
+input : flattened_IR
+output: flattened_IR_but_cooler 
+
+algorithm:
+
+	foreach (flat_function in flattened_IR):
+
+		// ACTUAL ANALYSIS
+
+		con = constraint_analysis(flat_function);
+
+		// ATTACH TO THE NEW IR THE INFORMATION FOUND
+
+		attach_arg_ranges_to_function(flat_function, con)
+
+
+```
+
+Now we encounter our first problem (this early? yes, such is the life of a programmer) : the analysis should be performed for each argument or for each function? (in mlir is the same as asking if we want a sparse or dense analysis) Because maybe they can be summed together and it is possible that i know the value of one before another. But if this is the case which argument should i try to evaluate first?
+
+Sooooooo... what to do? Assuming that crying is not an option, we actually might have a solution. The solution is indeed hidden in the fact that we are performing a backward analysis! Let's assume that we have a case of `temp=a+b if(temp>0) return true else return false`, We do not know the range of both a and b, but we can say that if we return true we have $temp\in(0,INT \textunderscore MAX)$ and from that we can derive for both a and b that we have no information. Indeed the only information that we can pass along is that they are both non-negative and that the modulus of one is greater that the modulus of the other one. We still have no information on the constraints, they can be any number.
+
+Then in the end... just using an analysis on the function should be enough.
+
+Now be careful, the pseudo-pseudo-algorithm above is the algorithm the pass should perform because the analysis works on the dataflow, everything else works on the simple IR.
+
+So now we have to define our lattice `mlir::rlc::ConstraintsLattice` and start from a `mlir::DenseBackwardDataFlowAnalysis`.
