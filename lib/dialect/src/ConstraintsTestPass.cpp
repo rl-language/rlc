@@ -24,7 +24,7 @@ limitations under the License.
 namespace mlir::rlc
 {
 
-#define GEN_PASS_DEF_CONSTRAINTSPASS
+#define GEN_PASS_DEF_CONSTRAINTSTESTPASS
 #include "rlc/dialect/Passes.inc"
 
 	void calculateConstraintsOp(mlir::Operation* op){
@@ -39,22 +39,55 @@ namespace mlir::rlc
 		for(auto fun : all_functions){
 			//If I uncomment the /*rlc:::*/ it does not work -> I guess it is because there is no automatic conversion from a dialect type to a builtin type
 			//fun->setAttr("rlc.TEST",mlir::IntegerAttr::get(mlir::/*rlc::*/IntegerType::get(fun->getContext(),32),i++));
-			size_t attr_num=0;
-			//For each argument of the function I Iattach some attributes to it -> should i use an array ?
 			//NB: arg is a mlir::Type 
-			for(auto arg: fun.getFunctionType().getInputs()){
-				fun->setAttr("rlc.attr"+std::to_string(attr_num)+"min",mlir::IntegerAttr::get(mlir::/*rlc::*/IntegerType::get(fun->getContext(),32),INT_MIN));
-				fun->setAttr("rlc.attr"+std::to_string(attr_num)+"MAX",mlir::IntegerAttr::get(mlir::/*rlc::*/IntegerType::get(fun->getContext(),32),INT_MAX));
-				attr_num++;
+			//TODO: maybe with a constant I can simply save min=max ? -> understand if that can help or not
+			//Traverse the regions
+			//If i use auto here the compiler cries :'(
+			for(mlir::Region& region: fun->getRegions()){
+				//Weird interaction passing from pointers to references -> C++ style as we like it
+				for(mlir::Block& block: region.getBlocks()){
+					size_t op_in_block=0;
+
+					if(block.getNumArguments()>0) {
+						//Check equality of two arguments
+						if(block.getArgument(0)==block.getArgument(1))
+							std::cout<<"TRUEEEEE"<<std::endl;
+						else
+							//IT RETURNS THIS -> VERY VERY IMPORTANT
+							std::cout<<"FALSEEEE"<<std::endl;
+						/*
+						for(auto arg: block.getArguments()){
+							std::string buffer;
+							llvm::raw_string_ostream stringStream(buffer);
+							arg.print(stringStream);
+							std::cout << buffer << std::endl;
+						}
+						*/
+					}
+
+					for(mlir::Operation& oper: block.getOperations()){
+						//Check the operation
+						//TODO: add a wrapper function that checks which operations are valid
+						/*
+						if(not mlir::isa<mlir::rlc::Constant>(oper)){
+							//Add labels to it
+							oper.setAttr("rlc.attr"+std::to_string(op_in_block)+"min",mlir::IntegerAttr::get(mlir::IntegerType::get(fun->getContext(),32),INT_MIN));
+							oper.setAttr("rlc.attr"+std::to_string(op_in_block)+"MAX",mlir::IntegerAttr::get(mlir::IntegerType::get(fun->getContext(),32),INT_MAX));
+							attr_num++;
+						}
+						*/
+					}
+				}
 			}
 		}
 		}
 
-	struct ConstraintsPass
-			: impl::ConstraintsPassBase<ConstraintsPass>
+	//TODO: understand if I should merge this in the "ConstraintsAnalysis.cpp" file
+	struct ConstraintsTestPass
+			: impl::ConstraintsTestPassBase<ConstraintsTestPass>
 	{
-		using impl::ConstraintsPassBase<
-				ConstraintsPass>::ConstraintsPassBase;
+		using impl::ConstraintsTestPassBase<
+				ConstraintsTestPass>::ConstraintsTestPassBase;
 
 		void runOnOperation() override
 		{
