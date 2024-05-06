@@ -125,11 +125,9 @@ namespace mlir::rlc
 				llvm::outs()<<"Did i copy?\n";
 				if (this->ranges == before.ranges){
 					llvm::outs()<<"no\n";
-					this->print(llvm::outs());
 					return mlir::ChangeResult::NoChange;
 				}
 				this->ranges = before.ranges;
-				this->print(llvm::outs());
 				return mlir::ChangeResult::Change;
 			}
 
@@ -137,7 +135,7 @@ namespace mlir::rlc
 			{
 				if(not this->ranges.empty()){
 					for(auto range: this->ranges){
-						os << "SSA: "<< range.first <<" RANGE: (" << range.second.first << ", " << range.second.first << ")\n";
+						os << "SSA: "<< range.first <<" RANGE: (" << range.second.first << ", " << range.second.second << ")\n";
 					}
 				}
 				else {
@@ -177,8 +175,8 @@ namespace mlir::rlc
 								auto b_range=this->ranges.find(b);
 								// TODO: i am assuming this should work
 								auto c_const=c_op->getAttr("value").dyn_cast<IntegerAttr>().getInt();
-								Integer first =a_range->second.first   - c_const;
-								Integer second=a_range->second.second  - c_const;
+								Integer first =a_range->second.first  - c_const;
+								Integer second=a_range->second.second - c_const;
 								// If b is present then update it, else insert it
 								if(b_range!=this->ranges.end()){
 									b_range->second.first = first;
@@ -195,8 +193,9 @@ namespace mlir::rlc
 				}
 				// These should be pretty much the same  -> TODO: refactor
 				// I do not understand why but in Operations.td the syntax is (lhs,rhs) but in the actual IR is reversed (or i am crazy, that is possible too)
-				else if (mlir::isa<mlir::rlc::GreaterOp>(statement)){
-					llvm::outs()<<"greaterop\n";
+				//else it is a greater/less (and equal)
+				else {
+					llvm::outs()<<"condop\n";
 					const auto& lhs = statement->getOperand(0);
 					const auto& rhs = statement->getOperand(1);
 					const auto& lhs_op = lhs.getDefiningOp();
@@ -207,97 +206,45 @@ namespace mlir::rlc
 						//TODO: appartently the arguments must be treated in a careful way -> they do not have a operation defining them
 						if(lhs_op==nullptr or not mlir::isa<mlir::rlc::Constant>(lhs_op)){
 							auto lhs_range=this->ranges.find(lhs);
-							auto rhs_const=rhs_op->getAttr("value").dyn_cast<IntegerAttr>().getInt()+1;
-							//If it is present then update it, else insert it
-							if(lhs_range!=this->ranges.end()){
-								// TODO: remember to check if i am passing through a true or false branch, for the moment leave it as true
-								lhs_range->second.first =rhs_const;
-								lhs_range->second.second=MAX;
-							}
-							else{
-								this->ranges.insert(std::make_pair(lhs,std::make_pair(rhs_const,MAX)));
-							}
-							changed=true;
-						}
-					}
-				}
-				else if (mlir::isa<mlir::rlc::LessOp>(statement)){
-					llvm::outs()<<"lessop\n";
-					const auto& lhs = statement->getOperand(0);
-					const auto& rhs = statement->getOperand(1);
-					const auto& lhs_op = lhs.getDefiningOp();
-					const auto& rhs_op = rhs.getDefiningOp();
-					// First we check if our rhs is a constant (easy case)
-					if(mlir::isa<mlir::rlc::Constant>(rhs_op)){
-						//And the other one is not a constant
-						if(lhs_op==nullptr or not mlir::isa<mlir::rlc::Constant>(lhs_op)){
-							auto lhs_range=this->ranges.find(lhs);
-							auto rhs_const=rhs_op->getAttr("value").dyn_cast<IntegerAttr>().getInt()-1;
-							//If it is present then update it, else insert it
-							if(lhs_range!=this->ranges.end()){
-								// TODO: remember to check if i am passing through a true or false branch, for the moment leave it as true
-								lhs_range->second.first =MIN;
-								lhs_range->second.second=rhs_const;
-							}
-							else{
-								this->ranges.insert(std::make_pair(lhs,std::make_pair(MIN,rhs_const)));
-							}
-							changed=true;
-						}
-					}
-				}
-				else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
-					llvm::outs()<<"greaterequalop\n";
-					const auto& lhs = statement->getOperand(0);
-					const auto& rhs = statement->getOperand(1);
-					const auto& lhs_op = lhs.getDefiningOp();
-					const auto& rhs_op = rhs.getDefiningOp();
-					// First we check if our rhs is a constant (easy case)
-					if(mlir::isa<mlir::rlc::Constant>(rhs_op)){
-						//And the other one is not a constant
-						if(lhs_op==nullptr or not mlir::isa<mlir::rlc::Constant>(lhs_op)){
-							auto lhs_range=this->ranges.find(lhs);
 							auto rhs_const=rhs_op->getAttr("value").dyn_cast<IntegerAttr>().getInt();
+							llvm::outs()<<"Constant value: "<<rhs_const<<"\n";
 							//If it is present then update it, else insert it
 							if(lhs_range!=this->ranges.end()){
 								// TODO: remember to check if i am passing through a true or false branch, for the moment leave it as true
-								lhs_range->second.first =rhs_const;
-								lhs_range->second.second=MAX;
+								if (mlir::isa<mlir::rlc::GreaterOp>(statement)){
+									lhs_range->second.first = rhs_const+1;
+									lhs_range->second.second= MAX;
+								}
+								else if (mlir::isa<mlir::rlc::LessOp>(statement)){
+									lhs_range->second.first = MIN;
+									lhs_range->second.second= rhs_const-1;
+								}
+								else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
+									lhs_range->second.first = rhs_const;
+									lhs_range->second.second= MAX;
+								}
+								else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
+									lhs_range->second.first = MIN;
+									lhs_range->second.second= rhs_const;
+								}
 							}
 							else{
-								this->ranges.insert(std::make_pair(lhs,std::make_pair(rhs_const,MAX)));
+								if (mlir::isa<mlir::rlc::GreaterOp>(statement))
+									this->ranges.insert(std::make_pair(lhs,std::make_pair(rhs_const+1,MAX)));
+								else if (mlir::isa<mlir::rlc::LessOp>(statement)){
+									this->ranges.insert(std::make_pair(lhs,std::make_pair(MIN,rhs_const-1)));
+								}
+								else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
+									this->ranges.insert(std::make_pair(lhs,std::make_pair(rhs_const,MAX)));
+								}
+								else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
+									this->ranges.insert(std::make_pair(lhs,std::make_pair(MIN,rhs_const)));
+								}
 							}
 							changed=true;
 						}
 					}
 				}
-				else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
-					llvm::outs()<<"lessequalop\n";
-					const auto& lhs = statement->getOperand(0);
-					const auto& rhs = statement->getOperand(1);
-					const auto& lhs_op = lhs.getDefiningOp();
-					const auto& rhs_op = rhs.getDefiningOp();
-					// First we check if our rhs is a constant (easy case)
-					if(mlir::isa<mlir::rlc::Constant>(rhs_op)){
-						//And the other one is not a constant
-						if(lhs_op==nullptr or not mlir::isa<mlir::rlc::Constant>(lhs_op)){
-							auto lhs_range=this->ranges.find(lhs);
-							auto rhs_const=rhs_op->getAttr("value").dyn_cast<IntegerAttr>().getInt();
-							//If it is present then update it, else insert it
-							if(lhs_range!=this->ranges.end()){
-								// TODO: remember to check if i am passing through a true or false branch, for the moment leave it as true
-								lhs_range->second.first =MIN;
-								lhs_range->second.second=rhs_const;
-							}
-							else{
-								this->ranges.insert(std::make_pair(lhs,std::make_pair(MIN,rhs_const)));
-							}
-							changed=true;
-						}
-					}
-				}
-				else 
-					changed=false;
 
 				if(changed){
 					llvm::outs()<<"something should have changed\n";
@@ -453,7 +400,10 @@ namespace mlir::rlc
 				solver->load<mlir::dataflow::DeadCodeAnalysis>();
 				solver->load<mlir::dataflow::SparseConstantPropagation>();
 				analysis = solver->load<ConstraintsAnalysis>(symbolTable);
-				auto res = solver->initializeAndRun(fun);
+				auto top = fun;
+				llvm::outs()<<"Initialize analysis from operation: ";
+				top->print(llvm::outs());
+				auto res = solver->initializeAndRun(top);
 			}
 			
 			void printRangesFound(mlir::Operation* op){
@@ -492,6 +442,8 @@ namespace mlir::rlc
 				std::cout<<"In theory I should have run the analysis"<<std::endl;
 				// Here I append to the function the ranges I found
 				// TODO: understand why the analysis is done backwards but the blocks are traversed forwards
+				// https://mlir.llvm.org/doxygen/DenseAnalysis_8cpp_source.html#l00256 <- well this explains a lot
+				// Blocks have a getPredecessors() method
 				auto& block=fun.getRegion(0).back();
 				con.printRangesFound(&block.front());
 			}
