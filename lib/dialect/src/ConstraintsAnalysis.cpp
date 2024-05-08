@@ -157,49 +157,82 @@ namespace mlir::rlc
 				// a = b + c
 				if (mlir::isa<mlir::rlc::AddOp>(statement)){
 					llvm::outs()<<"addop\n";
+					this->print(llvm::outs());
 					// Do some name changing so that hopefully is more clear
 					// NB : these are values
 					const auto& a = statement->getResult(0);
 					const auto& b = statement->getOperand(0);
 					const auto& c = statement->getOperand(1);
-					// TODO: assert because it can return nullptr
+					// This can be nullptr if for example it is a function argument
+					// TODO: are there any other cases ?
 					const auto& b_op = b.getDefiningOp();
 					const auto& c_op = c.getDefiningOp();
 					// We can perform the operation if we know the bounds on a 
 					auto a_range=this->ranges.find(a);
 					if(a_range!=this->ranges.end()){
-					// b is not a constant -> b = a - c
-						if(b_op==nullptr or not mlir::isa<mlir::rlc::Constant>(b_op)){
-							// If c is a constant
-							if (mlir::isa<mlir::rlc::Constant>(c_op)){
-								auto b_range=this->ranges.find(b);
-								// TODO: i am assuming this should work
-								auto c_const=c_op->getAttr("value").dyn_cast<IntegerAttr>().getInt();
-								Integer first =a_range->second.first  - c_const;
-								Integer second=a_range->second.second - c_const;
-								// If b is present then update it, else insert it
-								if(b_range!=this->ranges.end()){
-									b_range->second.first = first;
-									b_range->second.second=second;
-								}
-								else{
-									this->ranges.insert(std::make_pair(b,std::make_pair(first,second)));
-								}
-								changed=true;
+						// TODO: understand what happens if both have ranges -> should I update both ? (because if yes, in which order ?)
+						// NB: there is the case in which both are non constant-> if we know nothing about
+						//     both we do nothing
+						// Then first find which variable we need to operate on
+						mlir::Value      state=nullptr;
+						mlir::Value      stato=nullptr;
+						//mlir::Operation* opera=nullptr;
+						mlir::Operation* other=nullptr; // This is the one we know the bounds of
+						std::pair<Integer,Integer> new_range=std::make_pair(1,0);
+						// First get our candidates
+						if(b_op == nullptr or not mlir::isa<mlir::rlc::Constant>(b_op)){
+							state=b;
+							stato=c;
+							//opera=b_op;
+							other=c_op;
+						}
+						else if(c_op == nullptr or not mlir::isa<mlir::rlc::Constant>(c_op)){
+							state=c;
+							stato=b;
+							//opera=c_op;
+							other=b_op;
+						}
+						// Then extract infromation about the ranges
+						if(mlir::isa<mlir::rlc::Constant>(other)){
+							auto other_const=other->getAttr("value").dyn_cast<IntegerAttr>().getInt();
+							new_range.first = other_const;
+							new_range.second= other_const;
+						}
+						else {
+							auto other_range=this->ranges.find(stato);
+							if(other_range!=this->ranges.end()){
+								new_range.first = other_range->second.first;
+								new_range.second= other_range->second.second;
 							}
 						}
-					}
-
-				}
+						// If i have a valid range (i.e. if i modified the initial range which is not valid)
+						// then modify or add the new range 
+						if(new_range.first<=new_range.second){
+							//Calculate the new range
+							new_range.first =a_range->second.first -new_range.first;
+							new_range.second=a_range->second.second-new_range.second;
+							llvm::outs()<<"should have changed\n";
+							auto opera_range=this->ranges.find(state);
+							if(opera_range!=this->ranges.end()){
+								opera_range->second=new_range;
+							}
+							else{
+								this->ranges.insert(std::make_pair(state,new_range));
+							}
+							changed=true;
+						}
+					} // a_range == this->ranges.end()
+				} // if (not mlir::isa<mlir::rlc::AddOp>(statement))
 				// These should be pretty much the same  -> TODO: refactor
-				// I do not understand why but in Operations.td the syntax is (lhs,rhs) but in the actual IR is reversed (or i am crazy, that is possible too)
-				//else it is a greater/less (and equal)
+				// I do not understand why but in Operations.td the syntax is (lhs,rhs) but in the actual  print IR is reversed (or i am crazy, that is possible too)
+				// else it is a greater/less (and equal)
 				else {
 					llvm::outs()<<"condop\n";
 					const auto& lhs = statement->getOperand(0);
 					const auto& rhs = statement->getOperand(1);
 					const auto& lhs_op = lhs.getDefiningOp();
 					const auto& rhs_op = rhs.getDefiningOp();
+					std::pair<Integer,Integer> new_range=std::make_pair(1,0);
 					// First we check if our rhs is a constant (easy case)
 					if(mlir::isa<mlir::rlc::Constant>(rhs_op)){
 						//And the other one is not a constant
@@ -208,42 +241,67 @@ namespace mlir::rlc
 							auto lhs_range=this->ranges.find(lhs);
 							auto rhs_const=rhs_op->getAttr("value").dyn_cast<IntegerAttr>().getInt();
 							llvm::outs()<<"Constant value: "<<rhs_const<<"\n";
+							// TODO: remember to check if i am passing through a true or false branch, for the moment leave it as true
+							if (mlir::isa<mlir::rlc::GreaterOp>(statement)){
+								new_range.first = rhs_const+1;
+								new_range.second= MAX;
+							}
+							else if (mlir::isa<mlir::rlc::LessOp>(statement)){
+								new_range.first = MIN;
+								new_range.second= rhs_const-1;
+							}
+							else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
+								new_range.first = rhs_const;
+								new_range.second= MAX;
+							}
+							else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
+								new_range.first = MIN;
+								new_range.second= rhs_const;
+							}
 							//If it is present then update it, else insert it
 							if(lhs_range!=this->ranges.end()){
-								// TODO: remember to check if i am passing through a true or false branch, for the moment leave it as true
-								if (mlir::isa<mlir::rlc::GreaterOp>(statement)){
-									lhs_range->second.first = rhs_const+1;
-									lhs_range->second.second= MAX;
-								}
-								else if (mlir::isa<mlir::rlc::LessOp>(statement)){
-									lhs_range->second.first = MIN;
-									lhs_range->second.second= rhs_const-1;
-								}
-								else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
-									lhs_range->second.first = rhs_const;
-									lhs_range->second.second= MAX;
-								}
-								else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
-									lhs_range->second.first = MIN;
-									lhs_range->second.second= rhs_const;
-								}
+								lhs_range->second=new_range;
 							}
 							else{
-								if (mlir::isa<mlir::rlc::GreaterOp>(statement))
-									this->ranges.insert(std::make_pair(lhs,std::make_pair(rhs_const+1,MAX)));
-								else if (mlir::isa<mlir::rlc::LessOp>(statement)){
-									this->ranges.insert(std::make_pair(lhs,std::make_pair(MIN,rhs_const-1)));
-								}
-								else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
-									this->ranges.insert(std::make_pair(lhs,std::make_pair(rhs_const,MAX)));
-								}
-								else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
-									this->ranges.insert(std::make_pair(lhs,std::make_pair(MIN,rhs_const)));
-								}
+								this->ranges.insert(std::make_pair(lhs,new_range));
 							}
 							changed=true;
-						}
-					}
+						} // if(lhs_op!=nullptr and mlir::isa<mlir::rlc::Constant>(lhs_op))
+					} // if(not mlir::isa<mlir::rlc::Constant>(rhs_op))
+					// Else we basically have to do the same checkings but carefully 
+					// because we have to reverse the operation
+					else if(mlir::isa<mlir::rlc::Constant>(lhs_op)){
+						if(rhs_op==nullptr or not mlir::isa<mlir::rlc::Constant>(rhs_op)){
+							auto rhs_range=this->ranges.find(lhs);
+							auto lhs_const=lhs_op->getAttr("value").dyn_cast<IntegerAttr>().getInt();
+							llvm::outs()<<"Constant value: "<<lhs_const<<"\n";
+							// TODO: remember to check if i am passing through a true or false branch, for the moment leave it as true
+							if (mlir::isa<mlir::rlc::GreaterOp>(statement)){
+								new_range.first = MIN;
+								new_range.second= lhs_const-1;
+							}
+							else if (mlir::isa<mlir::rlc::LessOp>(statement)){
+								new_range.first = lhs_const+1;
+								new_range.second= MAX;
+							}
+							else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
+								new_range.first = MIN;
+								new_range.second= lhs_const;
+							}
+							else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
+								new_range.first = lhs_const;
+								new_range.second= MAX;
+							}
+							//If it is present then update it, else insert it
+							if(rhs_range!=this->ranges.end()){
+								rhs_range->second=new_range;
+							}
+							else{
+								this->ranges.insert(std::make_pair(rhs,new_range));
+							}
+							changed=true;
+						} // if(rhs_op!=nullptr and mlir::isa<mlir::rlc::Constant>(rhs_op))
+					} //if(not mlir::isa<mlir::rlc::Constant>(lhs_op))
 				}
 
 				if(changed){
@@ -256,17 +314,7 @@ namespace mlir::rlc
 				}
 			}
 
-			/*
-			[[nodiscard]] llvm::SmallVector<mlir::Operation*, 4> getPredecessors()
-					const
-			{
-				return llvm::SmallVector<mlir::Operation*, 4>(
-						content.begin(), content.end());
-			}
-			*/
-
 			private:
-
 
 			// TODO: make our life harder, distinguish betweeen true and false execution paths
 			// The lattice is attached to an operation, so we save a map containing all the values calculated
@@ -308,26 +356,46 @@ namespace mlir::rlc
 			}
 
 			private:
-			// This is the transfer function
+
+			// Definitions taken from https://mlir.llvm.org/doxygen/DenseAnalysis_8h_source.html#l00423
+
+			/// Transfer function. Visits an operation with the dense lattice after its
+   			/// execution. This function is expected to set the dense lattice before its
+   			/// execution and trigger propagation in case of change.
 			void visitOperation(
-					mlir::Operation* op,
-					const ConstraintsLattice& before,
-					ConstraintsLattice* after) override
+				mlir::Operation *op, 
+				const ConstraintsLattice &after,
+                ConstraintsLattice *before) override
 			{
-				assert(after != nullptr);
 				op->print(llvm::outs());
 				llvm::outs()<<"\n";
-				auto res=after->copy(before);
 				// For the moment implement the basic operations
+				// TODO: the transfer function has to copy the content of the lattice before execution, is this good?
+				auto res=before->copy(after);
 				if (mlir::rlc::ConstraintsAnalysis::isOfInterest(op))
-					auto res2=after->visitOperation(op);
+					propagateIfChanged(before,before->visitOperation(op));
 				
 				// This is for the instructions which do not modify the lattice
 				else
-					propagateIfChanged(after, mlir::ChangeResult::Change);
+					propagateIfChanged(before, mlir::ChangeResult::NoChange);
 			}
 
-			// Propagation of lattice in a control flow edge
+			/// Hook for customizing the behavior of lattice propagation along the call
+   			/// control flow edges. Two types of (back) propagation are possible here:
+			///   - `action == CallControlFlowAction::Enter` indicates that:
+			///     - `after` is the state at the top of the callee entry block;
+			///     - `before` is the state before the call operation;
+			///   - `action == CallControlFlowAction::Exit` indicates that:
+			///     - `after` is the state after the call operation;
+			///     - `before` is the state of exit blocks of the callee.
+			/// By default, the `before` state is simply met with the `after` state.
+			/// Concrete analyses can override this behavior or delegate to the parent
+			/// call for the default behavior. Specifically, if the `call` op may affect
+			/// the lattice prior to entering the callee, the custom behavior can be added
+			/// for `action == CallControlFlowAction::Enter`. If the `call` op may affect
+			/// the lattice post exiting the callee, the custom behavior can be added for
+   			/// `action == CallControlFlowAction::Exit`.
+			// rlc.call
 			void visitCallControlFlowTransfer(
 					CallOpInterface call,
 					mlir::dataflow::CallControlFlowAction action,
@@ -338,39 +406,43 @@ namespace mlir::rlc
 				propagateIfChanged(after, after->copy(before));
 			}
 
-			// Propagation of lattice between regions
-			// TODO: understand if I can have different regions in a function (and if so think about what I have to do)
-			void visitRegionBranchControlFlowTransfer(
+			/// Hook for customizing the behavior of lattice propagation along the control
+			/// flow edges between regions and their parent op. The control flows from
+			/// `regionFrom` to `regionTo`, both of which may be `nullopt` to indicate the
+			/// parent op. The lattice is propagated back along this edge. The lattices
+			/// are as follows:
+			///   - `after`:
+			///     - if `regionTo` is a region, this is the lattice at the beginning of
+			///       the entry block of that region;
+			///     - otherwise, this is the lattice after the parent op.
+			///   - `before:`
+			///     - if `regionFrom` is a region, this is the lattice at the end of the
+			///       block that exits the region; note that for multi-exit regions, the
+			///       lattices are equal at the end of all exiting blocks, but they are
+			///       associated with different program points.
+			///     - otherwise, this is the lattice before the parent op.
+			/// By default, the `before` state is simply met with the `after` state.
+			/// Concrete analyses can override this behavior or delegate to the parent
+			/// call for the default behavior. Specifically, if the `branch` op may affect
+			/// the lattice before entering any region, the custom behavior can be added
+			/// for `regionFrom == nullopt`. If the `branch` op may affect the lattice
+			/// after all terminated, the custom behavior can be added for `regionTo ==
+			/// nullptr`. The behavior can be further refined for specific pairs of "from"
+			/// and "to" regions.
+			// rlc.yield
+   			void visitRegionBranchControlFlowTransfer(
 					mlir::RegionBranchOpInterface branch,
 					mlir::RegionBranchPoint regionFrom,
 					mlir::RegionBranchPoint regionTo,
 					const ConstraintsLattice& before,
 					ConstraintsLattice* after) override
 			{
-				/*
-				if (auto action = mlir::dyn_cast<mlir::rlc::ActionStatement>(
-								branch.getOperation()))
-					propagateIfChanged(after, after->visitOperation(action));
-				else if (auto action = mlir::dyn_cast<mlir::rlc::ActionFunction>(
-										 branch.getOperation());
-								 action && not regionFrom.has_value())
-					propagateIfChanged(after, after->visitOperation(action));
-				else if (auto action = mlir::dyn_cast<mlir::rlc::ActionsStatement>(
-										 branch.getOperation());
-								 action && not regionFrom.has_value())
-					propagateIfChanged(after, after->visitOperation(action));
-				else if (
-						auto action = mlir::dyn_cast<mlir::rlc::SubActionStatement>(
-								branch.getOperation()))
-					propagateIfChanged(after, after->visitOperation(action));
-				else
-				*/
 				// For the moment execute only the join
 				llvm::outs()<<"visited region branch control flow transfer\n";
 				propagateIfChanged(after, after->join(before));
 			}
 
-			// no action is executed at the starting entry point
+			// no action is executed at the exit 
 			void setToExitState(ConstraintsLattice* lattice) override
 			{
 				// propagateIfChanged(lattice, lattice->visitAction(nullptr));
