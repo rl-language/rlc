@@ -18,12 +18,12 @@ ent<T> Vector:
     Int _capacity
 
     fun _grow(Int target_size):
-        if self._capacity > self._size + target_size:
+        if self._capacity > target_size:
             return
 
         let new_data = __builtin_malloc_do_not_use<T>(target_size * 2)
         let counter = 0
-        while counter < self._size * 2:
+        while counter < target_size * 2:
             __builtin_construct_do_not_use(new_data[counter])
             counter = counter + 1
 
@@ -48,10 +48,11 @@ ent<T> Vector:
 
     fun drop():
         let counter = 0
-        while counter < self._capacity:
+        while counter != self._capacity:
             __builtin_destroy_do_not_use(self._data[counter])
             counter = counter + 1
-        __builtin_free_do_not_use(self._data)
+        if self._capacity != 0:
+          __builtin_free_do_not_use(self._data)
         self._size = 0
         self._capacity = 0
 
@@ -98,12 +99,14 @@ ent<T> Vector:
         let to_return = self._data[self._size - 1]
         self._size = self._size - 1
         __builtin_destroy_do_not_use(self._data[self._size])
+        __builtin_construct_do_not_use(self._data[self._size])
         return to_return
 
     fun drop_back(Int quantity):
         let counter = self._size - quantity
         while counter < self._size: 
             __builtin_destroy_do_not_use(self._data[counter])
+            __builtin_construct_do_not_use(self._data[counter])
             counter = counter + 1
         self._size = self._size - quantity
 

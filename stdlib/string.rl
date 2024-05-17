@@ -259,28 +259,30 @@ fun _consume_space(String buffer, Int index):
     while is_space(buffer.get(index)):
         index = index + 1 
 
+fun lenght(StringLiteral literal) -> Int:
+    let size = 0
+    while literal[size] != '\0':
+        size = size + 1
+    return size 
+
 fun _consume_literal(String buffer, StringLiteral literal, Int index) -> Bool:
     _consume_space(buffer, index)
     if !buffer.substring_matches(literal, index):
         return false
-    let counter = 0
-    while literal[counter] != '\0':
-        index = index + 1
-        counter = counter + 1
-
+    let size = lenght(literal)
+    index = index + size
     return true
 
 fun _consume_literal_token(String buffer, StringLiteral literal, Int index) -> Bool:
     _consume_space(buffer, index)
     if !buffer.substring_matches(literal, index):
         return false
-    let counter = 0
-    while literal[counter] != '\0':
-        counter = counter + 1
+    let counter = lenght(literal)
 
     # if there is a trailing alphanumeric character it means
     # we did not perfectly matched the name we were looking for
-    if is_alphanumeric(buffer.get(index + counter)):
+    let next_char = buffer.get(index + counter)
+    if is_alphanumeric(next_char) or next_char == '_' or next_char == '-':
         return false
 
     index = index + counter

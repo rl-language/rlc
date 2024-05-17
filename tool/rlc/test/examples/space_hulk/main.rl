@@ -101,7 +101,7 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
       act shoot(UnitArgType unit_id, UnitArgType target_id) {
         board.unit_id_is_valid(unit_id.value),
         board.unit_id_is_valid(target_id.value),
-        board.can_shoot(board.units.get(unit_id.value), board.units.get(target_id.value), false),
+        board.can_shoot(board.units.get(unit_id.value), board.units.get(target_id.value), false, false),
         board.units.get(unit_id.value).faction() == current_faction,
         !(board.units.get(target_id.value).faction() == current_faction)
       }
@@ -110,7 +110,7 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
         act roll_dice(DiceRoll roll1) 
         frm roll = roll1
         act roll_dice(DiceRoll roll2) 
-        if board.shoot_at(board.units.get(unit_id.value), board.units.get(target_id.value), false, roll, roll2):
+        if board.shoot_at(board.units.get(unit_id.value), board.units.get(target_id.value), false, false, roll, roll2):
           board.gsc_killed = board.gsc_killed + 1
           board.units.erase(target_id.value)
 
@@ -140,10 +140,10 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
         subaction*(board) assault_frame = do_assault(board, unit_id)
         let to_kill = assault_frame.maybe_dead_unit
         if to_kill is UnitArgType:
-          if current_faction == Faction::marine:
-              board.gsc_killed = board.gsc_killed + 1
-          else:
+          if board.units.get(to_kill.value).kind.faction() == Faction::marine:
               board.marine_killed = board.marine_killed + 1
+          else:
+              board.gsc_killed = board.gsc_killed + 1
           board.units.erase(to_kill.value)
 
       act clear_jamming(UnitArgType unit_id) {
@@ -178,7 +178,7 @@ act play() -> Game:
     index.value = 2
     subaction*(board) initial_blips = place_blips(board, index)
 
-    while !(board.is_done):
+    while (!board.is_done and board.marine_killed != 5):
         board.new_turn()
         subaction*(board) marine_frame = action_phase(board, Faction::marine)
         subaction*(board) reinforcement_phase = place_blips(board, index)

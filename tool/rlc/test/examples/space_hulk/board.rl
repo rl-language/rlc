@@ -157,7 +157,7 @@ ent Board:
     # ToDO: implement correctly actual line of sight
     return true
 
-  fun can_shoot(Unit source, Unit target, Bool overwatch) -> Bool:
+  fun can_shoot(Unit source, Unit target, Bool overwatch, Bool is_bolter_free_shoot) -> Bool:
     if !(source.kind == UnitKind::marine):
       return false
 
@@ -167,7 +167,13 @@ ent Board:
     if !self.is_in_line_of_sight(source, target):
       return false
 
+    if is_bolter_free_shoot:
+      return true
+
     if !overwatch and source.get_weapon_ap_cost() > source.action_points.value:
+      return false
+
+    if overwatch and !source.is_overwatching:
       return false
 
     if source.is_jammed:
@@ -175,7 +181,12 @@ ent Board:
 
     return true
 
-  fun shoot_at(Unit source, Unit target, Bool overwatch, BInt<1, 7> roll1, BInt<1, 7> roll2) -> Bool:
+  fun shoot_at(Unit source, Unit target, Bool overwatch, Bool is_bolter_free_shoot, BInt<1, 7> roll1, BInt<1, 7> roll2) -> Bool:
+    if is_bolter_free_shoot:
+      source.is_overwatching = false
+      source.is_guarding = false
+      return roll1 == 6 or roll2 == 6
+
     if !overwatch:
       source.action_points = source.action_points - source.get_weapon_ap_cost()
       source.is_overwatching = false
@@ -241,7 +252,7 @@ ent Board:
     let x = 0
     while x < self.units.size():
         if !self.units.get(x).is_marine():
-            sum = sum + (float(manhattan_distance(self.units.get(x).x.value, self.units.get(0).x.value, self.units.get(x).y.value, self.units.get(0).y.value)) / 30.0)
+            sum = sum + (float(manhattan_distance(self.units.get(x).x.value, 21, self.units.get(x).y.value, 7)) / 30.0)
             count = count + 1.0
         x = x + 1
     if count == 0.0:
@@ -263,17 +274,21 @@ ent Board:
     return score
 
   fun gsc_euristics() -> Float:
-    let score = self._all_gsc_average_score() + float(self.marine_killed.value)
+    let score = float(self.marine_killed.value) + self._all_gsc_average_score()
     return score
 
   fun score() -> Float:
     if self.any_marine_won():
-      return 100.0
+      return 10.0
+    if self.marine_killed == 5:
+      return -10.0
     return self.euristics()
 
   fun gsc_score() -> Float:
     if self.marine_killed == 5:
-      return self.gsc_euristics() + 100.0
+      return 10.0
+    if self.any_marine_won():
+      return -10.0
     return self.gsc_euristics()
 
   fun get_spawn_point(Int spawn_index, Int x_out, Int y_out):

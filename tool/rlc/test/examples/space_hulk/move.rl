@@ -38,24 +38,24 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
         board.units.get(unit_id.value).action_points = board.units.get(unit_id.value).action_points - 1
       is_done = true
 
-  if board.units.get(unit_id.value).kind.faction() == Faction::genestealer or true:
-    board.set_is_marine_decision()
-    actions:
-      act shoot(frm UnitArgType unit_id2, frm UnitArgType target_id) {
-        board.unit_id_is_valid(unit_id2.value),
-        board.unit_id_is_valid(target_id.value),
-        unit_id == target_id or unit_id2 == unit_id,
-        board.can_shoot(board.units.get(unit_id2.value), board.units.get(target_id.value), true),
-        board.units.get(unit_id2.value).is_overwatching
-      }
-        act roll_dice(DiceRoll roll1)
-        frm roll = roll1
-        act roll_dice(DiceRoll roll2)
-        if board.shoot_at(board.units.get(unit_id2.value), board.units.get(target_id.value), true, roll, roll2):
-          board.units.erase(target_id.value)
-          board.gsc_killed = board.gsc_killed + 1
+  
+  board.set_is_marine_decision()
+  actions:
+    act shoot(frm UnitArgType unit_id2, frm UnitArgType target_id) {
+      board.unit_id_is_valid(unit_id2.value),
+      board.unit_id_is_valid(target_id.value),
+      unit_id == target_id or unit_id2 == unit_id,
+      board.can_shoot(board.units.get(unit_id2.value), board.units.get(target_id.value), board.units.get(unit_id.value).kind.faction() == Faction::genestealer, !(board.units.get(unit_id.value).kind.faction() == Faction::genestealer))
+    }
+      act roll_dice(DiceRoll roll1)
+      frm roll = roll1
+      act roll_dice(DiceRoll roll2)
+      let is_overwatching = board.units.get(unit_id.value).kind.faction() == Faction::genestealer
+      if board.shoot_at(board.units.get(unit_id2.value), board.units.get(target_id.value), is_overwatching, !is_overwatching, roll, roll2):
+        board.units.erase(target_id.value)
+        board.gsc_killed = board.gsc_killed + 1
 
-      act do_nothing()
+    act do_nothing()
 
 fun test_move_move_forward() -> Bool:
   let board = make_board()
