@@ -221,6 +221,11 @@ mlir::rlc::TargetInfo &mlir::rlc::TargetInfo::operator==(TargetInfo &&other)
 
 mlir::rlc::TargetInfo::~TargetInfo() { delete pimpl; }
 
+bool mlir::rlc::TargetInfo::isMacOS() const
+{
+	return pimpl->triple.isOSDarwin();
+}
+
 const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
 {
 	return *pimpl->datalayout;
@@ -270,7 +275,8 @@ static int linkLibraries(
 		bool emitSanitizerInstrumentation,
 		bool linkAgainstFuzzer,
 		const std::vector<std::string> &extraObjectFiles,
-		const std::vector<std::string> &rpaths)
+		const std::vector<std::string> &rpaths,
+		bool macOS)
 {
 	auto realPath = llvm::cantFail(
 			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath)));
@@ -280,7 +286,8 @@ static int linkLibraries(
 	argSource.push_back(library.getFilename().str());
 	argSource.push_back("-o");
 	argSource.push_back(outputFile.str());
-	argSource.push_back("-lm");
+	if (not macOS)
+		argSource.push_back("-lm");
 	if (shared)
 	{
 		argSource.push_back("--shared");
@@ -303,7 +310,7 @@ static int linkLibraries(
 	}
 
 	for (auto rpathEntry : rpaths)
-		argSource.push_back("-Wl,-rpath=" + rpathEntry);
+		argSource.push_back("-Wl,-rpath," + rpathEntry);
 
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
@@ -378,7 +385,8 @@ namespace mlir::rlc
 							emitSanitizer,
 							emitFuzzer,
 							*extraObjectFiles,
-							*rpaths) != 0)
+							*rpaths,
+							targetInfo->isMacOS()) != 0)
 				signalPassFailure();
 		}
 	};
