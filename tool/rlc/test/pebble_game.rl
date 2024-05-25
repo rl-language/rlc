@@ -1,4 +1,6 @@
 # RUN: python %pyscript/test.py --source %s -i %stdlib --rlc rlc
+
+# implementation of https://en.wikipedia.org/wiki/Pebble_game
 import bounded_arg
 import action
 import math.numeric

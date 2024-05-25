@@ -1,0 +1,129 @@
+ digraph g {
+"0x56497a99cb70"[shape=ellipse, label="move_unit", style=filled, fillcolor=yellow]
+"0x56497a99cb70" -> "0x56497ab65b30"
+"0x56497a99cb70" -> "0x56497ab5ccd0"
+"0x56497ab59e40"[shape=box, label="turn", style=solid]
+"0x56497ab59e40" -> "0x56497ab65b30"
+"0x56497ab59e40" -> "0x56497ab5ccd0"
+"0x56497ab5b2a0"[shape=box, label="move", style=solid]
+"0x56497ab5b2a0" -> "0x56497ab65b30"
+"0x56497ab5b2a0" -> "0x56497ab5ccd0"
+"0x56497ab5ccd0"[shape=diamond, label="", style=solid]
+"0x56497ab5ccd0" -> "0x56497ab59e40"
+"0x56497ab5ccd0" -> "0x56497ab5b2a0"
+"0x56497ab5ccd0" -> "0x56497ab5d500"
+"0x56497ab5d500"[shape=box, label="end_move", style=solid]
+"0x56497ab5d500" -> "0x56497ab65b30"
+"0x56497ab5d500" -> "0x56497ab5ccd0"
+"0x56497ab5fc20"[shape=box, label="shoot", style=solid]
+"0x56497ab5fc20" -> "0x56497ab60cb0"
+"0x56497ab60cb0"[shape=box, label="roll_dice", style=solid]
+"0x56497ab60cb0" -> "0x56497ab60eb0"
+"0x56497ab60eb0"[shape=box, label="roll_dice", style=solid]
+"0x56497ab60eb0" -> "0x56497ab65c90"
+"0x56497ab65a40"[shape=box, label="do_nothing", style=solid]
+"0x56497ab65a40" -> "0x56497ab65c90"
+"0x56497ab65b30"[shape=diamond, label="", style=solid]
+"0x56497ab65b30" -> "0x56497ab65a40"
+"0x56497ab65b30" -> "0x56497ab5fc20"
+"0x56497ab65c90"[shape=ellipse, label="ret", style=solid]
+"0x56497a913190"[shape=box, label="roll_dice", style=solid]
+"0x56497a913190" -> "0x56497a973b70"
+"0x56497a960640"[shape=ellipse, label="roll_melee", style=filled, fillcolor=purple]
+"0x56497a960640" -> "0x56497a913190"
+"0x56497a973b70"[shape=box, label="roll_dice", style=solid]
+"0x56497a973b70" -> "0x56497a9cca00"
+"0x56497a973b70" -> "0x56497a9ce480"
+"0x56497a9cca00"[shape=box, label="roll_dice", style=solid]
+"0x56497a9cca00" -> "0x56497a9ce480"
+"0x56497a9ce480"[shape=ellipse, label="ret", style=solid]
+"0x56497a9c9cf0"[shape=ellipse, label="do_assault", style=filled, fillcolor=orange]
+"0x56497a9c9cf0" -> "0x56497a9e33c0"
+"0x56497a9c9cf0" -> "0x56497a9d7ae0"
+"0x56497a9d7ae0"[shape=box, label="source_roll", style=filled, fillcolor=purple]
+"0x56497a9d7ae0" -> "0x56497a9d7ed0"
+"0x56497a9d7ed0"[shape=box, label="target_roll", style=filled, fillcolor=purple]
+"0x56497a9d7ed0" -> "0x56497a9e33c0"
+"0x56497a9d7ed0" -> "0x56497a9db1f0"
+"0x56497a9d7ed0" -> "0x56497a9d92a0"
+"0x56497a9d92a0"[shape=box, label="guard_reroll", style=solid]
+"0x56497a9d92a0" -> "0x56497a9d9330"
+"0x56497a9d9330"[shape=box, label="roll_dice", style=solid]
+"0x56497a9d9330" -> "0x56497a9e33c0"
+"0x56497a9d9330" -> "0x56497a9db1f0"
+"0x56497a9db1f0"[shape=box, label="face_attacker", style=solid]
+"0x56497a9db1f0" -> "0x56497a9e33c0"
+"0x56497a9e33c0"[shape=ellipse, label="ret", style=solid]
+"0x56497a9e3a00"[shape=ellipse, label="place_blips", style=filled, fillcolor=green]
+"0x56497a9e3a00" -> "0x56497a9e4be0"
+"0x56497a9e3a00" -> "0x56497a9e7f60"
+"0x56497a9e4be0"[shape=box, label="place_blip", style=solid]
+"0x56497a9e4be0" -> "0x56497a9e4be0"
+"0x56497a9e4be0" -> "0x56497a9e7f60"
+"0x56497a9e7f60"[shape=ellipse, label="ret", style=solid]
+"0x56497a98dde0"[shape=box, label="overwatch", style=solid]
+"0x56497a98dde0" -> "0x56497aa0e650"
+"0x56497a98dde0" -> "0x56497aa0ef80"
+"0x56497a994550"[shape=box, label="assault", style=solid]
+"0x56497a994550" -> "0x56497aa04c90"
+"0x56497a9e0fb0"[shape=box, label="guard", style=solid]
+"0x56497a9e0fb0" -> "0x56497aa0e650"
+"0x56497a9e0fb0" -> "0x56497aa0ef80"
+"0x56497a9e1bc0"[shape=box, label="roll_dice", style=solid]
+"0x56497a9e1bc0" -> "0x56497aa0e650"
+"0x56497a9e1bc0" -> "0x56497aa0ef80"
+"0x56497a9e2c40"[shape=box, label="roll_dice", style=solid]
+"0x56497a9e2c40" -> "0x56497a9e1bc0"
+"0x56497a9e6630"[shape=box, label="begin_move", style=solid]
+"0x56497a9e6630" -> "0x56497a9eaab0"
+"0x56497a9e88f0"[shape=ellipse, label="action_phase", style=filled, fillcolor=red]
+"0x56497a9e88f0" -> "0x56497aa0e650"
+"0x56497a9e88f0" -> "0x56497aa0ef80"
+"0x56497a9eaab0"[shape=box, label="movement", style=filled, fillcolor=yellow]
+"0x56497a9eaab0" -> "0x56497aa0e650"
+"0x56497a9eaab0" -> "0x56497aa0ef80"
+"0x56497a9eb740"[shape=box, label="turn", style=solid]
+"0x56497a9eb740" -> "0x56497aa0e650"
+"0x56497a9eb740" -> "0x56497aa0ef80"
+"0x56497a9ed280"[shape=box, label="pass_turn", style=solid]
+"0x56497a9ed280" -> "0x56497aa0ef80"
+"0x56497a9ed720"[shape=box, label="quit", style=solid]
+"0x56497a9ed720" -> "0x56497aa0ef80"
+"0x56497a9ef330"[shape=box, label="shoot", style=solid]
+"0x56497a9ef330" -> "0x56497a9e2c40"
+"0x56497aa04c90"[shape=box, label="assault_frame", style=filled, color=orange]
+"0x56497aa04c90" -> "0x56497aa0e650"
+"0x56497aa04c90" -> "0x56497aa0ef80"
+"0x56497aa063c0"[shape=box, label="clear_jamming", style=solid]
+"0x56497aa063c0" -> "0x56497aa0e650"
+"0x56497aa063c0" -> "0x56497aa0ef80"
+"0x56497aa086e0"[shape=box, label="toggle_door", style=solid]
+"0x56497aa086e0" -> "0x56497aa0e650"
+"0x56497aa086e0" -> "0x56497aa0ef80"
+"0x56497aa0e650"[shape=diamond, label="", style=solid]
+"0x56497aa0e650" -> "0x56497a9ed720"
+"0x56497aa0e650" -> "0x56497aa086e0"
+"0x56497aa0e650" -> "0x56497a9ed280"
+"0x56497aa0e650" -> "0x56497a994550"
+"0x56497aa0e650" -> "0x56497aa063c0"
+"0x56497aa0e650" -> "0x56497a9ef330"
+"0x56497aa0e650" -> "0x56497a9e6630"
+"0x56497aa0e650" -> "0x56497a9eb740"
+"0x56497aa0e650" -> "0x56497a98dde0"
+"0x56497aa0e650" -> "0x56497a9e0fb0"
+"0x56497aa0ef80"[shape=ellipse, label="ret", style=solid]
+"0x56497a9dee10"[shape=box, label="marine_phase", style=filled, fillcolor=red]
+"0x56497a9dee10" -> "0x56497a9df240"
+"0x56497a9df240"[shape=box, label="reinforcement_phase", style=filled, fillcolor=green]
+"0x56497a9df240" -> "0x56497a9fbd30"
+"0x56497a9df240" -> "0x56497a9fc250"
+"0x56497a9ebd20"[shape=box, label="initial_blips", style=filled, fillcolor=green]
+"0x56497a9ebd20" -> "0x56497a9dee10"
+"0x56497a9ebd20" -> "0x56497a9fc250"
+"0x56497a9ed1f0"[shape=ellipse, label="play", style=solid]
+"0x56497a9ed1f0" -> "0x56497a9ebd20"
+"0x56497a9fbd30"[shape=box, label="genestealer_phase", style=filled, fillcolor=red]
+"0x56497a9fbd30" -> "0x56497a9dee10"
+"0x56497a9fbd30" -> "0x56497a9fc250"
+"0x56497a9fc250"[shape=ellipse, label="ret", style=solid]
+ }
