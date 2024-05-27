@@ -5,6 +5,16 @@ if ! [ -x "$(command -v python3)" ]; then
   exit 1
 fi
 
+if ! [ -x "$(command -v cmake)" ]; then
+  echo 'Error: cmake is not installed.' >&2
+  exit 1
+fi
+
+if ! [ -x "$(command -v ninja)" ]; then
+  echo 'Error: ninja is not installed.' >&2
+  exit 1
+fi
+
 mkdir rlc-infrastructure
 cd rlc-infrastructure
 

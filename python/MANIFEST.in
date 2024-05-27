@@ -1,0 +1,2 @@
+include rlc-bin/*
+recursive-include lib *

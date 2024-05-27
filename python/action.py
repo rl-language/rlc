@@ -7,10 +7,11 @@
 #
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
+
+import sys
 import argparse
 from loader import Simulation, compile, State
 from solvers import find_end
-import sys
 import os
 from shutil import which
 from command_line import load_simulation_from_args, make_rlc_argparse, load_network
