@@ -156,7 +156,7 @@ fun create_graph() -> Graph:
 
 act play() -> Game:
     frm graph = create_graph()
-    frm are_we_done_generating = 10
+    frm are_we_done_generating = 1
     while are_we_done_generating != 0:
         actions:
             act connect(BInt<0, 20> source, BInt<0, 20> target) {
@@ -191,6 +191,9 @@ fun test_dump_dot() -> Bool:
 fun main() -> Int:
     test_dump_dot()
     return 0
+
+fun max_game_lenght() -> Int:
+    return 100
 
 fun get_current_player(Game g) -> Int:
     if g.is_done():
