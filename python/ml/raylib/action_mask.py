@@ -5,6 +5,7 @@ from ray.rllib.utils.torch_utils import FLOAT_MIN
 from ray.rllib.algorithms.ppo.torch.ppo_torch_rl_module import PPOTorchRLModule
 import gymnasium as gym
 
+
 class ActionMaskRLMBase(RLModule):
     def __init__(self, config: RLModuleConfig):
         if not isinstance(config.observation_space, gym.spaces.Dict):
@@ -19,6 +20,7 @@ class ActionMaskRLMBase(RLModule):
         # The PPORLModule, in its constructor, will build models for the modified
         # observation space.
         super().__init__(config)
+
 
 def _check_batch(batch):
     """Check whether the batch contains the required keys."""
@@ -53,15 +55,15 @@ class TorchActionMaskRLM(ActionMaskRLMBase, PPOTorchRLModule):
         return mask_forward_fn_torch(super()._forward_exploration, batch, **kwargs)
 
     def _compute_values(self, batch, device=None):
-      _check_batch(batch)
+        _check_batch(batch)
 
-      # Extract the available actions tensor from the observation.
-      action_mask = batch[SampleBatch.OBS]["action_mask"]
+        # Extract the available actions tensor from the observation.
+        action_mask = batch[SampleBatch.OBS]["action_mask"]
 
-      # Modify the incoming batch so that the default models can compute logits and
-      # values as usual.
-      batch[SampleBatch.OBS] = batch[SampleBatch.OBS]["observations"]
-      return super()._compute_values(batch, device)
+        # Modify the incoming batch so that the default models can compute logits and
+        # values as usual.
+        batch[SampleBatch.OBS] = batch[SampleBatch.OBS]["observations"]
+        return super()._compute_values(batch, device)
 
 
 def mask_forward_fn_torch(forward_fn, batch, **kwargs):
@@ -86,5 +88,3 @@ def mask_forward_fn_torch(forward_fn, batch, **kwargs):
     outputs[SampleBatch.ACTION_DIST_INPUTS] = masked_logits
 
     return outputs
-
-

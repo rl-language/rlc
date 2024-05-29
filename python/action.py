@@ -66,8 +66,8 @@ def main():
         else open(args.action_file, "r").readlines()
     )
     if args.pretty_print:
-      state.simulation.module.functions.pretty_print_board(state.state.board)
-      input()
+        state.simulation.module.functions.pretty_print_board(state.state.board)
+        input()
     for i, line in enumerate(lines):
         if line.strip() == "" or line.strip().startswith("#"):
             continue
@@ -94,9 +94,9 @@ def main():
                 break
 
         if args.pretty_print:
-          input()
-          os.system("clear")
-          state.simulation.module.functions.pretty_print_board(state.state.board)
+            input()
+            os.system("clear")
+            state.simulation.module.functions.pretty_print_board(state.state.board)
         if not args.print_all:
             print(i, action)
         action.run(state)

@@ -124,7 +124,6 @@ class TransformerModel(nn.Module):
         self.final_linear2.weight.data.uniform_(-initrange, initrange)
         self.final_linear2.bias.data.zero_()
 
-
     def forward(self, src: Tensor) -> Tensor:
         """
         Arguments:
@@ -230,7 +229,7 @@ class RLCTransformer:
                 data = eval_data[i]
                 targets = result_data[i, :]
                 seq_len = result_data[i].size(0)
-                output  = self.model(data)
+                output = self.model(data)
                 total_loss += seq_len * self.criterion(output, targets).item()
         return total_loss / (len(eval_data) - 1)
 

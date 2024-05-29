@@ -180,20 +180,22 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 
 ### Roadmap
 
-#### near term feature
-* inline initializers
-* better debug support
+#### for demo
 * machine learning serialization should take the player id as well
 * enum max and name
+
+#### machine learning
+* figure out how to make transformers fast [Blocked by them]
+* get this https://github.com/ray-project/ray/pull/45057  merged [Blocked by them]
+* figure out how to not duplicate the state at every action and thus allow true self play [Blocked by them]
+
+#### language
+* better debug support
+* inline initializers
 
 #### standard lib
 * graph library
 * dictionary library
-
-#### machine learning
-* figure out how to make transformers fast
-* get this https://github.com/ray-project/ray/pull/45057  merged
-* figure out how to not duplicate the state at every action and thus allow true self play
 
 #### for 1.0
 * windows support

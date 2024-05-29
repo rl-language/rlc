@@ -22,7 +22,7 @@ def main():
     (sim, wrapper_path, directory) = load_simulation_from_args(args)
 
     failed = []
-    for (name, overloads) in sim.module.wrappers.items():
+    for name, overloads in sim.module.wrappers.items():
         if not name.startswith("test_"):
             continue
 

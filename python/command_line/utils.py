@@ -27,7 +27,7 @@ def load_dataset(path):
         while True:
             try:
                 loaded = pickle.load(f)
-                for (state, actions_and_scores) in loaded:
+                for state, actions_and_scores in loaded:
                     to_return.append((state, actions_and_scores))
             except Exception as e:
                 break

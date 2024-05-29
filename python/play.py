@@ -1,4 +1,3 @@
-
 import ray
 import pickle
 import copy
@@ -41,21 +40,32 @@ def main():
         default="",
     )
     parser.add_argument("checkpoint", type=str)
-    parser.add_argument("--one-agent-per-player", action="store_true", default=True)
+    parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
 
     args = parser.parse_args()
     sim, wrapper_path, tmp_dir = load_simulation_from_args(args)
 
     from ray import air, tune
-    num_players = 1 if not args.one_agent_per_player else sim.module.functions.get_num_players().value
-    ppo_config, hyperopt_search = get_config(wrapper_path, num_players, exploration=False)
-    tune.register_env('rlc_env', lambda config: RLCEnvironment(wrapper_path=wrapper_path, output=args.output))
 
+    num_players = (
+        1
+        if not args.no_one_agent_per_player
+        else sim.module.functions.get_num_players().value
+    )
+    ppo_config, hyperopt_search = get_config(
+        wrapper_path, num_players, exploration=False
+    )
+    tune.register_env(
+        "rlc_env",
+        lambda config: RLCEnvironment(wrapper_path=wrapper_path, output=args.output),
+    )
 
     ray.init(num_cpus=12, num_gpus=1)
     model = Algorithm.from_checkpoint(args.checkpoint)
     for i in range(num_players):
-        model.workers.local_worker().module[f"p{i}"].load_state(f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/")
+        model.workers.local_worker().module[f"p{i}"].load_state(
+            f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/"
+        )
 
     model.evaluate()
     tmp_dir.cleanup()

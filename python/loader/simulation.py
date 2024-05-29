@@ -70,7 +70,7 @@ class ActionType:
     def materialize(self, *args):
         empty_action = Action(self.simulation.any_action(), self.simulation)
         current_action = self.action_type()
-        for ((name, type), value) in zip(getattr(current_action, "_fields_"), args):
+        for (name, type), value in zip(getattr(current_action, "_fields_"), args):
             setattr(current_action, name, value)
 
         self.simulation.module.functions.assign(empty_action.action, current_action)
@@ -234,4 +234,8 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
     assert run(args + include_args).returncode == 0
-    return Simulation(tmp_dir.name + "/wrapper.py"), tmp_dir.name + "/wrapper.py", tmp_dir
+    return (
+        Simulation(tmp_dir.name + "/wrapper.py"),
+        tmp_dir.name + "/wrapper.py",
+        tmp_dir,
+    )

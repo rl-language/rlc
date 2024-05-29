@@ -11,10 +11,12 @@ from ray.rllib.core.rl_module.marl_module import (
     MultiAgentRLModuleConfig,
 )
 
+
 class Specs:
     def __init__(self, max_steps=100):
         self.max_episode_steps = max_steps
         self.id = random.randint(0, 10)
+
 
 def import_file(name, file_path):
     loader = machinery.SourceFileLoader(name, file_path)
@@ -37,7 +39,8 @@ class RLCEnvironment(MultiAgentEnv):
         self.num_agents = self.wrapper.functions.get_num_players().value
         self._actions = self.wrapper.functions.enumerate(action)
         self.state_size = (
-            self.wrapper.functions.observation_tensor_size(self.wrapper.Game()).value * 2
+            self.wrapper.functions.observation_tensor_size(self.wrapper.Game()).value
+            * 2
         )
         self.actions = []
         for i in range(self.wrapper.functions.size(self._actions).value):
@@ -73,11 +76,11 @@ class RLCEnvironment(MultiAgentEnv):
 
     def __getstate__(self):
         return {
-            'wrapper_path': self.wrapper_path,
+            "wrapper_path": self.wrapper_path,
         }
 
     def __setstate__(self, state):
-        self.wrapper_path = state['wrapper_path']
+        self.wrapper_path = state["wrapper_path"]
         self.setup()
 
     @property
@@ -103,10 +106,11 @@ class RLCEnvironment(MultiAgentEnv):
         is_done = {i: self.state.resume_index == -1 for i in range(self.num_agents)}
         is_done["__all__"] = self.state.resume_index == -1
         scores = {
-            i: (self.current_score[i] - self.last_score[i]) for i in range(self.num_agents)
+            i: (self.current_score[i] - self.last_score[i])
+            for i in range(self.num_agents)
         }
 
-        return is_done, scores         # return (False, 0.0)
+        return is_done, scores  # return (False, 0.0)
 
     def _get_info(self):
         done, reward = self._get_done_winner()
@@ -140,7 +144,9 @@ class RLCEnvironment(MultiAgentEnv):
         while self.current_player() == -1:  # random player
             action = random.choice(self.legal_actions_list())
             if self.output is not None:
-                self.output.write(self.to_python_string(self.wrapper.functions.to_string(action)))
+                self.output.write(
+                    self.to_python_string(self.wrapper.functions.to_string(action))
+                )
                 self.output.write("\n")
             assert self.wrapper.functions.can_apply_impl(action, self.state)
             self.wrapper.functions.apply(action, self.state)
@@ -149,11 +155,17 @@ class RLCEnvironment(MultiAgentEnv):
         to_apply = action[self.current_player()]
         if self.output is not None:
             act = self.actions[to_apply]
-            self.output.write(self.to_python_string(self.wrapper.functions.to_string(act)))
+            self.output.write(
+                self.to_python_string(self.wrapper.functions.to_string(act))
+            )
             self.output.write("\n")
             self.output.flush()
-        if not self.wrapper.functions.can_apply_impl(self.actions[to_apply], self.state):
-            self.wrapper.functions.apply(random.choice(self.legal_actions_list()), self.state)
+        if not self.wrapper.functions.can_apply_impl(
+            self.actions[to_apply], self.state
+        ):
+            self.wrapper.functions.apply(
+                random.choice(self.legal_actions_list()), self.state
+            )
         else:
             self.wrapper.functions.apply(self.actions[to_apply], self.state)
 
@@ -195,5 +207,3 @@ class RLCEnvironment(MultiAgentEnv):
             }
             for i in range(self.num_agents)
         }
-
-

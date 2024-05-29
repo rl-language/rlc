@@ -1,6 +1,7 @@
 import ray
 import pickle
 import copy
+import math
 import os
 import random
 
@@ -30,43 +31,55 @@ from typing import (
 
 
 def get_multi_train(num_players):
-    def train_impl(config, fixed_nets = 0):
+    def train_impl(config, fixed_nets=0):
         config = PPOConfig().update_from_dict(config)
         model = config.build()
 
         for _ in range(1000000000):
             with open(f"./list_of_fixed.txt", "wb+") as f:
-              for i in range(num_players):
-                if not os.path.exists(f"./net_p{num_players + i}_{fixed_nets}"):
-                  os.makedirs(f"./net_p{num_players + i}_{fixed_nets}")
-                model.workers.local_worker().module[f"p{i}"].save_state(f"./net_p{num_players + i}_{fixed_nets}")
-              fixed_nets = fixed_nets + 1
-              pickle.dump(fixed_nets, f)
+                for i in range(num_players):
+                    if not os.path.exists(f"./net_p{num_players + i}_{fixed_nets}"):
+                        os.makedirs(f"./net_p{num_players + i}_{fixed_nets}")
+                    model.workers.local_worker().module[f"p{i}"].save_state(
+                        f"./net_p{num_players + i}_{fixed_nets}"
+                    )
+                fixed_nets = fixed_nets + 1
+                pickle.dump(fixed_nets, f)
             for x in range(20):
-              for i in range(10):
-                print(x, i)
-                train.report(model.train())
-                if fixed_nets != 0:
-                  for i in range(num_players):
-                    model.workers.local_worker().module[f"p{i + num_players}"].load_state(f"./net_p{i + num_players}_{random.choice(range(fixed_nets))}")
-                  model.workers.sync_weights(policies=[f"p{i + num_players}" for i in range(num_players)])
+                for i in range(10):
+                    print(x, i)
+                    train.report(model.train())
+                    if fixed_nets != 0:
+                        for i in range(num_players):
+                            model.workers.local_worker().module[
+                                f"p{i + num_players}"
+                            ].load_state(
+                                f"./net_p{i + num_players}_{random.choice(range(fixed_nets))}"
+                            )
+                        model.workers.sync_weights(
+                            policies=[f"p{i + num_players}" for i in range(num_players)]
+                        )
             model.save(f"./checkpoint")
         model.save()
         model.stop()
+
     return train_impl
 
-def get_trainer(output_path, total_steps):
-  def single_agent_train(config):
-    config = PPOConfig().update_from_dict(config)
-    model = config.build()
-    for _ in range(total_steps / 10):
-        for i in range(10):
-            train.report(model.train())
-        if output_path != "":
-            model.save(output_path)
-    model.save()
-    model.stop()
-  return single_agent_train
+
+def get_trainer(output_path, total_train_iterations):
+    def single_agent_train(config):
+        config = PPOConfig().update_from_dict(config)
+        model = config.build()
+        for _ in range(math.ceil(total_train_iterations / 10)):
+            for i in range(10):
+                train.report(model.train())
+            if output_path != "":
+                model.save(output_path)
+        model.save()
+        model.stop()
+
+    return single_agent_train
+
 
 def main():
     parser = make_rlc_argparse("train", description="runs a action of the simulation")
@@ -78,30 +91,47 @@ def main():
         help="path where to write the output",
         default="",
     )
-    parser.add_argument("--one-agent-per-player", action="store_true", default=True)
+    parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
     parser.add_argument("--league-play", action="store_true", default=False)
-    parser.add_argument("--total-steps", default=100000000, type=int)
+    parser.add_argument("--total-train-iterations", default=100000000, type=int)
+    parser.add_argument("--sample-space", default=1, type=int)
 
     args = parser.parse_args()
     sim, wrapper_path, tmp_dir = load_simulation_from_args(args)
 
     from ray import air, tune
-    ppo_config, hyperopt_search = get_config(wrapper_path, 1 if not args.one_agent_per_player else sim.module.functions.get_num_players().value)
-    tune.register_env('rlc_env', lambda config: RLCEnvironment(wrapper_path=wrapper_path))
+
+    ppo_config, hyperopt_search = get_config(
+        wrapper_path,
+        (
+            1
+            if args.no_one_agent_per_player
+            else sim.module.functions.get_num_players().value
+        ),
+    )
+    tune.register_env(
+        "rlc_env", lambda config: RLCEnvironment(wrapper_path=wrapper_path)
+    )
 
     stop = {
         "timesteps_total": 1e15,
         # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
     }
 
-
     ray.init(num_cpus=12, num_gpus=1)
     # resumption_dir = os.path.abspath("./results")
     resources = PPO.default_resource_request(ppo_config)
     tuner = tune.Tuner(
-        tune.with_resources(get_multi_train(sim.module.functions.get_num_players().value) if args.league_play else  get_trainer(args.output, total_steps=args.total_steps), resources=resources),
+        tune.with_resources(
+            (
+                get_multi_train(sim.module.functions.get_num_players().value)
+                if args.league_play
+                else get_trainer(args.output, total_train_iterations=args.total_train_iterations)
+            ),
+            resources=resources,
+        ),
         param_space=ppo_config.to_dict(),
-        tune_config=ray.tune.TuneConfig(num_samples=1, search_alg=hyperopt_search),
+        tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search),
         run_config=air.RunConfig(
             stop=stop,
             verbose=2,
@@ -110,7 +140,6 @@ def main():
     )
 
     results = tuner.fit()
-
 
 
 if __name__ == "__main__":

@@ -24,7 +24,9 @@ def main():
     env.wrapper.functions.print(env.state)
 
     while True:
-        obs, reward, done, truncated, info = env.step([random.choice(env.legal_actions) for i in range(env.num_agents)])
+        obs, reward, done, truncated, info = env.step(
+            [random.choice(env.legal_actions) for i in range(env.num_agents)]
+        )
         if done["__all__"] or truncated["__all__"]:
             break
 

@@ -26,7 +26,7 @@ from tempfile import TemporaryDirectory
 
 def organize_simulations_result(action_table, entry):
     list_to_save = []
-    for (state, moves_and_scores) in entry:
+    for state, moves_and_scores in entry:
         list_moves = []
         print(str(state))
         for move_score in moves_and_scores:
