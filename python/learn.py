@@ -1,87 +1,117 @@
-#
-# This file is part of the RLC project.
-#
-# RLC is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 2 as published by the Free Software Foundation.
-#
-# RLC is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
-#
-import torch
-from ml import TrainingData, RLCTransformer
+import ray
 import pickle
-from random import shuffle
-from command_line import load_dataset, load_network
-import argparse
+import copy
+import os
+import random
+
+from ml.raylib.environment import RLCEnvironment
+from ray.rllib.env.multi_agent_env import make_multi_agent
+from ray.rllib.algorithms import ppo
+from ray.rllib.algorithms.algorithm import Algorithm
+from ray.rllib.algorithms.ppo import PPOConfig, PPO
+from ray.rllib.algorithms.ppo import PPOTorchPolicy
+from ray import train
+from ml.raylib.module_config import get_config
+
+from command_line import load_simulation_from_args, make_rlc_argparse
+
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    KeysView,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Type,
+    Union,
+)
 
 
-def byte_arrays_to_training_data(byte_arrays: [[bytes]], score: [int]):
-    train_count = (len(byte_arrays) // 10) * 7
-    train_set = byte_arrays[0:train_count]
-    train_result = score[0:train_count]
-    eval_count = (len(byte_arrays) // 10) * 2
-    val_set = byte_arrays[train_count : train_count + eval_count]
-    val_result = score[train_count : train_count + eval_count]
-    test_set = byte_arrays[train_count + eval_count :]
-    test_result = score[train_count : train_count + eval_count]
+def get_multi_train(num_players):
+    def train_impl(config, fixed_nets = 0):
+        config = PPOConfig().update_from_dict(config)
+        model = config.build()
 
-    train = torch.IntTensor(train_set)
-    train_result = torch.FloatTensor(train_result)
-    val = torch.IntTensor(val_set)
-    val_result = torch.FloatTensor(val_result)
-    test = torch.IntTensor(test_set)
-    test_result = torch.FloatTensor(test_result)
+        for _ in range(1000000000):
+            with open(f"./list_of_fixed.txt", "wb+") as f:
+              for i in range(num_players):
+                if not os.path.exists(f"./net_p{num_players + i}_{fixed_nets}"):
+                  os.makedirs(f"./net_p{num_players + i}_{fixed_nets}")
+                model.workers.local_worker().module[f"p{i}"].save_state(f"./net_p{num_players + i}_{fixed_nets}")
+              fixed_nets = fixed_nets + 1
+              pickle.dump(fixed_nets, f)
+            for x in range(20):
+              for i in range(10):
+                print(x, i)
+                train.report(model.train())
+                if fixed_nets != 0:
+                  for i in range(num_players):
+                    model.workers.local_worker().module[f"p{i + num_players}"].load_state(f"./net_p{i + num_players}_{random.choice(range(fixed_nets))}")
+                  model.workers.sync_weights(policies=[f"p{i + num_players}" for i in range(num_players)])
+            model.save(f"./checkpoint")
+        model.save()
+        model.stop()
+    return train_impl
 
-    return TrainingData.from_raw_bytes(
-        train, train_result, val, val_result, test, test_result
+def get_trainer(output_path, total_steps):
+  def single_agent_train(config):
+    config = PPOConfig().update_from_dict(config)
+    model = config.build()
+    for _ in range(total_steps / 10):
+        for i in range(10):
+            train.report(model.train())
+        if output_path != "":
+            model.save(output_path)
+    model.save()
+    model.stop()
+  return single_agent_train
+
+def main():
+    parser = make_rlc_argparse("train", description="runs a action of the simulation")
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        nargs="?",
+        help="path where to write the output",
+        default="",
+    )
+    parser.add_argument("--one-agent-per-player", action="store_true", default=True)
+    parser.add_argument("--league-play", action="store_true", default=False)
+    parser.add_argument("--total-steps", default=100000000, type=int)
+
+    args = parser.parse_args()
+    sim, wrapper_path, tmp_dir = load_simulation_from_args(args)
+
+    from ray import air, tune
+    ppo_config, hyperopt_search = get_config(wrapper_path, 1 if not args.one_agent_per_player else sim.module.functions.get_num_players().value)
+    tune.register_env('rlc_env', lambda config: RLCEnvironment(wrapper_path=wrapper_path))
+
+    stop = {
+        "timesteps_total": 1e15,
+        # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
+    }
+
+
+    ray.init(num_cpus=12, num_gpus=1)
+    # resumption_dir = os.path.abspath("./results")
+    resources = PPO.default_resource_request(ppo_config)
+    tuner = tune.Tuner(
+        tune.with_resources(get_multi_train(sim.module.functions.get_num_players().value) if args.league_play else  get_trainer(args.output, total_steps=args.total_steps), resources=resources),
+        param_space=ppo_config.to_dict(),
+        tune_config=ray.tune.TuneConfig(num_samples=1, search_alg=hyperopt_search),
+        run_config=air.RunConfig(
+            stop=stop,
+            verbose=2,
+            # storage_path=resumption_dir
+        ),
     )
 
+    results = tuner.fit()
 
-# returns table of expected scores [sequence_lenght, num_tokens]
-def actions_and_scores_to_table(actions_and_scores):
-    table = [[1.0 for x in range(9)]]
-    for (action, score) in actions_and_scores:
-        if score == -1:
-            table[0][action] = 0.0
-    print(table)
-    return table
-
-
-def load_and_parse_dataset(path):
-    games = []
-    scores = []
-    dataset = load_dataset(path)
-    for (state, actions_and_scores) in dataset:
-        probabilities = actions_and_scores_to_table(actions_and_scores)
-        scores.append(probabilities)
-        games.append(state)
-
-    zipped = list(zip(games, scores))
-    shuffle(zipped)
-    (games2, scores2) = zip(*zipped)
-
-    training_data = byte_arrays_to_training_data(games2, scores2)
-    return training_data
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        "solve", description="runs a action of the simulation"
-    )
-    parser.add_argument("dataset", type=str)
-    parser.add_argument("--network", "-n", type=str, default="")
-    parser.add_argument("--output", "-o", type=str, default="")
-    parser.add_argument("--epochs", "-e", default=10, type=int)
-
-    args = parser.parse_args()
-
-    training_data = load_and_parse_dataset(args.dataset)
-
-    print("training data size: ", training_data.train_data.size())
-    transformer = load_network(
-        args.network, training_data.ntokens, training_data.device
-    )
-
-    transformer.train_from_dataset(training_data, epochs=args.epochs)
-    if args.output != "":
-        torch.save(transformer, args.output)
+    main()

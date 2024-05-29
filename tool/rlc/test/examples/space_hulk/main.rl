@@ -277,6 +277,12 @@ fun test_max() -> Bool:
   let x = max(3, 4)
   return x == 4
 
+fun max_game_lenght() -> Int:
+    return 5000
+
+fun get_num_players() -> Int:
+    return 2
+
 fun get_current_player(Game g) -> Int:
     if g.is_done():
         return -4

@@ -1,50 +1,59 @@
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.core.rl_module.marl_module import (
+    MultiAgentRLModuleSpec,
+    MultiAgentRLModule,
+    MultiAgentRLModuleConfig,
+)
+from hyperopt import hp
+from ray.tune.search.hyperopt import HyperOptSearch
+from ray.rllib.core.rl_module.rl_module import SingleAgentRLModuleSpec
+from ml.raylib.action_mask import TorchActionMaskRLM
+from ml.raylib.environment import RLCEnvironment
+from ray.rllib.env.multi_agent_env_runner import MultiAgentEnvRunner
 
-def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
-    modulo_id = hash(episode.id_) % 5
-    if agent_id == 0:
-        #if modulo_id == 1 or modulo_id == 0:
-        if modulo_id == 1:
-            return "p3"
-        else:
-            return "p1"
-    elif agent_id == 1:
-        if modulo_id == 0:
-            return "p4"
-        else:
-            return "p2"
-    assert False
+def configure_mapping(num_players):
+    def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
+        modulo_id = hash(episode.id_) % (num_players * 5)
+        for i in range(num_players):
+            if agent_id == i:
+              if modulo_id == i:
+                return f"p{i + num_players}"
+              else:
+                return f"p{i}"
+        assert False
+    return agent_to_module_mapping_fn
 
-def get_config():
+def agent_to_module_mapping_fn_single(agent_id, episode, **kwargs):
+    return "p0"
+
+def get_config(wrapper_path, num_agents = 1, exploration=True):
+    state_size = RLCEnvironment(wrapper_path=wrapper_path).state_size
+    actions_count = RLCEnvironment(wrapper_path=wrapper_path).num_actions
+    print("state size", state_size)
+    print("actions count", actions_count)
     # Step 1: Configure PPO to run 64 parallel workers to collect samples from the env.
     ppo_config = (
         PPOConfig()
         .multi_agent(
-            policies={"p1", "p2", "p3", "p4"},
-            policy_mapping_fn=agent_to_module_mapping_fn,
-            policies_to_train=["p1", "p2"],
+            policies={f"p{x}" for x in range(num_agents * 2)} if num_agents != 1 else {"p0"},
+            policy_mapping_fn=configure_mapping(num_agents) if num_agents != 1 else agent_to_module_mapping_fn_single,
+            policies_to_train=[f"p{x}" for x in range(num_agents)],
         )
         .experimental(_enable_new_api_stack=True, _disable_preprocessor_api=True)
         .rl_module(
             rl_module_spec=MultiAgentRLModuleSpec(
                 module_specs={
-                    "p1": SingleAgentRLModuleSpec(
-                        TorchActionMaskRLM, observation_space=RLCEnvironment().unwrapper_space
-                    ),
-                    "p2": SingleAgentRLModuleSpec(
-                        TorchActionMaskRLM, observation_space=RLCEnvironment().unwrapper_space
-                    ),
-                    "p3": SingleAgentRLModuleSpec(
-                        TorchActionMaskRLM, observation_space=RLCEnvironment().unwrapper_space
-                    ),
-                    "p4": SingleAgentRLModuleSpec(
-                        TorchActionMaskRLM, observation_space=RLCEnvironment().unwrapper_space
-                    ),
-                    # "random": SingleAgentRLModuleSpec(module_class=RandomRLModule)
+                    f"p{x}": SingleAgentRLModuleSpec(
+                        TorchActionMaskRLM, observation_space=RLCEnvironment(wrapper_path=wrapper_path).unwrapper_space
+                        ) for x in range(num_agents * 2)} if num_agents != 1 else
+                    {f"p{0}": SingleAgentRLModuleSpec(
+                        TorchActionMaskRLM, observation_space=RLCEnvironment(wrapper_path=wrapper_path).unwrapper_space
+                    )
                 },
             ),
         )
-        .training(lr=2e-5)
-        .evaluation(evaluation_interval=20, evaluation_parallel_to_training=True, evaluation_config=PPOConfig.overrides(policy_mapping_fn=agent_to_module_mapping_fn), evaluation_num_workers=1)
+        .training(lr=2e-4)
+        .evaluation(evaluation_interval=20, evaluation_parallel_to_training=True, evaluation_config=PPOConfig.overrides(policy_mapping_fn=configure_mapping(num_agents) if num_agents != 1 else agent_to_module_mapping_fn_single), evaluation_num_workers=1, evaluation_num_episodes=1, evaluation_duration=1)
         .resources(
             num_gpus=1,
             num_gpus_per_learner_worker=1,
@@ -52,8 +61,8 @@ def get_config():
             num_cpus_for_local_worker=1,
         )
         .environment(
-            env=RLCEnvironment,
-            env_config={"observation_space": RLCEnvironment().observation_space},
+            env="rlc_env",
+            env_config={"observation_space": RLCEnvironment(wrapper_path=wrapper_path).observation_space},
         )
         .rollouts(
             num_rollout_workers=8, num_envs_per_worker=1, env_runner_cls=MultiAgentEnvRunner
@@ -61,15 +70,10 @@ def get_config():
         .framework("torch")
     )
     ppo_config.num_gpus = 1
-    ppo_config.model["fcnet_hiddens"] = [2024, 2024, 1024, 1024]
-    ppo_config.model["fcnet_hiddens"] = [2024, 2024, 1024, 1024]
+    ppo_config.model["fcnet_hiddens"] = [state_size, state_size, state_size, actions_count]
     ppo_config.model["fcnet_activation"] = "relu"
     ppo_config.model["framestack"] = False
-
-    stop = {
-        "timesteps_total": 1e15,
-        # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
-    }
+    ppo_config.model["exploration"] = exploration
 
 
     space = {

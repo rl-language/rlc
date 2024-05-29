@@ -10,3 +10,5 @@ gymnasium
 dm_tree
 typer
 scikit-image
+lz4
+tensorboard

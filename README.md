@@ -181,22 +181,20 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 ### Roadmap
 
 #### near term feature
-* require clauses out of line (just allow to call any function i guess?)
-* require clauses on structs
 * inline initializers
-* proper support for different architectures
-* add "if x is Y as k:" to allow a way to dodge shadowing
+* better debug support
+* machine learning serialization should take the player id as well
+* enum max and name
 
 #### standard lib
 * graph library
 * dictionary library
-* random library
 
 #### machine learning
 * figure out how to make transformers fast
+* get this https://github.com/ray-project/ray/pull/45057  merged
+* figure out how to not duplicate the state at every action and thus allow true self play
 
 #### for 1.0
 * windows support
-* some very large hand written program with machine learning and all
-* some other language testsuite transpiled to rl
 

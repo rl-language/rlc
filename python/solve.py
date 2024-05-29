@@ -8,21 +8,30 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 import argparse
+import random
 from loader import Simulation, compile
-from solvers import find_end
 from shutil import which
+from ml.raylib.environment import RLCEnvironment
 from command_line import load_simulation_from_args, make_rlc_argparse
 
 
 def main():
     parser = make_rlc_argparse("solve", description="runs a action of the simulation")
     args = parser.parse_args()
-    sim = load_simulation_from_args(args)
+    (_, wrapper_path, directory) = load_simulation_from_args(args)
 
-    state = sim.start("play")
+    env = RLCEnvironment(wrapper_path=wrapper_path)
+    env.wrapper.functions.print(env.state)
 
-    print(state)
-    find_end(sim, state)
+    while True:
+        obs, reward, done, truncated, info = env.step([random.choice(env.legal_actions) for i in range(env.num_agents)])
+        if done["__all__"] or truncated["__all__"]:
+            break
+
+    env.wrapper.functions.print(env.state)
+
+    if directory != None:
+        directory.cleanup()
 
 
 if __name__ == "__main__":

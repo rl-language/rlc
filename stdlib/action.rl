@@ -100,6 +100,7 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     let v : Vector<Float>
     to_observation_tensor(state, v)
     print(variant)
+    print(state)
     v.resize(10)
     v.size()
     observation_tensor_size(state)

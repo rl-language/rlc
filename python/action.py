@@ -11,10 +11,9 @@
 import sys
 import argparse
 from loader import Simulation, compile, State
-from solvers import find_end
 import os
 from shutil import which
-from command_line import load_simulation_from_args, make_rlc_argparse, load_network
+from command_line import load_simulation_from_args, make_rlc_argparse
 
 
 def main():
@@ -48,10 +47,11 @@ def main():
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
     args = parser.parse_args()
-    sim = load_simulation_from_args(args)
+    (sim, wrapper_path, directory) = load_simulation_from_args(args)
 
     if args.show_actions:
         sim.dump()
+        directory.cleanup()
         return
 
     state = sim.start("play")
@@ -106,6 +106,7 @@ def main():
     elif not args.pretty_print:
         print(state)
 
+    directory.cleanup()
     if failed:
         exit(-1)
 

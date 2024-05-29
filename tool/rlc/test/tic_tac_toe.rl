@@ -6,15 +6,15 @@ import string
 import action
 
 ent Board:
-    Int[9] slots
+    BInt<0, 3>[9] slots
     Bool playerTurn
 
 
     fun get(Int x, Int y) -> Int:
-        return self.slots[x + (y*3)]
+        return self.slots[x + (y*3)].value
 
     fun set(Int x, Int y, Int val): 
-        self.slots[x + (y * 3)] = val
+        self.slots[x + (y * 3)].value = val
 
     fun full() -> Bool:
         let x = 0
@@ -56,53 +56,85 @@ ent Board:
     fun next_turn():
         self.playerTurn = !self.playerTurn
 
-act play() -> TicTacToe:
+act play() -> Game:
     frm board : Board
     frm score = 10
     while !board.full():
-        act mark(Int x, Int y) {
-            x < 3,
-            x >= 0,
-            y < 3,
-            y >= 0,
-            board.get(x, y) == 0
+        act mark(BInt<0, 3> x, BInt<0, 3> y) {
+            board.get(x.value, y.value) == 0
         }
 
         score = score - 1
-        board.set(x, y, board.current_player())
+        board.set(x.value, y.value, board.current_player())
 
         if board.three_in_a_line_player(board.current_player()):
             return
 
         board.next_turn()
 
+fun get_current_player(Game g) -> Int:
+    if g.is_done():
+        return -4
+    return g.board.current_player() - 1
+
+fun score(Game g, Int player_id) -> Float:
+    if !g.is_done(): 
+        return 0.0 
+    if g.board.three_in_a_line_player(1) and player_id == 0:
+        return 1.0
+    if g.board.three_in_a_line_player(2) and player_id == 1:
+        return 1.0
+    if g.board.three_in_a_line_player(1) and player_id == 1:
+        return -1.0
+    if g.board.three_in_a_line_player(2) and player_id == 0:
+        return -1.0
+    return 0.0
+
+fun get_num_players() -> Int:
+    return 2
+
+fun max_game_lenght() -> Int:
+    return 100
+
 fun gen_printer_parser():
-    let state : TicTacToe
-    let any_action :  AnyTicTacToeAction
+    let state : Game
+    let any_action :  AnyGameAction
     gen_python_methods(state, any_action)
 
 fun fuzz(Vector<Byte> input):
     if input.size() == 0:
         return
     let state = play()
-    let action : AnyTicTacToeAction 
+    let action : AnyGameAction 
     parse_and_execute(state, action, input) 
 
 fun main() -> Int:
     let game = play()
-    game.mark(0, 0)
+    let x : BInt<0, 3>
+    let y : BInt<0, 3>
+    x.value = 0
+    y.value = 0
+    game.mark(x, y)
     if game.board.full():
         return 1
-    game.mark(1, 0)
+    x.value = 1
+    y.value = 0
+    game.mark(x, y)
     if game.board.full():
         return 2
-    game.mark(1, 1)
+    x.value = 1
+    y.value = 1
+    game.mark(x, y)
     if game.board.full():
         return 3
-    game.mark(2, 0)
+    x.value = 2
+    y.value = 0
+    game.mark(x, y)
     if game.board.full():
         return 4
-    game.mark(2, 2)
+    x.value = 2
+    y.value = 2
+    game.mark(x, y)
     if game.board.full():
         return 5
     if game.board.three_in_a_line_player(1):

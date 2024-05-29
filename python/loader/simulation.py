@@ -216,22 +216,22 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
     for arg in rlc_includes:
         include_args.append("-i")
         include_args.append(arg)
-    with TemporaryDirectory() as tmp_dir:
-        assert (
-            run(
-                [
-                    rlc_compiler,
-                    source,
-                    "--python",
-                    "-o",
-                    "{}/wrapper.py".format(tmp_dir),
-                ]
-                + include_args
-            ).returncode
-            == 0
-        )
-        args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir)]
-        if rlc_runtime_lib != "":
-            args = args + ["--runtime-lib", rlc_runtime_lib]
-        assert run(args + include_args).returncode == 0
-        return Simulation(tmp_dir + "/wrapper.py")
+    tmp_dir = TemporaryDirectory()
+    assert (
+        run(
+            [
+                rlc_compiler,
+                source,
+                "--python",
+                "-o",
+                "{}/wrapper.py".format(tmp_dir.name),
+            ]
+            + include_args
+        ).returncode
+        == 0
+    )
+    args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir.name)]
+    if rlc_runtime_lib != "":
+        args = args + ["--runtime-lib", rlc_runtime_lib]
+    assert run(args + include_args).returncode == 0
+    return Simulation(tmp_dir.name + "/wrapper.py"), tmp_dir.name + "/wrapper.py", tmp_dir

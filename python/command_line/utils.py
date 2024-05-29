@@ -86,7 +86,7 @@ def load_simulation_from_args(args):
     )
 
     sim = (
-        Simulation(args.wrapper)
+        (Simulation(args.wrapper), args.wrapper, None)
         if args.wrapper != ""
         else compile(args.source, args.rlc, args.include, args.runtime)
     )

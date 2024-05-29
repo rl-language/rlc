@@ -40,17 +40,19 @@ extra_files_lib = package_files(['./lib/'], "lib")
 
 setup(
     name='rl_language',
-    version='0.1.0',
+    version='0.1.1',
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
     include_package_data=True,
-    data_files=extra_files_bin + extra_files_lib + [("./bin/impl", ["./test.py", "./action.py"])],
+    data_files=extra_files_bin + extra_files_lib + [("./bin/impl", ["./test.py", "./action.py", "./learn.py", "./play.py"])],
     install_requires=read_requirements("../requirements.txt"),
     entry_points={
         'console_scripts': [
-            "test=impl.test:main",
-            "action=impl.action:main",
+            "rlc-test=impl.test:main",
+            "rlc-action=impl.action:main",
+            "rlc-learn=impl.learn:main",
+            "rlc-play=impl.play:main",
         ],
     },
     classifiers=[
@@ -62,6 +64,7 @@ setup(
         'Intended Audience :: Developers',
         'Environment :: Console',
         'Natural Language :: English',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
@@ -69,7 +72,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Utilities',
     ],
-    python_requires='>=3.9',
+    python_requires='>=3.8',
 )
 
 shutil.rmtree("bin/")

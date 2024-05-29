@@ -1,4 +1,5 @@
 # RUN: python %pyscript/test.py --source %s -i %stdlib --rlc rlc
+# RUN: python %pyscript/learn.py --source %s -i %stdlib --rlc rlc --total-steps=1
 
 # implementation of https://en.wikipedia.org/wiki/Pebble_game
 import bounded_arg

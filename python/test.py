@@ -10,7 +10,6 @@
 import argparse
 import time
 from loader import Simulation, compile
-from solvers import find_end
 from shutil import which
 from command_line import load_simulation_from_args, make_rlc_argparse
 
@@ -20,7 +19,7 @@ def main():
         "test", description="run all functions which their name starts with test"
     )
     args = parser.parse_args()
-    sim = load_simulation_from_args(args)
+    (sim, wrapper_path, directory) = load_simulation_from_args(args)
 
     failed = []
     for (name, overloads) in sim.module.wrappers.items():
@@ -43,6 +42,7 @@ def main():
                     failed.append(name)
                 print("")
 
+    directory.cleanup()
     if len(failed) != 0:
         print("\nFAILURES:")
     for failure in failed:
