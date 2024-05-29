@@ -91,7 +91,7 @@ def main():
         help="path where to write the output",
         default="",
     )
-    parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
+    parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--league-play", action="store_true", default=False)
     parser.add_argument("--total-train-iterations", default=100000000, type=int)
     parser.add_argument("--sample-space", default=1, type=int)
@@ -105,9 +105,10 @@ def main():
         wrapper_path,
         (
             1
-            if args.no_one_agent_per_player
+            if args.true_self_play
             else sim.module.functions.get_num_players().value
         ),
+        league_play=args.league_play
     )
     tune.register_env(
         "rlc_env", lambda config: RLCEnvironment(wrapper_path=wrapper_path)

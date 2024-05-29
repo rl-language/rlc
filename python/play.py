@@ -11,7 +11,7 @@ from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig, PPO
 from ray.rllib.algorithms.ppo import PPOTorchPolicy
 from ray import train
-from ml.raylib.module_config import agent_to_module_mapping_fn, get_config
+from ml.raylib.module_config import  get_config
 
 from command_line import load_simulation_from_args, make_rlc_argparse
 

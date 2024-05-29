@@ -17,12 +17,12 @@ fun main() -> Int:
     while x != 0:
         vec.append(0.0)
         x = x - 1
-    to_observation_tensor(v, vec)
+    to_observation_tensor(v, 0, vec)
     if vec.size() != 10:
         return 1
     if vec.get(1) != 1.0:
-        return 1
+        return 2
     if vec.get(3) != 1.0:
-        return 1
+        return 3
 
     return 0

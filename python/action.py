@@ -37,7 +37,6 @@ def main():
     parser.add_argument(
         "action_file",
         type=str,
-        nargs="?",
         help="path to file containing a action for each line",
         default="-",
     )

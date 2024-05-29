@@ -37,12 +37,9 @@ def load_dataset(path):
 def make_rlc_argparse(name, description):
     parser = argparse.ArgumentParser(name, description=description)
     parser.add_argument(
-        "--wrapper",
-        "-w",
+        "source_file",
         type=str,
-        nargs="?",
-        help="path to wrapper to load",
-        default="",
+        help="path to .rl source file, or to a python wrapper obtained with rlc --python",
     )
     parser.add_argument(
         "--include",
@@ -59,13 +56,6 @@ def make_rlc_argparse(name, description):
         nargs="?",
         help="path to rlc compiler",
         default="rlc",
-    )
-    parser.add_argument(
-        "--source",
-        "-rl",
-        type=str,
-        nargs="?",
-        help="path to .rl source file",
     )
     parser.add_argument(
         "--runtime",
@@ -85,9 +75,7 @@ def load_simulation_from_args(args):
         args.rlc
     )
 
-    sim = (
-        (Simulation(args.wrapper), args.wrapper, None)
-        if args.wrapper != ""
-        else compile(args.source, args.rlc, args.include, args.runtime)
-    )
-    return sim
+    if args.source_file.endswith(".py"):
+      return Simulation(args.source_file), args.source_file, None
+    else:
+      return compile(args.source_file, args.rlc, args.include, args.runtime)

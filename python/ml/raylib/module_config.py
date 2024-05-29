@@ -74,7 +74,7 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
                 ),
             ),
         )
-        .training(lr=2e-5)
+        .training(lr=2e-4)
         .evaluation(
             evaluation_interval=20,
             evaluation_parallel_to_training=True,
@@ -165,7 +165,19 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
         "entropy_coeff": 0.03,
     }
 
+    initial3 = {
+        "lambda": 0.99,
+        "clip_param": 0.010,
+        "lr_schedule": [[0, 2e-5], [1e6, 1e-8]],
+        "num_sgd_iter": 2,
+        "sgd_minibatch_size": 2000,
+        "train_batch_size": 5000,
+        # "kl_coeff": 0.23,
+        "kl_coeff": 0.0,
+        "entropy_coeff": 0.0015,
+    }
+
     hyperopt_search = HyperOptSearch(
-        space, "episode_reward_mean", mode="max", points_to_evaluate=[initial2]
+        space, "episode_reward_mean", mode="max", points_to_evaluate=[initial3]
     )
     return ppo_config, hyperopt_search

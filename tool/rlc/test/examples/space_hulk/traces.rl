@@ -1,4 +1,4 @@
-# RUN: python %pyscript/action.py --source %S/main.rl -i %stdlib --rlc rlc %s
+# RUN: python %pyscript/action.py %S/main.rl -i %stdlib --rlc rlc %s
 
 # move right
 place_blip {index: 0}

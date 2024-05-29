@@ -190,20 +190,19 @@ class RLCEnvironment(MultiAgentEnv):
 
     def _current_state(self):
 
-        serialized = self.wrapper.VectorTdoubleT()
-        self.wrapper.functions.resize(serialized, self.state_size)
-        # seriazed2 = wrapper.functions.as_byte_vector(self.state)
-        self.wrapper.functions.to_observation_tensor(self.state, serialized)
+        to_return = {}
+        for i in range(self.num_agents):
+          serialized = self.wrapper.VectorTdoubleT()
+          self.wrapper.functions.resize(serialized, self.state_size)
+          self.wrapper.functions.to_observation_tensor(self.state, i, serialized)
 
-        vec = np.rint(
+          vec = np.rint(
             np.ctypeslib.as_array(
                 self.wrapper.functions.get(serialized, 0), shape=(self.state_size,)
             )
-        ).astype(int)
-        return {
-            i: {
+          ).astype(int)
+          to_return[i] = {
                 "observations": vec,
                 "action_mask": self.legal_actions,
-            }
-            for i in range(self.num_agents)
-        }
+          }
+        return to_return

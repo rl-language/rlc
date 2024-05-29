@@ -181,7 +181,6 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 ### Roadmap
 
 #### for demo
-* machine learning serialization should take the player id as well
 * enum max and name
 
 #### machine learning

@@ -23,7 +23,7 @@ ent<T> Hidden:
     fun assign(T content):
         self.value = content
 
-fun<T> write_in_observation_tensor(Hidden<T> obj, Vector<Float> output, Int index):
+fun<T> write_in_observation_tensor(Hidden<T> obj, Int observer_id, Vector<Float> output, Int index):
     return
 
 fun<T> size_as_observation_tensor(Hidden<T> obj) -> Int:
@@ -40,4 +40,22 @@ fun<T> append_to_string(Hidden<T> to_add, String output):
 
 fun<T> parse_string(Hidden<T> to_add, String input, Int index) -> Bool:
     return from_string(to_add.value, input, index) 
+
+
+ent<T> HiddenInformation:
+    T value 
+    Int owner
+
+    fun assign(T content):
+        self.value = content
+
+fun<T> write_in_observation_tensor(HiddenInformation<T> obj, Int observer_id, Vector<Float> output, Int index):
+    if observer_id == obj.owner:
+        to_observation_tensor(obj.value, observer_id, output, index)
+
+fun<T> size_as_observation_tensor(HiddenInformation<T> obj) -> Int:
+    return observation_tensor_size(obj.value)
+
+
+
 

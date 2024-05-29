@@ -1,4 +1,4 @@
-# RUN: python %pyscript/test.py --source %s -i %stdlib --rlc rlc 
+# RUN: python %pyscript/test.py %s -i %stdlib --rlc rlc 
 
 import unit 
 import bounded_arg
@@ -356,7 +356,7 @@ fun make_board() -> Board:
           y = y - 1
           board.map[y][x] = copy[y][x]
 
-  board.command_points.content = 0
+  board.command_points.value = 0
   board.command_points.owner = 1
   board.units.append(make_marine(3, 13))
   board.units.append(make_marine(5, 13))

@@ -1,8 +1,8 @@
 # RUN: rlc %s --type-checked -i %stdlib
 
-import collections.hidden_information
 import direction 
 import math.numeric
+import machine_learning
 import none
 import bounded_arg
 
@@ -152,7 +152,7 @@ ent Unit:
 fun make_blip(Int blip_count, Int x, Int y) -> Unit:
   let unit : Unit
   unit.kind = UnitKind::blip
-  unit.genestealer_count.content = blip_count
+  unit.genestealer_count.value = blip_count
   unit.genestealer_count.owner = 2
   unit.x = x
   unit.y = y

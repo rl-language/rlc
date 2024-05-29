@@ -81,13 +81,13 @@ fun score(Game g, Int player_id) -> Float:
     if !g.is_done(): 
         return 0.0 
     if g.board.three_in_a_line_player(1) and player_id == 0:
-        return 10.0
+        return 0.01
     if g.board.three_in_a_line_player(2) and player_id == 1:
-        return 10.0
+        return 0.01
     if g.board.three_in_a_line_player(1) and player_id == 1:
-        return -10.0
+        return -0.01
     if g.board.three_in_a_line_player(2) and player_id == 0:
-        return -10.0
+        return -0.01
     return 0.0
 
 fun get_num_players() -> Int:

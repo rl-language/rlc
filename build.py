@@ -279,7 +279,6 @@ def main():
         rlc_dir,
         python,
         "python/solve.py",
-        "--source",
         "./tool/rlc/test/tic_tac_toe.rl",
         "--rlc",
         "{}/install/bin/rlc".format(rlc_build_dir),

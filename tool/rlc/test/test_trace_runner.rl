@@ -1,5 +1,5 @@
 # RUN: split-file %s %t 
-# RUN: python %pyscript/action.py --source=%t/source.rl %t/trace.txt -i %stdlib -ii | FileCheck %s
+# RUN: python %pyscript/action.py %t/source.rl %t/trace.txt -i %stdlib -ii | FileCheck %s
 
 # CHECK: asd {x: 4} 
 # CHECK-NEXT: asd2 {y: {field: 5}}

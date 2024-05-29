@@ -229,7 +229,7 @@ fun gen_helper_methods():
 Ok, now we just need to run the learning algorithm, from the terminal where you run `rlc`, run instead:
 
 ```
-rlc-learn --source example.rl -o network
+rlc-learn example.rl -o network
 ```
 
 You will see the command printing plenty of informations
@@ -239,7 +239,7 @@ You will see the command printing plenty of informations
 Now that the network has learned we can see how it plays. You can run the following commands to generate and see a game
 
 ```bash
-rlc-play --source example.rl network -o trace.txt
+rlc-play example.rl network -o trace.txt
 cat trace.txt
 ```
 
@@ -275,9 +275,9 @@ What did we do here? We removed the `frm` keyword from the two `action statemets
 Ok, let us run again the training step as before.
 
 ```
-rlc-learn --source example.rl -o network
+rlc-learn example.rl -o network
 
-rlc-play --source example.rl network -o trace.txt
+rlc-play example.rl network -o trace.txt
 cat trace.txt
 ```
 

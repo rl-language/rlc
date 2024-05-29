@@ -98,7 +98,7 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     parse_action_optimized(x, serialized, 0)
     enumerate(x).size()
     let v : Vector<Float>
-    to_observation_tensor(state, v)
+    to_observation_tensor(state, 0, v)
     print(variant)
     print(state)
     v.resize(10)
@@ -161,7 +161,7 @@ fun<T> enumerate(T obj) -> Vector<T>:
     return to_return
 
 trait<T> Tensorable:
-    fun write_in_observation_tensor(T obj, Vector<Float> output, Int counter) 
+    fun write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter) 
     fun size_as_observation_tensor(T obj) -> Int
 
 fun write_in_observation_tensor(Int value, Int min, Int max, Vector<Float> output, Int index):
@@ -175,19 +175,19 @@ fun write_in_observation_tensor(Int value, Int min, Int max, Vector<Float> outpu
         counter = counter + 1
 
 
-fun write_in_observation_tensor(Int obj, Vector<Float> output, Int index) :
+fun write_in_observation_tensor(Int obj, Int observer_id, Vector<Float> output, Int index) :
     return
 
 fun size_as_observation_tensor(Int obj) -> Int :
     return 0
 
-fun write_in_observation_tensor(Float obj, Vector<Float> output, Int index) {false}:
+fun write_in_observation_tensor(Float obj, Int observer_id, Vector<Float> output, Int index) {false}:
     return
 
 fun size_as_observation_tensor(Float obj) -> Int {false}:
     return 0
 
-fun write_in_observation_tensor(Bool obj, Vector<Float> output, Int index):
+fun write_in_observation_tensor(Bool obj, Int observer_id, Vector<Float> output, Int index):
     if obj:
         output.get(index) = 1.0
     else:
@@ -197,31 +197,31 @@ fun write_in_observation_tensor(Bool obj, Vector<Float> output, Int index):
 fun size_as_observation_tensor(Bool obj) -> Int:
     return 1
 
-fun write_in_observation_tensor(Byte obj, Vector<Float> output, Int index):
+fun write_in_observation_tensor(Byte obj, Int observer_id, Vector<Float> output, Int index):
     write_in_observation_tensor(int(obj), -128, 127, output, index)
 
 fun size_as_observation_tensor(Byte obj) -> Int:
     return 256
 
-fun<T, Int X> write_in_observation_tensor(T[X] obj, Vector<Float> output, Int index):
+fun<T, Int X> write_in_observation_tensor(T[X] obj, Int observer_id, Vector<Float> output, Int index):
     let counter = 0
     while counter < X:
-        _to_observation_tensor(obj[counter], output, index)
+        _to_observation_tensor(obj[counter], observer_id, output, index)
         counter = counter + 1
 
 fun<T, Int X> size_as_observation_tensor(T[X] obj) -> Int:
     return _size_as_observation_tensor_impl(obj[0]) * X
 
-fun<T> write_in_observation_tensor(Vector<T> obj, Vector<Float> output, Int index):
+fun<T> write_in_observation_tensor(Vector<T> obj, Int observer_id, Vector<Float> output, Int index):
     let counter = 0
     while counter < obj.size():
-        _to_observation_tensor(obj.get(counter), output, index)
+        _to_observation_tensor(obj.get(counter), observer_id, output, index)
         counter = counter + 1
 
 fun<T> size_as_observation_tensor(Vector<T> obj) -> Int:
     return _size_as_observation_tensor_impl(obj.get(0)) * obj.size()
 
-fun<Int min, Int max> write_in_observation_tensor(BInt<min, max> obj, Vector<Float> output, Int index):
+fun<Int min, Int max> write_in_observation_tensor(BInt<min, max> obj, Int observer_id, Vector<Float> output, Int index):
     write_in_observation_tensor(obj.value, min, max, output, index)
 
 fun<Int min, Int max> size_as_observation_tensor(BInt<min, max> obj) -> Int:
@@ -246,9 +246,9 @@ fun<T> _size_as_observation_tensor_impl(T obj) -> Int:
             to_return = to_return + _size_as_observation_tensor_impl(field)
         return to_return
 
-fun<T> _to_observation_tensor(T obj, Vector<Float> output, Int index):
+fun<T> _to_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int index):
     if obj is Tensorable:
-        obj.write_in_observation_tensor(output, index)
+        obj.write_in_observation_tensor(observer_id, output, index)
         return
     else if obj is Alternative:
         let alternative_count = 0
@@ -261,7 +261,7 @@ fun<T> _to_observation_tensor(T obj, Vector<Float> output, Int index):
             if obj is Type:
                 let zeros_to_add = largest_field - _size_as_observation_tensor_impl(obj)
                 write_in_observation_tensor(current, 0, alternative_count, output, index)
-                _to_observation_tensor(field, output, index)
+                _to_observation_tensor(field, observer_id, output, index)
                 while zeros_to_add != 0:
                     zeros_to_add = zeros_to_add - 1
                     output.get(index) = 0.0
@@ -270,18 +270,21 @@ fun<T> _to_observation_tensor(T obj, Vector<Float> output, Int index):
             current = current + 1
     else:
         for field of obj:
-            _to_observation_tensor(field, output, index)
+            _to_observation_tensor(field, observer_id, output, index)
 
-fun<T> to_observation_tensor(T obj, Vector<Float> output):
-    _to_observation_tensor(obj, output, 0)
+fun<T> to_observation_tensor(T obj, Int observer_id, Vector<Float> output):
+    _to_observation_tensor(obj, observer_id, output, 0)
 
-fun<T> to_observation_tensor(T obj) -> Vector<Float>:
+fun<T> to_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int written_bytes):
+    _to_observation_tensor(obj, observer_id, output, written_bytes)
+
+fun<T> to_observation_tensor(T obj, Int observer_id) -> Vector<Float>:
     let output : Vector<Float> 
     let x = _size_as_observation_tensor_impl(obj)
     while x != 0:
         x = x - 1
         output.append(0.0)
-    _to_observation_tensor(obj, output, 0)
+    _to_observation_tensor(obj, observer_id, output, 0)
     return output
 
 fun<T> observation_tensor_size(T obj) -> Int:
