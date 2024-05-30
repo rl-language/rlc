@@ -239,7 +239,16 @@ optional<Token> Lexer::eatSpaces()
 	{
 		eatChar();
 		indent++;
+
+		// if we were eating spaces from the start of the line, and it is a line of
+		// spaces, ignore it
+		if (*in == '\n' and beginOfLine)
+		{
+			eatChar();
+			indent = 0;
+		}
 	}
+
 	if (!beginOfLine)
 		return nullopt;
 
