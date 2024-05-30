@@ -158,7 +158,7 @@ source environment.sh
 
 To check if everything works correctly run the following command.
 ```
-python python/solve.py --source ./tool/rlc/test/tic_tac_toe.rl
+python python/solve.py ./tool/rlc/test/tic_tac_toe.rl
 ```
 If it does not crashes, then you are good to go.
 
@@ -182,10 +182,13 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 
 #### for demo
 * enum max and name
+* bounded size vectors
 
 #### machine learning
-* figure out how to make transformers fast [Blocked by them]
 * get this https://github.com/ray-project/ray/pull/45057  merged [Blocked by them]
+* update to newer ray that does not leak [Blocked by them]
+* update and pin to the newer ray that works on windows and does not have trivial issues [Blocked by them]
+* figure out how to make transformers fast [Blocked by them]
 * figure out how to not duplicate the state at every action and thus allow true self play [Blocked by them]
 
 #### language

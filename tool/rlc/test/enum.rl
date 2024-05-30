@@ -8,4 +8,6 @@ enum Asd:
 fun main() -> Int:
 	let asd : Asd
 	asd = Asd::second
+    if max(asd) != 1:
+        return -2
 	return asd.value - 1

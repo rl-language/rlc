@@ -48,13 +48,6 @@ enum Direction:
   fun is_move_sideways(Direction v2) -> Bool:
     return !self.is_move_backward(v2) and !self.is_move_forward(v2)
 
-
-fun write_in_observation_tensor(Direction obj, Vector<Float> output, Int index) :
-    write_in_observation_tensor(obj.value, 0, 4, output, index)
-
-fun size_as_observation_tensor(Direction obj) -> Int :
-    return 4
-
 fun test_direction_to_x() -> Bool:
     if Direction::right.to_x() != 1:
         return false

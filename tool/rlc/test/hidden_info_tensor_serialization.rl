@@ -7,6 +7,10 @@ import machine_learning
 fun main() -> Int:
     let vec : Vector<Float>
     let hidden : HiddenInformation<Bool>
+    let hidden2 : Hidden<Bool>
+
+    if observation_tensor_size(hidden2) != 0:
+        return 4
 
     hidden.owner = 1
     hidden.value = true

@@ -13,12 +13,6 @@ enum Faction:
   fun equal(Faction r) -> Bool:
     return self.value == r.value
 
-fun write_in_observation_tensor(Faction obj, Vector<Float> output, Int index) :
-    write_in_observation_tensor(obj.value, 0, 2, output, index)
-
-fun size_as_observation_tensor(Faction obj) -> Int :
-    return 2
-
 enum UnitKind:
   genestealer
   marine
@@ -36,12 +30,6 @@ enum UnitKind:
     if self.value == UnitKind::marine.value:
       return 4
     return 6
-
-fun write_in_observation_tensor(UnitKind obj, Vector<Float> output, Int index) :
-    write_in_observation_tensor(obj.value, 0, 3, output, index)
-
-fun size_as_observation_tensor(UnitKind obj) -> Int :
-    return 3
 
 ent Unit:
   Bool is_overwatching

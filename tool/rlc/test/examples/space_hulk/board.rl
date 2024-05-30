@@ -5,13 +5,13 @@ import bounded_arg
 import collections.vector
 import machine_learning
 
-using UnitArgType = BInt<0, 30>
+using UnitArgType = BInt<0, 27>
 
 
 ent Board:
   BInt<0, 5>[29][28] map
   HiddenInformation<BInt<0, 5>> command_points
-  Vector<Unit> units
+  BoundedVector<Unit, 27> units
   Bool is_done
   BInt<0, 3> current_player
   BInt<0, 16> turn_count

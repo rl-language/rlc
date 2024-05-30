@@ -119,3 +119,48 @@ ent<T> Vector:
 
     fun size() -> Int:
         return self._size
+
+ent<T, Int max_size> BoundedVector:
+    Vector<T> _data
+
+    fun assign(BoundedVector<T, max_size> other):
+        self._data = other._data
+
+    fun resize(Int new_size):
+        if new_size > max_size:
+            new_size = max_size
+        self._data.resize(new_size)
+
+    fun max_size() -> Int:
+        return max_size
+
+    fun back() -> ref T:
+        return self._data.back()
+
+    fun get(Int index) -> ref T:
+        return self._data.get(index)
+
+    fun set(Int index, T value):
+        self._data.set(index, value)
+
+    fun append(T value): 
+        if max_size > self.size():
+          self._data.append(value)
+
+    fun empty() -> Bool:
+        return self._data.empty()
+
+    fun clear():
+        self._data.clear()
+
+    fun pop() -> T:
+        return self._data.pop()
+
+    fun drop_back(Int quantity):
+        self._data.drop_back(quantity)
+
+    fun erase(Int index):
+        self._data.erase(index)
+
+    fun size() -> Int:
+        return self._data.size()

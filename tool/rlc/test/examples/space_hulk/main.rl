@@ -203,7 +203,7 @@ fun main() -> Int:
   state.quit()
   state.place_blip(spawn_point)
   state.place_blip(spawn_point)
-  let id : BInt<0, 30>
+  let id : BInt<0, 27>
   id.value = 6
   print(score(state, 0))
   state.begin_move(id)

@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 import os
 import shutil
+import subprocess
 
 
 def read_requirements(filename):
@@ -16,6 +17,12 @@ def package_files(directories, prefix):
                 paths.append((path, [os.path.join(path, filename)]))
     return paths
 
+def get_commit_hash():
+    try:
+        commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('utf-8')
+    except subprocess.CalledProcessError:
+        commit_hash = 'unknown'
+    return commit_hash
 
 def copy_binaries(source_directory, destination_directory):
     if not os.path.exists(destination_directory):
@@ -44,7 +51,7 @@ extra_files_lib = package_files(["./lib/"], "lib")
 
 setup(
     name="rl_language",
-    version="0.1.2",
+    version="0.1.3",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
@@ -79,6 +86,7 @@ setup(
         "Topic :: Utilities",
     ],
     python_requires=">=3.8",
+    commit_hash=get_commit_hash()
 )
 
 shutil.rmtree("bin/")

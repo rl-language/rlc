@@ -38,10 +38,7 @@ class RLCEnvironment(MultiAgentEnv):
         action = self.wrapper.AnyGameAction()
         self.num_agents = self.wrapper.functions.get_num_players().value
         self._actions = self.wrapper.functions.enumerate(action)
-        self.state_size = (
-            self.wrapper.functions.observation_tensor_size(self.wrapper.Game()).value
-            * 2
-        )
+        self.state_size = self.wrapper.functions.observation_tensor_size(self.wrapper.Game()).value
         self.actions = []
         for i in range(self.wrapper.functions.size(self._actions).value):
             self.actions.append(self.wrapper.functions.get(self._actions, i).contents)

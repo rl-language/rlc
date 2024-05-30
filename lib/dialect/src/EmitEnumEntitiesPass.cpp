@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,115 @@ namespace mlir::rlc
 {
 #define GEN_PASS_DEF_EMITENUMENTITIESPASS
 #include "rlc/dialect/Passes.inc"
+
+	static void emitAsIntFunction(
+			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+	{
+		rewriter.setInsertionPoint(enumOp);
+		auto argType =
+				mlir::rlc::ScalarUseType::get(rewriter.getContext(), enumOp.getName());
+		auto returnType = mlir::rlc::IntegerType::getInt64(rewriter.getContext());
+		auto argName = "self";
+
+		auto f = rewriter.create<mlir::rlc::FunctionOp>(
+				enumOp.getLoc(),
+				"as_int",
+				mlir::FunctionType::get(
+						rewriter.getContext(), { argType }, { returnType }),
+				rewriter.getStrArrayAttr({ argName }),
+				false);
+
+		auto* bb = rewriter.createBlock(
+				&f.getBody(), f.getBody().begin(), { argType }, { enumOp.getLoc() });
+		rewriter.setInsertionPointToStart(bb);
+
+		auto returnStatement = rewriter.create<mlir::rlc::ReturnStatement>(
+				enumOp.getLoc(), returnType);
+		auto* bbReturn = rewriter.createBlock(
+				&returnStatement.getBody(), returnStatement.getBody().begin());
+		rewriter.setInsertionPointToStart(bbReturn);
+
+		auto trueOp = rewriter.create<mlir::rlc::UnresolvedMemberAccess>(
+				enumOp.getLoc(),
+				mlir::rlc::UnknownType::get(rewriter.getContext()),
+				f.getBody().front().getArgument(0),
+				"value");
+		rewriter.create<mlir::rlc::Yield>(
+				enumOp.getLoc(), mlir::ValueRange({ trueOp }));
+	}
+
+	static void emitMaxMemberFunction(
+			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+	{
+		rewriter.setInsertionPoint(enumOp);
+		auto argType =
+				mlir::rlc::ScalarUseType::get(rewriter.getContext(), enumOp.getName());
+		auto returnType = mlir::rlc::IntegerType::getInt64(rewriter.getContext());
+		auto argName = "self";
+
+		auto f = rewriter.create<mlir::rlc::FunctionOp>(
+				enumOp.getLoc(),
+				"max",
+				mlir::FunctionType::get(
+						rewriter.getContext(), { argType }, { returnType }),
+				rewriter.getStrArrayAttr({ argName }),
+				false);
+
+		auto* bb = rewriter.createBlock(
+				&f.getBody(), f.getBody().begin(), { argType }, { enumOp.getLoc() });
+		rewriter.setInsertionPointToStart(bb);
+
+		auto returnStatement = rewriter.create<mlir::rlc::ReturnStatement>(
+				enumOp.getLoc(), returnType);
+		auto* bbReturn = rewriter.createBlock(
+				&returnStatement.getBody(), returnStatement.getBody().begin());
+		rewriter.setInsertionPointToStart(bbReturn);
+
+		auto trueOp = rewriter.create<mlir::rlc::Constant>(
+				enumOp.getLoc(), int64_t(enumOp.getEnumNames().size() - 1));
+		rewriter.create<mlir::rlc::Yield>(
+				enumOp.getLoc(), mlir::ValueRange({ trueOp }));
+	}
+
+	static void emitIsEnumMemberFunction(
+			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+	{
+		rewriter.setInsertionPoint(enumOp);
+		auto argType =
+				mlir::rlc::ScalarUseType::get(rewriter.getContext(), enumOp.getName());
+		auto returnType = mlir::rlc::BoolType::get(rewriter.getContext());
+		auto argName = "self";
+
+		auto f = rewriter.create<mlir::rlc::FunctionOp>(
+				enumOp.getLoc(),
+				"is_enum",
+				mlir::FunctionType::get(
+						rewriter.getContext(), { argType }, { returnType }),
+				rewriter.getStrArrayAttr({ argName }),
+				false);
+
+		auto* bb = rewriter.createBlock(
+				&f.getBody(), f.getBody().begin(), { argType }, { enumOp.getLoc() });
+		rewriter.setInsertionPointToStart(bb);
+
+		auto returnStatement = rewriter.create<mlir::rlc::ReturnStatement>(
+				enumOp.getLoc(), returnType);
+		auto* bbReturn = rewriter.createBlock(
+				&returnStatement.getBody(), returnStatement.getBody().begin());
+		rewriter.setInsertionPointToStart(bbReturn);
+
+		auto trueOp = rewriter.create<mlir::rlc::Constant>(enumOp.getLoc(), true);
+		rewriter.create<mlir::rlc::Yield>(
+				enumOp.getLoc(), mlir::ValueRange({ trueOp }));
+	}
+
+	static void emitImplicitEnumFunctions(
+			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+	{
+		emitIsEnumMemberFunction(rewriter, enumOp);
+		emitMaxMemberFunction(rewriter, enumOp);
+		emitAsIntFunction(rewriter, enumOp);
+	}
 
 	struct EmitEnumEntitiesPass
 			: impl::EmitEnumEntitiesPassBase<EmitEnumEntitiesPass>
@@ -36,6 +145,8 @@ namespace mlir::rlc
 				ops.push_back(declaration);
 
 			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
+			llvm::DenseMap<mlir::rlc::EnumDeclarationOp, mlir::rlc::EntityType>
+					enumsToType;
 			for (auto declaration : ops)
 			{
 				rewriter.setInsertionPoint(declaration);
@@ -50,6 +161,9 @@ namespace mlir::rlc
 				op.getBody().takeBody(declaration.getBody());
 				enums[declaration.getName()] = declaration;
 			}
+
+			for (auto declaration : ops)
+				emitImplicitEnumFunctions(rewriter, declaration);
 
 			llvm::SmallVector<mlir::rlc::UncheckedEnumUse, 2> uses;
 			getOperation().walk(

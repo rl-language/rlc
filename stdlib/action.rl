@@ -164,6 +164,11 @@ trait<T> Tensorable:
     fun write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter) 
     fun size_as_observation_tensor(T obj) -> Int
 
+trait<T> Enum:
+    fun max(T obj) -> Int
+    fun is_enum(T obj) -> Bool 
+    fun as_int(T obj) -> Int
+
 fun write_in_observation_tensor(Int value, Int min, Int max, Vector<Float> output, Int index):
     let counter = min
     while counter < max:
@@ -221,6 +226,15 @@ fun<T> write_in_observation_tensor(Vector<T> obj, Int observer_id, Vector<Float>
 fun<T> size_as_observation_tensor(Vector<T> obj) -> Int:
     return _size_as_observation_tensor_impl(obj.get(0)) * obj.size()
 
+fun<T, Int max_size> write_in_observation_tensor(BoundedVector<T, max_size> obj, Int observer_id, Vector<Float> output, Int index):
+    let counter = 0
+    while counter < obj.size():
+        _to_observation_tensor(obj.get(counter), observer_id, output, index)
+        counter = counter + 1
+
+fun<T, Int max_size> size_as_observation_tensor(BoundedVector<T, max_size> obj) -> Int:
+    return _size_as_observation_tensor_impl(obj.get(0)) * max_size
+
 fun<Int min, Int max> write_in_observation_tensor(BInt<min, max> obj, Int observer_id, Vector<Float> output, Int index):
     write_in_observation_tensor(obj.value, min, max, output, index)
 
@@ -230,6 +244,8 @@ fun<Int min, Int max> size_as_observation_tensor(BInt<min, max> obj) -> Int:
 fun<T> _size_as_observation_tensor_impl(T obj) -> Int:
     if obj is Tensorable:
         return obj.size_as_observation_tensor()
+    else if obj is Enum:
+        return obj.max() + 1
     else if obj is Alternative:
         let alternative_count = 0
         for field of obj:
@@ -249,6 +265,9 @@ fun<T> _size_as_observation_tensor_impl(T obj) -> Int:
 fun<T> _to_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int index):
     if obj is Tensorable:
         obj.write_in_observation_tensor(observer_id, output, index)
+        return
+    else if obj is Enum:
+        write_in_observation_tensor(obj.as_int(), 0, obj.max() + 1, output, index)
         return
     else if obj is Alternative:
         let alternative_count = 0
