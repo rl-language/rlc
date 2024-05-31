@@ -180,10 +180,6 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 
 ### Roadmap
 
-#### for demo
-* enum max and name
-* bounded size vectors
-
 #### machine learning
 * get this https://github.com/ray-project/ray/pull/45057  merged [Blocked by them]
 * update to newer ray that does not leak [Blocked by them]

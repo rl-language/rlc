@@ -51,7 +51,7 @@ extra_files_lib = package_files(["./lib/"], "lib")
 
 setup(
     name="rl_language",
-    version="0.1.3",
+    version="0.1.6",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
