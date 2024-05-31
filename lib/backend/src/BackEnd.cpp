@@ -285,8 +285,8 @@ static int linkLibraries(
 	if (!maybeRealPath)
 	{
 		llvm::consumeError(maybeRealPath.takeError());
-		llvm::errs() << "could not find clang, please install it and make it "
-										"available in path";
+		llvm::errs() << "could not find clang, install it or specify it which to "
+										"use --clang \n";
 		return -1;
 	}
 
