@@ -278,8 +278,20 @@ static int linkLibraries(
 		const std::vector<std::string> &rpaths,
 		bool macOS)
 {
-	auto realPath = llvm::cantFail(
-			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath)));
+	auto failedToFindClang = false;
+	auto maybeRealPath =
+			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath));
+
+	if (!maybeRealPath)
+	{
+		llvm::consumeError(maybeRealPath.takeError());
+		llvm::errs() << "could not find clang, please install it and make it "
+										"available in path";
+		return -1;
+	}
+
+	auto realPath = *maybeRealPath;
+
 	std::string Errors;
 	llvm::SmallVector<std::string, 4> argSource;
 	argSource.push_back("clang");
