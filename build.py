@@ -66,11 +66,8 @@ def build_rlc(
         "-DCMAKE_BUILD_WITH_INSTALL_RPATH={}".format("OFF" if build_shared else "ON"),
         "-DHAVE_STD_REGEX=ON",
         "-DRUN_HAVE_STD_REGEX=1",
-<<<<<<< Updated upstream
-        "-DPython_EXECUTABLE:FILEPATH={}".format(python_path)
-=======
+        "-DPython_EXECUTABLE:FILEPATH={}".format(python_path),
         "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" else "",
->>>>>>> Stashed changes
     )
 
 
@@ -261,7 +258,7 @@ def main():
         build_type="Debug",
         llvm_install_dir=llvm_dir,
         clang_path=f"{llvm_install_release_dir}/bin/clang",
-        python_path=python 
+        python_path=python
     )
     install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
 
@@ -274,7 +271,7 @@ def main():
         build_type="Release",
         llvm_install_dir=llvm_install_release_dir,
         clang_path=f"{llvm_install_release_dir}/bin/clang",
-        python_path=python 
+        python_path=python
 
     )
     install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=True)
