@@ -170,7 +170,9 @@ namespace mlir::rlc
 					[&](mlir::rlc::UncheckedEnumUse op) { uses.push_back(op); });
 
 			for (auto use : uses)
-			{
+			{	
+
+				
 				rewriter.setInsertionPoint(use);
 				if (enums.count(use.getEnumName()) == 0)
 				{
@@ -178,11 +180,13 @@ namespace mlir::rlc
 					signalPassFailure();
 					return;
 				}
+				
 				auto enumDeclaration = enums[use.getEnumName()];
 
 				bool failed = true;
 				for (size_t i = 0; i != enumDeclaration.getEnumNames().size(); i++)
-				{
+				{	
+					
 					if (enumDeclaration.getEnumNames()[i].cast<mlir::StringAttr>() !=
 							use.getEnumValue())
 						continue;
@@ -192,6 +196,7 @@ namespace mlir::rlc
 							getOperation().getContext(), use.getEnumName(), {});
 					rewriter.replaceOpWithNewOp<mlir::rlc::EnumUse>(
 							use, type, rewriter.getI64IntegerAttr(i));
+					break;
 				}
 				if (failed)
 				{
