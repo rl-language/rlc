@@ -715,7 +715,7 @@ llvm::Expected<std::pair<std::string, mlir::Type>> Parser::entityField()
 }
 
 /**
- * EntityDeclaration : Ent[templateArguments] Identifier Colons Newline Indent
+ * EntityDeclaration : Ent[templateArguments] Identifier Colons Newline+ Indent
  * (entityField Newline | functionDefinition)* Deindent
  */
 llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
@@ -736,6 +736,9 @@ llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	EXPECT(Token::Indent);
+	while (accept(Token::Newline))
+	{
+	}
 	SmallVector<mlir::Type, 3> fieldTypes;
 	SmallVector<mlir::Attribute, 3> fieldNames;
 

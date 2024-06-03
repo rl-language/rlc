@@ -78,14 +78,14 @@ act odd_and_evens() -> Game:
 
 # What is going on here? In this `action procedure` we are expressing control flow, as well 
 # as declaring global functions that can be executed. 
-# Every time the control flow reaches an action statement (lines 56, 61, and 66),  the 
+# Every time the control flow reaches an action statement (lines 60, 65, and 70),  the 
 # control flow stops and will resume only when the action we have just reached is invoked.
 
 # Furthermore, as shown by the vscode autocomplete mechanism, actions are statically 
 # checked. You cannot invoke actions with the wrong arguments, or an action that does 
 # not exist. Try it!
 
-# The code is compiled with asserts, try swapping lines 18 and 20. The program will crash. 
+# The code is compiled with asserts, try swapping lines 21 and 23. The program will crash. 
 # That is intentional and shows that the simulation knows what the correct internal 
 # state.
 
@@ -94,7 +94,7 @@ act odd_and_evens() -> Game:
 
 # Here is the same procedure, except we assume that the players will not provide impossible
 # arguments, so instead of looping until we receive a valid one, we simply assert their 
-# values. Try invoking this new coroutine at line 16. As long as line 20 exists, the 
+# values. Try invoking this new coroutine at line 19. As long as line 23 exists, the 
 # program will crash. 
 #
 # Think back at your predicted implementation in another language. 
