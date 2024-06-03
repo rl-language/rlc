@@ -235,7 +235,3 @@ def LowerInitializerListsPass : Pass<"rlc-lower-initializer-lists", "mlir::Modul
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
-def FixMacOSManglingPass: Pass<"rlc-fix-os-mangling-pass", "mlir::ModuleOp"> {
-  let summary = "adds _ in front of functions, so that MacOS can link properly against functions";
-  let dependentDialects = ["rlc::RLCDialect", "LLVM::LLVMDialect"];
-}
