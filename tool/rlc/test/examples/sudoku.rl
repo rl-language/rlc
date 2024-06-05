@@ -20,7 +20,7 @@ ent Board:
     # emtpyness
     BInt<0, 10>[9][9] slots
 
-    # this is a member function declaration
+    # This is a member function declaration
     # it declares a function called is_full,
     # with return type Bool, and zero 
     # arguments
@@ -127,42 +127,106 @@ act play() -> Game:
     frm game_began = false
     while i != 20:
         # The following line introduces a action statement.
-        # Actions statements are how 
+        # Actions statements are programmers can declare
+        # the existance of a input that must be provided by 
+        # the user
+        # 
+        # In this case are are declaring the existance of
+        # of the action random_mark, which is invoked with 
+        # random arguments so that it can fill random cells
+        # of the board before the player plays.
+        #
+        # The action has 3 arguments, x, y and the number to 
+        # be picked by the user.
         act random_mark(BInt<0, 9> x, BInt<0, 9> y, BInt<1, 10> number) {
+            # The brackes after a action statement encode the 
+            # requirements of a action. 
             board.can_mark(x.value, y.value, number.value)
         }
+        # After a action statement has been executed, x, y and 
+        # number are now set the user wishes, so we can 
+        # mark the suggested point.
         board.slots[y.value][x.value] = number.value
         i = i + 1
 
+    # after we are done configurating the board we can
+    # set to true the variable game_began, so that 
+    # outside users can know if we are still configuring
+    # board or not
     game_began = true
     while !board.is_full() and board.at_least_one_action_is_possible():
+        # while the game is not done, we allow the player to
+        # mark cells.
         act mark(BInt<0, 9> x, BInt<0, 9> y, BInt<1, 10> number) {
             board.can_mark(x.value, y.value, number.value) 
         }
         board.slots[y.value][x.value] = number.value
 
+# When using the machine learning layer
+# delivered by the rlc package you need
+# to provide a function that give a game
+# returns the current player.
 fun get_current_player(Game g) -> Int:
+    # -4 is a special number to specify
+    # that the game is done.
     if g.is_done():
         return -4
+    # -1 is a special number to specify
+    # that the next action must be taken
+    # randomly
     if !g.game_began:
         return -1
     
+    # the first player has id 0.
     return 0
 
+# We need to specify the maximal number
+# of players, so that the machine learning
+# can configure itself with the correct
+# number of agents
 fun get_num_players() -> Int:
     return 1
 
+# To avoid games that never terminate, we provide 
+# a function that suggest a maximal number of actions
+# 200 is greatly overestimated.
 fun max_game_lenght() -> Int:
     return 200 
 
+# For the machine learning to learn we need 
+# to specify the score of the given player, 
+# at a given game state.
+# 
+# For the current game we return 1.0 if it
+# solved the board, 0.0 if it placed no number
+# and we interpolate between the two depending 
+# on how many number it has managed to write 
+# otherwise
 fun score(Game g, Int player_id) ->  Float:
     return 1.0 - float(g.board.count_empty()) / 81.0
 
-fun main() -> Int:
-    return 0
-
+# This function must be present just as written
+# to make sure that some functions used by 
+# machine learning are available.
 fun gen_printer_parser():
     let state : Game
     let any_action :  AnyGameAction
     gen_python_methods(state, any_action)
 
+# this function is looked for by the machine
+# learning components when they wish to print
+# a human readable version of the game, so 
+# that the user may understand what is going on
+fun pretty_print_board(Board g):
+   let i = 0
+   while i != 9:
+      let to_print : String
+      let y = 0
+      while y != 9:
+        if g.slots[y][i].value == 0:
+          to_print.append("_")
+        else:
+          to_print.append(to_string(g.slots[y][i].value))
+        y = y + 1
+      print(to_print)
+      i = i + 1
