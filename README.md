@@ -11,6 +11,8 @@ The elevator pitch description of the `RL` is:
 
 Read the project rationale [here](./docs/where_we_are_going.md)
 Read the language rationale [here](./docs/rationale.md)
+Read how we analyzed a off the shelf game [here](./docs/space_hulk_level_design.md)
+Read a tutorial explaining how to play sudoku [here](./docs/tutorial.md)
 
 At the moment `RLC` is a proof of concept, and is released to gather feedback on the features of the language. Until version 1.0 syntax and semantics may change at any point.
 

@@ -10,6 +10,8 @@ Examples of reinforcement learning are,
 
 Reinforcement learning life cycle is divided into two steps, learning and deployment. In the step of learning the reinforcement learning system interacts with a real or simulated environment so it can learn to perform better at whatever task it was designed for, for example a chess system may learn to play chess by playing against itself. When deployed the system stop learning and instead it actually performs the task it was inteded for in a real environment. For example, a chess system may play against humans.
 
+![reinforcment learning](../imgs/machine_learning_rules.png)
+
 When training reinforcement learning solutions, there are a sets of metrics that must be, ideally, maximized(or minimized).
 
 * **Performance**: we want the learning system to become as proficient as possible about whatever task it was meant to learn. In theory, the final quality of learning of a given problem only depends on the learning algorithm and its configurations, which are bounded by humanity knowledge of theoretical machine learning. In practice it depends as on the qualify of the hardware, since faster hardware can allow to use techinques that performs worst on small training runs but perform better on longer training runs.
@@ -34,6 +36,12 @@ As we mentioned, the `Rulebook` langauge is meant to help you use reinforcement 
 
 Notice that we have not talked about final learned performaces. That is absolutelly intentional. The `RL` language does not provide new reinforcement learning methods, instead it concerns itself with the issue of writing simulations only. You can use any learning algorithm you wish when using a `RL` language simulation.
 Of course, included in the `RL` langauge package we ship a off the shelf machine learning algorithms to be used by those that do not have the skill required to write a custom solution. We will se how a user with no machine learning knowledge can still use `RL` and obtain solutions for their own optimizations problems.
+
+For more non technical information, you can check out:
+
+* The project rationale [here](./where_we_are_going.md)
+* The language rationale [here](./rationale.md)
+* How we analyzed a off the shelf game [here](./space_hulk_level_design.md)
 
 ## About this document
 As specfied by the previous sections, this documents aims at giving an overview of the `RL` language, providing a hands on approach were the reader may try the language on its own machine. By the end of this document you will learn:
@@ -134,13 +142,13 @@ From your browser you can now visit the website.
 
 From there you should see a website that looks like this
 
-![../imgs/tensorboard.png](tensorboard example)
+![tensorboard example](../imgs/tensorboard.png)
 
 In the search bar, write `episode_reward_mean`
 
 You should see a graph that looks similar to the following
 
-![../imgs/mean_reward.png](tensorboard example)
+![tensorboard example](../imgs/mean_reward.png)
 
 The x axis is the number of actions played, in the case of our game it means the number of cells that have been filled across multiple games by the learning agent.
 The y axis rapresents the average score obtained by the learner. As you can see the more games it plays the better scores it gets, it is actually learning how to play!
