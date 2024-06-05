@@ -109,15 +109,15 @@ rlc example.rl -o executable
 
 ## Training and running
 
-Now that you made sure your system works, download the `Sudoku` example from [../tool/rlc/test/examples/sudoku.rl](here), and save it in a file in the directory we created at the start of this example.
+Now that you made sure your system works, download the `Sudoku` example from [here](../tool/rlc/test/examples/sudoku.rl), and save it in a file in the directory we created at the start of this example.
 
 Read the example and make sure you understand it.
-If you are interested in learning more about the mechanism described there you can try as well reading the files described here [../tool/rlc/test/tutorial/2.rl](here) and [../tool/rlc/test/tutorial/3.rl](here).
+If you are interested in learning more about the mechanism described there you can try as well reading the files described [here](../tool/rlc/test/tutorial/2.rl) and [here](../tool/rlc/test/tutorial/3.rl).
 
 
 After you have copied it, you can run `rlc-learn` and see it learn
 ```
-rlc-learn sudoku.rl -o network |& tee log.txt
+rlc-learn sudoku.rl |& tee log.txt
 ```
 
 If you have not installed torch and cuda, this invocation will fail. If it does fail, you can open the file log.txt and try see what you are missing to run it.
@@ -158,7 +158,9 @@ Furthermore the size of the neural network has been defaulted to a resonable def
 
 Still, with very few commands, and a very simple `.rl` file we managed to have a resonably configured network up and learning.
 
-Let it train for as long as you wish, we saw the training plateu after ~20 milions moves, at around 0.55 points, that is: the network learned to plan ahead so that in average it can play ~ten mores turns before being stuck. Notice that the games start with 20 randoms move already set, so a score of 0.55 means that the game managed to play up to ~70 moves total before getting stuck.
+Let it train for as long as you wish, we stopped the training after ~7 milions moves, at around 0.52 mean return, that is: the network learned to plan ahead so that in average it can play ~ten mores turns before being stuck. Notice that the games start with 20 randoms move already set, so a score of 0.55 means that the game managed to play up to ~70 moves total before getting stuck.
+
+![tensorboard example](../imgs/tensorboard2.png)
 
 After you have interrupted the training, you can generate a game by running
 ```
@@ -180,33 +182,36 @@ After you have trained a network, you probably wish to use the rules you have wr
 
 Craete a file called `example.py`, and write the following content
 ```python
-import rlc
+from loader import compile
 import random
 
 # load the rl file
-rl_module = rlc.load("sudoku.rl")
+rl_module = compile("sudoku.rl")
 sudoku_game = rl_module.functions.play()
 
 while rl_module.functions.get_current_player(sudoku_game) == -1:
-  action = random.choice(rlc.enumerate_valid_actions(sudoku_game))
-  rl_module.apply(game, action)
+  action = random.choice(rl_module.valid_actions(sudoku_game))
+  rl_module.functions.apply(action, sudoku_game)
+
 
 rl_module.functions.pretty_print(sudoku_game)
 while sudoku_game.resume_index != -1:
-    print("write x, y, number")
+    print("write column")
     x = input()
+    print("write row")
     y = input()
+    print("write value")
     number = input()
-    user_action = rl_module.ActionMark()
-    user_action.x.value = x
-    user_action.y.value = y
-    user_action.number.value = number
-    if not rl_module.functions.can_apply(game, user_action):
+    user_action = rl_module.module.GameMark()
+    user_action.x.value = int(x)
+    user_action.y.value = int(y)
+    user_action.number.value = int(number)
+    if not rl_module.functions.can_apply(user_action, sudoku_game):
         print ("provided action was invalid")
         rl_module.functions.print(action)
         continue
 
-    rl_module.functions.apply(game, user_action)
+    rl_module.functions.apply(user_action, sudoku_game)
     rl_module.functions.pretty_print(sudoku_game)
 ```
 

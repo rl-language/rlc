@@ -598,6 +598,11 @@ Token Lexer::nextWithoutTrailingConsume()
 {
 	if (*in == '\0')
 	{
+		if (not emittedExtraNewLine and not newLine)
+		{
+			emittedExtraNewLine = true;
+			return Token::Newline;
+		}
 		while (indentStack.size() > 1)
 		{
 			indentStack.pop_back();

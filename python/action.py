@@ -46,68 +46,66 @@ def main():
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
     args = parser.parse_args()
-    (sim, wrapper_path, directory) = load_simulation_from_args(args)
+    with load_simulation_from_args(args) as sim:
 
-    if args.show_actions:
-        sim.dump()
-        directory.cleanup()
-        return
+        if args.show_actions:
+            sim.dump()
+            return
 
-    state = sim.start("play")
-    if args.load != "":
-        state.load(args.load)
+        state = sim.start("play")
+        if args.load != "":
+            state.load(args.load)
 
-    failed = False
+        failed = False
 
-    lines = (
-        sys.stdin.readlines()
-        if args.action_file == "-"
-        else open(args.action_file, "r").readlines()
-    )
-    if args.pretty_print:
-        state.simulation.module.functions.pretty_print_board(state.state.board)
-        input()
-    for i, line in enumerate(lines):
-        if line.strip() == "" or line.strip().startswith("#"):
-            continue
-
-        if args.print_all:
-            print(i, line)
-
-        action = sim.parse_action(line)
-        if action is None:
-            if args.ignore_invalid:
-                continue
-            else:
-                print("Cannot parse the following action:")
-                print(i, line)
-                break
-
-        if not action.can_run(state):
-            if args.ignore_invalid:
-                continue
-            else:
-                print("Cannot apply the following action:")
-                failed = True
-                print(i, action)
-                break
-
+        lines = (
+            sys.stdin.readlines()
+            if args.action_file == "-"
+            else open(args.action_file, "r").readlines()
+        )
         if args.pretty_print:
+            state.simulation.module.functions.pretty_print(state.state)
             input()
-            os.system("clear")
-            state.simulation.module.functions.pretty_print_board(state.state.board)
-        if not args.print_all:
-            print(i, action)
-        action.run(state)
+        for i, line in enumerate(lines):
+            if line.strip() == "" or line.strip().startswith("#"):
+                continue
 
-    if args.output != "":
-        state.write_binary(args.output)
-    elif not args.pretty_print:
-        print(state)
+            if args.print_all:
+                print(i, line)
 
-    directory.cleanup()
-    if failed:
-        exit(-1)
+            action = sim.parse_action(line)
+            if action is None:
+                if args.ignore_invalid:
+                    continue
+                else:
+                    print("Cannot parse the following action:")
+                    print(i, line)
+                    break
+
+            if not action.can_run(state):
+                if args.ignore_invalid:
+                    continue
+                else:
+                    print("Cannot apply the following action:")
+                    failed = True
+                    print(i, action)
+                    break
+
+            if args.pretty_print:
+                input()
+                os.system("clear")
+                state.simulation.module.functions.pretty_print(state.state)
+            if not args.print_all:
+                print(i, action)
+            action.run(state)
+
+        if args.output != "":
+            state.write_binary(args.output)
+        elif not args.pretty_print:
+            print(state)
+
+        if failed:
+            exit(-1)
 
 
 if __name__ == "__main__":

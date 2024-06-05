@@ -36,11 +36,11 @@ class RLCEnvironment(MultiAgentEnv):
         self.output = None if self.output_path is None else open(self.output_path, "w+")
         self.wrapper = import_file("wrapper", self.wrapper_path)
         action = self.wrapper.AnyGameAction()
-        self.num_agents = self.wrapper.functions.get_num_players().value
+        self.num_agents = self.wrapper.functions.get_num_players()
         self._actions = self.wrapper.functions.enumerate(action)
-        self.state_size = self.wrapper.functions.observation_tensor_size(self.wrapper.Game()).value
+        self.state_size = self.wrapper.functions.observation_tensor_size(self.wrapper.Game())
         self.actions = []
-        for i in range(self.wrapper.functions.size(self._actions).value):
+        for i in range(self.wrapper.functions.size(self._actions)):
             self.actions.append(self.wrapper.functions.get(self._actions, i).contents)
 
         self.num_actions = len(self.actions)
@@ -133,7 +133,7 @@ class RLCEnvironment(MultiAgentEnv):
 
     def to_python_string(self, string):
         first_character = getattr(getattr(string, "__data"), "__data")
-        return self.wrapper.cast(first_character, self.wrapper.c_char_p).value.decode(
+        return self.wrapper.cast(first_character, self.wrapper.c_char_p).decode(
             "utf-8"
         )
 
@@ -183,7 +183,7 @@ class RLCEnvironment(MultiAgentEnv):
         return observation, reward, done, truncated, info
 
     def current_player(self):
-        return self.wrapper.functions.get_current_player(self.state).value
+        return self.wrapper.functions.get_current_player(self.state)
 
     def _current_state(self):
 

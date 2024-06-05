@@ -134,9 +134,10 @@ class State:
 
 
 class Simulation:
-    def __init__(self, wrapper: str):
+    def __init__(self, wrapper: str, tmp_dir=None):
         self.wrapper_path = wrapper
         self.module = import_file("sim", wrapper)
+        self.tmp_dir = tmp_dir
 
         if "play" in self.module.actionToAnyFunctionType:
             self.any_action = self.module.actionToAnyFunctionType["play"]
@@ -148,8 +149,32 @@ class Simulation:
                 for (i, (_, action_type)) in enumerate(alternatives)
             ]
 
-    def get_actions(self) -> [Action]:
-        return self.actions
+    def get_class(self, name):
+        return getattr(self.module, name)
+
+    def get_all_actions(self):
+        action = self.module.AnyGameAction()
+        actions = self.module.functions.enumerate(action)
+        result = []
+        for i in range(self.module.functions.size(actions)):
+            copy = self.module.AnyGameAction()
+            self.module.functions.assign(copy, self.module.functions.get(actions, i).contents)
+            result.append(copy)
+
+
+        return result
+
+    def valid_actions(self, state):
+        # Convert NumPy arrays to nested tuples to make them hashable.
+        x = []
+        for action in self.get_all_actions():
+            if self.module.functions.can_apply_impl(action, state):
+                x.append(action)
+        return x
+
+    def can_apply_action(self, action, state):
+        return self.module.functions.can_apply_impl(action, state)
+
 
     def start(self, name: str, *args):
         return State(self, getattr(self.module.functions, name)(*args))
@@ -210,6 +235,20 @@ class Simulation:
             return None
         return Action(action, self)
 
+    def __enter__(self):
+        return self
+
+    def cleanup(self):
+        self.__exit__()
+
+    def __exit__(self, *args):
+        if self.tmp_dir is not None:
+            self.tmp_dir.cleanup()
+
+    @property
+    def functions(self):
+        return self.module.functions
+
 
 def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
     include_args = []
@@ -234,8 +273,4 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
     assert run(args + include_args).returncode == 0
-    return (
-        Simulation(tmp_dir.name + "/wrapper.py"),
-        tmp_dir.name + "/wrapper.py",
-        tmp_dir,
-    )
+    return Simulation(tmp_dir.name + "/wrapper.py", tmp_dir)

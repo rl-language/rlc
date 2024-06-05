@@ -18,22 +18,18 @@ from command_line import load_simulation_from_args, make_rlc_argparse
 def main():
     parser = make_rlc_argparse("solve", description="runs a action of the simulation")
     args = parser.parse_args()
-    (_, wrapper_path, directory) = load_simulation_from_args(args)
+    with load_simulation_from_args(args) as sim:
+        env = RLCEnvironment(wrapper_path=sim.wrapper_path)
+        env.wrapper.functions.print(env.state)
 
-    env = RLCEnvironment(wrapper_path=wrapper_path)
-    env.wrapper.functions.print(env.state)
+        while True:
+            obs, reward, done, truncated, info = env.step(
+                [random.choice(env.legal_actions) for i in range(env.num_agents)]
+            )
+            if done["__all__"] or truncated["__all__"]:
+                break
 
-    while True:
-        obs, reward, done, truncated, info = env.step(
-            [random.choice(env.legal_actions) for i in range(env.num_agents)]
-        )
-        if done["__all__"] or truncated["__all__"]:
-            break
-
-    env.wrapper.functions.print(env.state)
-
-    if directory != None:
-        directory.cleanup()
+        env.wrapper.functions.print(env.state)
 
 
 if __name__ == "__main__":

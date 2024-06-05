@@ -206,6 +206,14 @@ static void emitStructGetter(
 	OS.indent((context.getIndent() + 2) * 4);
 	OS << "return self._" << fieldName;
 	OS << "\n\n";
+
+	OS.indent((context.getIndent() + 1) * 4);
+	OS << "@" << fieldName << ".setter\n";
+	OS.indent((context.getIndent() + 1) * 4);
+	OS << "def " << fieldName << "(self, value) -> " << fieldType << ":\n";
+	OS.indent((context.getIndent() + 2) * 4);
+	OS << "self._" << fieldName << " = value";
+	OS << "\n\n";
 }
 
 static void emitStructGetters(

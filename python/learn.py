@@ -89,7 +89,7 @@ def main():
         type=str,
         nargs="?",
         help="path where to write the output",
-        default="",
+        default="./network",
     )
     parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--league-play", action="store_true", default=False)
@@ -97,50 +97,51 @@ def main():
     parser.add_argument("--sample-space", default=1, type=int)
 
     args = parser.parse_args()
-    sim, wrapper_path, tmp_dir = load_simulation_from_args(args)
+    with load_simulation_from_args(args) as sim:
+        wrapper_path = sim.wrapper_path
+        from ray import air, tune
+        args.output = os.path.abspath(args.output)
 
-    from ray import air, tune
-
-    ppo_config, hyperopt_search = get_config(
-        wrapper_path,
-        (
-            1
-            if args.true_self_play
-            else sim.module.functions.get_num_players().value
-        ),
-        league_play=args.league_play
-    )
-    tune.register_env(
-        "rlc_env", lambda config: RLCEnvironment(wrapper_path=wrapper_path)
-    )
-
-    stop = {
-        "timesteps_total": 1e15,
-        # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
-    }
-
-    ray.init(num_cpus=12, num_gpus=1)
-    # resumption_dir = os.path.abspath("./results")
-    resources = PPO.default_resource_request(ppo_config)
-    tuner = tune.Tuner(
-        tune.with_resources(
+        ppo_config, hyperopt_search = get_config(
+            sim.wrapper_path,
             (
-                get_multi_train(sim.module.functions.get_num_players().value)
-                if args.league_play
-                else get_trainer(args.output, total_train_iterations=args.total_train_iterations)
+                1
+                if args.true_self_play
+                else sim.module.functions.get_num_players()
             ),
-            resources=resources,
-        ),
-        param_space=ppo_config.to_dict(),
-        tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search),
-        run_config=air.RunConfig(
-            stop=stop,
-            verbose=2,
-            # storage_path=resumption_dir
-        ),
-    )
+            league_play=args.league_play
+        )
+        tune.register_env(
+            "rlc_env", lambda config: RLCEnvironment(wrapper_path=wrapper_path)
+        )
 
-    results = tuner.fit()
+        stop = {
+            "timesteps_total": 1e15,
+            # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
+        }
+
+        ray.init(num_cpus=12, num_gpus=1)
+        # resumption_dir = os.path.abspath("./results")
+        resources = PPO.default_resource_request(ppo_config)
+        tuner = tune.Tuner(
+            tune.with_resources(
+                (
+                    get_multi_train(sim.module.functions.get_num_players())
+                    if args.league_play
+                    else get_trainer(args.output, total_train_iterations=args.total_train_iterations)
+                ),
+                resources=resources,
+            ),
+            param_space=ppo_config.to_dict(),
+            tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search),
+            run_config=air.RunConfig(
+                stop=stop,
+                verbose=2,
+                # storage_path=resumption_dir
+            ),
+        )
+
+        results = tuner.fit()
 
 
 if __name__ == "__main__":

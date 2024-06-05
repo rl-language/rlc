@@ -152,5 +152,6 @@ namespace rlc
 		std::string lString{ "" };
 		size_t deindentToEmit{ 0 };
 		bool parsingString = false;
+		bool emittedExtraNewLine = false;
 	};
 }	 // namespace rlc

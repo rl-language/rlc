@@ -24,6 +24,7 @@ TEST(LexerTest, lexerTestIf)
 {
 	Lexer lexer("if");
 	EXPECT_EQ(lexer.next(), Token::KeywordIf);
+	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
@@ -36,6 +37,7 @@ TEST(LexerTest, lexerLongTest)
 	EXPECT_EQ(lexer.next(), Token::KeywordIn);
 	EXPECT_EQ(lexer.next(), Token::LPar);
 	EXPECT_EQ(lexer.next(), Token::RPar);
+	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
@@ -48,6 +50,7 @@ TEST(LexerTest, lexerDoubleTest)
 	EXPECT_EQ(lexer.next(), Token::KeywordIn);
 	EXPECT_EQ(lexer.next(), Token::LPar);
 	EXPECT_EQ(lexer.next(), Token::RPar);
+	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
@@ -56,6 +59,7 @@ TEST(LexerTest, lexerTestIfElse)
 	Lexer lexer("if else");
 	EXPECT_EQ(lexer.next(), Token::KeywordIf);
 	EXPECT_EQ(lexer.next(), Token::KeywordElse);
+	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
@@ -67,6 +71,7 @@ TEST(LexerTest, operators)
 	EXPECT_EQ(lexer.next(), Token::KeywordElse);
 	EXPECT_EQ(lexer.next(), Token::Divide);
 	EXPECT_EQ(lexer.next(), Token::Int64);
+	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
@@ -88,6 +93,7 @@ TEST(LexerTest, lexerIndentTest)
 	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::Deindent);
 	EXPECT_EQ(lexer.next(), Token::KeywordFor);
+	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
@@ -107,6 +113,7 @@ TEST(LexerTest, nestedIndentTest)
 	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::Deindent);
 	EXPECT_EQ(lexer.next(), Token::LSquare);
+	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 

@@ -833,6 +833,16 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 		return mlir::failure();
 	}
 
+	if (auto casted = type.dyn_cast<mlir::rlc::ScalarUseType>())
+	{
+		return mlir::failure();
+	}
+
+	if (auto casted = type.dyn_cast<mlir::rlc::FunctionUseType>())
+	{
+		return mlir::failure();
+	}
+
 	type.dump();
 	llvm_unreachable("unhandled type");
 	return mlir::failure();

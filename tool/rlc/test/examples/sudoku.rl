@@ -217,16 +217,16 @@ fun gen_printer_parser():
 # learning components when they wish to print
 # a human readable version of the game, so 
 # that the user may understand what is going on
-fun pretty_print_board(Board g):
+fun pretty_print(Game g):
    let i = 0
    while i != 9:
       let to_print : String
       let y = 0
       while y != 9:
-        if g.slots[y][i].value == 0:
+        if g.board.slots[y][i].value == 0:
           to_print.append("_")
         else:
-          to_print.append(to_string(g.slots[y][i].value))
+          to_print.append(to_string(g.board.slots[y][i].value))
         y = y + 1
       print(to_print)
       i = i + 1

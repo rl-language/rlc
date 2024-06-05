@@ -76,6 +76,6 @@ def load_simulation_from_args(args):
     )
 
     if args.source_file.endswith(".py"):
-      return Simulation(args.source_file), args.source_file, None
+      return Simulation(args.source_file)
     else:
       return compile(args.source_file, args.rlc, args.include, args.runtime)

@@ -43,32 +43,32 @@ def main():
     parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
 
     args = parser.parse_args()
-    sim, wrapper_path, tmp_dir = load_simulation_from_args(args)
+    with load_simulation_from_args(args) as sim:
+        wrapper_path = sim.wrapper_path
 
-    from ray import air, tune
+        from ray import air, tune
 
-    num_players = (
-        1
-        if not args.no_one_agent_per_player
-        else sim.module.functions.get_num_players().value
-    )
-    ppo_config, hyperopt_search = get_config(
-        wrapper_path, num_players, exploration=False
-    )
-    tune.register_env(
-        "rlc_env",
-        lambda config: RLCEnvironment(wrapper_path=wrapper_path, output=args.output),
-    )
-
-    ray.init(num_cpus=12, num_gpus=1)
-    model = Algorithm.from_checkpoint(args.checkpoint)
-    for i in range(num_players):
-        model.workers.local_worker().module[f"p{i}"].load_state(
-            f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/"
+        num_players = (
+            1
+            if not args.no_one_agent_per_player
+            else sim.module.functions.get_num_players().value
+        )
+        ppo_config, hyperopt_search = get_config(
+            sim.wrapper_path, num_players, exploration=False
+        )
+        tune.register_env(
+            "rlc_env",
+            lambda config: RLCEnvironment(wrapper_path=wrapper_path, output=args.output),
         )
 
-    model.evaluate()
-    tmp_dir.cleanup()
+        ray.init(num_cpus=12, num_gpus=1)
+        model = Algorithm.from_checkpoint(args.checkpoint)
+        for i in range(num_players):
+            model.workers.local_worker().module[f"p{i}"].load_state(
+                f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/"
+            )
+
+        model.evaluate()
 
 
 if __name__ == "__main__":

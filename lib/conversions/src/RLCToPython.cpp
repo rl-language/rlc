@@ -276,7 +276,8 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 
 	mlir::Value toReturn = result.getResult(0);
 
-	if (resType.isa<mlir::rlc::python::StrType>())
+	if (resType.isa<mlir::rlc::python::StrType>() or
+			resType.isa<mlir::rlc::python::CTypesIntType>())
 	{
 		toReturn = rewriter.create<mlir::rlc::python::PythonAccess>(
 				result.getLoc(),
@@ -395,7 +396,7 @@ class FunctionToPyFunction
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		emitFunctionWrapper(
+		auto newFun = emitFunctionWrapper(
 				op.getLoc(),
 				library,
 				rewriter,
@@ -404,6 +405,27 @@ class FunctionToPyFunction
 				op.getMangledName(),
 				op.getArgNames(),
 				op.getFunctionType());
+
+		if (newFun)
+		{
+			rewriter.setInsertionPointAfter(newFun);
+			auto validityType = mlir::FunctionType::get(
+					getContext(),
+					op.getType().getInputs(),
+					mlir::rlc::BoolType::get(getContext()));
+			auto name = ("can_" + op.getUnmangledName()).str();
+			auto preconditionCheckFunction = emitFunctionWrapper(
+					op.getLoc(),
+					library,
+					rewriter,
+					getTypeConverter(),
+					name,
+					mlir::rlc::mangledName(name, op.getIsMemberFunction(), validityType),
+					op.getArgNames(),
+					validityType);
+			rewriter.setInsertionPointAfter(preconditionCheckFunction);
+		}
+
 		rewriter.eraseOp(op);
 		return mlir::success();
 	}

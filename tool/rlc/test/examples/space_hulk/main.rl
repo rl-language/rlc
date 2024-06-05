@@ -322,3 +322,6 @@ fun fuzz(Vector<Byte> input):
             executable.append(enumeration.get(i))
           i = i + 1
         apply(executable.get(num_action % executable.size()), state)
+
+fun pretty_print(Game g):
+    g.board.pretty_print_board()
