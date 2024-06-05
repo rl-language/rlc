@@ -89,19 +89,15 @@ fun main() -> Int:
 	return int(game.board.three_in_a_line())
 ```
 
-### Try the compiler and lsp
+### Try it!
 
-We preparred a docker with vscode and rlc inside so you can try it with minimal friction. If you cannot run it this way, contact us and we will provide you with a link where you can try it while it runs on our machines.
+At the moment we provide binaries only for linux x64.
 
 ```
-docker pull rllang/rlc-demo
-docker run --name code-server -p 127.0.0.1:8080:8080 rllang/rlc-demo
-
-# from another shell
-firefox "http://127.0.0.1:8080/?folder=/home/coder/&payload=%5B%5B%22openFile%22,%22vscode-remote:///home/coder/START_HERE.rl%22%5D%5D"
-
-# the password is fbcc00a4fa28a4e11e44307a
+pip install rl_language
 ```
+
+Read a tutorial explaining how to play sudoku [here](./docs/tutorial.md)
 
 ### Dependencies
 Base:

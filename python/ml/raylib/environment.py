@@ -133,7 +133,7 @@ class RLCEnvironment(MultiAgentEnv):
 
     def to_python_string(self, string):
         first_character = getattr(getattr(string, "__data"), "__data")
-        return self.wrapper.cast(first_character, self.wrapper.c_char_p).decode(
+        return self.wrapper.cast(first_character, self.wrapper.c_char_p).value.decode(
             "utf-8"
         )
 

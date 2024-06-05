@@ -51,7 +51,7 @@ def main():
         num_players = (
             1
             if not args.no_one_agent_per_player
-            else sim.module.functions.get_num_players().value
+            else sim.module.functions.get_num_players()
         )
         ppo_config, hyperopt_search = get_config(
             sim.wrapper_path, num_players, exploration=False
