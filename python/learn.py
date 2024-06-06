@@ -97,7 +97,7 @@ def main():
     parser.add_argument("--sample-space", default=1, type=int)
 
     args = parser.parse_args()
-    with load_simulation_from_args(args) as sim:
+    with load_simulation_from_args(args, True) as sim:
         wrapper_path = sim.wrapper_path
         from ray import air, tune
         args.output = os.path.abspath(args.output)

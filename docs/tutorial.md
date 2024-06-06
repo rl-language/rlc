@@ -1,96 +1,97 @@
 # Rulebook Introduction
 
-RL is a reinforcement learning centring scripting language, aimed at delivering reinforcement learning techniques to user with no experience in machine learning, while allowing full control to the user that do know how to tune and modify machine learning components.
+RL is a reinforcement learning-centric scripting language aimed at delivering reinforcement learning techniques to users with no experience in machine learning, while also allowing full control to users who know how to tune and modify machine learning components.
 
-## Recap on reinforcement learning
-Reinforcement learning is the field of science that study algorithms that learn make decisions to achieve the most optimal result.
-Examples of reinforcement learning are,
-* computer systems that learn to play chess by only knowing the rules of chess are reinforcement learning systems.
-* car driving systems that learn to drive without crashing in a real or simulated environment.
+## Recap on Reinforcement Learning
+Reinforcement learning is the field of science that studies algorithms that learn to make decisions to achieve the most optimal result. Examples of reinforcement learning include:
 
-Reinforcement learning life cycle is divided into two steps, learning and deployment. In the step of learning the reinforcement learning system interacts with a real or simulated environment so it can learn to perform better at whatever task it was designed for, for example a chess system may learn to play chess by playing against itself. When deployed the system stop learning and instead it actually performs the task it was inteded for in a real environment. For example, a chess system may play against humans.
+* Computer systems that learn to play chess by only knowing the rules of chess.
+* Car driving systems that learn to drive without crashing in a real or simulated environment.
 
-![reinforcment learning](../imgs/machine_learning_rules.png)
+The reinforcement learning life cycle is divided into two steps: learning and deployment. In the learning step, the reinforcement learning system interacts with a real or simulated environment to learn to perform better at whatever task it was designed for. For example, a chess system may learn to play chess by playing against itself. When deployed, the system stops learning and instead performs the task it was intended for in a real environment. For example, a chess system may play against humans.
 
-When training reinforcement learning solutions, there are a sets of metrics that must be, ideally, maximized(or minimized).
+![reinforcement learning](../imgs/machine_learning_rules.png)
 
-* **Performance**: we want the learning system to become as proficient as possible about whatever task it was meant to learn. In theory, the final quality of learning of a given problem only depends on the learning algorithm and its configurations, which are bounded by humanity knowledge of theoretical machine learning. In practice it depends as on the qualify of the hardware, since faster hardware can allow to use techinques that performs worst on small training runs but perform better on longer training runs.
-* **Learning speed**: we want the system to learn as fast as possible. Learning speed is both a property of the speed of hardware and of the known learning algorithms.
-* **Costs**: regardless how what we want to produce, we wish to do so as cheaply as possible.
+When training reinforcement learning solutions, there are sets of metrics that must ideally be maximized (or minimized):
 
-This 3 metrics are connected, decreasing the cost of hardware may allow to afford more hardware which may yield at the same time better learning speeds and performance results. Increasing the performance by two times may required may 10 times the costs.
+* **Performance**: We want the learning system to become as proficient as possible at whatever task it was meant to learn. In theory, the final quality of learning of a given problem only depends on the learning algorithm and its configurations, which are bounded by humanity's knowledge of theoretical machine learning. In practice, it also depends on the quality of the hardware, since faster hardware can allow the use of techniques that perform worse on small training runs but better on longer training runs.
+* **Learning speed**: We want the system to learn as fast as possible. Learning speed is a property of both the speed of the hardware and the known learning algorithms.
+* **Costs**: Regardless of what we want to produce, we wish to do so as cheaply as possible.
 
-## Rulebook and reinforcement learning
+These three metrics are interconnected. Decreasing the cost of hardware may allow us to afford more hardware, which may yield better learning speeds and performance results. Increasing performance by two times may require ten times the costs.
 
-As we mentioned, the `Rulebook` langauge is meant to help you use reinforcement learning techniques. It does so by helping you write simulated environments in which machine learning agent can learn. Let consider again the previouly mentioned machine learning metrics and let us see which ones are helped by using `Rulebook`:
+## Rulebook and Reinforcement Learning
+
+As we mentioned, the `Rulebook` language is designed to help you use reinforcement learning techniques. It does so by helping you write simulated environments in which machine learning agents can learn. Let's consider the previously mentioned machine learning metrics and see how `Rulebook` addresses them:
 
 * **Learning speed**:
-    * Simulation speed: to be able to learn, a machine learning algorithm must interact with a real or simulated environment to try actions and see what happens. The faster the a simulated environment executes, the faster the learner can learn. We will show how writing `RL` programs helps you write efficient simulated environements.
-    * Development speed: a simulated environment in which a algorithm can learn is a software like any other. Writing, maintaining, and deploying it is a time consuming process and the fidelity of the simulation to reality is critical to obtain good quality results. We will show how using `RL` helps you create simulated environments faster, more easily than using an alternative language.
+    * **Simulation speed**: To learn, a machine learning algorithm must interact with a real or simulated environment to try actions and see what happens. The faster the simulated environment executes, the faster the learner can learn. We will show how writing `RL` programs helps you create efficient simulated environments.
+    * **Development speed**: A simulated environment in which an algorithm can learn is software like any other. Writing, maintaining, and deploying it is a time-consuming process, and the fidelity of the simulation to reality is critical to obtaining high-quality results. We will show how using `RL` helps you create simulated environments faster and more easily than using alternative languages.
 * **Costs**:
-    * Development costs: As mentioned in the learning speed, mantaining a simulation of the environment in which to learn is a significant development costs. Simplyfing that aspect of development with the `RL` language helps reducing the costs debugging, updating and in general modifying the simulation.
-    * Human costs: A team developing reinforcment learning solutions is costly to mantain, lots of skills are required, machine learning skills, development skills, skills related to the domain one is trying to learn, and so on. By simplifying the creation of digital environments in which the agents can learn, we allow smaller teams to create their products, instead of requiring multiple human resources with different skill sets.
-    * Deployment costs: some `RL` agents are meant to operate in the real world, such as autonomous driving systems, and thus after deoployment the simulation in which the trained is no longer relevant. Some instead can operate in the same environment they have been trained on, for example a chess learning algorithm can learn and be deployed in the very same simulation of chess. In that case the simulated environment is no longer just a training utility, but something to be deployed to end user too. This may include including extra feature to the simulation, for example a way to render to screen the state of the simulation, a way for humans to interact with the simulation and so on. We will see how the `RL` language helps you to develop, mantain and deploy simulations beyond the scope of just learning.
-    * Interoperability costs: sometimes it is necessary for machine learning systems to interact with some other prehexisting component. For example, maybe parts of the simulation from which the machine learning system is learning may be third party programs beyond the abilities of the programmer to modify. We will see how `RL` can interoperate with tools and libraries written in other languages.
+    * **Development costs**: As mentioned in the context of learning speed, maintaining a simulation of the environment in which learning occurs is a significant development cost. Simplifying that aspect of development with the `RL` language helps reduce the costs of debugging, updating, and generally modifying the simulation.
+    * **Human costs**: A team developing reinforcement learning solutions is costly to maintain, requiring a wide range of skills, including machine learning, development, and domain-specific knowledge. By simplifying the creation of digital environments in which agents can learn, we allow smaller teams to create their products without needing multiple human resources with different skill sets.
+    * **Deployment costs**: Some `RL` agents are meant to operate in the real world, such as autonomous driving systems, and thus after deployment, the simulation in which they were trained is no longer relevant. Others can operate in the same environment they were trained in; for example, a chess learning algorithm can learn and be deployed in the same simulation of chess. In such cases, the simulated environment is not just a training utility but also something to be deployed to the end-user. This may include adding extra features to the simulation, such as a way to render the simulation state on screen, a way for humans to interact with the simulation, and so on. We will see how the `RL` language helps you develop, maintain, and deploy simulations beyond just learning.
+    * **Interoperability costs**: Sometimes it is necessary for machine learning systems to interact with other pre-existing components. For example, parts of the simulation from which the machine learning system is learning may be third-party programs beyond the programmer's ability to modify. We will see how `RL` can interoperate with tools and libraries written in other languages.
 
+Notice that we have not talked about final learned performance. That is intentional. The `RL` language does not provide new reinforcement learning methods; instead, it concerns itself with the issue of writing simulations only. You can use any learning algorithm you wish when using an `RL` language simulation.
 
-Notice that we have not talked about final learned performaces. That is absolutelly intentional. The `RL` language does not provide new reinforcement learning methods, instead it concerns itself with the issue of writing simulations only. You can use any learning algorithm you wish when using a `RL` language simulation.
-Of course, included in the `RL` langauge package we ship a off the shelf machine learning algorithms to be used by those that do not have the skill required to write a custom solution. We will se how a user with no machine learning knowledge can still use `RL` and obtain solutions for their own optimizations problems.
+Of course, included in the `RL` language package are off-the-shelf machine learning algorithms for those who do not have the skill required to write a custom solution. We will see how a user with no machine learning knowledge can still use `RL` and obtain solutions for their own optimization problems.
 
-For more non technical information, you can check out:
+For more non-technical information, you can check out:
 
 * The project rationale [here](./where_we_are_going.md)
 * The language rationale [here](./rationale.md)
-* How we analyzed a off the shelf game [here](./space_hulk_level_design.md)
+* How we analyzed an off-the-shelf game [here](./space_hulk_level_design.md)
 
-## About this document
-As specfied by the previous sections, this documents aims at giving an overview of the `RL` language, providing a hands on approach were the reader may try the language on its own machine. By the end of this document you will learn:
+## About this Document
 
-* How you can write games and optimization problems in `RL`.
-* How you can run, with zero configurations required, a neural network to find good strategies for your problem.
-* How RL can interoperate with other languages, C, CPP and python, and how easy is to integrate in other codebases.
-* What code, performance wise, you can expect to be generated from RL.
+As specified in the previous sections, this document aims to provide an overview of the `RL` language, offering a hands-on approach where the reader can try the language on their own machine. By the end of this document, you will learn:
 
-## WARNINGS:
-This document is intended to be a proof of concept, the language has not yet been released under version 1.0, and the our intent is to collect feedback about the language.
+* How to write games and optimization problems in `RL`.
+* How to run a neural network with zero configurations required to find good strategies for your problem.
+* How `RL` can interoperate with other languages, such as C, C++, and Python, and how easy it is to integrate into other codebases.
+* What code, performance-wise, you can expect to be generated from `RL`.
 
-**This document requires some understanding of programming. If you can program in python or a similar language, you should be able to follow the content presented here.**
+## Warnings
 
-As of the moment of writing 1/6/2024, games with multiple players do not work off the shelf due to issue in the library providing the builtin machine learning agent. If you are interested solving multi agents, contact us and we will guide you on how to solve the issues. Of course we plan to address this issue as soon as possible.
+This document is intended to be a proof of concept. The language has not yet been released under version 1.0, and our intent is to collect feedback about the language.
+
+**This document requires some understanding of programming. If you can program in Python or a similar language, you should be able to follow the content presented here.**
+
+As of the moment of writing (1/6/2024), games with multiple players do not work off the shelf due to issues in the library providing the built-in machine learning agent. If you are interested in solving multi-agent scenarios, contact us and we will guide you on how to solve the issues. We plan to address this issue as soon as possible.
 
 ## Requirements
 
-To be able to run the follwing examples you need:
+To run the following examples, you need:
 
-* A linux x64 machine (we plan to support every major architecture and OS in the future, but at the moment we are limited by the system supported by libraries we depend upon).
-* At least `python 3.8` installation with `pip`
-* clang, which should be possible to install with `sudo apt install clang` or `sudo yum install clang`
+* A Linux x64 machine (we plan to support every major architecture and OS in the future, but currently, we are limited by the systems supported by the libraries we depend upon).
+* At least Python 3.8 installed with `pip`.
+* Clang, which can be installed with `sudo apt install clang` or `sudo yum install clang`.
 
-Optionally, you can install
+Optionally, you can install:
 
-* xdot, used to visualize the game state machine
-* visual studio code, for which we provide syntax highlighting and autocomplete plugins.
+* xdot, used to visualize the game state machine.
+* Visual Studio Code, for which we provide syntax highlighting and autocomplete plugins.
 
 ## Installation
 
-You install the `rl` compiler, the autocomplete support and machine learnign dependencies by opening a terminal and running:
+You can install the `RL` compiler, autocomplete support, and machine learning dependencies by opening a terminal and running:
 ```bash
 mkdir rl_example
 cd rl_example
-python3 -m virtualenv .venv
-source ./venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install rl_language
 ```
 
-This command has created a virtual environment separated from your computer environment so that you can try `rlc` without polluting your machine.
+This command creates a virtual environment separate from your computer environment so that you can try `rlc` without polluting your machine.
 
-If this command terminate with success, then you can validate that the installtion has been successfull with
-```
+If this command completes successfully, you can validate that the installation has been successful with:
+```bash
 rlc --help
 ```
 
-Now we can write a very simple hello world program to see how it works.
-Create a file called `example.rl` in the current directory, and fillit with the following content
+Now we can write a very simple hello world program to see how it works. Create a file called `example.rl` in the current directory, and fill it with the following content:
 
 ```python
 import serialization.print
@@ -100,146 +101,130 @@ fun main() -> Int:
     return 0
 ```
 
-As you can see the language has a python-like syntax, although you can already notice that in RL types are not optional, they must be always present. We can now try compile the program and see it run.
+As you can see, the language has a Python-like syntax, although you can already notice that in `RL` types are not optional; they must always be present. We can now compile the program and see it run:
 
 ```bash
 rlc example.rl -o executable
 ./executable
 ```
 
-## Training and running
+## Training and Running
 
-Now that you made sure your system works, download the `Sudoku` example from [here](../tool/rlc/test/examples/sudoku.rl), and save it in a file in the directory we created at the start of this example.
+Now that you've ensured your system works, download the `Sudoku` example from [here](../tool/rlc/test/examples/black_jack.rl) and save it in a file in the directory we created at the start of this example.
 
-Read the example and make sure you understand it.
-If you are interested in learning more about the mechanism described there you can try as well reading the files described [here](../tool/rlc/test/tutorial/2.rl) and [here](../tool/rlc/test/tutorial/3.rl).
+Read the example and make sure you understand it. If you are interested in learning more about the mechanisms described there, you can also read the files described [here](../tool/rlc/test/tutorial/2.rl) and [here](../tool/rlc/test/tutorial/3.rl).
 
-
-After you have copied it, you can run `rlc-learn` and see it learn
-```
-rlc-learn sudoku.rl |& tee log.txt
+After you have copied it, you can run `rlc-learn` and see it learn:
+```bash
+rlc-learn black_jack.rl |& tee log.txt
 ```
 
-If you have not installed torch and cuda, this invocation will fail. If it does fail, you can open the file log.txt and try see what you are missing to run it.
+If you have not installed torch and cuda, this invocation will fail. If it does fail, you can open the file `log.txt` and try to see what you are missing to run it.
 
-If it does learn, you can open the log and scroll down until you see a line that looks like the following.
+If it does learn, you can open the log and scroll down until you see a line that looks like the following:
 ```bash
 tensorboard --logdir /tmp/ray/session_DATE/artifacts/DATE/tuner_run_DATE/driver_artifacts
 ```
 
-Open another terminal and navigate to the example directory you have created, and source the environment again.
-
+Open another terminal and navigate to the example directory you have created, and source the environment again:
 ```bash
 cd rl_example
 source ./venv/bin/activate
 ```
 
-Then run the line you have found in the log.txt file.
-From your browser you can now visit the website.
+Then run the line you found in the `log.txt` file. From your browser, you can now visit the website:
 ```
 127.0.0.1:6006
 ```
 
-From there you should see a website that looks like this
+From there, you should see a website that looks like this:
 
 ![tensorboard example](../imgs/tensorboard.png)
 
-In the search bar, write `episode_reward_mean`
+In the search bar, write `episode_reward_mean`.
 
-You should see a graph that looks similar to the following
+You should see a graph that looks similar to the following:
 
 ![tensorboard example](../imgs/mean_reward.png)
 
-The x axis is the number of actions played, in the case of our game it means the number of cells that have been filled across multiple games by the learning agent.
-The y axis rapresents the average score obtained by the learner. As you can see the more games it plays the better scores it gets, it is actually learning how to play!
+The x-axis is the number of actions played. In the case of our game, it means the number of cells that have been filled across multiple games by the learning agent. The y-axis represents the average score obtained by the learner. As you can see, the more games it plays, the better scores it gets—it is actually learning how to play!
 
-Of course there is no guarantee that the machine will achieve a score of one, since we are generating random boards, and not all random boards are solvable.
-Furthermore the size of the neural network has been defaulted to a resonable default, but there is no guarantee that the problem is solvable given the the default size.
+Of course, there is no guarantee that the machine will achieve a score of one, since we are generating random boards, and not all random boards are solvable. Furthermore, the size of the neural network has been defaulted to a reasonable size, but there is no guarantee that the problem is solvable given the default size.
 
-Still, with very few commands, and a very simple `.rl` file we managed to have a resonably configured network up and learning.
+Still, with very few commands and a very simple `.rl` file, we managed to have a reasonably configured network up and learning.
 
-Let it train for as long as you wish, we stopped the training after ~7 milions moves, at around 0.52 mean return, that is: the network learned to plan ahead so that in average it can play ~ten mores turns before being stuck. Notice that the games start with 20 randoms move already set, so a score of 0.55 means that the game managed to play up to ~70 moves total before getting stuck.
+Let it train for as long as you wish. We stopped the training after ~7 million moves, at around 0.52 mean return. That is, the network learned to plan ahead so that on average it can play ~ten more turns before being stuck. Notice that the games start with 20 random moves already set, so a score of 0.55 means that the game managed to play up to ~70 moves total before getting stuck.
 
 ![tensorboard example](../imgs/tensorboard2.png)
 
-After you have interrupted the training, you can generate a game by running
-```
-rlc-play sudoku.rl network -o game.log
-```
-
-The command will create a file called `game.log` that contains a human readable game that you can inspect, or you can reproduce by running
-
-```
-rlc-action sudoku.rl game.log -pp
+After you have interrupted the training, you can generate a game by running:
+```bash
+rlc-play black_jack.rl network -o game.log
 ```
 
-This command will run a action at the time and let you visualize the game by invoking pretty\_print after each action executed. You need to press any button to advance the game by one action.
+The command will create a file called `game.log` that contains a human-readable game that you can inspect, or you can reproduce it by running:
+```bash
+rlc-action black_jack.rl game.log -pp
+```
 
-## Building on top of it
+This command will run one action at a time and let you visualize the game by invoking `pretty_print` after each action is executed. You need to press any button to advance the game by one action.
 
-So, until now we have seen how to write, train, run and visualize a game.Of course this is not the end of the road.
-After you have trained a network, you probably wish to use the rules you have written it in a real environment. Let us see how to do so, by writing a python script that can interact with the `rl` sudoku implementation.
+## Building on Top of It
 
-Craete a file called `example.py`, and write the following content
+Until now, we have seen how to write, train, run, and visualize a game. Of course, this is not the end of the road. After you have trained a network, you probably wish to use the rules you have written in a real environment. Let us see how to do so by writing a Python script that can interact with the `RL` black jack implementation.
+
+Create a file called `example.py`, and write the following content:
 ```python
 from loader import compile
 import random
 
 # load the rl file
-rl_module = compile("sudoku.rl")
-sudoku_game = rl_module.functions.play()
+rl_module = compile("black_jack.rl")
+bj_game = rl_module.functions.play()
 
-while rl_module.functions.get_current_player(sudoku_game) == -1:
-  action = random.choice(rl_module.valid_actions(sudoku_game))
-  rl_module.functions.apply(action, sudoku_game)
+while rl_module.functions.get_current_player(bj_game) == -1:
+    action = random.choice(rl_module.valid_actions(bj_game))
+    rl_module.functions.apply(action, bj_game)
 
-
-rl_module.functions.pretty_print(sudoku_game)
-while sudoku_game.resume_index != -1:
-    print("write column")
-    x = input()
-    print("write row")
-    y = input()
-    print("write value")
-    number = input()
-    user_action = rl_module.module.GameMark()
-    user_action.x.value = int(x)
-    user_action.y.value = int(y)
-    user_action.number.value = int(number)
-    if not rl_module.functions.can_apply(user_action, sudoku_game):
-        print ("provided action was invalid")
+rl_module.functions.pretty_print(bj_game)
+while bj_game.resume_index != -1:
+    print("hit? (y/n)")
+    decision = input()
+    user_action = rl_module.module.GameHit() if decision == "y" else rl_module.module.GamePass()
+    if not rl_module.functions.can_apply(user_action, bj_game):
+        print("provided action was invalid")
         rl_module.functions.print(action)
         continue
 
-    rl_module.functions.apply(user_action, sudoku_game)
-    rl_module.functions.pretty_print(sudoku_game)
+    rl_module.functions.apply(user_action, bj_game)
+    rl_module.functions.pretty_print(bj_game)
 ```
 
-You can run this program with the following command, used a shell with the activated environment.
-```
+You can run this program with the following command, using a shell with the activated environment:
+```bash
 python example.py
 ```
 
-As you can see, you are able to play sudoku, driven by a python script. Of course you could already do so with the `rlc-action` command provided by the `rl_language` package, but this example shows that `rl` program can be easily used from other languages such as python or cpp.
-This allows you to reuse the same code `rl` code you have written to train the network in production too, building other tools of top of it!
+As you can see, you are able to play black jack driven by a Python script. Of course, you could already do so with the `rlc-action` command provided by the `rl_language` package, but this example shows that `RL` programs can be easily used from other languages such as Python or C++. This allows you to reuse the same `RL` code you have written to train the network in production too, building other tools on top of it!
 
-You can as well load the network you have trained and use it to play games, but such setup is a little too complex to include it in this introductory document, and will be shown later.
+You can also load the network you have trained and use it to play games, but such a setup is a little too complex to include in this introductory document and will be shown later.
 
 ## Conclusions
-At the start of this document we described how machine learning works, and what `RL` wishes to do for it. In particular we said that would have learned
 
-* How you can write games and optimization problems in `RL`.
+At the start of this document, we described how machine learning works and what `RL` aims to achieve. In particular, we covered:
 
-As you saw `RL` lets you write games and simulations the way you conceputalize them, by declaring at each point which actions the user must take in that moment.
+* **How you can write games and optimization problems in `RL`.**
 
-* How you can run, with zero configurations required, a neural network to find good strategies for your problem.
+  As you saw, `RL` lets you write games and simulations the way you conceptualize them by declaring at each point which actions the user must take in that moment.
 
-As you was, it takes a single command to have the machine learning components up and learning. Of course it is not guaranteed that the default setup will yield optimal results, but it is a starting point for those that can tune the machine learning configurations to their needs, and very to use machine learning for those that cannot.
+* **How you can run, with zero configurations required, a neural network to find good strategies for your problem.**
 
-* How RL can interoperate with other languages, C, CPP and python, and how easy is to integrate in other codebases.
+  As you observed, it takes a single command to have the machine learning components up and learning. While the default setup may not yield optimal results, it provides a starting point for those who can tune the machine learning configurations to their needs and is easy to use for those who cannot.
 
-We saw how other programs can interact with the simulation by importing a `RL` file and invoking functions and actions declared in that file, without the need of reliquishing the main loop of the program to the `RL` part of it. In our example we show how to do so in python, but it could have been any other programming language, or environment, such as graphic engines and so on.
+* **How `RL` can interoperate with other languages, such as C, C++, and Python, and how easy it is to integrate into other codebases.**
 
-* What code, performance wise, you can expect to be generated from RL.
+  We demonstrated how other programs can interact with the simulation by importing an `RL` file and invoking functions and actions declared in that file, without needing to relinquish the main loop of the program to the `RL` part. In our example, we showed how to do this in Python, but it could be done with any other programming language or environment, such as graphic engines.
 
-RL is a compiled language, not a interpreted language, yielding performances comparable with other compiled languages such as C.
+* **What code, performance-wise, you can expect to be generated from `RL`.**
+
+  `RL` is a compiled language, not an interpreted language, yielding performance comparable to other compiled languages such as C.

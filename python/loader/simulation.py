@@ -250,7 +250,7 @@ class Simulation:
         return self.module.functions
 
 
-def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
+def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", optimized=True):
     include_args = []
     for arg in rlc_includes:
         include_args.append("-i")
@@ -264,6 +264,7 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib=""):
                 "--python",
                 "-o",
                 "{}/wrapper.py".format(tmp_dir.name),
+                "-O2" if optimized else "",
             ]
             + include_args
         ).returncode
