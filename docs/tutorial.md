@@ -70,8 +70,7 @@ To run the following examples, you need:
 
 Optionally, you can install:
 
-* xdot, used to visualize the game state machine.
-* Visual Studio Code, for which we provide syntax highlighting and autocomplete plugins.
+* Visual Studio Code, for which we provide syntax highlighting and autocomplete plugins. They are called `rl-lsp` and `rl-language`.
 
 ## Installation
 
@@ -112,7 +111,7 @@ rlc example.rl -o executable
 
 Now that you've ensured your system works, download the `black jack` example from [here](../tool/rlc/test/examples/black_jack.rl) and save it in a file in the directory we created at the start of this example.
 
-Read the example and make sure you understand it. If you are interested in learning more about the mechanisms described there, you can also read the files described [here](../tool/rlc/test/tutorial/2.rl) and [here](../tool/rlc/test/tutorial/3.rl).
+Read the example and make sure you understand it. If you are interested in learning more about the mechanisms described there, you can also read the files described [here](../tool/rlc/test/tutorial/2.rl) and [here](../tool/rlc/test/tutorial/3.rl). And you can try out the sudoku example [here](../tool/rlc/test/examples/sudoku.rl).
 
 After you have copied it, you can run `rlc-learn` and see it learn:
 ```bash
@@ -190,13 +189,11 @@ rl_module.functions.pretty_print(bj_game)
 while bj_game.resume_index != -1:
     print("hit? (y/n)")
     decision = input()
-    user_action = rl_module.module.GameHit() if decision == "y" else rl_module.module.GamePass()
-    if not rl_module.functions.can_apply(user_action, bj_game):
-        print("provided action was invalid")
-        rl_module.functions.print(action)
-        continue
+    if decision == "y":
+        rl_module.functions.hit(bj_game)
+    else:
+        rl_module.functions.stand(bj_game)
 
-    rl_module.functions.apply(user_action, bj_game)
     rl_module.functions.pretty_print(bj_game)
 ```
 
