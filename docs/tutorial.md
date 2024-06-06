@@ -110,7 +110,7 @@ rlc example.rl -o executable
 
 ## Training and Running
 
-Now that you've ensured your system works, download the `Sudoku` example from [here](../tool/rlc/test/examples/black_jack.rl) and save it in a file in the directory we created at the start of this example.
+Now that you've ensured your system works, download the `black jack` example from [here](../tool/rlc/test/examples/black_jack.rl) and save it in a file in the directory we created at the start of this example.
 
 Read the example and make sure you understand it. If you are interested in learning more about the mechanisms described there, you can also read the files described [here](../tool/rlc/test/tutorial/2.rl) and [here](../tool/rlc/test/tutorial/3.rl).
 
@@ -153,7 +153,7 @@ Of course, there is no guarantee that the machine will achieve a score of one, s
 
 Still, with very few commands and a very simple `.rl` file, we managed to have a reasonably configured network up and learning.
 
-Let it train for as long as you wish. We stopped the training after ~7 million moves, at around 0.52 mean return. That is, the network learned to plan ahead so that on average it can play ~ten more turns before being stuck. Notice that the games start with 20 random moves already set, so a score of 0.55 means that the game managed to play up to ~70 moves total before getting stuck.
+Let it train for as long as you wish. We stopped the training after ~500.000 moves, at around 0.75 mean return. That is, the network learned when it should keep drawing more cards and when not to.
 
 ![tensorboard example](../imgs/tensorboard2.png)
 
