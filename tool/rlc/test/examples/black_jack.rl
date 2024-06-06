@@ -1,3 +1,4 @@
+# RUN: python %pyscript/solve.py %s -i %stdlib --rlc rlc
 import collections.vector
 import machine_learning 
 import action
