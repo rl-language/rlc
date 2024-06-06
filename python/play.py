@@ -43,7 +43,7 @@ def main():
     parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
 
     args = parser.parse_args()
-    with load_simulation_from_args(args) as sim:
+    with load_simulation_from_args(args, optimize=True) as sim:
         wrapper_path = sim.wrapper_path
 
         from ray import air, tune

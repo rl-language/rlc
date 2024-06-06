@@ -196,6 +196,18 @@ fun<T> append_to_string(Vector<T> to_add, String output):
 
     output.append(']')
 
+fun<T, Int dim> append_to_string(BoundedVector<T, dim> to_add, String output):
+    let counter = 0
+    output.append('[')
+    while counter < to_add.size():
+        _to_string_impl(to_add.get(counter), output)
+        counter = counter + 1
+        if counter != to_add.size():
+            output.append(", ")
+
+    output.append(']')
+
+
 fun<T> _print_type(T to_add, StringLiteral default_type_name, String output):
     if to_add is CustomGetTypeName:
         output.append(to_add.get_type_name())
@@ -329,6 +341,32 @@ fun<T, Int X> parse_string(T[X] result, String buffer, Int index) -> Bool:
     return true
 
 fun<T> parse_string(Vector<T> result, String buffer, Int index) -> Bool:
+    _consume_space(buffer, index)
+    let counter = 0
+    if buffer.get(index) != '[':
+        return false
+    index = index + 1
+    _consume_space(buffer, index)
+
+    let keep_parsing = true
+    while keep_parsing: 
+        let to_parse : T
+        if !_parse_string_impl(to_parse, buffer, index):
+            return false
+        result.append(to_parse)
+        _consume_space(buffer, index)
+        keep_parsing = buffer.get(index) == ','
+        if keep_parsing:
+            index = index + 1
+            _consume_space(buffer, index)
+
+    if buffer.get(index) != ']':
+        return false
+    index = index + 1
+    return true
+
+
+fun<T, Int x> parse_string(BoundedVector<T, x> result, String buffer, Int index) -> Bool:
     _consume_space(buffer, index)
     let counter = 0
     if buffer.get(index) != '[':

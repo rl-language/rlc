@@ -68,7 +68,7 @@ def make_rlc_argparse(name, description):
     return parser
 
 
-def load_simulation_from_args(args, optimize):
+def load_simulation_from_args(args, optimize=False):
     assert (
         which(args.rlc) is not None
     ), "could not find executable {}, use --rlc <path_to_rlc> to configure it".format(
