@@ -74,6 +74,20 @@ ent<Int min, Int max> BInt:
             to_return.value = min
         return to_return
 
+    fun mul(BInt<min, max> other) -> BInt<min, max>:
+        let to_return : BInt<min, max>
+        to_return.value = self.value * other.value
+        if to_return.value >= max:
+            to_return.value = max - 1
+        if to_return.value < min:
+            to_return.value = min
+        return to_return
+
+    fun mul(Int val) -> BInt<min, max>:
+        let other : BInt<min, max>
+        other.value = val
+        return self * other
+
     fun sub(BInt<min, max> other) -> BInt<min, max>:
         let to_return : BInt<min, max>
         to_return.value = self.value - other.value

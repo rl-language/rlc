@@ -179,22 +179,22 @@ import random
 
 # load the rl file
 rl_module = compile("black_jack.rl")
-bj_game = rl_module.functions.play()
+state = rl_module.functions.play()
 
-while rl_module.functions.get_current_player(bj_game) == -1:
-    action = random.choice(rl_module.valid_actions(bj_game))
-    rl_module.functions.apply(action, bj_game)
+while rl_module.functions.get_current_player(state) == -1:
+    action = random.choice(rl_module.valid_actions(state))
+    rl_module.functions.apply(action, state)
 
-rl_module.functions.pretty_print(bj_game)
-while bj_game.resume_index != -1:
+rl_module.functions.pretty_print(state)
+while state.resume_index != -1:
     print("hit? (y/n)")
     decision = input()
     if decision == "y":
-        rl_module.functions.hit(bj_game)
+        rl_module.functions.hit(state)
     else:
-        rl_module.functions.stand(bj_game)
+        rl_module.functions.stand(state)
 
-    rl_module.functions.pretty_print(bj_game)
+    rl_module.functions.pretty_print(state)
 ```
 
 You can run this program with the following command, using a shell with the activated environment:
