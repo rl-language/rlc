@@ -51,14 +51,14 @@ extra_files_lib = package_files(["./lib/"], "lib")
 
 setup(
     name="rl_language",
-    version="0.1.10",
+    version="0.1.11",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
     include_package_data=True,
     data_files=extra_files_bin
     + extra_files_lib
-    + [("./bin/impl", ["./test.py", "./action.py", "./learn.py", "./play.py"])],
+    + [("./bin/impl", ["./test.py", "./action.py", "./learn.py", "./play.py", "./solve.py"])],
     install_requires=read_requirements("../requirements.txt"),
     entry_points={
         "console_scripts": [
@@ -66,6 +66,7 @@ setup(
             "rlc-action=impl.action:main",
             "rlc-learn=impl.learn:main",
             "rlc-play=impl.play:main",
+            "rlc-random=impl.solve:main",
         ],
     },
     classifiers=[

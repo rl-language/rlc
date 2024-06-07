@@ -17,19 +17,24 @@ from command_line import load_simulation_from_args, make_rlc_argparse
 
 def main():
     parser = make_rlc_argparse("solve", description="runs a action of the simulation")
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        nargs="?",
+        help="path where to write the output",
+        default="",
+    )
+
     args = parser.parse_args()
     with load_simulation_from_args(args) as sim:
-        env = RLCEnvironment(wrapper_path=sim.wrapper_path)
-        env.wrapper.functions.print(env.state)
-
+        env = RLCEnvironment(wrapper_path=sim.wrapper_path, output=args.output)
         while True:
             obs, reward, done, truncated, info = env.step(
-                [random.choice(env.legal_actions) for i in range(env.num_agents)]
+                [random.choice(env.legal_actions_indicies()) for i in range(env.num_agents)]
             )
             if done["__all__"] or truncated["__all__"]:
                 break
-
-        env.wrapper.functions.print(env.state)
 
 
 if __name__ == "__main__":

@@ -113,7 +113,27 @@ Now that you've ensured your system works, download the `black jack` example fro
 
 Read the example and make sure you understand it. If you are interested in learning more about the mechanisms described there, you can also read the files described [here](../tool/rlc/test/tutorial/2.rl) and [here](../tool/rlc/test/tutorial/3.rl). And you can try out the sudoku example [here](../tool/rlc/test/examples/sudoku.rl).
 
-After you have copied it, you can run `rlc-learn` and see it learn:
+Black jack is example that shows how to handle games with randomness and imperfect information. Indeed the actions taken by the real user are usually just one or two, while most of the game is spent by the `randomness player` shuffling the deck, which is a fake player that performs actions at random.
+
+
+After you have copied it, let us make sure we can run generate a random game.
+
+```
+rlc-random black_jack.rl
+```
+
+You will see that it prints the actions to be executed in a game, this include the shuffling of the deck.
+You can visualize what is happeing with
+
+```
+rlc-random black_jack.rl -o game.log
+rlc-action black_jack.rl game.log -pp
+```
+
+You will be able to visualize the evolution of the deck while it is being suffled, and then see which action the player will take.
+
+
+Now that we have visualized a random game, we can start learning! Tou can run `rlc-learn` to do so:
 ```bash
 rlc-learn black_jack.rl |& tee log.txt
 ```

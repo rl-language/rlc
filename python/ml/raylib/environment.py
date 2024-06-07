@@ -1,5 +1,6 @@
 from ray.rllib.env.multi_agent_env_runner import MultiAgentEnvRunner
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
+import sys
 from gymnasium import spaces
 from gymnasium.spaces import Dict
 import numpy as np
@@ -30,10 +31,11 @@ class RLCEnvironment(MultiAgentEnv):
     def __init__(self, dc="", wrapper_path="", output=None):
         self.wrapper_path = wrapper_path
         self.output_path = output
+        self.output = None
         self.setup()
 
     def setup(self):
-        self.output = None if self.output_path is None else open(self.output_path, "w+")
+        self.reset_output()
         self.wrapper = import_file("wrapper", self.wrapper_path)
         action = self.wrapper.AnyGameAction()
         self.num_agents = self.wrapper.functions.get_num_players()
@@ -91,6 +93,14 @@ class RLCEnvironment(MultiAgentEnv):
                 x.append(0)
         return np.array(x, dtype=np.int8)
 
+    def legal_actions_indicies(self):
+        # Convert NumPy arrays to nested tuples to make them hashable.
+        x = []
+        for i, action in enumerate(self.actions):
+            if self.wrapper.functions.can_apply_impl(action, self.state):
+                x.append(i)
+        return x
+
     def legal_actions_list(self):
         # Convert NumPy arrays to nested tuples to make them hashable.
         x = []
@@ -113,10 +123,18 @@ class RLCEnvironment(MultiAgentEnv):
         done, reward = self._get_done_winner()
         return {"reward": reward}
 
-    def reset(self, seed=None, options=None):
-        if self.output_path is not None:
-            self.output.close()
+    def reset_output(self):
+        if self.output_path is None:
+            pass
+        elif self.output_path == "":
+            self.output = sys.stdout
+        else:
+            if self.output != None:
+                self.output.close()
             self.output = open(self.output_path, "w+")
+
+    def reset(self, seed=None, options=None):
+        self.reset_output()
         self.state = self.wrapper.functions.play()
         self.resolve_randomness()
         observation = self._current_state()
