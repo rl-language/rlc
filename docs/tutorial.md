@@ -166,7 +166,7 @@ You should see a graph that looks similar to the following:
 
 ![tensorboard example](../imgs/mean_reward.png)
 
-The x-axis is the number of actions played. In the case of our game, it means the number of cells that have been filled across multiple games by the learning agent. The y-axis represents the average score obtained by the learner. As you can see, the more games it plays, the better scores it gets—it is actually learning how to play!
+The x-axis is the number of actions played. In the case of our game, it means the number of `hits` and `stand` executed, the y-axis is instead the average score obtained. As exepected the average score is increasing, that is: it is learning to play.
 
 Of course, the machine will never achieve a average score of one, because there is no guarantee you can always hit 21 points, not even if you knew the order of the cards in the deck. Furthermore, the size of the neural network has been defaulted to a reasonable size, but there is no guarantee that the problem is solvable given the default size.
 
