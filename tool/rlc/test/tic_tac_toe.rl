@@ -75,23 +75,20 @@ act play() -> Game:
 fun get_current_player(Game g) -> Int:
     if g.is_done():
         return -4
-    return g.board.current_player() - 1
+    #return g.board.current_player() - 1
+    return 0 
 
 fun score(Game g, Int player_id) -> Float:
     if !g.is_done(): 
         return 0.0 
     if g.board.three_in_a_line_player(1) and player_id == 0:
-        return 0.01
-    if g.board.three_in_a_line_player(2) and player_id == 1:
-        return 0.01
-    if g.board.three_in_a_line_player(1) and player_id == 1:
-        return -0.01
+        return -1.0
     if g.board.three_in_a_line_player(2) and player_id == 0:
-        return -0.01
-    return 0.0
+        return 1.0
+    return -1.0
 
 fun get_num_players() -> Int:
-    return 2
+    return 1
 
 fun max_game_lenght() -> Int:
     return 100
@@ -141,3 +138,14 @@ fun main() -> Int:
         return 0
     else:
         return 1
+
+fun pretty_print(Game g):
+    let i = 0
+    while i != 3:
+        let to_print : String
+        let y = 0
+        while y != 3:
+            to_print.append(to_string(g.board.get(i, y)))
+            y = y + 1 
+        print(to_print)
+        i = i + 1

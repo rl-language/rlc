@@ -1,5 +1,6 @@
 from ray.rllib.env.multi_agent_env_runner import MultiAgentEnvRunner
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
+import torch
 import sys
 from gymnasium import spaces
 from gymnasium.spaces import Dict
@@ -146,6 +147,9 @@ class RLCEnvironment(MultiAgentEnv):
 
         return observation, info
 
+    def action_to_string(self, action):
+        return self.to_python_string(self.wrapper.functions.to_string(action))
+
     def to_rl_string(self, string):
         return self.wrapper.rl_s__strlit_r_String(string)
 
@@ -221,3 +225,22 @@ class RLCEnvironment(MultiAgentEnv):
                 "action_mask": self.legal_actions,
           }
         return to_return
+
+    def print_probs(self, model):
+      obs = self._current_state()
+      policy_id = f"p{self.current_player()}"
+      module = model.get_module(policy_id)
+      obs[self.current_player()]["observations"] = torch.tensor(np.expand_dims(obs[self.current_player()]["observations"], 0), dtype=torch.float32)
+      obs[self.current_player()]["action_mask"] = torch.tensor(np.expand_dims(obs[self.current_player()]["action_mask"], 0), dtype=torch.float32)
+      data = {"obs": obs[self.current_player()]}
+      with torch.no_grad():
+        logits = module._forward_inference(data)
+
+        action_probs = torch.softmax(logits["action_dist_inputs"], dim=-1)
+
+        best_actions = [pair for pair in zip(action_probs[0].tolist(), self.actions, range(self.num_actions))]
+        best_actions.sort(key=lambda pair: -pair[0])
+        for prob, action, id in best_actions:
+           if prob != 0:
+               print(self.action_to_string(action), "{:0.4f} %".format(prob * 100))
+        return best_actions[0][2]
