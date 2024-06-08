@@ -23,7 +23,7 @@ limitations under the License.
 
 class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 {
-	mutable llvm::DenseMap<mlir::rlc::EntityType, int> counter;
+	mutable llvm::DenseMap<mlir::rlc::ClassType, int> counter;
 	mutable int index = 0;
 
 	public:
@@ -31,7 +31,7 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 
 	AliasResult getAlias(mlir::Type type, llvm::raw_ostream &OS) const final
 	{
-		if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
+		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
 			OS << casted.mangledName();
 			if (counter.find(casted) == counter.end())

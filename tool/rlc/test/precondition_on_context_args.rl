@@ -1,10 +1,10 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent EntOne:
+cls EntOne:
     Bool field_one
 
-ent EntTwo:
+cls EntTwo:
     Bool field_two
 
 act play(ctx EntOne one, ctx EntTwo two) -> Play:

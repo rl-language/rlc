@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent<T> TemplatedEntity:
+cls<T> TemplatedEntity:
 	T asd
 
 fun main() -> Int:

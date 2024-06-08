@@ -31,7 +31,7 @@ enum UnitKind:
       return 4
     return 6
 
-ent Unit:
+cls Unit:
   Bool is_overwatching
   Bool is_guarding 
   Bool is_jammed

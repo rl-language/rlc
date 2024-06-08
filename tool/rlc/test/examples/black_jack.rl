@@ -18,7 +18,7 @@ using CardIndex = BInt<0, 52>
 # A deck is a class, called
 # entities in RL. It has 
 # fields and methods
-ent Deck:
+cls Deck:
     Vector<Card> cards
 
     # called every time

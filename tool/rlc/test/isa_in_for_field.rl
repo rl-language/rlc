@@ -10,10 +10,10 @@ fun<T> template(T to_add) -> Bool:
             return field.function()
     return false
 
-ent Entity:
+cls Entity:
     Int x 
 
-ent Outer:
+cls Outer:
     Entity x 
 
 fun function(Entity a) -> Bool:

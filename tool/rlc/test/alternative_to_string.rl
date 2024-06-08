@@ -5,7 +5,7 @@ import string
 import collections.vector
 import serialization.print
 
-ent SomeStruct:
+cls SomeStruct:
     Bool | Float x
     Vector<Int> y
 

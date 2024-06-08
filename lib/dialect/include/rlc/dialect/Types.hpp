@@ -45,23 +45,23 @@ namespace mlir::rlc
 
 	std::string prettyType(mlir::Type type);
 
-	class EntityType
+	class ClassType
 			: public Type::
-						TypeBase<EntityType, Type, StructTypeStorage, TypeTrait::IsMutable>
+						TypeBase<ClassType, Type, StructTypeStorage, TypeTrait::IsMutable>
 	{
 		public:
 		/// Inherit base constructors.
 		using Base::Base;
 
 		static llvm::StringRef getMnemonic() { return name; }
-		constexpr static const char *name = "entity";
+		constexpr static const char *name = "class";
 
 		/// Gets or creates an identified struct with the given name in the provided
 		/// context. Note that unlike llvm::StructType::create, this function will
 		/// _NOT_ rename a struct in case a struct with the same name already exists
 		/// in the context. Instead, it will just return the existing struct,
 		/// similarly to the rest of MLIR type ::get methods.
-		static EntityType getIdentified(
+		static ClassType getIdentified(
 				MLIRContext *context,
 				StringRef name,
 				ArrayRef<Type> explicitTemplateParameters);
@@ -70,7 +70,7 @@ namespace mlir::rlc
 		/// changed later. If a struct with the given name already exists, renames
 		/// the struct by appending a `.` followed by a number to the name. Renaming
 		/// happens even if the existing struct has the same body.
-		static EntityType getNewIdentified(
+		static ClassType getNewIdentified(
 				MLIRContext *context,
 				StringRef name,
 				ArrayRef<Type> elements,
@@ -128,10 +128,10 @@ namespace mlir
 {
 
 	template<>
-	struct AttrTypeSubElementHandler<mlir::rlc::EntityType>
+	struct AttrTypeSubElementHandler<mlir::rlc::ClassType>
 	{
 		static void walk(
-				const rlc::EntityType &param, AttrTypeImmediateSubElementWalker &walker)
+				const rlc::ClassType &param, AttrTypeImmediateSubElementWalker &walker)
 		{
 			for (Type type : param.getBody())
 				walker.walk(type);
@@ -139,12 +139,12 @@ namespace mlir
 			for (Type type : param.getExplicitTemplateParameters())
 				walker.walk(type);
 		}
-		static FailureOr<rlc::EntityType> replace(
-				const rlc::EntityType &param,
+		static FailureOr<rlc::ClassType> replace(
+				const rlc::ClassType &param,
 				AttrSubElementReplacements &attrRepls,
 				TypeSubElementReplacements &typeRepls)
 		{
-			auto type = rlc::EntityType::getIdentified(
+			auto type = rlc::ClassType::getIdentified(
 					param.getContext(),
 					param.getName(),
 					typeRepls.take_front(param.getBody().size()));

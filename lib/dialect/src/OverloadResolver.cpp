@@ -54,8 +54,8 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 	}
 
 	if (auto pair =
-					std::pair{ calleeArgument.dyn_cast<mlir::rlc::EntityType>(),
-										 callSiteArgument.dyn_cast<mlir::rlc::EntityType>() };
+					std::pair{ calleeArgument.dyn_cast<mlir::rlc::ClassType>(),
+										 callSiteArgument.dyn_cast<mlir::rlc::ClassType>() };
 			pair.first and pair.second)
 	{
 		if (pair.first.getName() != pair.second.getName())

@@ -42,9 +42,9 @@ namespace rlc
 			emitted.insert(type);
 		};
 
-		for (auto decl : module.getOps<mlir::rlc::EntityDeclaration>())
+		for (auto decl : module.getOps<mlir::rlc::ClassDeclaration>())
 		{
-			auto topLevelType = decl.getType().cast<mlir::rlc::EntityType>();
+			auto topLevelType = decl.getType().cast<mlir::rlc::ClassType>();
 			if (emitted.contains(topLevelType))
 				continue;
 

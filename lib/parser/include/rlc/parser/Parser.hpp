@@ -70,8 +70,8 @@ namespace rlc
 		llvm::Expected<mlir::Value> orExpression();
 		llvm::Expected<mlir::Value> stringExpression();
 		llvm::Expected<mlir::Operation*> usingTypeStatement();
-		llvm::Expected<mlir::rlc::EntityDeclaration> entityDeclaration();
-		llvm::Expected<std::pair<std::string, mlir::Type>> entityField();
+		llvm::Expected<mlir::rlc::ClassDeclaration> classDeclaration();
+		llvm::Expected<std::pair<std::string, mlir::Type>> classField();
 		llvm::Expected<llvm::SmallVector<mlir::Value, 3>> argumentExpressionList();
 		llvm::Expected<mlir::rlc::TypeAliasOp> usingStatement();
 

@@ -30,18 +30,18 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			llvm::SmallVector<mlir::rlc::EntityDeclaration, 2> decls;
-			llvm::DenseMap<mlir::Type, mlir::rlc::EntityDeclaration>
+			llvm::SmallVector<mlir::rlc::ClassDeclaration, 2> decls;
+			llvm::DenseMap<mlir::Type, mlir::rlc::ClassDeclaration>
 					declaredTypeToDeclaration;
-			for (auto decl : getOperation().getOps<mlir::rlc::EntityDeclaration>())
+			for (auto decl : getOperation().getOps<mlir::rlc::ClassDeclaration>())
 			{
 				decls.push_back(decl);
 				declaredTypeToDeclaration[decl.getResult().getType()] = decl;
 			}
 
 			std::map<
-					mlir::rlc::EntityDeclaration,
-					llvm::SmallVector<mlir::rlc::EntityDeclaration, 2>>
+					mlir::rlc::ClassDeclaration,
+					llvm::SmallVector<mlir::rlc::ClassDeclaration, 2>>
 					dependencies;
 
 			;
@@ -55,8 +55,8 @@ namespace mlir::rlc
 				});
 			}
 
-			llvm::DenseSet<mlir::rlc::EntityDeclaration> alredyEmitted;
-			llvm::SmallVector<mlir::rlc::EntityDeclaration, 2> inOrderDeclaration;
+			llvm::DenseSet<mlir::rlc::ClassDeclaration> alredyEmitted;
+			llvm::SmallVector<mlir::rlc::ClassDeclaration, 2> inOrderDeclaration;
 			for (auto& pair : dependencies)
 			{
 				if (alredyEmitted.contains(pair.first))

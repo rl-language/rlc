@@ -4,7 +4,7 @@
 import action
 import bounded_arg
 
-ent Asd:
+cls Asd:
   Bool field
 
 fun main() -> Int:

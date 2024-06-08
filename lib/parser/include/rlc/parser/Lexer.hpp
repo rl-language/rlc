@@ -51,7 +51,7 @@ namespace rlc
 		KeywordSubAction,
 		KeywordFrame,
 		KeywordCtx,
-		KeywordEntity,
+		KeywordClass,
 		KeywordIf,
 		KeywordElse,
 		KeywordWhile,

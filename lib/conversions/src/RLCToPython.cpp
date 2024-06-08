@@ -86,7 +86,7 @@ static void registerBuiltinConversions(
 		return mlir::rlc::python::CTypeUnionType::get(t.getContext(), types);
 	});
 
-	converter.addConversion([&](mlir::rlc::EntityType t) -> mlir::Type {
+	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
 		for (auto sub : t.getBody())
 		{
@@ -170,7 +170,7 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 		return mlir::rlc::python::CTypeUnionType::get(t.getContext(), types);
 	});
 
-	converter.addConversion([&](mlir::rlc::EntityType t) -> mlir::Type {
+	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
 		for (auto sub : t.getBody())
 		{
@@ -290,15 +290,15 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 	return f;
 }
 
-class EntityDeclarationToNothing
-		: public mlir::OpConversionPattern<mlir::rlc::EntityDeclaration>
+class ClassDeclarationToNothing
+		: public mlir::OpConversionPattern<mlir::rlc::ClassDeclaration>
 {
 	public:
 	using mlir::OpConversionPattern<
-			mlir::rlc::EntityDeclaration>::OpConversionPattern;
+			mlir::rlc::ClassDeclaration>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::EntityDeclaration op,
+			mlir::rlc::ClassDeclaration op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
@@ -431,7 +431,7 @@ class FunctionToPyFunction
 	}
 };
 
-static mlir::rlc::EntityType getActionTypeOfActionStatement(
+static mlir::rlc::ClassType getActionTypeOfActionStatement(
 		mlir::rlc::ActionStatement action)
 {
 	auto* currentOp = action.getOperation()->getParentOp();
@@ -441,7 +441,7 @@ static mlir::rlc::EntityType getActionTypeOfActionStatement(
 		currentOp = currentOp->getParentOp();
 		assert(currentOp != nullptr);
 	}
-	return mlir::cast<mlir::rlc::ActionFunction>(currentOp).getEntityType();
+	return mlir::cast<mlir::rlc::ActionFunction>(currentOp).getClassType();
 }
 
 static void emitActionContraints(
@@ -453,7 +453,7 @@ static void emitActionContraints(
 	auto created = rewriter.create<mlir::rlc::python::PythonActionInfo>(
 			action->getLoc(), emittedPythonFunction);
 
-	mlir::rlc::EntityType ActionType = getActionTypeOfActionStatement(action);
+	mlir::rlc::ClassType ActionType = getActionTypeOfActionStatement(action);
 
 	llvm::SmallVector<mlir::Location, 2> locs;
 	llvm::SmallVector<mlir::Type, 2> types;
@@ -542,13 +542,13 @@ class ActionDeclToTNothing
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
 		auto types = builder->getConverter().getTypes().get(
-				("Any" + op.getEntityType().getName() + "Action").str());
+				("Any" + op.getClassType().getName() + "Action").str());
 		if (not types.empty())
 			rewriter.create<mlir::rlc::python::AddToMap>(
 					op.getLoc(),
 					"actionToAnyFunctionType",
 					("\"" + op.getUnmangledName() + "\"").str(),
-					("Any" + op.getEntityType().getName() + "Action").str());
+					("Any" + op.getClassType().getName() + "Action").str());
 
 		auto f = emitFunctionWrapper(
 				op.getLoc(),
@@ -665,7 +665,7 @@ namespace mlir::python
 			patterns.add<EnumDeclarationToNothing>(converter, &getContext());
 			patterns.add<TypeAliasConverter>(converter, &getContext());
 			patterns.add<ConstantGlobalArrayOpToNothing>(converter, &getContext());
-			patterns.add<EntityDeclarationToNothing>(converter, &getContext());
+			patterns.add<ClassDeclarationToNothing>(converter, &getContext());
 			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
 
 			if (failed(applyPartialConversion(
@@ -685,9 +685,9 @@ namespace mlir::python
 		llvm::SmallVector<std::string, 2> names;
 		llvm::SmallVector<llvm::StringRef, 2> refs;
 
-		if (auto entity = type.dyn_cast<mlir::rlc::EntityType>())
+		if (auto classDecl = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (const auto& name : entity.getFieldNames())
+			for (const auto& name : classDecl.getFieldNames())
 				names.push_back(name);
 		}
 		else if (auto alternative = type.dyn_cast<mlir::rlc::AlternativeType>())

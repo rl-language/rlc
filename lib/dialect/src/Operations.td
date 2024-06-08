@@ -834,8 +834,8 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
 		mlir::FunctionType getMainActionType() {
 			return getResult().getType().cast<mlir::FunctionType>();
 		}
-		mlir::rlc::EntityType getEntityType() {
-			return getMainActionType().getResult(0).cast<mlir::rlc::EntityType>();
+		mlir::rlc::ClassType getClassType() {
+			return getMainActionType().getResult(0).cast<mlir::rlc::ClassType>();
 		}
 	}];
 
@@ -1062,7 +1062,7 @@ def RLC_MemberAccess : RLC_Dialect<"member_access", [DeclareOpInterfaceMethods<T
   let builders = [
         OpBuilder<(ins "mlir::Value":$value, "std::int64_t":$fieldIndex), [{
 			auto index = $_builder.getI64IntegerAttr(fieldIndex);
-			auto real_type = value.getType().cast<EntityType>();
+			auto real_type = value.getType().cast<ClassType>();
 			auto resType = real_type.getBody()[fieldIndex];
             build($_builder, $_state, resType, value, index);
     }]>];
@@ -1765,7 +1765,7 @@ def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInte
   }];
 }
 
-def RLC_EntityDeclaration : RLC_Dialect<"entity_decl", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
+def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
   let summary = "constant.";
 
   let description = [{
@@ -1839,9 +1839,9 @@ def RLC_FunctionRuntimeTypeGlobal : RLC_Dialect<"function_runtime_type_global"> 
     }]>];
 }
 
-def RLC_EntityRuntimeTypeGlobal : RLC_Dialect<"entity_runtime_type_global"> {
+def RLC_ClassRuntimeTypeGlobal : RLC_Dialect<"class_runtime_type_global"> {
 
-  let summary = "Rapresents a entity type runtime information";
+  let summary = "Rapresents a class type runtime information";
 
   let arguments = (ins StrAttr:$name, Variadic<RLC_TypeType>:$fields, StrArrayAttr:$field_names);
 

@@ -184,11 +184,11 @@ static void setFramesBody(mlir::rlc::ActionFunction fun)
 		hiddenMemberTypes.push_back(mlir::rlc::ReferenceType::get(t));
 	}
 
-	auto res = fun.getEntityType().setBody(memberTypes, memberNames);
+	auto res = fun.getClassType().setBody(memberTypes, memberNames);
 	assert(res.succeeded());
 
-	auto res2 = mlir::rlc::EntityType::getIdentified(
-			fun.getContext(), (fun.getEntityType().getName() + "_shadow").str(), {});
+	auto res2 = mlir::rlc::ClassType::getIdentified(
+			fun.getContext(), (fun.getClassType().getName() + "_shadow").str(), {});
 	auto isOk = res2.setBody(hiddenMemberTypes, hiddenMemberNames).succeeded();
 	assert(isOk);
 }
@@ -245,7 +245,7 @@ static void defineGetNameFunction(
 		mlir::rlc::ModuleBuilder &builder,
 		mlir::Value action,
 		mlir::rlc::ActionStatement statement,
-		mlir::rlc::EntityType actionType)
+		mlir::rlc::ClassType actionType)
 {
 	builder.getRewriter().setInsertionPoint(function);
 	llvm::SmallVector<mlir::Type, 4> types({ actionType });
@@ -301,11 +301,11 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 		mlir::rlc::ModuleBuilder &builder,
 		mlir::Value action,
 		mlir::rlc::ActionStatement statement,
-		mlir::rlc::EntityType actionType)
+		mlir::rlc::ClassType actionType)
 {
 	builder.getRewriter().setInsertionPoint(function);
 	llvm::SmallVector<mlir::Type, 4> types(
-			{ actionType, function.getEntityType() });
+			{ actionType, function.getClassType() });
 	llvm::SmallVector<llvm::StringRef, 4> names({ "self", "frame" });
 	llvm::SmallVector<mlir::Location, 4> locs(
 			{ statement.getLoc(), statement.getLoc() });
@@ -407,7 +407,7 @@ static mlir::Type declareActionStatementType(
 	auto statement = mlir::dyn_cast<mlir::rlc::ActionStatement>(
 			builder.actionFunctionValueToActionStatement(action).front());
 
-	std::string name = function.getEntityType().getName().str();
+	std::string name = function.getClassType().getName().str();
 	name += snakeCaseToCamelCase(statement.getName());
 
 	llvm::SmallVector<mlir::Type, 4> fieldTypes;
@@ -427,10 +427,10 @@ static mlir::Type declareActionStatementType(
 		fieldTypes.push_back(type);
 	}
 
-	auto type = mlir::rlc::EntityType::getNewIdentified(
+	auto type = mlir::rlc::ClassType::getNewIdentified(
 			function.getContext(), name, fieldTypes, fieldNames, {});
 
-	auto built = builder.getRewriter().create<mlir::rlc::EntityDeclaration>(
+	auto built = builder.getRewriter().create<mlir::rlc::ClassDeclaration>(
 			statement.getLoc(),
 			type,
 			name,
@@ -463,13 +463,13 @@ static mlir::LogicalResult declareActionTypes(
 			function.getLoc(),
 			mlir::rlc::TraitMetaType::get(
 					function.getContext(),
-					(function.getEntityType().getName() + "Action").str(),
+					(function.getClassType().getName() + "Action").str(),
 					{ builder.getRewriter().getStringAttr("T") },
 					{ mlir::FunctionType::get(
 							function.getContext(),
 							{ mlir::rlc::TemplateParameterType::get(
 										function.getContext(), "T", nullptr, false),
-								function.getEntityType() },
+								function.getClassType() },
 							{}) },
 					{ builder.getRewriter().getStringAttr("apply") }));
 
@@ -493,7 +493,7 @@ static mlir::LogicalResult declareActionTypes(
 
 	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
 			function.getLoc(),
-			("Any" + function.getEntityType().getName() + "Action").str(),
+			("Any" + function.getClassType().getName() + "Action").str(),
 			alternative);
 
 	return mlir::success();
@@ -529,7 +529,7 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 	mlir::rlc::ModuleBuilder builder(
 			fun->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
 
-	if (builder.typeOfAction(fun).cast<mlir::rlc::EntityType>().isInitialized())
+	if (builder.typeOfAction(fun).cast<mlir::rlc::ClassType>().isInitialized())
 		return fun;
 
 	builder.getRewriter().setInsertionPointToStart(&fun.getBody().front());
@@ -661,15 +661,15 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	mlir::rlc::Yield yield =
 			mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
 	mlir::Value frameVar = yield.getArguments()[0];
-	if (not frameVar.getType().isa<mlir::rlc::EntityType>() or
-			not builder.isEntityOfAction(frameVar.getType()))
+	if (not frameVar.getType().isa<mlir::rlc::ClassType>() or
+			not builder.isClassOfAction(frameVar.getType()))
 	{
 		return logError(
 				*this,
 				"Subaction statement must refer to a action, not a " +
 						prettyType(frameVar.getType()));
 	}
-	auto underlyingType = frameVar.getType().cast<mlir::rlc::EntityType>();
+	auto underlyingType = frameVar.getType().cast<mlir::rlc::ClassType>();
 	auto underlying = builder.getActionOf(underlyingType)
 												.getDefiningOp<mlir::rlc::ActionFunction>();
 
@@ -1271,10 +1271,10 @@ mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
 }
 
 static mlir::LogicalResult maybeInstantiateAction(
-		mlir::rlc::ModuleBuilder &builder, mlir::Value maybeActionEntity)
+		mlir::rlc::ModuleBuilder &builder, mlir::Value maybeActionClass)
 {
-	auto casted = dyn_cast<mlir::rlc::EntityType>(maybeActionEntity.getType());
-	if (not casted or not builder.isEntityOfAction(casted))
+	auto casted = dyn_cast<mlir::rlc::ClassType>(maybeActionClass.getType());
+	if (not casted or not builder.isClassOfAction(casted))
 		return mlir::success();
 
 	auto actionFunction =
@@ -1867,10 +1867,10 @@ static bool locsAreInSameFile(mlir::Location l, mlir::Location r)
 mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	auto structType = getValue().getType().dyn_cast<mlir::rlc::EntityType>();
+	auto structType = getValue().getType().dyn_cast<mlir::rlc::ClassType>();
 	if (structType == nullptr)
 	{
-		return logError(*this, "Members of non-entity types cannot be accessed");
+		return logError(*this, "Members of non-class types cannot be accessed");
 	}
 
 	if (getMemberName().empty())

@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent some_entity:
+cls some_entity:
 	Int field
 	Int field2
 

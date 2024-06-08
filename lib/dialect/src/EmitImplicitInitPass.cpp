@@ -110,12 +110,12 @@ namespace mlir::rlc
 			types.push_back(op.getValue().getType());
 		});
 
-		op.walk([&](mlir::rlc::EntityDeclaration op) {
+		op.walk([&](mlir::rlc::ClassDeclaration op) {
 			types.push_back(op.getType());
 		});
 
 		op.walk([&](mlir::rlc::ActionFunction op) {
-			types.push_back(op.getEntityType());
+			types.push_back(op.getClassType());
 		});
 
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToFunction;
@@ -237,8 +237,8 @@ namespace mlir::rlc
 			abort();
 	}
 
-	static void emitEntityImplicitInit(
-			mlir::rlc::EntityType type,
+	static void emitClassImplicitInit(
+			mlir::rlc::ClassType type,
 			mlir::rlc::FunctionOp fun,
 			mlir::rlc::ModuleBuilder& builder)
 	{
@@ -331,10 +331,10 @@ namespace mlir::rlc
 	{
 		bool leafesAreAllPrimitiveTypes = true;
 		t.walk([&](mlir::Type inner) {
-			if (inner.isa<mlir::rlc::EntityType>())
+			if (inner.isa<mlir::rlc::ClassType>())
 				leafesAreAllPrimitiveTypes = false;
 		});
-		if (t.isa<mlir::rlc::EntityType>())
+		if (t.isa<mlir::rlc::ClassType>())
 			leafesAreAllPrimitiveTypes = false;
 
 		return leafesAreAllPrimitiveTypes;
@@ -361,9 +361,9 @@ namespace mlir::rlc
 			{
 				emitMemSetZero(type, fun, builder);
 			}
-			else if (auto entityType = type.dyn_cast<mlir::rlc::EntityType>())
+			else if (auto classType = type.dyn_cast<mlir::rlc::ClassType>())
 			{
-				emitEntityImplicitInit(entityType, fun, builder);
+				emitClassImplicitInit(classType, fun, builder);
 			}
 			else if (auto arrayType = type.dyn_cast<mlir::rlc::ArrayType>())
 			{

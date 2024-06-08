@@ -5,7 +5,7 @@ import serialization.print
 
 # CHECK: first 
 # CHECK-NEXT: second
-ent Asd:
+cls Asd:
     Int first
     Int second
 

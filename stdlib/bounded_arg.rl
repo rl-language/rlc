@@ -14,7 +14,7 @@
 import serialization.to_byte_vector
 import string 
 
-ent<Int min, Int max> BInt:
+cls<Int min, Int max> BInt:
     Int value
 
     fun equal(Int other) -> Bool:

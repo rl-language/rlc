@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent<T> Example:
+cls<T> Example:
   T value
   fun assign(Example<T> other):
    self.value = 4

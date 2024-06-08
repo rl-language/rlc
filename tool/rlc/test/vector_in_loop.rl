@@ -2,7 +2,7 @@
 # RUN: %t
 import collections.vector
 
-ent Entity:
+cls Entity:
     Vector<Int> member
 
 fun has_loop():

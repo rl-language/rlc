@@ -45,8 +45,8 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	table.add(
 			"StringLiteral", mlir::rlc::StringLiteralType::get(mod.getContext()));
 
-	for (auto entityDecl : mod.getOps<mlir::rlc::EntityDeclaration>())
-		table.add(entityDecl.getName(), entityDecl.getType());
+	for (auto classDecl : mod.getOps<mlir::rlc::ClassDeclaration>())
+		table.add(classDecl.getName(), classDecl.getType());
 
 	for (auto traitDefinition : mod.getOps<mlir::rlc::TraitDefinition>())
 		table.add(
@@ -90,17 +90,17 @@ static mlir::Type instantiateTemplate(mlir::Type type, mlir::TypeRange values)
 		return toReturn;
 	}
 
-	if (not type.isa<mlir::rlc::EntityType>())
+	if (not type.isa<mlir::rlc::ClassType>())
 	{
 		type.dump();
 		for (auto type : values)
 			type.dump();
 		mlir::emitError(
 				mlir::UnknownLoc::get(type.getContext()),
-				"explicit template instantiation on non template entity or trait type");
+				"explicit template instantiation on non template class or trait type");
 		return nullptr;
 	}
-	auto casted = type.cast<mlir::rlc::EntityType>();
+	auto casted = type.cast<mlir::rlc::ClassType>();
 	if (casted.getExplicitTemplateParameters().size() != values.size())
 	{
 		casted.dump();
@@ -123,7 +123,7 @@ static mlir::Type instantiateTemplate(mlir::Type type, mlir::TypeRange values)
 										 return replacementType;
 									 return t;
 								 })
-								 .cast<mlir::rlc::EntityType>();
+								 .cast<mlir::rlc::ClassType>();
 	}
 	return casted;
 }
@@ -283,7 +283,7 @@ static void registerConversions(
 		return mlir::rlc::ArrayType::get(t.getContext(), converted, t.getSize());
 	});
 	converter.addConversion(
-			[&](mlir::rlc::EntityType t) -> mlir::Type { return t; });
+			[&](mlir::rlc::ClassType t) -> mlir::Type { return t; });
 	converter.addConversion(
 			[&](mlir::rlc::UncheckedTemplateParameterType t)
 					-> std::optional<mlir::Type> {
@@ -391,7 +391,7 @@ void mlir::rlc::ModuleBuilder::removeAction(mlir::Operation* op)
 {
 	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
 
-	auto type = action.getResultTypes()[0].cast<mlir::rlc::EntityType>();
+	auto type = action.getResultTypes()[0].cast<mlir::rlc::ClassType>();
 
 	actionToActionType.erase(action.getResult());
 	actionTypeToAction.erase(type);
@@ -418,7 +418,7 @@ void mlir::rlc::ModuleBuilder::registerAction(mlir::Operation* op)
 	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
 
 	auto type = getConverter().getTypes().getOne(
-			action.getResultTypes()[0].cast<mlir::rlc::EntityType>().getName());
+			action.getResultTypes()[0].cast<mlir::rlc::ClassType>().getName());
 	actionToActionType[action.getResult()] = type;
 	actionTypeToAction[type] = action.getResult();
 
@@ -483,7 +483,7 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 		registerAction(action);
 	}
 
-	for (auto decl : op.getOps<mlir::rlc::EntityDeclaration>())
+	for (auto decl : op.getOps<mlir::rlc::ClassDeclaration>())
 		typeTypeDeclaration[decl.getResult().getType()] = decl.getOperation();
 }
 

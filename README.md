@@ -29,7 +29,7 @@ Before version 1.0 we want for users to be able to produce:
 # declares the equivalent of a struct called Board.
 # It contains the tic tac toe slots and the current player turn
 # Methods omitted for brevity
-ent Board:
+cls Board:
 	Int[9] slots
 	Bool playerTurn
 

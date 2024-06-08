@@ -5,7 +5,7 @@ import action
 # They include fields and methods.
 # This is a class that rappresents a sudoku board,
 # that is, a 9x9 grid that can contains digits. 
-ent Board:
+cls Board:
     # The following line is a field declaration.
     # It speficies inside a Board there is a array
     # of 9x9 elements of type BInt<0, 10>, and such 

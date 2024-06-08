@@ -17,7 +17,7 @@ import action
 import collections.vector
 import string
 
-ent<T> Hidden:
+cls<T> Hidden:
     T value
 
     fun assign(T content):
@@ -42,7 +42,7 @@ fun<T> parse_string(Hidden<T> to_add, String input, Int index) -> Bool:
     return from_string(to_add.value, input, index) 
 
 
-ent<T> HiddenInformation:
+cls<T> HiddenInformation:
     T value 
     Int owner
 

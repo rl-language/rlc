@@ -36,22 +36,22 @@ namespace mlir::rlc
 
 	static void registerFunctionTypes(
 			mlir::FunctionType t,
-			llvm::StringMap<llvm::DenseSet<mlir::rlc::EntityType>>& out)
+			llvm::StringMap<llvm::DenseSet<mlir::rlc::ClassType>>& out)
 	{
 		for (auto t : t.getInputs())
-			if (auto casted = t.dyn_cast<mlir::rlc::EntityType>())
+			if (auto casted = t.dyn_cast<mlir::rlc::ClassType>())
 				out[casted.getName()].insert(casted);
 
 		if (t.getNumResults() == 0)
 			return;
 
-		if (auto casted = t.getResult(0).dyn_cast<mlir::rlc::EntityType>())
+		if (auto casted = t.getResult(0).dyn_cast<mlir::rlc::ClassType>())
 			out[casted.getName()].insert(casted);
 	}
 
 	static void collectAllTypesOnFunctionAndActions(
 			mlir::ModuleOp op,
-			llvm::StringMap<llvm::DenseSet<mlir::rlc::EntityType>>& out)
+			llvm::StringMap<llvm::DenseSet<mlir::rlc::ClassType>>& out)
 	{
 		for (auto op : op.getOps<mlir::rlc::FunctionOp>())
 			registerFunctionTypes(op.getType(), out);
@@ -65,13 +65,13 @@ namespace mlir::rlc
 
 	static void instantiateStructDeclarationIfNeeded(
 			mlir::ModuleOp op,
-			mlir::rlc::EntityType type,
-			mlir::rlc::EntityDeclaration originalDecl)
+			mlir::rlc::ClassType type,
+			mlir::rlc::ClassDeclaration originalDecl)
 	{
 		assert(isTemplateType(originalDecl.getType()).succeeded());
 		mlir::IRRewriter rewriter(op.getContext());
 		rewriter.setInsertionPoint(originalDecl);
-		rewriter.create<mlir::rlc::EntityDeclaration>(
+		rewriter.create<mlir::rlc::ClassDeclaration>(
 				originalDecl.getLoc(),
 				type,
 				originalDecl.getNameAttr(),
@@ -81,11 +81,11 @@ namespace mlir::rlc
 	}
 
 	static void declareInstantiatedStructs(
-			llvm::StringMap<mlir::rlc::EntityDeclaration>& originalDecls,
+			llvm::StringMap<mlir::rlc::ClassDeclaration>& originalDecls,
 			llvm::DenseSet<mlir::Type>& alreadyDeclared,
 			mlir::ModuleOp op)
 	{
-		llvm::StringMap<llvm::DenseSet<mlir::rlc::EntityType>>
+		llvm::StringMap<llvm::DenseSet<mlir::rlc::ClassType>>
 				outwardExposedTemplateTypes;
 
 		collectAllTypesOnFunctionAndActions(op, outwardExposedTemplateTypes);
@@ -234,8 +234,8 @@ namespace mlir::rlc
 			mlir::IRRewriter rewriter(&getContext());
 
 			llvm::DenseSet<mlir::Type> alreadDeclared;
-			llvm::StringMap<mlir::rlc::EntityDeclaration> originalEntiDecl;
-			for (auto decl : getOperation().getOps<mlir::rlc::EntityDeclaration>())
+			llvm::StringMap<mlir::rlc::ClassDeclaration> originalEntiDecl;
+			for (auto decl : getOperation().getOps<mlir::rlc::ClassDeclaration>())
 			{
 				alreadDeclared.insert(decl.getType());
 				originalEntiDecl[decl.getName()] = decl;
@@ -304,8 +304,8 @@ namespace mlir::rlc
 				op.erase();
 			}
 
-			llvm::DenseSet<mlir::rlc::EntityDeclaration> templateDecl;
-			for (auto decl : getOperation().getOps<mlir::rlc::EntityDeclaration>())
+			llvm::DenseSet<mlir::rlc::ClassDeclaration> templateDecl;
+			for (auto decl : getOperation().getOps<mlir::rlc::ClassDeclaration>())
 			{
 				if (isTemplateType(decl.getType()).succeeded())
 					templateDecl.insert(decl);

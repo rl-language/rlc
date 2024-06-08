@@ -8,7 +8,7 @@ import machine_learning
 using UnitArgType = BInt<0, 27>
 
 
-ent Board:
+cls Board:
   BInt<0, 5>[29][28] map
   HiddenInformation<BInt<0, 5>> command_points
   BoundedVector<Unit, 27> units

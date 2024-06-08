@@ -6,7 +6,7 @@
 #--- source.rl
 import to_include
 
-ent Asd:
+cls Asd:
   Int _x
 
 #--- to_include.rl

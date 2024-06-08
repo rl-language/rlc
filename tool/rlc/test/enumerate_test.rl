@@ -4,7 +4,7 @@
 import action
 import serialization.print
 
-ent Content:
+cls Content:
     Bool asd
     Bool asd2
 

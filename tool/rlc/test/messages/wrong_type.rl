@@ -2,7 +2,7 @@
 
 # CHECK: 8:1: error: No known type ref int in function declaration return type  
 
-ent Asd:
+cls Asd:
 	Int x
 
 fun ret_x(Asd val) -> ref int:

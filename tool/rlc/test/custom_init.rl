@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent Example:
+cls Example:
 	Int f1
 
 	fun init():

@@ -91,7 +91,7 @@ def RLC_ReferenceType : RLC_Type<"Reference", "ref"> {
 def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr"> {
   let summary = "RLC array type";
   let description = [{
-    Entity type.
+    Class type.
   }];
 
   let parameters = (ins "Type":$underlying);
@@ -115,7 +115,7 @@ def RLC_AlternativeType : RLC_Type<"Alternative", "alternative"> {
 def RLC_ArrayType : RLC_Type<"Array", "array"> {
   let summary = "RLC array type";
   let description = [{
-    Entity type.
+    Class type.
   }];
 
   let extraClassDeclaration = [{

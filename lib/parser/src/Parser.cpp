@@ -705,9 +705,9 @@ Expected<mlir::Value> Parser::orExpression()
 Expected<mlir::Value> Parser::expression() { return orExpression(); }
 
 /**
- * EntityField : TypeUse Identifier
+ * ClassField : TypeUse Identifier
  */
-llvm::Expected<std::pair<std::string, mlir::Type>> Parser::entityField()
+llvm::Expected<std::pair<std::string, mlir::Type>> Parser::classField()
 {
 	TRY(type, singleTypeUse());
 	EXPECT(Token::Identifier);
@@ -715,14 +715,14 @@ llvm::Expected<std::pair<std::string, mlir::Type>> Parser::entityField()
 }
 
 /**
- * EntityDeclaration : Ent[templateArguments] Identifier Colons Newline+ Indent
- * (entityField Newline | functionDefinition)* Deindent
+ * ClassDeclaration : Ent[templateArguments] Identifier Colons Newline+ Indent
+ * (classField Newline | functionDefinition)* Deindent
  */
-llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
+llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 {
 	auto location = getCurrentSourcePos();
 	auto insertionPoint = builder.saveInsertionPoint();
-	EXPECT(Token::KeywordEntity);
+	EXPECT(Token::KeywordClass);
 	SmallVector<mlir::Type, 3> templateParameters;
 	if (current == Token::LAng)
 	{
@@ -746,9 +746,9 @@ llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 	auto* bb = builder.createBlock(&region);
 	builder.setInsertionPointToStart(bb);
 
-	const auto on_exit = [&]() -> mlir::rlc::EntityDeclaration {
+	const auto on_exit = [&]() -> mlir::rlc::ClassDeclaration {
 		builder.restoreInsertionPoint(insertionPoint);
-		auto toReturn = builder.create<mlir::rlc::EntityDeclaration>(
+		auto toReturn = builder.create<mlir::rlc::ClassDeclaration>(
 				location,
 				unkType(),
 				builder.getStringAttr(name),
@@ -769,7 +769,7 @@ llvm::Expected<mlir::rlc::EntityDeclaration> Parser::entityDeclaration()
 		}
 		else
 		{
-			TRY(field, entityField(), on_exit());
+			TRY(field, classField(), on_exit());
 			fieldTypes.emplace_back(field->second);
 			fieldNames.emplace_back(builder.getStringAttr(field->first));
 			EXPECT(Token::Newline, on_exit());
@@ -1650,7 +1650,7 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDeclaration(
 		EXPECT(Token::Identifier);
 		name = lIdent;
 	}
-	auto retType = mlir::rlc::EntityType::getIdentified(ctx, name, {});
+	auto retType = mlir::rlc::ClassType::getIdentified(ctx, name, {});
 	return builder.create<mlir::rlc::ActionFunction>(
 			location,
 			mlir::FunctionType::get(ctx, argTypes, { retType }),
@@ -1845,9 +1845,9 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 			continue;
 		}
 
-		if (current == Token::KeywordEntity)
+		if (current == Token::KeywordClass)
 		{
-			TRY(f, entityDeclaration());
+			TRY(f, classDeclaration());
 			continue;
 		}
 
@@ -1880,7 +1880,7 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		}
 		auto location = getCurrentSourcePos();
 		return make_error<RlcError>(
-				"Expected function, action or entity declaration",
+				"Expected function, action or class declaration",
 				RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
 				location);
 	}

@@ -4,7 +4,7 @@ import bounded_arg
 
 using Dice = BInt<1, 7>
 
-ent AttackProfile:
+cls AttackProfile:
     BInt<0, 30> models 
     BInt<0, 10> attacks_per_model
     BInt<0, 10> balistic_skill
@@ -12,7 +12,7 @@ ent AttackProfile:
     BInt<0, 10> penetration
     BInt<0, 10> damage 
 
-ent DefenseProfile:
+cls DefenseProfile:
     BInt<0, 10> models 
     BInt<0, 10> thoughness 
     BInt<0, 10> wounds 

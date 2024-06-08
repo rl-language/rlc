@@ -98,7 +98,7 @@ namespace mlir::rlc
 		}
 
 		if (auto casted =
-						expressions[0].getType().dyn_cast<mlir::rlc::EntityType>())
+						expressions[0].getType().dyn_cast<mlir::rlc::ClassType>())
 		{
 			for (auto field : llvm::enumerate(casted.getBody()))
 			{

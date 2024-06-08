@@ -94,8 +94,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordCtx";
 		case Token::KeywordLet:
 			return "KeywordLet";
-		case Token::KeywordEntity:
-			return "KeywordEntity";
+		case Token::KeywordClass:
+			return "KeywordClass";
 		case Token::KeywordDestroy:
 			return "KeywordDestroy";
 		case Token::KeywordContstruct:
@@ -397,8 +397,8 @@ Token Lexer::eatIdent()
 	if (name == "enum")
 		return Token::KeywordEnum;
 
-	if (name == "ent")
-		return Token::KeywordEntity;
+	if (name == "cls")
+		return Token::KeywordClass;
 
 	if (name == "evn")
 		return Token::KeywordEvent;

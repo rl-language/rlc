@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ent<T> Vector:
+cls<T> Vector:
     OwningPtr<T> _data
     Int _size
     Int _capacity
@@ -120,7 +120,7 @@ ent<T> Vector:
     fun size() -> Int:
         return self._size
 
-ent<T, Int max_size> BoundedVector:
+cls<T, Int max_size> BoundedVector:
     Vector<T> _data
 
     fun assign(BoundedVector<T, max_size> other):

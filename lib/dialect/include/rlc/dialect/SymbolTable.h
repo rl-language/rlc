@@ -175,14 +175,14 @@ namespace mlir::rlc
 			return typeToInitFunction[type];
 		}
 
-		bool isEntityOfAction(mlir::Type type) const
+		bool isClassOfAction(mlir::Type type) const
 		{
 			return actionTypeToAction.count(type) != 0;
 		}
 
 		mlir::Value getActionOf(mlir::Type type) const
 		{
-			assert(isEntityOfAction(type));
+			assert(isClassOfAction(type));
 			return actionTypeToAction.at(type);
 		}
 

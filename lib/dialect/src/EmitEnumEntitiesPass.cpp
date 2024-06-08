@@ -145,12 +145,12 @@ namespace mlir::rlc
 				ops.push_back(declaration);
 
 			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
-			llvm::DenseMap<mlir::rlc::EnumDeclarationOp, mlir::rlc::EntityType>
+			llvm::DenseMap<mlir::rlc::EnumDeclarationOp, mlir::rlc::ClassType>
 					enumsToType;
 			for (auto declaration : ops)
 			{
 				rewriter.setInsertionPoint(declaration);
-				auto op = rewriter.create<mlir::rlc::EntityDeclaration>(
+				auto op = rewriter.create<mlir::rlc::ClassDeclaration>(
 						declaration.getLoc(),
 						mlir::rlc::UnknownType::get(getOperation().getContext()),
 						declaration.getName(),
@@ -192,7 +192,7 @@ namespace mlir::rlc
 						continue;
 					failed = false;
 
-					auto type = mlir::rlc::EntityType::getIdentified(
+					auto type = mlir::rlc::ClassType::getIdentified(
 							getOperation().getContext(), use.getEnumName(), {});
 					rewriter.replaceOpWithNewOp<mlir::rlc::EnumUse>(
 							use, type, rewriter.getI64IntegerAttr(i));

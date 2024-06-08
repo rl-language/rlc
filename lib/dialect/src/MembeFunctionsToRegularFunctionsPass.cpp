@@ -35,8 +35,8 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			mlir::SmallVector<mlir::rlc::EntityDeclaration, 4> decls;
-			for (auto decl : getOperation().getOps<mlir::rlc::EntityDeclaration>())
+			mlir::SmallVector<mlir::rlc::ClassDeclaration, 4> decls;
+			for (auto decl : getOperation().getOps<mlir::rlc::ClassDeclaration>())
 				decls.push_back(decl);
 
 			mlir::IRRewriter rewriter(&getContext());

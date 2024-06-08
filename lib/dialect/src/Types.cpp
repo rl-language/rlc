@@ -35,7 +35,7 @@ limitations under the License.
 void mlir::rlc::RLCDialect::registerTypes()
 {
 	addTypes<
-			EntityType,
+			ClassType,
 #define GET_TYPEDEF_LIST
 #include "Types.inc"
 			>();
@@ -43,7 +43,7 @@ void mlir::rlc::RLCDialect::registerTypes()
 
 using namespace mlir::rlc;
 
-EntityType EntityType::getIdentified(
+ClassType ClassType::getIdentified(
 		MLIRContext *context,
 		StringRef name,
 		ArrayRef<Type> explicitTemplateParameters)
@@ -54,7 +54,7 @@ EntityType EntityType::getIdentified(
 			context, StructTypeStorage::KeyTy(name, explicitTemplateParameters));
 }
 
-EntityType EntityType::getNewIdentified(
+ClassType ClassType::getNewIdentified(
 		MLIRContext *context,
 		StringRef name,
 		ArrayRef<Type> elements,
@@ -65,7 +65,7 @@ EntityType EntityType::getNewIdentified(
 	unsigned counter = 0;
 	do
 	{
-		auto type = EntityType::getIdentified(
+		auto type = ClassType::getIdentified(
 				context, stringName, explicitTemplateParameters);
 		if (type.isInitialized() || failed(type.setBody(elements, fieldNames)))
 		{
@@ -77,40 +77,40 @@ EntityType EntityType::getNewIdentified(
 	} while (true);
 }
 
-mlir::LogicalResult EntityType::setBody(
+mlir::LogicalResult ClassType::setBody(
 		ArrayRef<Type> types, ArrayRef<std::string> fieldNames)
 {
 	return Base::mutate(types, fieldNames);
 }
 
-bool EntityType::isInitialized() const { return getImpl()->isInitialized(); }
-llvm::StringRef EntityType::getName() const
+bool ClassType::isInitialized() const { return getImpl()->isInitialized(); }
+llvm::StringRef ClassType::getName() const
 {
 	return getImpl()->getIdentifier();
 }
-llvm::ArrayRef<mlir::Type> EntityType::getBody() const
+llvm::ArrayRef<mlir::Type> ClassType::getBody() const
 {
 	return getImpl()->getBody();
 }
 
-llvm::ArrayRef<mlir::Type> EntityType::getExplicitTemplateParameters() const
+llvm::ArrayRef<mlir::Type> ClassType::getExplicitTemplateParameters() const
 {
 	return getImpl()->getExplicitTemplateParameters();
 }
 
-mlir::LogicalResult EntityType::verify(
+mlir::LogicalResult ClassType::verify(
 		function_ref<InFlightDiagnostic()>, StructTypeStorage::KeyTy &)
 {
 	return success();
 }
 
-mlir::LogicalResult EntityType::verify(
+mlir::LogicalResult ClassType::verify(
 		function_ref<InFlightDiagnostic()> emitError, ArrayRef<Type> types)
 {
 	return success();
 }
 
-void EntityType::walkImmediateSubElements(
+void ClassType::walkImmediateSubElements(
 		function_ref<void(Attribute)> walkAttrsFn,
 		function_ref<void(Type)> walkTypesFn) const
 {
@@ -121,10 +121,10 @@ void EntityType::walkImmediateSubElements(
 		walkTypesFn(type);
 }
 
-mlir::Type EntityType::replaceImmediateSubElements(
+mlir::Type ClassType::replaceImmediateSubElements(
 		ArrayRef<Attribute> replAttrs, ArrayRef<Type> replTypes) const
 {
-	auto type = EntityType::getIdentified(
+	auto type = ClassType::getIdentified(
 			getContext(), getName(), replTypes.drop_front(getBody().size()));
 	auto result =
 			type.setBody(replTypes.take_front(getBody().size()), getFieldNames());
@@ -132,12 +132,12 @@ mlir::Type EntityType::replaceImmediateSubElements(
 	return type;
 }
 
-llvm::ArrayRef<std::string> EntityType::getFieldNames() const
+llvm::ArrayRef<std::string> ClassType::getFieldNames() const
 {
 	return getImpl()->getFieldNames();
 }
 
-mlir::Type EntityType::parse(mlir::AsmParser &parser)
+mlir::Type ClassType::parse(mlir::AsmParser &parser)
 {
 	if (parser.parseLess())
 		return mlir::Type();
@@ -147,7 +147,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 	if (res.failed())
 	{
 		parser.emitError(
-				parser.getCurrentLocation(), "failed to parse Entity type nam");
+				parser.getCurrentLocation(), "failed to parse Class type nam");
 		return {};
 	}
 
@@ -161,7 +161,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 			{
 				parser.emitError(
 						parser.getCurrentLocation(),
-						"failed to parse Entity template parameter");
+						"failed to parse Class template parameter");
 				return {};
 			}
 			templateParameters.push_back(type);
@@ -171,7 +171,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 	}
 
 	auto toReturn =
-			EntityType::getIdentified(parser.getContext(), name, templateParameters);
+			ClassType::getIdentified(parser.getContext(), name, templateParameters);
 
 	llvm::SmallVector<std::string, 2> names;
 	llvm::SmallVector<mlir::Type, 2> inners;
@@ -185,7 +185,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 					parser.parseColon().failed())
 			{
 				parser.emitError(
-						parser.getCurrentLocation(), "failed to parse Entity sub type ");
+						parser.getCurrentLocation(), "failed to parse Class sub type ");
 				return {};
 			}
 
@@ -194,7 +194,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 			if (res.failed())
 			{
 				parser.emitError(
-						parser.getCurrentLocation(), "failed to parse Entity sub type ");
+						parser.getCurrentLocation(), "failed to parse Class sub type ");
 				return {};
 			}
 
@@ -215,7 +215,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 	{
 		parser.emitError(
 				parser.getCurrentLocation(),
-				"failed to set Entity sub types, it was already defined");
+				"failed to set Class sub types, it was already defined");
 		return {};
 	}
 
@@ -224,7 +224,7 @@ mlir::Type EntityType::parse(mlir::AsmParser &parser)
 	return toReturn;
 }
 
-mlir::Type EntityType::print(mlir::AsmPrinter &p) const
+mlir::Type ClassType::print(mlir::AsmPrinter &p) const
 {
 	p << getMnemonic();
 	p << "<";
@@ -270,9 +270,9 @@ mlir::Type EntityType::print(mlir::AsmPrinter &p) const
 	if (parseResult.has_value())
 		return genType;
 
-	if (mnemonic == EntityType::getMnemonic())
+	if (mnemonic == ClassType::getMnemonic())
 	{
-		return EntityType::parse(parser);
+		return ClassType::parse(parser);
 	}
 
 	parser.emitError(typeLoc) << "unknown  type `" << mnemonic << "` in dialect `"
@@ -285,7 +285,7 @@ void RLCDialect::printType(
 {
 	if (::mlir::succeeded(generatedTypePrinter(type, printer)))
 		return;
-	if (auto casted = type.dyn_cast<EntityType>())
+	if (auto casted = type.dyn_cast<ClassType>())
 	{
 		casted.print(printer);
 		return;
@@ -349,7 +349,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		OS << "Void";
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::EntityType>())
+	if (auto maybeType = t.dyn_cast<mlir::rlc::ClassType>())
 	{
 		OS << maybeType.getName();
 		if (not maybeType.getExplicitTemplateParameters().empty())
@@ -541,7 +541,7 @@ namespace mlir::rlc
 			OS << "void";
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::EntityType>())
+		if (auto maybeType = t.dyn_cast<mlir::rlc::ClassType>())
 		{
 			OS << maybeType.getName();
 			if (not maybeType.getExplicitTemplateParameters().empty())
@@ -628,10 +628,7 @@ std::string mlir::rlc::typeToMangled(mlir::Type t)
 	return s;
 }
 
-std::string mlir::rlc::EntityType::mangledName()
-{
-	return typeToMangled(*this);
-}
+std::string mlir::rlc::ClassType::mangledName() { return typeToMangled(*this); }
 
 std::string mlir::rlc::AlternativeType::getMangledName()
 {
@@ -738,7 +735,7 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 	if (auto casted = type.dyn_cast<mlir::rlc::TemplateParameterType>())
 		return mlir::success();
 
-	if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
+	if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 	{
 		for (auto child : casted.getExplicitTemplateParameters())
 			if (isTemplateType(child).succeeded())

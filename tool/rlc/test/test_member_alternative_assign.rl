@@ -1,10 +1,10 @@
 # RUN: rlc %s -o %t -i %stdlib --sanitize
 # RUN: %t
 
-ent SomeInnerStruct:
+cls SomeInnerStruct:
     Bool x
 
-ent SomeStruct:
+cls SomeStruct:
     Bool | SomeInnerStruct x
 
 

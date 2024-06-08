@@ -13,7 +13,7 @@
 # limitations under the License.
 import collections.vector 
 
-ent<EdgeLabel> Edge:
+cls<EdgeLabel> Edge:
   Int _target_id
   Int _source_id
   EdgeLabel _label
@@ -27,7 +27,7 @@ ent<EdgeLabel> Edge:
   fun get_label() -> ref EdgeLabel:
     return self._label
 
-ent<NodeLabel, EdgeLabel> Node:
+cls<NodeLabel, EdgeLabel> Node:
   Int _id
   NodeLabel _label 
   Vector<Int> _incomming 
@@ -72,7 +72,7 @@ ent<NodeLabel, EdgeLabel> Node:
   fun get_id() -> Int:
     return self._id
 
-ent<NodeLabel, EdgeLabel> Graph:
+cls<NodeLabel, EdgeLabel> Graph:
   Vector<Node<NodeLabel, EdgeLabel>> _nodes
 
   fun add_node(Node<NodeLabel, EdgeLabel> n):

@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent<T> Class:
+cls<T> Class:
   fun get_field() -> T:
     return self._field
 

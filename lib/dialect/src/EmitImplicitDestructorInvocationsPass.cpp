@@ -100,7 +100,7 @@ namespace mlir::rlc
 			return mlir::success(requireDestructor[toConsider]);
 		}
 
-		if (auto type = toConsider.dyn_cast<mlir::rlc::EntityType>())
+		if (auto type = toConsider.dyn_cast<mlir::rlc::ClassType>())
 		{
 			mlir::rlc::OverloadResolver resolver(builder.getSymbolTable());
 			auto overload = resolver.findOverloads(
@@ -224,7 +224,7 @@ namespace mlir::rlc
 					fun.getType().getInputs(),
 					{ fun.getLoc() });
 			rewriter.setInsertionPointToStart(body);
-			if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
+			if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 			{
 				for (auto num : ::rlc::irange(casted.getBody().size()))
 				{

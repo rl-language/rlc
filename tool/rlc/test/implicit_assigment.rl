@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent asd:
+cls asd:
 	Int first
 	Int second
 

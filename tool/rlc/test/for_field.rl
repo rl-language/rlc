@@ -1,10 +1,10 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent Inner:
+cls Inner:
 	Int x2
 	Int y2
-ent Asd:
+cls Asd:
 	Int x
 	Inner y
 

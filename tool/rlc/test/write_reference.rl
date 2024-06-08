@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent Outer:
+cls Outer:
 	Int inner
 
 fun take_ref(Outer val) -> ref Int:

@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent<T> Vector:
+cls<T> Vector:
 	OwningPtr<T> content
 	Int size
 	Int capacity
@@ -33,7 +33,7 @@ ent<T> Vector:
 		self.size = self.size - 1
 		return self.content[self.size]
 
-ent VectorContainer:
+cls VectorContainer:
 	Vector<Int> asd
 
 

@@ -6,7 +6,7 @@ import bounded_arg
 import action
 import math.numeric
 
-ent Graph:
+cls Graph:
     Bool[20] nodes
     Bool[20][20] edges
     BInt<0, 20> pebble_reserve

@@ -28,7 +28,7 @@ static std::string nonArrayTypeToString(mlir::Type type)
 	std::string O;
 	llvm::raw_string_ostream OS(O);
 	llvm::TypeSwitch<mlir::Type>(type)
-			.Case([&](mlir::rlc::EntityType Entity) { OS << Entity.mangledName(); })
+			.Case([&](mlir::rlc::ClassType Class) { OS << Class.mangledName(); })
 			.Case([&](mlir::rlc::AlternativeType alternative) {
 				OS << alternative.getMangledName();
 			})
@@ -196,7 +196,7 @@ static void printMethodOfType(
 	if (not returnsVoid)
 	{
 		bool needsToInvokeDestructor =
-				type.getResult(0).isa<mlir::rlc::EntityType>() or
+				type.getResult(0).isa<mlir::rlc::ClassType>() or
 				type.getResult(0).isa<mlir::rlc::AlternativeType>();
 		OS.indent(1);
 		OS << "union ToReturn { " << typeToString(type.getResult(0))
@@ -334,7 +334,7 @@ static void printCPPOverload(
 	if (not returnsVoid)
 	{
 		bool needsToInvokeDestructor =
-				type.getResult(0).isa<mlir::rlc::EntityType>() or
+				type.getResult(0).isa<mlir::rlc::ClassType>() or
 				type.getResult(0).isa<mlir::rlc::AlternativeType>();
 		OS.indent(1);
 		OS << "union ToReturn { " << typeToString(type.getResult(0))
@@ -374,9 +374,9 @@ static void printTypeDecl(mlir::Type type, llvm::raw_ostream& OS)
 			.Case([&](mlir::rlc::AlternativeType alternative) {
 				OS << "struct " << alternative.getMangledName() << ";\n";
 			})
-			.Case([&](mlir::rlc::EntityType Entity) {
-				OS << "typedef union " << Entity.mangledName() << " "
-					 << Entity.mangledName() << ";\n";
+			.Case([&](mlir::rlc::ClassType Class) {
+				OS << "typedef union " << Class.mangledName() << " "
+					 << Class.mangledName() << ";\n";
 			})
 			.Case<
 					mlir::rlc::IntegerType,
@@ -483,12 +483,12 @@ static void printTypeDefinition(
 
 				OS << "};\n";
 			})
-			.Case([&](mlir::rlc::EntityType Entity) {
-				OS << "typedef union " << Entity.mangledName() << " {\n";
+			.Case([&](mlir::rlc::ClassType Class) {
+				OS << "typedef union " << Class.mangledName() << " {\n";
 
 				OS << "struct _Content {\n";
 				for (const auto& [name, fieldType] :
-						 llvm::zip(Entity.getFieldNames(), Entity.getBody()))
+						 llvm::zip(Class.getFieldNames(), Class.getBody()))
 				{
 					OS.indent(4);
 					printTypeField(name, fieldType, OS);
@@ -499,10 +499,10 @@ static void printTypeDefinition(
 
 				OS << "#ifdef __cplusplus\n";
 				printMethodsOfType(type, OS, methods, builder, true);
-				printSpecialFunctions(Entity.mangledName(), OS, methods);
+				printSpecialFunctions(Class.mangledName(), OS, methods);
 				OS << "#endif\n";
 
-				OS << "} " << Entity.mangledName() << ";\n";
+				OS << "} " << Class.mangledName() << ";\n";
 			})
 			.Case<
 					mlir::rlc::IntegerType,
@@ -626,7 +626,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 	OS << "#ifdef RLC_TYPE\n";
 	for (auto type : postOrderTypes(Module))
-		if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
+		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 			OS << "RLC_TYPE(" << casted.getName() << ")\n";
 	OS << "#undef RLC_TYPE\n";
 	OS << "#endif\n\n";
@@ -641,11 +641,11 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 															 fun.getFunctionType()
 																	 .getInputs()
 																	 .front()
-																	 .isa<mlir::rlc::EntityType>())
+																	 .isa<mlir::rlc::ClassType>())
 																	? fun.getFunctionType()
 																						.getInputs()
 																						.front()
-																						.cast<mlir::rlc::EntityType>()
+																						.cast<mlir::rlc::ClassType>()
 																						.getName() +
 																				"_" + fun.getUnmangledName()
 																	: fun.getUnmangledName())
@@ -665,7 +665,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 		printFunctionSignature(
 				fun.getUnmangledName(),
 				fun.getMangledName(),
-				(fun.getEntityType().getName() + "_" + fun.getUnmangledName()).str(),
+				(fun.getClassType().getName() + "_" + fun.getUnmangledName()).str(),
 				fun.getFunctionType(),
 				fun.getArgNames(),
 				OS);
@@ -691,7 +691,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 			printFunctionSignature(
 					casted.getName(),
 					mlir::rlc::mangledName(casted.getName(), true, castedType),
-					(fun.getEntityType().getName() + "_" + casted.getName()).str(),
+					(fun.getClassType().getName() + "_" + casted.getName()).str(),
 					castedType,
 					mlir::ArrayAttr::get(casted.getContext(), attrs),
 					OS);
@@ -700,7 +700,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 		printFunctionSignature(
 				"is_done",
 				mlir::rlc::mangledName("is_done", true, fun.getIsDoneFunctionType()),
-				(fun.getEntityType().getName() + "_is_done").str(),
+				(fun.getClassType().getName() + "_is_done").str(),
 				fun.getIsDoneFunctionType(),
 				mlir::ArrayAttr::get(
 						Module.getContext(),
@@ -719,14 +719,14 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	std::map<const void*, llvm::DenseSet<mlir::Value>> typeToMethods;
 	for (auto op : Module.getOps<mlir::rlc::FunctionOp>())
 		if (op.getIsMemberFunction() and not op.isInternal() and
-				(op.getArgumentTypes()[0].isa<mlir::rlc::EntityType>() or
+				(op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() or
 				 op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>()))
 		{
 			typeToMethods[op.getArgumentTypes()[0].getAsOpaquePointer()].insert(op);
 		}
 
 	for (auto op : Module.getOps<mlir::rlc::ActionFunction>())
-		typeToMethods[op.getEntityType().getAsOpaquePointer()].insert(
+		typeToMethods[op.getClassType().getAsOpaquePointer()].insert(
 				op.getResult());
 
 	OS << "#ifdef RLC_GET_TYPE_DEFS\n";
@@ -754,7 +754,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	for (auto op : Module.getOps<mlir::rlc::FunctionOp>())
 		if (not op.isInternal() and
 				(not op.getIsMemberFunction() or
-				 (not op.getArgumentTypes()[0].isa<mlir::rlc::EntityType>() and
+				 (not op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() and
 					not op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>())))
 			printCPPOverload(
 					OS,
@@ -929,7 +929,7 @@ public:
 
 			for (size_t I = 0; I < fType.getNumInputs(); I++)
 			{
-				if (not fType.getInput(I).isa<mlir::rlc::EntityType>())
+				if (not fType.getInput(I).isa<mlir::rlc::ClassType>())
 					continue;
 				OS << " && godot::Object::cast_to<" << typeToString(fType.getInput(I))
 					 << "Wrapper>((godot::Object*)(casted[" << I << "]))";
@@ -939,7 +939,7 @@ public:
 
 			for (size_t I = 0; I < fType.getNumInputs(); I++)
 			{
-				if (not fType.getInput(I).isa<mlir::rlc::EntityType>())
+				if (not fType.getInput(I).isa<mlir::rlc::ClassType>())
 				{
 					OS << "auto arg" << I << "= ";
 					OS << "((" << typeToString(fType.getInput(I)) << ")(casted[" << I
@@ -949,7 +949,7 @@ public:
 
 			if (not isVoid)
 			{
-				if (fType.getResult(0).isa<mlir::rlc::EntityType>())
+				if (fType.getResult(0).isa<mlir::rlc::ClassType>())
 				{
 					OS << "auto to_return =" << typeToString(fType.getResult(0))
 						 << "Wrapper::_new();\nto_return->content = ";
@@ -964,7 +964,7 @@ public:
 
 			for (size_t I = 0; I < fType.getNumInputs(); I++)
 			{
-				if (fType.getInput(I).isa<mlir::rlc::EntityType>())
+				if (fType.getInput(I).isa<mlir::rlc::ClassType>())
 					OS << "&(godot::Object::cast_to<" << typeToString(fType.getInput(I))
 						 << "Wrapper>((godot::Object*)(casted[" << I << "]))->content)";
 				else

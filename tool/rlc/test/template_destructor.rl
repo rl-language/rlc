@@ -1,6 +1,6 @@
 # RUN: rlc %s -o - -i %stdlib --flattened | FileCheck %s
 
-ent<T> CustomDestructor:
+cls<T> CustomDestructor:
     Int a
 
     fun drop():

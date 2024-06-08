@@ -113,17 +113,17 @@ TEST(ParserTest, testAdditiveExpression)
 	EXPECT_NE(exp->getDefiningOp<mlir::rlc::AddOp>(), nullptr);
 }
 
-TEST(ParserTest, testEntityDeclaration)
+TEST(ParserTest, testClassDeclaration)
 {
 	mlir::MLIRContext context;
 	context.loadDialect<mlir::rlc::RLCDialect>();
 	context.loadAllAvailableDialects();
 	Parser p(
 			&context,
-			"ent something:\n\tdouble a\n\tbool b\nsomethingelse",
+			"cls something:\n\tdouble a\n\tbool b\nsomethingelse",
 			"fileName");
 
-	auto ent = p.entityDeclaration();
+	auto ent = p.classDeclaration();
 	if (!ent)
 		FAIL();
 

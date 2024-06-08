@@ -2,7 +2,7 @@
 
 # CHECK: 10:1: error: Subaction statement must refer to a action, not a Something
 
-ent Something:
+cls Something:
 	Int x
 
 act outer() -> Outer:

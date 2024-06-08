@@ -3,10 +3,10 @@
 
 import serialization.to_byte_vector
 
-ent Struct2:
+cls Struct2:
 	Vector<Int> values
 
-ent Struct1:
+cls Struct1:
 	Int asd
 	Bool x
 	Float[2] ras

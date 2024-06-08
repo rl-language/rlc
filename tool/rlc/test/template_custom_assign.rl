@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent<T> CustomAssign:
+cls<T> CustomAssign:
     Int x
 
     fun assign(CustomAssign<T> other):

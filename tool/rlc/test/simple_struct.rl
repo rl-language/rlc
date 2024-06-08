@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent Asd:
+cls Asd:
 	Int rsd
 	Int tasd
 

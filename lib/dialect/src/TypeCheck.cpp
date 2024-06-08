@@ -19,15 +19,15 @@ limitations under the License.
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
-static mlir::LogicalResult findEntityDecls(
+static mlir::LogicalResult findClassDecls(
 		mlir::ModuleOp op, llvm::StringMap<mlir::Operation*>& out)
 {
-	for (auto& entityDecl : op.getOps())
+	for (auto& classDecl : op.getOps())
 	{
 		llvm::StringRef name;
-		if (auto casted = mlir::dyn_cast<mlir::rlc::EntityDeclaration>(&entityDecl))
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassDeclaration>(&classDecl))
 			name = casted.getName();
-		else if (auto casted = mlir::dyn_cast<mlir::rlc::TypeAliasOp>(&entityDecl))
+		else if (auto casted = mlir::dyn_cast<mlir::rlc::TypeAliasOp>(&classDecl))
 			name = casted.getName();
 		else
 			continue;
@@ -35,28 +35,28 @@ static mlir::LogicalResult findEntityDecls(
 		if (auto prevDef = out.find(name); prevDef != out.end())
 		{
 			auto _ = mlir::rlc::logError(
-					&entityDecl, "Multiple definition of entity " + name);
+					&classDecl, "Multiple definition of class " + name);
 
 			return mlir::rlc::logRemark(prevDef->second, "Previous definition");
 		}
 
-		out[name] = &entityDecl;
+		out[name] = &classDecl;
 	}
 
 	return mlir::success();
 }
 
-static void collectEntityUsedTyepNames(
+static void collectClassUsedTyepNames(
 		mlir::Type type, llvm::SmallVector<llvm::StringRef, 2>& out)
 {
 	if (auto casted = type.dyn_cast<mlir::rlc::ScalarUseType>())
 	{
 		for (auto templ : casted.getExplicitTemplateParameters())
-			collectEntityUsedTyepNames(templ, out);
+			collectClassUsedTyepNames(templ, out);
 
 		if (casted.getUnderlying() != nullptr)
 		{
-			collectEntityUsedTyepNames(casted.getUnderlying(), out);
+			collectClassUsedTyepNames(casted.getUnderlying(), out);
 			return;
 		}
 		out.push_back(casted.getReadType());
@@ -65,18 +65,18 @@ static void collectEntityUsedTyepNames(
 	if (auto casted = type.dyn_cast<mlir::rlc::FunctionUseType>())
 	{
 		for (auto arg : casted.getSubTypes())
-			collectEntityUsedTyepNames(arg, out);
+			collectClassUsedTyepNames(arg, out);
 		return;
 	}
 	if (auto casted = type.dyn_cast<mlir::rlc::OwningPtrType>())
 	{
-		collectEntityUsedTyepNames(casted.getUnderlying(), out);
+		collectClassUsedTyepNames(casted.getUnderlying(), out);
 		return;
 	}
 	if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
 	{
 		for (auto subType : casted.getUnderlying())
-			collectEntityUsedTyepNames(subType, out);
+			collectClassUsedTyepNames(subType, out);
 		return;
 	}
 	if (auto casted = type.dyn_cast<mlir::rlc::IntegerLiteralType>())
@@ -86,25 +86,25 @@ static void collectEntityUsedTyepNames(
 	llvm_unreachable("unrechable");
 }
 
-static mlir::LogicalResult getEntityDeclarationSortedByDependencies(
+static mlir::LogicalResult getClassDeclarationSortedByDependencies(
 		mlir::ModuleOp op, llvm::SmallVector<mlir::Operation*, 2>& out)
 {
-	llvm::StringMap<mlir::Operation*> nameToEntityDeclaration;
-	if (findEntityDecls(op, nameToEntityDeclaration).failed())
+	llvm::StringMap<mlir::Operation*> nameToClassDeclaration;
+	if (findClassDecls(op, nameToClassDeclaration).failed())
 		return mlir::failure();
 
 	std::map<mlir::Operation*, llvm::SmallVector<mlir::Operation*, 2>>
-			EntityToUsedEntities;
+			ClassToUsedEntities;
 
-	for (auto entityDecl : op.getOps<mlir::rlc::EntityDeclaration>())
+	for (auto classDecl : op.getOps<mlir::rlc::ClassDeclaration>())
 	{
 		llvm::SmallVector<mlir::StringRef, 2> names;
-		for (auto subtypes : entityDecl.getMemberTypes())
-			collectEntityUsedTyepNames(
+		for (auto subtypes : classDecl.getMemberTypes())
+			collectClassUsedTyepNames(
 					subtypes.cast<mlir::TypeAttr>().getValue(), names);
 
 		// remove the use of names that refer to the template parameters
-		for (auto parameter : entityDecl.getTemplateParameters())
+		for (auto parameter : classDecl.getTemplateParameters())
 		{
 			llvm::erase(
 					names,
@@ -114,13 +114,13 @@ static mlir::LogicalResult getEntityDeclarationSortedByDependencies(
 							.getName());
 		}
 
-		EntityToUsedEntities[entityDecl];
+		ClassToUsedEntities[classDecl];
 		for (auto name : names)
 		{
-			if (auto iter = nameToEntityDeclaration.find(name);
-					iter != nameToEntityDeclaration.end())
+			if (auto iter = nameToClassDeclaration.find(name);
+					iter != nameToClassDeclaration.end())
 			{
-				EntityToUsedEntities[entityDecl].push_back(iter->second);
+				ClassToUsedEntities[classDecl].push_back(iter->second);
 			}
 		}
 	}
@@ -128,27 +128,27 @@ static mlir::LogicalResult getEntityDeclarationSortedByDependencies(
 	for (auto alias : op.getOps<mlir::rlc::TypeAliasOp>())
 	{
 		llvm::SmallVector<mlir::StringRef, 2> names;
-		collectEntityUsedTyepNames(alias.getAliased(), names);
+		collectClassUsedTyepNames(alias.getAliased(), names);
 
-		EntityToUsedEntities[alias];
+		ClassToUsedEntities[alias];
 		for (auto name : names)
 		{
-			if (auto iter = nameToEntityDeclaration.find(name);
-					iter != nameToEntityDeclaration.end())
+			if (auto iter = nameToClassDeclaration.find(name);
+					iter != nameToClassDeclaration.end())
 			{
-				EntityToUsedEntities[alias].push_back(iter->second);
+				ClassToUsedEntities[alias].push_back(iter->second);
 			}
 		}
 	}
 
-	while (not EntityToUsedEntities.empty())
+	while (not ClassToUsedEntities.empty())
 	{
 		llvm::SmallVector<mlir::Operation*> justEmitted;
 
-		for (auto& entry : EntityToUsedEntities)
+		for (auto& entry : ClassToUsedEntities)
 		{
 			llvm::erase_if(entry.second, [&](mlir::Operation* decl) {
-				return not EntityToUsedEntities.contains(decl);
+				return not ClassToUsedEntities.contains(decl);
 			});
 			if (entry.second.empty())
 			{
@@ -159,12 +159,12 @@ static mlir::LogicalResult getEntityDeclarationSortedByDependencies(
 		}
 
 		for (auto& entry : justEmitted)
-			EntityToUsedEntities.erase(entry);
+			ClassToUsedEntities.erase(entry);
 
-		if (justEmitted.empty() and not EntityToUsedEntities.empty())
+		if (justEmitted.empty() and not ClassToUsedEntities.empty())
 		{
 			return mlir::rlc::logError(
-					*EntityToUsedEntities.begin()->second.begin(),
+					*ClassToUsedEntities.begin()->second.begin(),
 					"Forbidden mutual dependency in entities");
 		}
 	}
@@ -176,12 +176,12 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 {
 	mlir::IRRewriter rewriter(op.getContext());
 	llvm::SmallVector<mlir::Operation*, 2> decls;
-	if (getEntityDeclarationSortedByDependencies(op, decls).failed())
+	if (getClassDeclarationSortedByDependencies(op, decls).failed())
 		return mlir::failure();
 
 	for (auto& decl : decls)
 	{
-		auto casted = mlir::dyn_cast<mlir::rlc::EntityDeclaration>(decl);
+		auto casted = mlir::dyn_cast<mlir::rlc::ClassDeclaration>(decl);
 		if (not casted)
 			continue;
 
@@ -190,9 +190,9 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 				 casted.getTemplateParameters().getAsValueRange<mlir::TypeAttr>())
 			templates.push_back(type);
 		rewriter.setInsertionPoint(casted);
-		auto newDecl = rewriter.create<mlir::rlc::EntityDeclaration>(
+		auto newDecl = rewriter.create<mlir::rlc::ClassDeclaration>(
 				casted.getLoc(),
-				mlir::rlc::EntityType::getIdentified(
+				mlir::rlc::ClassType::getIdentified(
 						casted.getContext(), casted.getName(), templates),
 				casted.getName(),
 				casted.getMemberTypes(),
@@ -207,15 +207,15 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 {
 	mlir::IRRewriter rewriter(op.getContext());
 	llvm::StringMap<mlir::Operation*> decls;
-	if (findEntityDecls(op, decls).failed())
+	if (findClassDecls(op, decls).failed())
 		return mlir::failure();
 
 	rewriter.setInsertionPointToEnd(op.getBody());
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
-		auto type = action.getEntityType();
+		auto type = action.getClassType();
 
-		auto entity = rewriter.create<mlir::rlc::EntityDeclaration>(
+		auto classDecl = rewriter.create<mlir::rlc::ClassDeclaration>(
 				action.getLoc(),
 				type,
 				rewriter.getStringAttr(type.getName()),
@@ -232,14 +232,14 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 			return mlir::rlc::logRemark(action, "Action defined here");
 		}
 
-		decls.try_emplace(type.getName(), entity);
+		decls.try_emplace(type.getName(), classDecl);
 	}
 
 	return mlir::success();
 }
 
-static mlir::LogicalResult deduceEntityBody(
-		mlir::ModuleOp op, mlir::rlc::EntityDeclaration decl)
+static mlir::LogicalResult deduceClassBody(
+		mlir::ModuleOp op, mlir::rlc::ClassDeclaration decl)
 {
 	mlir::rlc::ModuleBuilder builder(op);
 	mlir::IRRewriter& rewriter = builder.getRewriter();
@@ -247,7 +247,7 @@ static mlir::LogicalResult deduceEntityBody(
 
 	// entities of actions are discovered later, because they require to
 	// typecheck the body of the action itself.
-	if (builder.isEntityOfAction(decl.getType()))
+	if (builder.isClassOfAction(decl.getType()))
 		return mlir::success();
 
 	llvm::SmallVector<std::string> names;
@@ -267,7 +267,7 @@ static mlir::LogicalResult deduceEntityBody(
 		{
 			auto _ = mlir::rlc::logError(
 					decl, "No known type named " + mlir::rlc::prettyType(unchecked));
-			return mlir::rlc::logRemark(decl, "In entity declaration");
+			return mlir::rlc::logRemark(decl, "In class declaration");
 		}
 		checkedTemplateParameters.push_back(checkedParameterType);
 		auto actualType =
@@ -286,13 +286,13 @@ static mlir::LogicalResult deduceEntityBody(
 					decl,
 					"No known type named " + mlir::rlc::prettyType(fieldType) +
 							" used in field " + name.cast<mlir::StringAttr>().strref() +
-							" in entity declaration.");
+							" in class declaration.");
 		}
 
 		types.push_back(converted);
 		names.push_back(name.cast<mlir::StringAttr>().str());
 	}
-	auto finalType = mlir::rlc::EntityType::getIdentified(
+	auto finalType = mlir::rlc::ClassType::getIdentified(
 			decl.getContext(), decl.getName(), checkedTemplateParameters);
 
 	if (finalType.setBody(types, names).failed())
@@ -301,7 +301,7 @@ static mlir::LogicalResult deduceEntityBody(
 		return mlir::failure();
 	}
 
-	decl = rewriter.replaceOpWithNewOp<mlir::rlc::EntityDeclaration>(
+	decl = rewriter.replaceOpWithNewOp<mlir::rlc::ClassDeclaration>(
 			decl,
 			finalType,
 			decl.getName(),
@@ -315,14 +315,14 @@ static mlir::LogicalResult deduceEntityBody(
 static mlir::LogicalResult deduceEntitiesBodies(mlir::ModuleOp op)
 {
 	llvm::SmallVector<mlir::Operation*, 2> decls;
-	if (getEntityDeclarationSortedByDependencies(op, decls).failed())
+	if (getClassDeclarationSortedByDependencies(op, decls).failed())
 		return mlir::failure();
 
 	for (auto& decl : decls)
 	{
-		if (auto casted = mlir::dyn_cast<mlir::rlc::EntityDeclaration>(decl))
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassDeclaration>(decl))
 		{
-			if (deduceEntityBody(op, casted).failed())
+			if (deduceClassBody(op, casted).failed())
 				return mlir::failure();
 		}
 		else if (auto casted = mlir::dyn_cast<mlir::rlc::TypeAliasOp>(decl))
@@ -455,7 +455,7 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 		{
 			return mlir::rlc::logError(
 					fun,
-					mlir::rlc::prettyType(fun.getEntityType()) +
+					mlir::rlc::prettyType(fun.getClassType()) +
 							" is not allowed as action return type");
 		}
 

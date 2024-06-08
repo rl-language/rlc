@@ -25,9 +25,9 @@ namespace mlir::rlc
 	using Frames = std::pair<ActionFrameContent, ActionFrameContent>;
 	static mlir::Type getHiddenFrameType(mlir::rlc::ActionFunction fun)
 	{
-		return mlir::rlc::EntityType::getIdentified(
+		return mlir::rlc::ClassType::getIdentified(
 				fun.getContext(),
-				(fun.getEntityType().getName() + "_shadow").str(),
+				(fun.getClassType().getName() + "_shadow").str(),
 				{});
 	}
 
@@ -40,7 +40,7 @@ namespace mlir::rlc
 
 		auto* region = &action.getBody();
 		auto argument =
-				region->front().addArgument(action.getEntityType(), action.getLoc());
+				region->front().addArgument(action.getClassType(), action.getLoc());
 
 		auto argument2 = region->front().addArgument(
 				getHiddenFrameType(action), action.getLoc());
@@ -89,8 +89,8 @@ namespace mlir::rlc
 	{
 		mlir::IRRewriter& rewriter = builder.getRewriter();
 
-		auto refToEntity = action.getBlocks().front().getArgument(0);
-		auto type = refToEntity.getType().cast<mlir::rlc::EntityType>();
+		auto refToClass = action.getBlocks().front().getArgument(0);
+		auto type = refToClass.getType().cast<mlir::rlc::ClassType>();
 
 		llvm::SmallVector<mlir::rlc::DeclarationStatement, 4> decls;
 		action.walk([&](mlir::rlc::DeclarationStatement statement) {
@@ -117,14 +117,14 @@ namespace mlir::rlc
 				rewriter.setInsertionPoint(operand->getOwner());
 
 				auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
-						decl.getLoc(), refToEntity, memberIndex);
+						decl.getLoc(), refToClass, memberIndex);
 
 				operand->set(refToMember.getResult());
 			}
 
 			rewriter.setInsertionPointAfter(decl);
 			auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
-					decl.getLoc(), refToEntity, memberIndex);
+					decl.getLoc(), refToClass, memberIndex);
 			assert(decl.getType() != nullptr);
 			auto* call = builder.emitCall(
 					decl,
@@ -177,7 +177,7 @@ namespace mlir::rlc
 		}
 	}
 
-	// add the precondition "actionEntity.resumptionPoint ==
+	// add the precondition "actionClass.resumptionPoint ==
 	// actionStatement.resumptionIndex" to the subActionFunction.
 	static void addResumptionPointPrecondition(
 			mlir::Block* block,
@@ -224,7 +224,7 @@ namespace mlir::rlc
 			mlir::rlc::ActionFunction action,
 			mlir::rlc::ActionStatement subAction,
 			mlir::IRRewriter& rewriter,
-			mlir::rlc::EntityType entityType,
+			mlir::rlc::ClassType classType,
 			mlir::rlc::FunctionOp subF,
 			mlir::rlc::UninitializedConstruct hiddenFrame,
 			const Frames& frames)
@@ -277,11 +277,11 @@ namespace mlir::rlc
 			mlir::rlc::ActionFunction action,
 			mlir::rlc::ActionStatement subAction,
 			mlir::IRRewriter& rewriter,
-			mlir::rlc::EntityType entityType,
+			mlir::rlc::ClassType classType,
 			mlir::rlc::FunctionOp subF,
 			const Frames& frames)
 	{
-		auto hiddenEntityType = getHiddenFrameType(action);
+		auto hiddenClassType = getHiddenFrameType(action);
 		auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(subF.getLoc());
 		auto* condition = rewriter.createBlock(&ifStatement.getCondition());
 
@@ -295,9 +295,9 @@ namespace mlir::rlc
 
 		auto* trueBranch = rewriter.createBlock(&ifStatement.getTrueBranch());
 		auto frameHidden = rewriter.create<mlir::rlc::UninitializedConstruct>(
-				action.getLoc(), hiddenEntityType);
+				action.getLoc(), hiddenClassType);
 		emitActionArgsAssignsToFrame(
-				action, subAction, rewriter, entityType, subF, frameHidden, frames);
+				action, subAction, rewriter, classType, subF, frameHidden, frames);
 
 		// the resumption point stored in the frame is not enough to discrimated
 		// among alternative resumption points, so we have to store the actual id
@@ -412,7 +412,7 @@ namespace mlir::rlc
 		auto type = decayFunctionType(action.getActions()[subActionIndex]
 																			.getType()
 																			.cast<mlir::FunctionType>());
-		auto entityType = action.getEntityType();
+		auto classType = action.getClassType();
 
 		auto firstStatement = llvm::cast<mlir::rlc::ActionStatement>(subActions[0]);
 		auto subF = rewriter.create<mlir::rlc::FunctionOp>(
@@ -457,7 +457,7 @@ namespace mlir::rlc
 		for (auto* subAct : subActions)
 		{
 			auto subAction = mlir::cast<mlir::rlc::ActionStatement>(subAct);
-			emitDispatchToImpl(action, subAction, rewriter, entityType, subF, frames);
+			emitDispatchToImpl(action, subAction, rewriter, classType, subF, frames);
 		}
 
 		rewriter.setInsertionPointToEnd(&subF.getBody().front());
@@ -494,9 +494,9 @@ namespace mlir::rlc
 
 		action.getOperation()->getResult(0).replaceAllUsesWith(f);
 
-		auto entityType =
-				builder.typeOfAction(action).cast<mlir::rlc::EntityType>();
-		auto initFunction = builder.getInitFunctionOf(entityType);
+		auto classType =
+				builder.typeOfAction(action).cast<mlir::rlc::ClassType>();
+		auto initFunction = builder.getInitFunctionOf(classType);
 		auto frame = rewriter.create<mlir::rlc::ExplicitConstructOp>(
 				action.getLoc(), initFunction);
 
@@ -584,7 +584,7 @@ namespace mlir::rlc
 					rewriter.setInsertionPoint(use->getOwner());
 					auto frame = fun.getBlocks().front().getArgument(0);
 					auto frameHidden = fun.getBlocks().front().getArgument(1);
-					auto entityType = frame.getType().cast<mlir::rlc::EntityType>();
+					auto classType = frame.getType().cast<mlir::rlc::ClassType>();
 
 					if (res.getType().isa<mlir::rlc::FrameType>())
 					{
@@ -675,7 +675,7 @@ namespace mlir::rlc
 				auto* block = rewriter.createBlock(
 						&isDoneFunction.getBody(),
 						isDoneFunction.getBody().begin(),
-						action.getEntityType(),
+						action.getClassType(),
 						{ action.getLoc() });
 				rewriter.setInsertionPoint(block, block->begin());
 				auto index = rewriter.create<mlir::rlc::MemberAccess>(

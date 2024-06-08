@@ -5,10 +5,10 @@ import string
 import collections.vector
 import serialization.print
 
-ent SomeInnerStruct:
+cls SomeInnerStruct:
     Bool x
 
-ent SomeStruct:
+cls SomeStruct:
     Bool | SomeInnerStruct x
 
 fun get_type_name(SomeInnerStruct s) -> StringLiteral:

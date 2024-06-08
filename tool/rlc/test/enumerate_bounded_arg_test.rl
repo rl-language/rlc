@@ -5,7 +5,7 @@ import action
 import serialization.print
 import bounded_arg
 
-ent Content:
+cls Content:
     Bool asd
     BInt<3, 13> asd2
 

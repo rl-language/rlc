@@ -284,7 +284,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 
 		auto type = memberAccess->getOperand(0).getType();
-		if (auto casted = type.dyn_cast<mlir::rlc::EntityType>())
+		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
 			for (const auto &field :
 					 llvm::zip(casted.getFieldNames(), casted.getBody()))

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 #
 
-ent Nothing:
+cls Nothing:
 	Bool _dont_care
 
 fun none() -> Nothing:

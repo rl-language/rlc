@@ -91,11 +91,11 @@ namespace mlir::rlc
 			ops.push_back(op);
 			types.push_back(op.getLhs().getType());
 		});
-		op.walk([&](mlir::rlc::EntityDeclaration op) {
+		op.walk([&](mlir::rlc::ClassDeclaration op) {
 			types.push_back(op.getType());
 		});
 		op.walk([&](mlir::rlc::ActionFunction op) {
-			types.push_back(op.getEntityType());
+			types.push_back(op.getClassType());
 		});
 
 		for (auto type : types)
@@ -324,12 +324,12 @@ namespace mlir::rlc
 		}
 	}
 
-	static void emitImplicitAssignEntity(
+	static void emitImplicitAssignClass(
 			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
 	{
 		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
-		auto type = resType.dyn_cast<mlir::rlc::EntityType>();
+		auto type = resType.dyn_cast<mlir::rlc::ClassType>();
 
 		auto* block = &fun.getBody().front();
 		rewriter.setInsertionPointToEnd(block);
@@ -352,10 +352,10 @@ namespace mlir::rlc
 	{
 		bool leafesAreAllPrimitiveTypes = true;
 		t.walk([&](mlir::Type inner) {
-			if (inner.isa<mlir::rlc::EntityType>())
+			if (inner.isa<mlir::rlc::ClassType>())
 				leafesAreAllPrimitiveTypes = false;
 		});
-		if (t.isa<mlir::rlc::EntityType>())
+		if (t.isa<mlir::rlc::ClassType>())
 			leafesAreAllPrimitiveTypes = false;
 
 		return leafesAreAllPrimitiveTypes;
@@ -391,9 +391,9 @@ namespace mlir::rlc
 		{
 			emitImplicitAssignArray(builder, fun);
 		}
-		else if (auto type = lhs.dyn_cast<mlir::rlc::EntityType>())
+		else if (auto type = lhs.dyn_cast<mlir::rlc::ClassType>())
 		{
-			emitImplicitAssignEntity(builder, fun);
+			emitImplicitAssignClass(builder, fun);
 		}
 		else if (auto type = lhs.dyn_cast<mlir::rlc::AlternativeType>())
 		{

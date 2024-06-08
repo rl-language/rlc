@@ -4,7 +4,7 @@
 import serialization.to_byte_vector
 import collections.vector
 
-ent<Int Min, Int Max> BoundedByte:
+cls<Int Min, Int Max> BoundedByte:
     Byte _value
 
     fun get() -> Byte:

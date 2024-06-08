@@ -14,7 +14,7 @@
 
 import collections.vector
 
-ent String:
+cls String:
     Vector<Byte> _data 
 
     fun init():

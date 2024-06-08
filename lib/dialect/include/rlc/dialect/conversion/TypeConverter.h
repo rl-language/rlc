@@ -141,7 +141,7 @@ namespace mlir::rlc
 		converter.addConversion([&](mlir::rlc::ReferenceType type) -> Type {
 			return mlir::LLVM::LLVMPointerType::get(type.getContext());
 		});
-		converter.addConversion([&](mlir::rlc::EntityType type) -> Type {
+		converter.addConversion([&](mlir::rlc::ClassType type) -> Type {
 			SmallVector<Type, 2> fields;
 			for (auto arg : type.getBody())
 				fields.push_back(converter.convertType(arg));

@@ -9,7 +9,7 @@
 #--- source.rl
 import action
 
-ent Struct:
+cls Struct:
     Int field
 
 act play() -> Game:

@@ -5,7 +5,7 @@ import serialization.to_byte_vector
 import string
 import action
 
-ent Board:
+cls Board:
     BInt<0, 3>[9] slots
     Bool playerTurn
 

@@ -227,14 +227,14 @@ static mlir::Value getOrCreateGlobalString(
 			mlir::ArrayRef<mlir::Value>({ cst0, cst0 }));
 }
 
-class EntityDeclarationRewriter
-		: public mlir::OpConversionPattern<mlir::rlc::EntityDeclaration>
+class ClassDeclarationRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::ClassDeclaration>
 {
 	using mlir::OpConversionPattern<
-			mlir::rlc::EntityDeclaration>::OpConversionPattern;
+			mlir::rlc::ClassDeclaration>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::EntityDeclaration op,
+			mlir::rlc::ClassDeclaration op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
@@ -252,7 +252,7 @@ class EntityDeclarationRewriter
 				structTest,
 				true,
 				mlir::LLVM::Linkage::LinkonceODR,
-				op.getType().cast<mlir::rlc::EntityType>().mangledName(),
+				op.getType().cast<mlir::rlc::ClassType>().mangledName(),
 				mlir::Attribute());
 
 		auto* block = rewriter.createBlock(&newOp.getInitializer());
@@ -264,7 +264,7 @@ class EntityDeclarationRewriter
 				op.getLoc(),
 				rewriter,
 				"__globalVariableName" +
-						op.getType().cast<mlir::rlc::EntityType>().mangledName(),
+						op.getType().cast<mlir::rlc::ClassType>().mangledName(),
 				op.getName().str(),
 				newOp->getParentOfType<mlir::ModuleOp>());
 		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
@@ -1906,7 +1906,7 @@ namespace mlir::rlc
 					.add<UninitializedConstructRewriter>(converter, &getContext())
 					.add<MemberAccessRewriter>(converter, &getContext())
 					.add<ReferenceRewriter>(converter, &getContext())
-					.add<EntityDeclarationRewriter>(converter, &getContext())
+					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
 					.add<AbortRewriter>(converter, &getContext());
 

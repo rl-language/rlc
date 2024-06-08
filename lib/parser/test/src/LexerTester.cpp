@@ -83,8 +83,8 @@ TEST(LexerTest, tooLargeNumber)
 
 TEST(LexerTest, lexerIndentTest)
 {
-	Lexer lexer("ent \n\t\telse\n\t\tin\t  \nfor");
-	EXPECT_EQ(lexer.next(), Token::KeywordEntity);
+	Lexer lexer("cls \n\t\telse\n\t\tin\t  \nfor");
+	EXPECT_EQ(lexer.next(), Token::KeywordClass);
 	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::Indent);
 	EXPECT_EQ(lexer.next(), Token::KeywordElse);
@@ -99,8 +99,8 @@ TEST(LexerTest, lexerIndentTest)
 
 TEST(LexerTest, nestedIndentTest)
 {
-	Lexer lexer("ent \n\t\telse\n\t\t\tin\t  \n\t\tfor\n[");
-	EXPECT_EQ(lexer.next(), Token::KeywordEntity);
+	Lexer lexer("cls \n\t\telse\n\t\t\tin\t  \n\t\tfor\n[");
+	EXPECT_EQ(lexer.next(), Token::KeywordClass);
 	EXPECT_EQ(lexer.next(), Token::Newline);
 	EXPECT_EQ(lexer.next(), Token::Indent);
 	EXPECT_EQ(lexer.next(), Token::KeywordElse);

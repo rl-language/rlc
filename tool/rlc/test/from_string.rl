@@ -4,7 +4,7 @@
 import string
 import collections.vector
 
-ent Asd:
+cls Asd:
     Vector<Int> asd
     Float | Bool tasd
 

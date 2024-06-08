@@ -1,11 +1,11 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent<T, Y> Pair:
+cls<T, Y> Pair:
 	T first
 	Y second
 
-ent<K> SamePair:
+cls<K> SamePair:
 	Pair<K, K> content
 
 	fun init():

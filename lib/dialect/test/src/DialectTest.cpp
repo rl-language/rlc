@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,10 +36,10 @@ TEST(DialectTest, structTest)
 
 	auto integer = mlir::rlc::IntegerType::getInt64(&ctx);
 	auto floattype = mlir::rlc::FloatType::get(&ctx);
-	auto entity = mlir::rlc::EntityType::getNewIdentified(
+	auto classDecl = mlir::rlc::ClassType::getNewIdentified(
 			&ctx, "peppino", { integer, floattype }, { "asdint", "asdfloat" }, {});
-	EXPECT_EQ(entity.getMnemonic(), "entity");
-	EXPECT_EQ(entity.getName(), "peppino");
+	EXPECT_EQ(classDecl.getMnemonic(), "class");
+	EXPECT_EQ(classDecl.getName(), "peppino");
 }
 
 TEST(DialectTest, expressionTest)

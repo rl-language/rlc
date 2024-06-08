@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t
 
-ent Asd:
+cls Asd:
 	Int x
 
 fun ret_x(Asd val) -> ref Int:
