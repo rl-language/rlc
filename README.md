@@ -97,7 +97,7 @@ At the moment we provide binaries only for linux x64.
 pip install rl_language
 ```
 
-Read a tutorial explaining how to play sudoku [here](./docs/tutorial.md)
+Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
 
 ### Dependencies
 Base:
