@@ -48,7 +48,7 @@ class Action:
         return bytes(real_content)
 
     def can_run(self, state) -> bool:
-        return self.functions.can_apply_impl(self.action, state.state)
+        return self.functions.can_apply(self.action, state.state).value
 
     def run(self, state):
         self.functions.apply(self.action, state.state)
@@ -270,7 +270,7 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
         ).returncode
         == 0
     )
-    args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir.name)]
+    args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir.name), "-O2" if optimized else ""]
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
     assert run(args + include_args).returncode == 0

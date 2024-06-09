@@ -1,4 +1,5 @@
 import ray
+import os
 
 import numpy as np
 from ml.raylib.environment import RLCEnvironment
@@ -14,8 +15,11 @@ def main():
     parser = make_rlc_argparse("probs", description="print the probability of executing each action")
     parser.add_argument("checkpoint", type=str)
     parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
+    parser.add_argument("--pretty-print", "-pp", action="store_true", default=False)
+    parser.add_argument("--state", "-s", default="")
 
     args = parser.parse_args()
+    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False, log_to_driver=False, logging_level="ERROR")
     with load_simulation_from_args(args, optimize=True) as sim:
         wrapper_path = sim.wrapper_path
 
@@ -45,14 +49,23 @@ def main():
                 f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/"
             )
         env = RLCEnvironment(wrapper_path=wrapper_path)
-        obs, info = env.reset()
+        state_to_load = args.state if args.state != "" else None
+        obs, info = env.reset(path_to_binary_state=state_to_load)
         i = 0
         while True:
-            print(f"---------- {i} ----------------")
-            env.wrapper.functions.pretty_print(env.state)
+            if args.pretty_print:
+                os.system("clear")
+            print(f"---------- {i} : p{env.current_player()} ------------")
+            if args.pretty_print:
+                env.wrapper.functions.pretty_print(env.state)
+            else:
+                env.wrapper.functions.print(env.state)
             print("--------- probs --------------")
             action = env.print_probs(model)
             print("------------------------------")
+            if args.pretty_print:
+                user_input = input()
+                action = action if user_input == "" else int(user_input)
             observation, reward, done, truncated, info = env.step([action for i in range(env.num_agents)])
             i = i + 1
             if done["__all__"] or truncated["__all__"]:

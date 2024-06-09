@@ -29,14 +29,12 @@ def import_file(name, file_path):
 
 
 class RLCEnvironment(MultiAgentEnv):
-    def __init__(self, dc="", wrapper_path="", output=None):
+    def __init__(self, dc="", wrapper_path="", solve_randomness=True):
+        self.solve_randomess = solve_randomness
         self.wrapper_path = wrapper_path
-        self.output_path = output
-        self.output = None
         self.setup()
 
     def setup(self):
-        self.reset_output()
         self.wrapper = import_file("wrapper", self.wrapper_path)
         action = self.wrapper.AnyGameAction()
         self.num_agents = self.wrapper.functions.get_num_players()
@@ -88,7 +86,7 @@ class RLCEnvironment(MultiAgentEnv):
         # Convert NumPy arrays to nested tuples to make them hashable.
         x = []
         for i, action in enumerate(self.actions):
-            if self.wrapper.functions.can_apply_impl(action, self.state):
+            if self.wrapper.functions.can_apply_impl(action, self.state).value:
                 x.append(1)
             else:
                 x.append(0)
@@ -98,7 +96,7 @@ class RLCEnvironment(MultiAgentEnv):
         # Convert NumPy arrays to nested tuples to make them hashable.
         x = []
         for i, action in enumerate(self.actions):
-            if self.wrapper.functions.can_apply_impl(action, self.state):
+            if self.wrapper.functions.can_apply_impl(action, self.state).value:
                 x.append(i)
         return x
 
@@ -106,7 +104,7 @@ class RLCEnvironment(MultiAgentEnv):
         # Convert NumPy arrays to nested tuples to make them hashable.
         x = []
         for action in self.actions:
-            if self.wrapper.functions.can_apply_impl(action, self.state):
+            if self.wrapper.functions.can_apply_impl(action, self.state).value:
                 x.append(action)
         return x
 
@@ -124,19 +122,12 @@ class RLCEnvironment(MultiAgentEnv):
         done, reward = self._get_done_winner()
         return {"reward": reward}
 
-    def reset_output(self):
-        if self.output_path is None:
-            pass
-        elif self.output_path == "":
-            self.output = sys.stdout
-        else:
-            if self.output != None:
-                self.output.close()
-            self.output = open(self.output_path, "w+")
 
-    def reset(self, seed=None, options=None):
-        self.reset_output()
-        self.state = self.wrapper.functions.play()
+    def reset(self, seed=None, options=None, path_to_binary_state=None):
+        if path_to_binary_state == None:
+            self.state = self.wrapper.functions.play()
+        else:
+            self.load_binary(path_to_binary_state)
         self.resolve_randomness()
         observation = self._current_state()
         info = self._get_info()
@@ -160,33 +151,20 @@ class RLCEnvironment(MultiAgentEnv):
         )
 
     def resolve_randomness(self):
+        if not self.solve_randomess:
+            return
         while self.current_player() == -1:  # random player
             action = random.choice(self.legal_actions_list())
-            if self.output is not None:
-                self.output.write(
-                    self.to_python_string(self.wrapper.functions.to_string(action))
-                )
-                self.output.write("\n")
-            assert self.wrapper.functions.can_apply_impl(action, self.state)
+            assert self.wrapper.functions.can_apply_impl(action, self.state).value
             self.wrapper.functions.apply(action, self.state)
 
     def step(self, action):
-        to_apply = action[self.current_player()]
-        if self.output is not None:
-            act = self.actions[to_apply]
-            self.output.write(
-                self.to_python_string(self.wrapper.functions.to_string(act))
-            )
-            self.output.write("\n")
-            self.output.flush()
-        if not self.wrapper.functions.can_apply_impl(
+        to_apply = action[self.current_player()] if self.current_player != -1 else action[0]
+        if not self.wrapper.functions.can_apply(
             self.actions[to_apply], self.state
-        ):
-            self.wrapper.functions.apply(
-                random.choice(self.legal_actions_list()), self.state
-            )
-        else:
-            self.wrapper.functions.apply(self.actions[to_apply], self.state)
+            ).value:
+            to_apply = random.choice(self.legal_actions_indicies())
+        self.wrapper.functions.apply(self.actions[to_apply], self.state)
 
         self.resolve_randomness()
 
@@ -226,6 +204,28 @@ class RLCEnvironment(MultiAgentEnv):
           }
         return to_return
 
+    def _get_next_action_index(self, model):
+      if self.current_player() == -1:
+          return random.choice(self.legal_actions_indicies())
+      obs = self._current_state()
+      policy_id = f"p{self.current_player()}"
+      module = model.get_module(policy_id)
+      obs[self.current_player()]["observations"] = torch.tensor(np.expand_dims(obs[self.current_player()]["observations"], 0), dtype=torch.float32)
+      obs[self.current_player()]["action_mask"] = torch.tensor(np.expand_dims(obs[self.current_player()]["action_mask"], 0), dtype=torch.float32)
+      data = {"obs": obs[self.current_player()]}
+      with torch.no_grad():
+        logits = module._forward_inference(data)
+
+        action_probs = torch.softmax(logits["action_dist_inputs"], dim=-1)
+        return torch.multinomial(action_probs, num_samples=1)[0, 0].item()
+
+    def one_action_according_to_model(self, model):
+        sampled = self._get_next_action_index(model)
+        assert self.wrapper.functions.can_apply(self.actions[sampled], self.state).value
+        self.step([sampled for i in range(self.num_agents)])
+
+        return self.actions[sampled]
+
     def print_probs(self, model):
       obs = self._current_state()
       policy_id = f"p{self.current_player()}"
@@ -244,3 +244,36 @@ class RLCEnvironment(MultiAgentEnv):
            if prob != 0:
                print(self.action_to_string(action), "{:0.4f} %".format(prob * 100))
         return best_actions[0][2]
+
+    def as_byte_vector(self):
+        result = self.wrapper.functions.as_byte_vector(self.state)
+        real_content = []
+        for i in range(getattr(result, "__size")):
+            real_content.append(getattr(result, "__data")[i] + 128)
+        return bytes(real_content)
+
+    def from_string(self, string: str) -> bool:
+        rl_string = self.to_rl_string(str)
+        return self.wrapper.functions.from_string(self.state, rl_string)
+
+    def from_byte_vector(self, byte_vector):
+        vector = self.wrapper.VectorTint8_tT()
+        for byte in byte_vector:
+            self.wrapper.functions.append(vector, byte - 128)
+        self.wrapper.functions.from_byte_vector(self.state, vector)
+
+    def write_binary(self, path: str):
+        with open(path, mode="wb") as file:
+            file.write(self.as_byte_vector())
+            file.flush()
+
+    def load_binary(self, path: str):
+        with open(path, mode="rb") as file:
+            bytes = file.read()
+            self.from_byte_vector(bytes)
+
+    def load(self, path: str) -> bool:
+        with open(path, mode="r") as file:
+            bytes = file.read()
+            return self.from_string(bytes)
+

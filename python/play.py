@@ -1,5 +1,6 @@
 import ray
 
+import sys
 from ml.raylib.environment import RLCEnvironment
 from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.algorithms import ppo
@@ -27,6 +28,7 @@ def main():
     parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
 
     args = parser.parse_args()
+    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
     with load_simulation_from_args(args, optimize=True) as sim:
         wrapper_path = sim.wrapper_path
 
@@ -42,18 +44,19 @@ def main():
         )
         tune.register_env(
             "rlc_env",
-            lambda config: RLCEnvironment(wrapper_path=wrapper_path, output=args.output),
+            lambda config: RLCEnvironment(wrapper_path=wrapper_path, solve_randomness=False),
         )
 
-        ray.init(num_cpus=12, num_gpus=1)
         model = Algorithm.from_checkpoint(args.checkpoint)
         for i in range(num_players):
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/"
             )
-
-        model.evaluate()
-
+        env = RLCEnvironment(wrapper_path=wrapper_path, solve_randomness=False)
+        out = open(args.output, "w+") if args.output != "" else sys.stdout
+        while env.current_player() != -4:
+            action = env.one_action_according_to_model(model)
+            out.write(env.action_to_string(action) + "\n")
 
 if __name__ == "__main__":
     main()

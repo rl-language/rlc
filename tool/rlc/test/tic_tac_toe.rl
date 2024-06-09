@@ -75,20 +75,19 @@ act play() -> Game:
 fun get_current_player(Game g) -> Int:
     if g.is_done():
         return -4
-    #return g.board.current_player() - 1
-    return 0 
+    return g.board.current_player() - 1
 
 fun score(Game g, Int player_id) -> Float:
     if !g.is_done(): 
         return 0.0 
     if g.board.three_in_a_line_player(1) and player_id == 0:
-        return -1.0
-    if g.board.three_in_a_line_player(2) and player_id == 0:
+        return 1.0
+    if g.board.three_in_a_line_player(2) and player_id == 1:
         return 1.0
     return -1.0
 
 fun get_num_players() -> Int:
-    return 1
+    return 2
 
 fun max_game_lenght() -> Int:
     return 100

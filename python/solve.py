@@ -9,6 +9,7 @@
 #
 import argparse
 import random
+import sys
 from loader import Simulation, compile
 from shutil import which
 from ml.raylib.environment import RLCEnvironment
@@ -28,11 +29,16 @@ def main():
 
     args = parser.parse_args()
     with load_simulation_from_args(args) as sim:
-        env = RLCEnvironment(wrapper_path=sim.wrapper_path, output=args.output)
+        env = RLCEnvironment(wrapper_path=sim.wrapper_path)
+
+        out = open(args.output, "w+") if args.output != "" else sys.stdout
         while True:
+            actions = [random.choice(env.legal_actions_indicies()) for i in range(env.num_agents)]
             obs, reward, done, truncated, info = env.step(
-                [random.choice(env.legal_actions_indicies()) for i in range(env.num_agents)]
+               actions
             )
+            out.write(env.action_to_string(env.actions[actions[0]]))
+            out.write("\n")
             if done["__all__"] or truncated["__all__"]:
                 break
 

@@ -88,7 +88,7 @@ def main():
                 else:
                     print("Cannot apply the following action:")
                     failed = True
-                    print(i, action)
+                    print(i, action, line)
                     break
 
             if args.pretty_print:

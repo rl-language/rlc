@@ -292,6 +292,7 @@ cls Board:
     return self.gsc_euristics()
 
   fun get_spawn_point(Int spawn_index, Int x_out, Int y_out):
+    let spawn_point_copy = spawn_index 
     let x = 29
     while x != 0:
       x = x - 1
@@ -299,11 +300,11 @@ cls Board:
         while y != 0:
           y = y - 1
           if self.map[y][x] == 2:
-            if spawn_index == 0:
+            if spawn_point_copy == 0:
               x_out = x
               y_out = y
               return
-            spawn_index = spawn_index - 1
+            spawn_point_copy = spawn_point_copy - 1
 
 fun manhattan_distance(Int x1, Int x2, Int y1, Int y2) -> Int:
   let x = x1 - x2

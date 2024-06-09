@@ -97,6 +97,7 @@ def main():
     parser.add_argument("--sample-space", default=1, type=int)
 
     args = parser.parse_args()
+    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
     with load_simulation_from_args(args, True) as sim:
         wrapper_path = sim.wrapper_path
         from ray import air, tune
@@ -120,7 +121,6 @@ def main():
             # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
         }
 
-        ray.init(num_cpus=12, num_gpus=1)
         # resumption_dir = os.path.abspath("./results")
         resources = PPO.default_resource_request(ppo_config)
         tuner = tune.Tuner(
