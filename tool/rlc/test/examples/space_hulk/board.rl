@@ -231,7 +231,7 @@ cls Board:
 
   fun _single_gsc_score(Unit marine, Unit gsc) -> Float:
     let d = manhattan_distance(marine.x.value, gsc.x.value, marine.y.value, gsc.y.value)
-    return 1.0 - (float(d) / 60.0) 
+    return 1.0 - (float(d) / 30.0) 
 
   fun _all_marine_average_score() -> Float:
     let sum : Float
@@ -252,7 +252,7 @@ cls Board:
     let x = 0
     while x < self.units.size():
         if !self.units.get(x).is_marine():
-            sum = sum + (float(manhattan_distance(self.units.get(x).x.value, 21, self.units.get(x).y.value, 7)) / 30.0)
+            sum = sum + (float(manhattan_distance(self.units.get(x).x.value, 21, self.units.get(x).y.value, 13)) / 30.0)
             count = count + 1.0
         x = x + 1
     if count == 0.0:
