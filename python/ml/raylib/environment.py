@@ -240,9 +240,11 @@ class RLCEnvironment(MultiAgentEnv):
 
         best_actions = [pair for pair in zip(action_probs[0].tolist(), self.actions, range(self.num_actions))]
         best_actions.sort(key=lambda pair: -pair[0])
+        i = 0
         for prob, action, id in best_actions:
            if prob != 0:
-               print(self.action_to_string(action), "{:0.4f} %".format(prob * 100))
+               print(f"{i}: "+self.action_to_string(action), "{:0.4f} %".format(prob * 100))
+               i = i + 1
         return best_actions[0][2]
 
     def as_byte_vector(self):
