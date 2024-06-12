@@ -24,6 +24,7 @@ config.substitutions.append(('%stdlib', config.rlc_stdlib))
 config.substitutions.append(('%pyscript', config.python_scripts))
 config.substitutions.append(('%fuzzer_lib', config.rlc_fuzzer_lib))
 config.substitutions.append(("%runtime_lib", config.rlc_runtime_lib))
+config.substitutions.append(("%exeext", config.llvm_exe_ext))
 llvm_config.with_system_environment(["HOME", "INCLUDE", "LIB", "TMP", "TEMP"], append_path=True)
 llvm_config.use_default_substitutions()
 
