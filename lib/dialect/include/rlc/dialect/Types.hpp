@@ -124,35 +124,3 @@ namespace mlir::rlc
 			mlir::Type replacement);
 }	 // namespace mlir::rlc
 	 //
-namespace mlir
-{
-
-	template<>
-	struct AttrTypeSubElementHandler<mlir::rlc::ClassType>
-	{
-		static void walk(
-				const rlc::ClassType &param, AttrTypeImmediateSubElementWalker &walker)
-		{
-			for (Type type : param.getBody())
-				walker.walk(type);
-
-			for (Type type : param.getExplicitTemplateParameters())
-				walker.walk(type);
-		}
-		static FailureOr<rlc::ClassType> replace(
-				const rlc::ClassType &param,
-				AttrSubElementReplacements &attrRepls,
-				TypeSubElementReplacements &typeRepls)
-		{
-			auto type = rlc::ClassType::getIdentified(
-					param.getContext(),
-					param.getName(),
-					typeRepls.take_front(param.getBody().size()));
-			auto result = type.setBody(
-					typeRepls.take_front(param.getBody().size()), param.getFieldNames());
-			assert(result.succeeded());
-			return type;
-		}
-	};
-
-}	 // namespace mlir

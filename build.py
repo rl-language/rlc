@@ -114,9 +114,10 @@ def assert_run_program(execution_dir: str, command: str, *args: str):
 
     if dry_run:
         return
+    filtered_args = [arg for arg in args if arg != ""]
 
     chdir(execution_dir)
-    result = run([command, *args])
+    result = run([command] + filtered_args)
     assert result.returncode == 0
 
 
