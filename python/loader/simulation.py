@@ -16,6 +16,7 @@
 from importlib import import_module, machinery, util
 import inspect
 from math import log2, ceil, floor
+from pathlib import Path
 from collections import defaultdict
 from tempfile import TemporaryDirectory
 from subprocess import run
@@ -263,15 +264,15 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
                 source,
                 "--python",
                 "-o",
-                "{}/wrapper.py".format(tmp_dir.name),
+                Path(tmp_dir.name) / Path("wrapper.py"),
                 "-O2" if optimized else "",
             ]
             + include_args
         ).returncode
         == 0
     )
-    args = [rlc_compiler, source, "--shared", "-o", "{}/lib.so".format(tmp_dir.name), "-O2" if optimized else ""]
+    args = [rlc_compiler, source, "--shared", "-o", Path(tmp_dir.name) / Path("lib.so"), "-O2" if optimized else ""]
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
     assert run(args + include_args).returncode == 0
-    return Simulation(tmp_dir.name + "/wrapper.py", tmp_dir)
+    return Simulation(str(Path(tmp_dir.name) / Path("wrapper.py")), tmp_dir)

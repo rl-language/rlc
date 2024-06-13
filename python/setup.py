@@ -51,7 +51,7 @@ extra_files_lib = package_files(["./lib/"], "lib")
 
 setup(
     name="rl_language",
-    version="0.1.12",
+    version="0.1.13",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
@@ -59,7 +59,7 @@ setup(
     data_files=extra_files_bin
     + extra_files_lib
     + [("./bin/impl", ["./test.py", "./action.py", "./learn.py", "./play.py", "./solve.py", "./probs.py"])],
-    install_requires=read_requirements("../requirements.txt"),
+    install_requires=read_requirements("../run-requirements.txt"),
     entry_points={
         "console_scripts": [
             "rlc-test=impl.test:main",

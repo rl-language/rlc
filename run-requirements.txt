@@ -1,0 +1,11 @@
+torch
+torchviz
+numpy
+ray[data,train,tune,serve]==2.12.0
+hyperopt
+gymnasium
+dm_tree
+typer
+scikit-image
+lz4
+tensorboard
