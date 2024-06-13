@@ -26,6 +26,7 @@ limitations under the License.
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
@@ -290,6 +291,13 @@ static mlir::rlc::Driver::Request getRequest()
 	return Driver::Request::executable;
 }
 
+static std::string toNative(llvm::StringRef path) {
+  SmallVector<char> converted;
+  llvm::sys::path::native(Twine(path), converted);
+  std::string out(converted.begin(), converted.end()); 
+  return out;
+}
+
 static mlir::rlc::Driver configureDriver(
 		char *argv[],
 		llvm::SourceMgr &srcManager,
@@ -300,6 +308,7 @@ static mlir::rlc::Driver configureDriver(
 	auto pathToRlc = llvm::sys::fs::getMainExecutable(argv[0], (void *) &main);
 	auto rlcDirectory =
 			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
+    rlcDirectory = toNative(rlcDirectory);
 	llvm::SmallVector<std::string, 4> includes(
 			IncludeDirs.begin(), IncludeDirs.end());
 	auto directory = llvm::sys::path::parent_path(InputFilePath);
@@ -312,6 +321,7 @@ static mlir::rlc::Driver configureDriver(
 															 ? llvm::sys::path::parent_path(pathToRlc).str() +
 																		 "/../lib/" + FUZZER_LIBRARY_FILENAME
 															 : customFuzzerLibPath.getValue();
+        fuzzerLibPath = toNative(fuzzerLibPath);
 
 		ExtraObjectFiles.addValue(fuzzerLibPath);
 		RPath.addValue(llvm::sys::path::parent_path(fuzzerLibPath).str());
@@ -324,8 +334,8 @@ static mlir::rlc::Driver configureDriver(
 		if (envVal.has_value())
 			runtimeLibPath = *envVal;
 		else
-			runtimeLibPath = llvm::sys::path::parent_path(pathToRlc).str() +
-											 "/../lib/" + RUNTIME_LIBRARY_FILENAME;
+			runtimeLibPath = toNative(llvm::sys::path::parent_path(pathToRlc).str() +
+											 "/../lib/" + RUNTIME_LIBRARY_FILENAME);
 	}
 	ExtraObjectFiles.addValue(runtimeLibPath);
 

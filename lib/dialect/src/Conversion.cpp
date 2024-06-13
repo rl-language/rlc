@@ -1499,7 +1499,7 @@ class FunctionRewriter
 		if (not op.isDeclaration() and op.getType().getResults().size() == 1 and
 				not op.getType().getResults().front().isa<mlir::rlc::VoidType>())
 			newF.getBody().front().insertArgument(
-					size_t(0), op.getType().getResults().front(), op.getLoc());
+					unsigned(0), op.getType().getResults().front(), op.getLoc());
 
 		rewriter.eraseOp(op);
 

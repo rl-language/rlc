@@ -14,6 +14,10 @@ SET(gtest_disable_pthreads OFF CACHE INTERNAL "")
 SET(gtest_hide_internal_symbols OFF CACHE INTERNAL "")
 SET(gtest_force_shared_crt OFF CACHE INTERNAL "")
 SET(GTEST_HAS_ABSL OFF CACHE INTERNAL "")
+SET(GTEST_HAS_RTTI OFF CACHE INTERNAL "")
+SET(GTEST_INTERNAL_HAS_ANY OFF CACHE INTERNAL "")
+SET(GTEST_LINKED_AS_SHARED_LIBRARY OFF CACHE INTERNAL "")
+SET(gtest_force_shared_crt ON CACHE INTERNAL "")
 
 add_subdirectory(googletest)
 #set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory -fsanitize-ignorelist=/home/massimo/Documents/example_rlc/rlc-infrastructure/rlc-debug/ignorelist.txt -fsanitize-recover=all")
@@ -71,6 +75,7 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 
 find_package(MLIR REQUIRED CONFIG)
+set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
 
 ##############################
 ###       Subfolders       ###

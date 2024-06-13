@@ -35,6 +35,7 @@ namespace mlir::rlc
 		bool optimize() const;
 		bool isShared() const;
 		bool isMacOS() const;
+		bool isWindows() const;
 		const llvm::DataLayout& getDataLayout() const;
 
 		TargetInfo(TargetInfo&& other): pimpl(other.pimpl)

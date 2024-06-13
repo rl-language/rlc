@@ -19,6 +19,7 @@ import serialization.to_byte_vector
 import serialization.print
 import bounded_arg
 import math.numeric
+import algorithms.equal
 
 trait<FrameType, ActionType> ApplicableTo:
     fun apply(ActionType action, FrameType frame)
@@ -97,6 +98,7 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     from_byte_vector(x, serialized)
     parse_action_optimized(x, serialized, 0)
     enumerate(x).size()
+    equal(variant, variant)
     let v : Vector<Float>
     to_observation_tensor(state, 0, v)
     print(variant)

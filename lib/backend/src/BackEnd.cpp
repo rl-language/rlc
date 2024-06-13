@@ -226,6 +226,11 @@ bool mlir::rlc::TargetInfo::isMacOS() const
 	return pimpl->triple.isOSDarwin();
 }
 
+bool mlir::rlc::TargetInfo::isWindows() const
+{
+	return pimpl->triple.isOSWindows();
+}
+
 const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
 {
 	return *pimpl->datalayout;
@@ -276,7 +281,7 @@ static int linkLibraries(
 		bool linkAgainstFuzzer,
 		const std::vector<std::string> &extraObjectFiles,
 		const std::vector<std::string> &rpaths,
-		bool macOS)
+		const mlir::rlc::TargetInfo &info)
 {
 	auto failedToFindClang = false;
 	auto maybeRealPath =
@@ -296,18 +301,25 @@ static int linkLibraries(
 	llvm::SmallVector<std::string, 4> argSource;
 	argSource.push_back("clang");
 	argSource.push_back(library.getFilename().str());
+	if (info.isWindows())
+	{
+		argSource.push_back("-fuse-ld=lld");
+		argSource.push_back("-Wl,-subsystem:console");
+	}
 	argSource.push_back("-o");
 	argSource.push_back(outputFile.str());
-	if (not macOS)
+	if (not info.isMacOS())
 		argSource.push_back("-lm");
 	if (shared)
 	{
 		argSource.push_back("--shared");
-		argSource.push_back("-fPIE");
+		if (not info.isWindows())
+			argSource.push_back("-fPIE");
 	}
 	else
 	{
-		argSource.push_back("-no-pie");
+		if (not info.isWindows())
+			argSource.push_back("-no-pie");
 	}
 	if (emitSanitizerInstrumentation or linkAgainstFuzzer)
 	{
@@ -382,6 +394,7 @@ namespace mlir::rlc
 			}
 
 			compile(*targetInfo, std::move(Module), library.os());
+			library.os().close();
 
 			if (compileOnly)
 			{
@@ -398,7 +411,7 @@ namespace mlir::rlc
 							emitFuzzer,
 							*extraObjectFiles,
 							*rpaths,
-							targetInfo->isMacOS()) != 0)
+							*targetInfo) != 0)
 				signalPassFailure();
 		}
 	};
