@@ -1182,6 +1182,18 @@ Expected<mlir::rlc::WhileStatement> Parser::whileStatement()
 }
 
 /**
+ * breakStatement : break '\n'
+ */
+Expected<mlir::rlc::BreakStatement> Parser::breakStatement()
+{
+	auto location = getCurrentSourcePos();
+
+	EXPECT(Token::KeywordBreak);
+	EXPECT(Token::Newline);
+	return builder.create<mlir::rlc::BreakStatement>(location);
+}
+
+/**
  * returnStatement : return [expression] '\n'
  */
 Expected<mlir::rlc::ReturnStatement> Parser::returnStatement()
@@ -1223,6 +1235,9 @@ Expected<mlir::Operation*> Parser::statement()
 
 	if (current == Token::KeywordReturn)
 		return returnStatement();
+
+	if (current == Token::KeywordBreak)
+		return breakStatement();
 
 	if (current == Token::KeywordSubAction)
 		return subActionStatement();

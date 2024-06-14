@@ -200,6 +200,19 @@ def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeChe
   }];
 }
 
+def RLC_BreakStatement : RLC_Dialect<"break", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "break.";
+
+  let description = [{
+	expression.
+  }];
+
+  let assemblyFormat = [{
+	attr-dict
+  }];
+
+}
+
 def RLC_ReturnStatement : RLC_Dialect<"return", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>,  DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "return.";
 

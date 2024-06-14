@@ -585,6 +585,12 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 	return LogicalResult::success();
 }
 
+mlir::LogicalResult mlir::rlc::BreakStatement::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {

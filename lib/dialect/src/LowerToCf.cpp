@@ -128,8 +128,15 @@ static void eraseYield(
 	yield.erase();
 }
 
+struct FlatteningContext
+{
+	llvm::DenseMap<mlir::rlc::BreakStatement, mlir::Block*> destinationOfBreak;
+};
+
 static mlir::LogicalResult flatten(
-		mlir::rlc::WhileStatement op, mlir::IRRewriter& rewriter)
+		mlir::rlc::WhileStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	rewriter.setInsertionPoint(op);
 	auto condTerminators = getYieldTerminators(op.getCondition());
@@ -138,6 +145,17 @@ static mlir::LogicalResult flatten(
 	auto* previousBlock = rewriter.getBlock();
 	auto* afterBlock =
 			rewriter.splitBlock(previousBlock, rewriter.getInsertionPoint());
+
+	op.walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation* curr) {
+		if (mlir::isa<mlir::rlc::WhileStatement>(curr) and curr != op)
+			return mlir::WalkResult::skip();
+
+		if (auto casted = mlir::dyn_cast<mlir::rlc::BreakStatement>(curr))
+			ctx.destinationOfBreak[casted] = afterBlock;
+
+		return mlir::WalkResult::advance();
+	});
+
 	auto& conditionBlock = op.getCondition().front();
 	auto& bodyBlock = op.getBody().front();
 
@@ -170,7 +188,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::ActionsStatement op, mlir::IRRewriter& rewriter)
+		mlir::rlc::ActionsStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	auto parent = op->getParentOfType<mlir::rlc::FunctionOp>();
 	rewriter.setInsertionPoint(op);
@@ -202,7 +222,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::ShortCircuitingOr op, mlir::IRRewriter& rewriter)
+		mlir::rlc::ShortCircuitingOr op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	rewriter.setInsertionPoint(op);
 	auto lhsTerminators = getYieldTerminators(op.getLhs());
@@ -254,7 +276,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::ShortCircuitingAnd op, mlir::IRRewriter& rewriter)
+		mlir::rlc::ShortCircuitingAnd op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	rewriter.setInsertionPoint(op);
 	auto lhsTerminators = getYieldTerminators(op.getLhs());
@@ -306,7 +330,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::IfStatement op, mlir::IRRewriter& rewriter)
+		mlir::rlc::IfStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	rewriter.setInsertionPoint(op);
 	auto condTerminators = getYieldTerminators(op.getCondition());
@@ -342,7 +368,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::StatementList op, mlir::IRRewriter& rewriter)
+		mlir::rlc::StatementList op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	rewriter.setInsertionPoint(op);
 	auto terminators = getYieldTerminators(op);
@@ -360,7 +388,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::DeclarationStatement op, mlir::IRRewriter& rewriter)
+		mlir::rlc::DeclarationStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	rewriter.setInsertionPoint(op);
 	auto terminators = getYieldTerminators(op);
@@ -384,7 +414,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::ReturnStatement op, mlir::IRRewriter& rewriter)
+		mlir::rlc::ReturnStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	if (op.getBody().empty())
 	{
@@ -405,7 +437,9 @@ static mlir::LogicalResult flatten(
 }
 
 static mlir::LogicalResult flatten(
-		mlir::rlc::ExpressionStatement op, mlir::IRRewriter& rewriter)
+		mlir::rlc::ExpressionStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
 {
 	rewriter.setInsertionPoint(op);
 	auto terminators = getYieldTerminators(op);
@@ -422,15 +456,32 @@ static mlir::LogicalResult flatten(
 	return mlir::LogicalResult::success();
 }
 
+static mlir::LogicalResult flatten(
+		mlir::rlc::BreakStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
+{
+	rewriter.setInsertionPoint(op);
+	if (ctx.destinationOfBreak.find(op) == ctx.destinationOfBreak.end())
+	{
+		return mlir::failure();
+	}
+	rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(
+			op, ctx.destinationOfBreak[op]);
+
+	return mlir::LogicalResult::success();
+}
+
 static mlir::LogicalResult squashCF(
 		mlir::rlc::FunctionOp& op, mlir::IRRewriter& rewriter)
 {
 	bool foundOne = true;
+	FlatteningContext flatteningContext;
 	auto dispatch = [&]<typename T>() -> mlir::LogicalResult {
 		for (auto child : op.getBody().getOps<T>())
 		{
 			foundOne = true;
-			return flatten(child, rewriter);
+			return flatten(child, rewriter, flatteningContext);
 		}
 		return mlir::LogicalResult::success();
 	};
@@ -470,6 +521,10 @@ static mlir::LogicalResult squashCF(
 			return res;
 
 		if (auto res = dispatch.operator()<mlir::rlc::ShortCircuitingOr>();
+				res.failed())
+			return res;
+
+		if (auto res = dispatch.operator()<mlir::rlc::BreakStatement>();
 				res.failed())
 			return res;
 	}

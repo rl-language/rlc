@@ -68,6 +68,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "End";
 		case Token::Begin:
 			return "Begin";
+		case Token::KeywordBreak:
+			return "KeywordBreak";
 		case Token::KeywordSystem:
 			return "KeywordSystem";
 		case Token::KeywordTrait:
@@ -450,6 +452,9 @@ Token Lexer::eatIdent()
 
 	if (name == "system")
 		return Token::KeywordSystem;
+
+	if (name == "break")
+		return Token::KeywordBreak;
 
 	if (name == "trait")
 		return Token::KeywordTrait;

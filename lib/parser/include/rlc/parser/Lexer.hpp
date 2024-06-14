@@ -40,6 +40,7 @@ namespace rlc
 		KeywordDestroy,
 		KeywordContstruct,
 		KeywordCan,
+		KeywordBreak,
 		KeywordFree,
 		KeywordRef,
 		KeywordToArray,
