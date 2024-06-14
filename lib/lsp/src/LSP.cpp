@@ -16,6 +16,7 @@ limitations under the License.
 #include "rlc/lsp/LSP.hpp"
 
 #include "llvm/Support/Error.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "mlir/Pass/PassManager.h"
 #include "rlc/dialect/Operations.hpp"
@@ -94,7 +95,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 									text, diagnostic.getLocation(), diagnostic.getSeverity() });
 						}),
 				module(mlir::ModuleOp::create(
-						mlir::FileLineColLoc::get(&context, path, 0, 0), path))
+						mlir::FileLineColLoc::get(&context, path, 0, 0), path)),
+				currentFileContent(contents.str()),
+				lspContext(&lspContext)
 	{
 		Registry.insert<mlir::BuiltinDialect, mlir::rlc::RLCDialect>();
 		context.appendDialectRegistry(Registry);
@@ -232,7 +235,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 			alreadyEmitted.insert(key);
 			mlir::lsp::CompletionItem item;
-			item.label = name.str();
+			item.label = name.str() + "()";
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 			item.detail = prettyType(t);
@@ -270,6 +273,72 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
 			registerArgument(op.getUnmangledName(), op.getType());
+
+		return mlir::success();
+	}
+
+	mlir::LogicalResult getCompleteImport(
+			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
+	{
+		llvm::StringRef strRef(currentFileContent);
+		auto copy = completePos;
+		int i = 0;
+		while (copy.line != 0)
+		{
+			while (strRef[i] != '\n' and strRef[i] != '\0')
+				i++;
+			if (strRef[i] != '\0')
+				i++;
+			copy.line -= 1;
+		}
+
+		strRef = strRef.drop_front(i);
+		if (!strRef.starts_with("import "))
+			return mlir::failure();
+
+		llvm::StringRef line(strRef.begin(), copy.character);
+		line.consume_front("import ");
+		auto lastDot = line.rfind('.');
+		if (lastDot == llvm::StringRef::npos)
+			line = "";
+		else
+			line = line.drop_back(line.size() - lastDot);
+		auto path = line.str();
+		for (auto &c : path)
+			if (c == '.')
+				c = '/';
+
+		for (auto &dir : lspContext->getSourceManager().getIncludeDirs())
+		{
+			auto fullPath = dir + "/" + path;
+			llvm::SmallVector<char, 16> nativePath;
+			llvm::sys::path::native(fullPath, nativePath);
+
+			if (not llvm::sys::fs::exists(nativePath) or
+					not llvm::sys::fs::is_directory(nativePath))
+				continue;
+			std::error_code ec;
+
+			llvm::sys::fs::directory_iterator iterator(nativePath, ec);
+			if (ec)
+				continue;
+
+			while (iterator != llvm::sys::fs::directory_iterator())
+			{
+				auto &entry = iterator->path();
+
+				mlir::lsp::CompletionItem toReturn;
+				toReturn.kind = mlir::lsp::CompletionItemKind::Module;
+				if (entry.ends_with(".rl"))
+					toReturn.label = llvm::sys::path::filename(entry).drop_back(3);
+				else
+					toReturn.label = llvm::sys::path::filename(entry);
+				list.items.push_back(toReturn);
+				iterator.increment(ec);
+				if (ec)
+					break;
+			}
+		}
 
 		return mlir::success();
 	}
@@ -476,6 +545,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	mlir::MLIRContext context;
 	mlir::ScopedDiagnosticHandler diagnosticHandler;
 	mlir::ModuleOp module;
+	std::string currentFileContent;
+	LSPContext *lspContext;
 };
 
 LSPModuleInfo::LSPModuleInfo(
@@ -499,6 +570,13 @@ mlir::LogicalResult LSPModuleInfo::getCompleteAccessMember(
 		mlir::lsp::CompletionList &list) const
 {
 	return impl->getCompleteAccessMember(completePos, list);
+}
+
+mlir::LogicalResult LSPModuleInfo::getCompleteImport(
+		const mlir::lsp::Position &completePos,
+		mlir::lsp::CompletionList &list) const
+{
+	return impl->getCompleteImport(completePos, list);
 }
 
 mlir::ModuleOp LSPModuleInfo::getModule() const { return impl->getModule(); }
@@ -647,6 +725,11 @@ mlir::lsp::CompletionList RLCServer::getCodeCompletion(
 
 	if (maybeInfo == nullptr)
 		return list;
+
+	if (maybeInfo->getCompleteImport(completePos, list).succeeded())
+	{
+		return list;
+	}
 
 	if (maybeInfo->getCompleteAccessMember(completePos, list).succeeded())
 	{
