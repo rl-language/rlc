@@ -51,6 +51,10 @@ namespace mlir::rlc::lsp
 		mlir::ModuleOp getModule() const;
 		mlir::Operation *getOperation(const mlir::lsp::Position &pos) const;
 
+		mlir::LogicalResult getCompleteType(
+				const mlir::lsp::Position &completePos,
+				mlir::lsp::CompletionList &list) const;
+
 		mlir::LogicalResult getCompleteImport(
 				const mlir::lsp::Position &completePos,
 				mlir::lsp::CompletionList &list) const;

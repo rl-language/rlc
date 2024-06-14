@@ -277,6 +277,51 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return mlir::success();
 	}
 
+	mlir::LogicalResult getCompleteType(
+			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
+	{
+		mlir::rlc::ConstructOp construct = nullptr;
+
+		module.walk([&](mlir::rlc::ConstructOp op) {
+			if (auto casted = op.getLoc().dyn_cast<mlir::FileLineColLoc>())
+				if (casted.getLine() - 1 != static_cast<unsigned int>(completePos.line))
+					return mlir::WalkResult::advance();
+
+			construct = op;
+			return mlir::WalkResult::interrupt();
+		});
+
+		if (construct == nullptr)
+			return mlir::failure();
+
+		for (auto name : { "Int", "Byte", "Float" })
+		{
+			mlir::lsp::CompletionItem toReturn;
+			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
+			toReturn.label = name;
+			list.items.push_back(toReturn);
+		}
+
+		module.walk([&](mlir::rlc::ClassDeclaration op) {
+			mlir::lsp::CompletionItem toReturn;
+			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
+			if (isTemplateType(op.getType()).succeeded())
+				toReturn.label = op.getName().str() + "<>";
+			else
+				toReturn.label = op.getName();
+			list.items.push_back(toReturn);
+		});
+
+		module.walk([&](mlir::rlc::TypeAliasOp op) {
+			mlir::lsp::CompletionItem toReturn;
+			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
+			toReturn.label = op.getName();
+			list.items.push_back(toReturn);
+		});
+
+		return mlir::success();
+	}
+
 	mlir::LogicalResult getCompleteImport(
 			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
 	{
@@ -572,6 +617,13 @@ mlir::LogicalResult LSPModuleInfo::getCompleteAccessMember(
 	return impl->getCompleteAccessMember(completePos, list);
 }
 
+mlir::LogicalResult LSPModuleInfo::getCompleteType(
+		const mlir::lsp::Position &completePos,
+		mlir::lsp::CompletionList &list) const
+{
+	return impl->getCompleteType(completePos, list);
+}
+
 mlir::LogicalResult LSPModuleInfo::getCompleteImport(
 		const mlir::lsp::Position &completePos,
 		mlir::lsp::CompletionList &list) const
@@ -725,6 +777,11 @@ mlir::lsp::CompletionList RLCServer::getCodeCompletion(
 
 	if (maybeInfo == nullptr)
 		return list;
+
+	if (maybeInfo->getCompleteType(completePos, list).succeeded())
+	{
+		return list;
+	}
 
 	if (maybeInfo->getCompleteImport(completePos, list).succeeded())
 	{
