@@ -41,6 +41,7 @@ namespace rlc
 		KeywordContstruct,
 		KeywordCan,
 		KeywordBreak,
+		KeywordContinue,
 		KeywordFree,
 		KeywordRef,
 		KeywordToArray,

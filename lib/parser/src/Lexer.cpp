@@ -82,6 +82,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordOr";
 		case Token::KeywordRule:
 			return "KeywordRule";
+		case Token::KeywordContinue:
+			return "KeywordContinue";
 		case Token::KeywordEvent:
 			return "KeywordEvent";
 		case Token::KeywordCan:
@@ -455,6 +457,9 @@ Token Lexer::eatIdent()
 
 	if (name == "break")
 		return Token::KeywordBreak;
+
+	if (name == "continue")
+		return Token::KeywordContinue;
 
 	if (name == "trait")
 		return Token::KeywordTrait;

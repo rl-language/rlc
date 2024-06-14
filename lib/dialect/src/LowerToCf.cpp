@@ -131,6 +131,8 @@ static void eraseYield(
 struct FlatteningContext
 {
 	llvm::DenseMap<mlir::rlc::BreakStatement, mlir::Block*> destinationOfBreak;
+	llvm::DenseMap<mlir::rlc::ContinueStatement, mlir::Block*>
+			destinationOfContinue;
 };
 
 static mlir::LogicalResult flatten(
@@ -146,6 +148,9 @@ static mlir::LogicalResult flatten(
 	auto* afterBlock =
 			rewriter.splitBlock(previousBlock, rewriter.getInsertionPoint());
 
+	auto& conditionBlock = op.getCondition().front();
+	auto& bodyBlock = op.getBody().front();
+
 	op.walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation* curr) {
 		if (mlir::isa<mlir::rlc::WhileStatement>(curr) and curr != op)
 			return mlir::WalkResult::skip();
@@ -153,11 +158,11 @@ static mlir::LogicalResult flatten(
 		if (auto casted = mlir::dyn_cast<mlir::rlc::BreakStatement>(curr))
 			ctx.destinationOfBreak[casted] = afterBlock;
 
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ContinueStatement>(curr))
+			ctx.destinationOfContinue[casted] = &conditionBlock;
+
 		return mlir::WalkResult::advance();
 	});
-
-	auto& conditionBlock = op.getCondition().front();
-	auto& bodyBlock = op.getBody().front();
 
 	rewriter.inlineRegionBefore(op.getCondition(), afterBlock);
 
@@ -472,6 +477,22 @@ static mlir::LogicalResult flatten(
 	return mlir::LogicalResult::success();
 }
 
+static mlir::LogicalResult flatten(
+		mlir::rlc::ContinueStatement op,
+		mlir::IRRewriter& rewriter,
+		FlatteningContext& ctx)
+{
+	rewriter.setInsertionPoint(op);
+	if (ctx.destinationOfContinue.find(op) == ctx.destinationOfContinue.end())
+	{
+		return mlir::failure();
+	}
+	rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(
+			op, ctx.destinationOfContinue[op]);
+
+	return mlir::LogicalResult::success();
+}
+
 static mlir::LogicalResult squashCF(
 		mlir::rlc::FunctionOp& op, mlir::IRRewriter& rewriter)
 {
@@ -525,6 +546,10 @@ static mlir::LogicalResult squashCF(
 			return res;
 
 		if (auto res = dispatch.operator()<mlir::rlc::BreakStatement>();
+				res.failed())
+			return res;
+
+		if (auto res = dispatch.operator()<mlir::rlc::ContinueStatement>();
 				res.failed())
 			return res;
 	}

@@ -585,9 +585,26 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 	return LogicalResult::success();
 }
 
+mlir::LogicalResult mlir::rlc::ContinueStatement::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>())
+	{
+		return mlir::rlc::logError(
+				*this,
+				"Continue statement cannot be used outside of a while statement");
+	}
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::BreakStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>())
+	{
+		return mlir::rlc::logError(
+				*this, "Break statement cannot be used outside of a while statement");
+	}
 	return mlir::success();
 }
 
