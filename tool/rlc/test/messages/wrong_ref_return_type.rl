@@ -1,6 +1,6 @@
 # RUN: rlc %s -o %t -i %stdl.ib --print-ir-on-failure=false 2>&1 --expect-fail | FileCheck %s
 
-# CHECK: 8:1: error: No known type ref int in function declaration return type  
+# CHECK: 8:1: error: No known type named int 
 
 cls Asd:
 	Int x

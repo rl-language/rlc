@@ -123,9 +123,12 @@ namespace mlir::rlc
 			return converter.convertType(type);
 		}
 
+		void setErrorLocation(mlir::Location newLoc) { loc = newLoc; }
+
 		private:
 		TypeTable types;
 		mlir::TypeConverter converter;
+		mlir::Location loc;
 	};
 
 	class ModuleBuilder

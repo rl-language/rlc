@@ -741,7 +741,7 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 			if (isTemplateType(child).succeeded())
 				return mlir::success();
 		if (not casted.isInitialized())
-			return mlir::success();
+			return mlir::failure();
 
 		for (auto child : casted.getBody())
 			if (isTemplateType(child).succeeded())

@@ -256,6 +256,7 @@ static mlir::LogicalResult deduceClassBody(
 	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
 
 	auto scopedConverter = mlir::rlc::RLCTypeConverter(&builder.getConverter());
+	scopedConverter.setErrorLocation(decl.getLoc());
 	for (auto parameter : decl.getTemplateParameters())
 	{
 		auto unchecked = parameter.cast<mlir::TypeAttr>()
@@ -265,9 +266,7 @@ static mlir::LogicalResult deduceClassBody(
 		auto checkedParameterType = scopedConverter.convertType(unchecked);
 		if (not checkedParameterType)
 		{
-			auto _ = mlir::rlc::logError(
-					decl, "No known type named " + mlir::rlc::prettyType(unchecked));
-			return mlir::rlc::logRemark(decl, "In class declaration");
+			return mlir::failure();
 		}
 		checkedTemplateParameters.push_back(checkedParameterType);
 		auto actualType =
@@ -282,11 +281,7 @@ static mlir::LogicalResult deduceClassBody(
 		auto converted = scopedConverter.convertType(fieldType);
 		if (!converted)
 		{
-			return mlir::rlc::logError(
-					decl,
-					"No known type named " + mlir::rlc::prettyType(fieldType) +
-							" used in field " + name.cast<mlir::StringAttr>().strref() +
-							" in class declaration.");
+			return mlir::failure();
 		}
 
 		types.push_back(converted);

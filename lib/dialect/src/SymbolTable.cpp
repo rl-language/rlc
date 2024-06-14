@@ -58,17 +58,29 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	return table;
 }
 
-static mlir::Type instantiateTemplate(mlir::Type type, mlir::TypeRange values)
+static mlir::Type instantiateTemplate(
+		mlir::Type type, mlir::TypeRange values, mlir::Location errorPoint)
 {
 	if (values.empty())
+	{
+		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>();
+				casted and isTemplateType(casted).succeeded())
+		{
+			mlir::emitError(
+					errorPoint,
+					"use of template type without explicit template arguments is not "
+					"allowed");
+			return nullptr;
+		}
 		return type;
+	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
 	{
 		if (casted.getTemplateParameterTypes().size() != values.size() + 1)
 		{
 			mlir::emitError(
-					mlir::UnknownLoc::get(type.getContext()),
+					errorPoint,
 					mlir::Twine("Trait explicit instantiation needed ") +
 							mlir::Twine((casted.getTemplateParameterTypes().size() - 1)) +
 							mlir::Twine(" arguments, but ") + mlir::Twine(values.size()) +
@@ -92,23 +104,20 @@ static mlir::Type instantiateTemplate(mlir::Type type, mlir::TypeRange values)
 
 	if (not type.isa<mlir::rlc::ClassType>())
 	{
-		type.dump();
-		for (auto type : values)
-			type.dump();
 		mlir::emitError(
-				mlir::UnknownLoc::get(type.getContext()),
+				errorPoint,
 				"explicit template instantiation on non template class or trait type");
 		return nullptr;
 	}
 	auto casted = type.cast<mlir::rlc::ClassType>();
 	if (casted.getExplicitTemplateParameters().size() != values.size())
 	{
-		casted.dump();
-		for (auto type : values)
-			type.dump();
 		mlir::emitError(
-				mlir::UnknownLoc::get(type.getContext()),
-				"missmatche explicit template parameters count");
+				errorPoint,
+				llvm::Twine("Template type has ") +
+						llvm::Twine(casted.getExplicitTemplateParameters().size()) +
+						" parameters but " + llvm::Twine(values.size()) +
+						" were provided.");
 		return nullptr;
 	}
 
@@ -129,7 +138,9 @@ static mlir::Type instantiateTemplate(mlir::Type type, mlir::TypeRange values)
 }
 
 static void registerConversions(
-		mlir::TypeConverter& converter, mlir::rlc::TypeTable& types)
+		mlir::TypeConverter& converter,
+		mlir::rlc::TypeTable& types,
+		mlir::Location& errorPoint)
 {
 	converter.addConversion(
 			[&](mlir::rlc::ScalarUseType use) -> std::optional<mlir::Type> {
@@ -170,9 +181,12 @@ static void registerConversions(
 				auto maybeType = types.getOne(use.getReadType());
 				if (maybeType == nullptr)
 				{
+					mlir::emitError(
+							errorPoint, "No known type named " + use.getReadType());
 					return std::nullopt;
 				}
-				maybeType = instantiateTemplate(maybeType, explicitTemplateParameters);
+				maybeType = instantiateTemplate(
+						maybeType, explicitTemplateParameters, errorPoint);
 				if (maybeType == nullptr)
 				{
 					return std::nullopt;
@@ -308,16 +322,16 @@ static void registerConversions(
 }
 
 mlir::rlc::RLCTypeConverter::RLCTypeConverter(mlir::ModuleOp op)
-		: types(makeTypeTable(op))
+		: types(makeTypeTable(op)), loc(op.getLoc())
 {
-	registerConversions(converter, types);
+	registerConversions(converter, types, loc);
 }
 
 mlir::rlc::RLCTypeConverter::RLCTypeConverter(
 		mlir::rlc::RLCTypeConverter* parentScopeConverter)
-		: types(&parentScopeConverter->types)
+		: types(&parentScopeConverter->types), loc(parentScopeConverter->loc)
 {
-	registerConversions(converter, types);
+	registerConversions(converter, types, loc);
 }
 
 static llvm::SmallVector<std::pair<int, mlir::rlc::ActionStatement>, 4>

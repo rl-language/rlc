@@ -1489,11 +1489,12 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::ConstructOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	builder.getConverter().setErrorLocation(getLoc());
 	auto deducedType = builder.getConverter().convertType(getType());
 	auto &rewriter = builder.getRewriter();
 	if (deducedType == nullptr)
 	{
-		return logRemark(*this, "in construction expression");
+		return mlir::failure();
 	}
 
 	rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(*this, deducedType);
@@ -1954,6 +1955,7 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 {
 	rewriter.setInsertionPoint(*this);
 	auto scopedConverter = mlir::rlc::RLCTypeConverter(&converter);
+	scopedConverter.setErrorLocation(getLoc());
 	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
 	for (auto parameter : getTemplateParameters())
 	{
@@ -1964,10 +1966,7 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 		auto checkedParameterType = converter.convertType(unchecked);
 		if (not checkedParameterType)
 		{
-			return logError(
-					*this,
-					"No know type " + prettyType(unchecked) +
-							" in function declaration parameter");
+			return mlir::failure();
 		}
 		checkedTemplateParameters.push_back(checkedParameterType);
 		auto actualType =
@@ -1978,10 +1977,7 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	auto deducedType = scopedConverter.convertType(getFunctionType());
 	if (deducedType == nullptr)
 	{
-		return logError(
-				*this,
-				"No known type " + prettyType(getFunctionType().getResult(0)) +
-						" in function declaration return type");
+		return mlir::failure();
 	}
 	assert(deducedType.isa<mlir::FunctionType>());
 
