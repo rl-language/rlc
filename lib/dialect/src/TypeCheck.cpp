@@ -231,10 +231,16 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 		if (decls.count(type.getName()) != 0)
 		{
 			auto _ = mlir::rlc::logError(
-					decls[type.getName()],
-					"User defined type clashes with implicit action type" +
+					action,
+					"User defined type clashes with implicit action type " +
 							type.getName());
-			return mlir::rlc::logRemark(action, "Action defined here");
+			return mlir::rlc::logRemark(decls[type.getName()], "Type declared here");
+		}
+
+		if (llvm::is_contained({ "Int", "Float", "Byte", "Bool" }, type.getName()))
+		{
+			return mlir::rlc::logError(
+					action, "Action type cannot be primitive type " + type.getName());
 		}
 
 		decls.try_emplace(type.getName(), classDecl);

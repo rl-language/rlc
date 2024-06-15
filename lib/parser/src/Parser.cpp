@@ -1295,15 +1295,11 @@ void Parser::removeYieldIfNotNeeded()
 {
 	auto& ops = builder.getBlock()->getOperations();
 	auto size = ops.size();
-	if (2 > size)
-		return;
 	if (not mlir::isa<mlir::rlc::Yield>(ops.back()))
-		return;
-	// the operation before the yield
-	if (!(ops.begin()++)->hasTrait<mlir::OpTrait::IsTerminator>())
 		return;
 
 	builder.getBlock()->back().erase();
+	builder.setInsertionPointToEnd(builder.getBlock());
 }
 
 void Parser::emitYieldIfNeeded(mlir::Location loc)
@@ -1746,6 +1742,7 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 
 	auto onExit = [&, this]() {
 		removeYieldIfNotNeeded();
+		emitYieldIfNeeded(getCurrentSourcePos());
 		builder.restoreInsertionPoint(pos);
 	};
 

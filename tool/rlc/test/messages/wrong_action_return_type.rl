@@ -1,7 +1,10 @@
 # RUN: rlc %s -o %t -i %stdl.ib --print-ir-on-failure=false 2>&1 --expect-fail | FileCheck %s
 
-# CHECK: error: Int is not allowed as action return type
+# CHECK: error: User defined type clashes with implicit action type Ent
 
-act action() -> Int:
+cls Ent:
+    Int x
+
+act action() -> Ent:
 	return 5
 
