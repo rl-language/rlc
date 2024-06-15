@@ -105,14 +105,14 @@ namespace rlc
 		llvm::Expected<FunctionDeclarationResult> functionDeclaration(
 				bool templateFunction = true, bool isMemberFunction = false);
 		llvm::Expected<FunctionDeclarationResult> externFunctionDeclaration();
-		llvm::Expected<mlir::rlc::ActionFunction> actionDeclaration(
-				bool needsReturnType);
+		llvm::Expected<mlir::Operation*> actionDeclaration(bool actionFunction);
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();
 
 		llvm::Expected<mlir::ModuleOp> system(mlir::ModuleOp module = nullptr);
 
 		void emitYieldIfNeeded(mlir::Location loc);
+		void removeYieldIfNotNeeded();
 		llvm::ArrayRef<std::string> getImportedFiles() const
 		{
 			return importedFiles;

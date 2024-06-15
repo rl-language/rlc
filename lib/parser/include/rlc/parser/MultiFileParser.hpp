@@ -46,10 +46,10 @@ namespace rlc
 		{
 			Parser parser(context, content.str(), fileName.str());
 			auto maybeAst = parser.system(module);
-			if (not maybeAst)
-				return maybeAst.takeError();
 			for (auto file : parser.getImportedFiles())
 				fileToLoad.push_back(file);
+			if (not maybeAst)
+				return maybeAst.takeError();
 			return llvm::Error::success();
 		}
 
@@ -61,7 +61,13 @@ namespace rlc
 			llvm::SmallVector<std::string> fileToLoad;
 
 			if (llvm::Error error = parseOneFile(content, fileName, fileToLoad))
+			{
+				// if we fail to parse the first file, keep parsing the othe imported
+				// files so we can autocompleate types
+				if (llvm::Error error2 = recursiveParseFile(alreadyLoaded, fileToLoad))
+					llvm::consumeError(std::move(error2));
 				return std::move(error);
+			}
 
 			if (llvm::Error error = recursiveParseFile(alreadyLoaded, fileToLoad))
 				return std::move(error);
@@ -74,6 +80,7 @@ namespace rlc
 				llvm::SmallVector<std::string>& fileToLoad)
 		{
 			mlir::IRRewriter rewriter(context);
+			llvm::Error maybeError = llvm::Error::success();
 			while (not fileToLoad.empty())
 			{
 				std::string current = fileToLoad.back();
@@ -95,9 +102,18 @@ namespace rlc
 								sourceManager->getMemoryBuffer(id)->getBuffer().str(),
 								AbslutePath,
 								fileToLoad))
-					return error;
+				{
+					// instead of stopping at the first error in a file
+					// try parse them all, and return the first error
+					// this way we allow the LSP to print any type from
+					// any file, even if they contain errors
+					if (maybeError)
+						llvm::consumeError(std::move(error));
+					else
+						maybeError = std::move(error);
+				}
 			}
-			return llvm::Error::success();
+			return maybeError;
 		}
 
 		llvm::Expected<mlir::ModuleOp> parse(llvm::ArrayRef<std::string> fileNames)

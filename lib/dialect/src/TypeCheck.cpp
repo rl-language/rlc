@@ -213,6 +213,11 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 	rewriter.setInsertionPointToEnd(op.getBody());
 	for (auto action : op.getOps<mlir::rlc::ActionFunction>())
 	{
+		if (action.getUnmangledName().empty())
+		{
+			return mlir::rlc::logError(
+					action, "Action statements must have a return type");
+		}
 		auto type = action.getClassType();
 
 		auto classDecl = rewriter.create<mlir::rlc::ClassDeclaration>(

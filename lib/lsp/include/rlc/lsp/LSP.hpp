@@ -67,6 +67,8 @@ namespace mlir::rlc::lsp
 				const mlir::lsp::Position &completePos,
 				mlir::lsp::CompletionList &list) const;
 
+		void getTypes(mlir::lsp::CompletionList &list) const;
+
 		void getLocationsOf(
 				const mlir::lsp::Position &defPos,
 				std::vector<mlir::lsp::Location> &locations) const;

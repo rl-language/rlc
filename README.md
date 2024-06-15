@@ -179,7 +179,6 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 ### Roadmap
 
 #### machine learning
-* get this https://github.com/ray-project/ray/pull/45057  merged [Blocked by them]
 * update to newer ray that does not leak [Blocked by them]
 * update and pin to the newer ray that works on windows and does not have trivial issues [Blocked by them]
 * figure out how to make transformers fast [Blocked by them]
@@ -194,5 +193,5 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 * dictionary library
 
 #### for 1.0
-* windows support
+* windows support, blocked by ray
 

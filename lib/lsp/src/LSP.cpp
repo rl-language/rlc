@@ -189,7 +189,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		for (const auto &pair :
 				 llvm::make_range(declarations.rbegin(), declarations.rend()))
 		{
-			if (pair.first.contains(pos))
+			if (pair.first.contains(pos) and opIsInSameFile(pair.second))
 				return pair.second;
 		}
 		return nullptr;
@@ -200,10 +200,16 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		for (const auto &pair :
 				 llvm::make_range(memberAcceses.rbegin(), memberAcceses.rend()))
 		{
-			if (pair.first.contains(pos))
+			if (pair.first.contains(pos) and opIsInSameFile(pair.second))
 				return pair.second;
 		}
 		return nullptr;
+	}
+
+	bool opIsInSameFile(mlir::Operation *op)
+	{
+		return op->getLoc().cast<mlir::FileLineColLoc>().getFilename() ==
+					 this->module->getLoc().cast<mlir::FileLineColLoc>().getFilename();
 	}
 
 	mlir::Operation *getEnclosingFunction(const mlir::lsp::Position &pos)
@@ -212,7 +218,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 						 functionAndActionFunctions.rbegin(),
 						 functionAndActionFunctions.rend()))
 		{
-			if (pair.first.contains(pos))
+			if (pair.first.contains(pos) and opIsInSameFile(pair.second))
 				return pair.second;
 		}
 		return nullptr;
@@ -235,15 +241,14 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 			alreadyEmitted.insert(key);
 			mlir::lsp::CompletionItem item;
-			item.label = name.str() + "()";
+			item.label = name.str();
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 			item.detail = prettyType(t);
 			list.items.push_back(item);
 		};
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
-				casted and not casted.getBody().empty() and
-				not casted.getIsMemberFunction())
+				casted and not casted.getBody().empty())
 		{
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
@@ -272,29 +277,15 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			registerArgument(op.getUnmangledName(), op.getType());
 
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
-			registerArgument(op.getUnmangledName(), op.getType());
+			if (not op.getIsMemberFunction())
+				registerArgument(op.getUnmangledName(), op.getType());
 
 		return mlir::success();
 	}
 
-	mlir::LogicalResult getCompleteType(
-			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
+	void getTypes(mlir::lsp::CompletionList &list)
 	{
-		mlir::rlc::ConstructOp construct = nullptr;
-
-		module.walk([&](mlir::rlc::ConstructOp op) {
-			if (auto casted = op.getLoc().dyn_cast<mlir::FileLineColLoc>())
-				if (casted.getLine() - 1 != static_cast<unsigned int>(completePos.line))
-					return mlir::WalkResult::advance();
-
-			construct = op;
-			return mlir::WalkResult::interrupt();
-		});
-
-		if (construct == nullptr)
-			return mlir::failure();
-
-		for (auto name : { "Int", "Byte", "Float" })
+		for (auto name : { "Int", "Byte", "Float", "Bool" })
 		{
 			mlir::lsp::CompletionItem toReturn;
 			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
@@ -305,10 +296,17 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		module.walk([&](mlir::rlc::ClassDeclaration op) {
 			mlir::lsp::CompletionItem toReturn;
 			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
-			if (isTemplateType(op.getType()).succeeded())
-				toReturn.label = op.getName().str() + "<>";
-			else
-				toReturn.label = op.getName();
+			toReturn.label = op.getName().str();
+			toReturn.detail = "<";
+			if (op.getTemplateParameters().size() > 1)
+				for (auto parameter : llvm::drop_end(op.getTemplateParameters()))
+					toReturn.detail +=
+							prettyType(parameter.cast<mlir::TypeAttr>().getValue()) + ", ";
+			auto params = op.getTemplateParameters();
+			if (not params.empty())
+				toReturn.detail += prettyType(
+						params[params.size() - 1].cast<mlir::TypeAttr>().getValue());
+			toReturn.detail += ">";
 			list.items.push_back(toReturn);
 		});
 
@@ -318,6 +316,66 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			toReturn.label = op.getName();
 			list.items.push_back(toReturn);
 		});
+	}
+
+	bool sameLineAsOp(const mlir::lsp::Position &completePos, mlir::Operation *op)
+	{
+		auto opLoc = op->getLoc().cast<mlir::FileLineColLoc>();
+		auto moduleLoc = module.getLoc().cast<mlir::FileLineColLoc>();
+		if (static_cast<int>(opLoc.getLine()) != completePos.line + 1)
+			return false;
+		if (opLoc.getFilename() != moduleLoc.getFilename())
+			return false;
+		return true;
+	}
+
+	mlir::LogicalResult getCompleteType(
+			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
+	{
+		mlir::Operation *construct = nullptr;
+
+		module.walk([&](mlir::Operation *current) {
+			if (auto op = llvm::dyn_cast<mlir::rlc::DeclarationStatement>(current))
+				if (sameLineAsOp(completePos, op))
+				{
+					construct = op;
+					return mlir::WalkResult::interrupt();
+				}
+
+			if (auto op = llvm::dyn_cast<mlir::rlc::FunctionOp>(current))
+				if (sameLineAsOp(completePos, op))
+				{
+					construct = op;
+					return mlir::WalkResult::interrupt();
+				}
+
+			if (auto op = llvm::dyn_cast<mlir::rlc::ActionFunction>(current))
+				if (sameLineAsOp(completePos, op))
+				{
+					construct = op;
+					return mlir::WalkResult::interrupt();
+				}
+
+			if (auto op = llvm::dyn_cast<mlir::rlc::ActionStatement>(current))
+				if (sameLineAsOp(completePos, op))
+				{
+					construct = op;
+					return mlir::WalkResult::interrupt();
+				}
+
+			if (auto op = llvm::dyn_cast<mlir::rlc::TypeAliasOp>(current))
+				if (sameLineAsOp(completePos, op))
+				{
+					construct = op;
+					return mlir::WalkResult::interrupt();
+				}
+
+			return mlir::WalkResult::advance();
+		});
+
+		if (construct == nullptr)
+			return mlir::failure();
+		getTypes(list);
 
 		return mlir::success();
 	}
@@ -432,7 +490,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 					fun.getIsMemberFunction())
 			{
 				mlir::lsp::CompletionItem item;
-				item.label = (fun.getUnmangledName() + "()").str();
+				item.label = fun.getUnmangledName();
 				item.kind = mlir::lsp::CompletionItemKind::Function;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail = prettyType(fun.getType());
@@ -456,7 +514,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 				alreadyEmitted.insert(key);
 				mlir::lsp::CompletionItem item;
-				item.label = (statemet.getName() + "()").str();
+				item.label = statemet.getName();
 				item.kind = mlir::lsp::CompletionItemKind::Function;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail = prettyType(fType);
@@ -608,6 +666,11 @@ mlir::LogicalResult LSPModuleInfo::getCompleteFunction(
 		mlir::lsp::CompletionList &list) const
 {
 	return impl->getCompleteFunction(completePos, list);
+}
+
+void LSPModuleInfo::getTypes(mlir::lsp::CompletionList &list) const
+{
+	impl->getTypes(list);
 }
 
 mlir::LogicalResult LSPModuleInfo::getCompleteAccessMember(
@@ -797,6 +860,9 @@ mlir::lsp::CompletionList RLCServer::getCodeCompletion(
 	{
 		return list;
 	}
+
+	// if we don't know what the user is typing, just provide types
+	maybeInfo->getTypes(list);
 
 	list.isIncomplete = true;
 
