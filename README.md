@@ -982,3 +982,204 @@ Then in the end... just using an analysis on the function should be enough.
 Now be careful, the pseudo-pseudo-algorithm above is the algorithm the pass should perform because the analysis works on the dataflow, everything else works on the simple IR.
 
 So now we have to define our lattice `mlir::rlc::ConstraintsLattice` and start from a `mlir::DenseBackwardDataFlowAnalysis`.
+
+## A MORE IN DEPTH ANALYSIS
+
+After writing some code, I realized that the algorithm is not that trivial as I initially thought. There are some tricky complications that make the whole mathematical formulation a lot more complicated.
+
+The transfer function pretty much stays the same (well in reality not, we need to modify it a bit), what changes and becomes more tricky is the definition of the lattice and of the join function.
+
+Why ? Let's try to understand first what the whole analysis must do, construct the lattice from there, see some complications, reconstruct the lattice, and repeat in a loop until we reach a fixed point (hopefully we will).
+
+Then at this point in time our problem becomes: *given a function that returns a boolean value, can i deduce the ranges of the input values for which the function **can** return true or false?* .
+
+I have highlighted the second *can* because it is very important: indeed we do not want to find the exact ranges, we can use some "large" assumptions that help us.
+
+Sooo... let's start from an example then and understand how our analysis should behave.
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	return false
+```
+
+Ok so wee need two ranges, one for the `return true` and one for the `return false` branches. And also we can easily arrive at the conclusion that the ranges are $a_T\in[1,INF] \land a_F\in[-INF,0] $ ,where INF represents the biggest integer that can be represented.
+
+But how do we arrive at this conclusion algorithmically? A possible IR that we can obtain from this function can be: 
+
+```
+ %3 = rlc.flat_fun "foo" (!rlc.int<64>) -> !rlc.bool ["a"] {
+  } {
+  ^bb0(%arg0: !rlc.int<64>):
+    %4 = rlc.ref @rl_can_foo__int64_t_r_bool : (!rlc.int<64>) -> !rlc.bool
+    %5 = rlc.call %4 : (!rlc.int<64>) -> !rlc.bool(%arg0) {is_member_call = false} : (!rlc.int<64>) -> !rlc.bool
+    rlc.crb %5 !rlc.bool ^bb2 ^bb1
+  ^bb1:  // pred: ^bb0
+    rlc.abort
+  ^bb2:  // pred: ^bb0
+    %6 = rlc.constant 0 : i64 !rlc.int<64>
+    %7 = rlc.greater %6 : !rlc.int<64>, %arg0 : !rlc.int<64> -> !rlc.bool
+    rlc.crb %7 !rlc.bool ^bb4 ^bb3
+  ^bb3:  // pred: ^bb2
+    %8 = rlc.constant false !rlc.bool
+    rlc.yield %8 : !rlc.bool
+  ^bb4:  // pred: ^bb2
+    %9 = rlc.constant true !rlc.bool
+    rlc.yield %9 : !rlc.bool
+  }
+```
+
+So at first this may seem a lot for a simple function like that but it contains every passage that is important for its correct execution.
+
+Here we can focus only on the `if` part which can be found in the *bb2*. At the end there is `rlc.crb` which expresses a conditional branch, so if `%7` is `true` we will end in *bb4* which returns **true** and if is `false` we will end in *bb3* which returns **false**.
+
+The main part is this `rlc.crb` which tells us where to jump. Then when we arrive to analyze this operation what do we need to do?
+
+Now assume that we analyze this operation in isolation: what information do we need in order to extract the information about our input range?
+
+Well, first of all of course we need to know the condition, `%7` in this case, and extract the information: "hey here we are checking if `arg0` is greater than a constant `0`". 
+
+Then we have to ask, ok where are we jumping to ? Well if the result of the conditional is `true` we are jumping to a place where there will be a `return true`, and if `false` we jump to `return false`.
+
+But now notice that if we work in isolation we do not know that the next basic block will return the function, it maybe can bring us to other operations, conditionals... and so on. 
+Then let's be smart from the start: we need some information that tells us if our true branch will yield a `return true` or a `return false` (later we will show an example where both have to be considered).
+
+This information can easily be extracted, just carry in the lattice two flags, one for *true* and one for *false*, updated when our graph traversal reaches the `yield` (note that the join operation will carry on both of the flags if i am joining from two different paths).
+
+Ok awesome then if we know this information at this moment we can say: if the conditional `a>0` is *true* then we know we will reach the `return true`. So construct the information: $a_T\in[1,INF]$ (for the other branch it is easy to associate the other range).
+
+Cool, but now what bothers me is: what does that $INF$ represent? Because when we analyze this operation we are not sure of what comes after (well if we perform a backward analysis we do, but this is actually the whole point) and for example we could have a situation like this:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		if a < 10:
+			return true
+	return false
+```
+
+Now if we try to analyze `if a > 0:` we cannot extract the same information as before since we know that after there is a `a < 10`. And since this is a backward analysis when analyzing `if a < 10:` we cannot say $a_T\in[-INF,10]$ since before there is a `a > 0`.
+
+Then how do we unlock this apparent circular dependency? The only sensible way is to **not treat this particular $INF$ value as a real infinity**. We can describe it instead as **$?$**, a state where I can say: I do not have enough information about the bound on the range but for the moment the value it can assume can be $INF$ or something else, that will be established later (spoiler: in the join) or at the end of the analysis.
+
+So we need another information in our lattice, which definitely complicates a lot more the join operation, which we will try to understand now with some code examples.
+
+### THE NEW JOIN FUNCTION
+
+Previously the join was defined as:
+
+$\forall(a,b),(c,d)$ with $a,b,c,d \in \mathbb{I}$
+$$ J((a,b),(c,d))=(\min(a,c),\max(b,d)) $$
+
+And we can keep this definition for the numbers in $\mathbb{I}$. But now we need to add another state denoted as $?$ that we are not sure where should belong in our lattice. So let's see some examples to make some clarity:
+
+* $J((a,b),(?,?))$
+
+Well this is pretty easy, or is it? Maybe before we need to construct this interval (?,?) in order to understand what it is and how it behaves.
+
+Let's start from the example we can find above:
+
+* $J((a,?),(?,b))$
+
+Indeed we will find that in our case above $a=0$ and $b=10$. Then the situation we are in is (using a backward reasoning approach): "we know that from our program in order to return true we need $a<10$ and we also know that we need $a>0$". 
+
+So our intuition should tell us that the correct result should be $a\in[1,9]$. But is that really the case ? Let's see another simple example:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	else if a < 10:
+		return true
+	return false
+```
+
+Now we do have a similar situation as before, same ranges, but here we have another condition: it is not and *and* but it is an **or**, and our actual range should be $a\in[-INF,INF]$. 
+
+Then how do we differentiate this condition ? Can we even do it ? 
+
+Well actually yes. There is a huge difference between the two. That is **the join is performed only in the second example**, not the first !
+
+The first example performs an update (what the update does will be described later), the second must perform a join since they are two "parallel" conditions.
+
+Then it is obvious that the result should be in the end:
+
+$$J((a,?),(?,b)):(-INF,INF)$$
+
+NB: notice that the example works with $a\lesseqgtr b$ since we can be conservative and "cover the holes (or the overlaps) in our ranges"
+
+Is it $INF$ or $?$ , good question. But I think the result should be the first, intuitively you can think it in this way: arriving from two different paths we notice that we can return true with two unbounded ranges in opposite directions, so all the number line is covered.
+
+* $J((?,a),(b,?))$
+
+This is obviously the same case as above for commutativity.
+
+* $J((a,?),(b,?))$
+
+Well this is obviously easier, and we can easily show that:
+
+$$J((a,?),(b,?)):(\min(a,b),INF)$$
+
+For reference, I will leave a simple example that demonstrates it:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	else if a > 10:
+		return true
+	return false
+```
+
+Actually this example is interesting because it allows us to see the other case, indeed if we look at what happens in the false branch I need to join the two ranges $[?,0]$ and [?,10]. 
+
+Now would it be correct to say that the expected result is $[-INF,10]$ ? (applying the join to the opposite range using a maximum)
+
+Well yes, but it is obvious that 5 for example will never yield true, so a better range (actually correct) would be $[-INF,0]$. The only problem here is that we cannot extract the information that there is an `else if` condition, we do know only if-else.
+
+
+* $J((a,b),(c,?))$
+
+It is now pretty obvious that the result should be the same as above, indeed
+
+$$J((a,b),(c,?)):(\min(a,c),INF)$$
+
+*
+
+Now are there any other interesting cases ? Well this undefined value is starting to behave as **TOP**, but why cannot we just simply use it?
+
+The problem resides still in the exmaple above
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		if a < 10:
+			return true
+	return false
+```
+
+When passing through `a < 10` we do not know if in our path we will encounter also another conditional which will force our range to assume another boundary.
+
+That is why the transfer function needs to perform the **update**.
+
+## THE NEW UPDATE FUNCTION
+
+When passing through a conditional (`rlc.crb` for example) we need if possible to update the information about the range we are analyzing (not joining with another).
+
+Indeed above when we pass from `a > 0` we have already in mind the fact that we passed through `a < 10` since it is after in the graph of the program.
+
+Then we already have something as $a_T\in[?,9] \land a_F\in[10,?] $ in the lattice, since we also know where we will return true and false.
+
+So how does passing through `a > 0` affect our ranges ? Well which information can we extract? 
+
+We can think about it in this way: this if statement knows that if the condition is true it can affect both branches, and if the condition is false it will affect only the false branch (since it will never return true).
+
+So we can say that if the condition is true we will have the range $[1,?)$ and if false $(?,0]$. But remember, we are not passing through a join, then which information od we extract?
+
+Well along the true branch we already know a bound, and with this information we can also set a lower bound which yields to the full range $[1,9]$. 
+
+And along the false branch ? Weeeeeeeelll actually here let's analyze what is happening before thinking about what we update: we know that if the conditional will be evaluated to true we could finish in a yield false, but also if the conditional is false we will finish in a yield false.
+
+Sooooooo... ? This means that it does not matter if we pass through the true or false branch... we **do not gain more information** by evaluating both branches to true and false, then we can just ignore the operation.
+
