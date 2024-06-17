@@ -35,6 +35,8 @@ namespace rlc
 			emitted.insert(elem);
 
 		auto visit = [&](mlir::Type type) {
+			if (type.isa<mlir::rlc::IntegerLiteralType>())
+				return;
 			if (emitted.contains(type))
 				return;
 

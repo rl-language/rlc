@@ -845,6 +845,15 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 	return mlir::failure();
 }
 
+mlir::Type mlir::rlc::decayCtxFrmType(mlir::Type t)
+{
+	if (auto casted = t.dyn_cast<mlir::rlc::FrameType>())
+		return casted.getUnderlying();
+	if (auto casted = t.dyn_cast<mlir::rlc::ContextType>())
+		return casted.getUnderlying();
+	return t;
+}
+
 int64_t mlir::rlc::ArrayType::getArraySize()
 {
 	return getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();

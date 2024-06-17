@@ -5,6 +5,7 @@ import math
 import os
 import random
 
+from tensorboard import program
 from ml.raylib.environment import RLCEnvironment
 from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.algorithms import ppo
@@ -93,6 +94,7 @@ def main():
     )
     parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--league-play", action="store_true", default=False)
+    parser.add_argument("--no-tensorboard", action="store_true", default=False)
     parser.add_argument("--total-train-iterations", default=100000000, type=int)
     parser.add_argument("--sample-space", default=1, type=int)
 
@@ -123,6 +125,13 @@ def main():
 
         # resumption_dir = os.path.abspath("./results")
         resources = PPO.default_resource_request(ppo_config)
+
+        air_config = air.RunConfig(
+                stop=stop,
+                verbose=2,
+                # storage_path=resumption_dir
+            )
+
         tuner = tune.Tuner(
             tune.with_resources(
                 (
@@ -140,6 +149,11 @@ def main():
                 # storage_path=resumption_dir
             ),
         )
+
+        if not args.no_tensorboard:
+            tb = program.TensorBoard()
+            tb.configure(argv=[None, "--logdir", "/tmp/ray/session_latest/"])
+            url = tb.launch()
 
         results = tuner.fit()
 

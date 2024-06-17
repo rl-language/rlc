@@ -140,18 +140,8 @@ rlc-learn black_jack.rl |& tee log.txt
 
 If you have not installed torch and cuda, this invocation will fail. If it does fail, you can open the file `log.txt` and try to see what you are missing to run it.
 
-If it does learn, you can open the log and scroll down until you see a line that looks like the following:
-```bash
-tensorboard --logdir /tmp/ray/session_DATE/artifacts/DATE/tuner_run_DATE/driver_artifacts
-```
 
-Open another terminal and navigate to the example directory you have created, and source the environment again:
-```bash
-cd rl_example
-source ./venv/bin/activate
-```
-
-Then run the line you found in the `log.txt` file. From your browser, you can now visit the website:
+If it does work, then from your browser, you can now visit the website:
 ```
 127.0.0.1:6006
 ```

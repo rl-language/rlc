@@ -89,10 +89,15 @@ namespace rlc
 				std::string AbslutePath;
 				auto id =
 						sourceManager->AddIncludeFile(current, llvm::SMLoc(), AbslutePath);
+				// could not find the file
 				if (id == 0)
-					return llvm::createStringError(
-							llvm::inconvertibleErrorCode(),
-							std::string("cannot find file ") + current);
+				{
+					if (!maybeError)
+						maybeError = llvm::createStringError(
+								llvm::inconvertibleErrorCode(),
+								std::string("cannot find file ") + current);
+					return maybeError;
+				}
 
 				if (alreadyLoaded.contains(AbslutePath))
 					continue;

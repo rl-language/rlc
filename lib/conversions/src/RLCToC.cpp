@@ -40,6 +40,8 @@ static std::string nonArrayTypeToString(mlir::Type type)
 				OS << "int" << Type.getSize() << "_t";
 			})
 			.Case<mlir::rlc::VoidType>([&](mlir::rlc::VoidType) { OS << "void"; })
+			.Case<mlir::rlc::IntegerLiteralType>(
+					[&](mlir::rlc::IntegerLiteralType t) { OS << t.getValue(); })
 			.Default([](auto type) {
 				type.dump();
 				llvm_unreachable(
@@ -599,6 +601,9 @@ static void printFunctionSignature(
 void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 {
 	mlir::rlc::ModuleBuilder builder(Module);
+	OS << "#ifdef __cplusplus\n";
+	OS << "extern \"C\"{\n";
+	OS << "#endif\n";
 	OS << "#ifndef RLC_HEADER\n";
 	OS << "#ifdef RLC_C_HEADER\n#undef RLC_C_HEADER\n#define RLC_HEADER\n";
 	OS << R""""(
@@ -637,19 +642,17 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 			continue;
 		if (fun.getUnmangledName() == "main")
 			continue;
-		std::string cShortName = ((not fun.getFunctionType().getInputs().empty() and
-															 fun.getFunctionType()
-																	 .getInputs()
-																	 .front()
-																	 .isa<mlir::rlc::ClassType>())
-																	? fun.getFunctionType()
-																						.getInputs()
-																						.front()
-																						.cast<mlir::rlc::ClassType>()
-																						.getName() +
-																				"_" + fun.getUnmangledName()
-																	: fun.getUnmangledName())
-																 .str();
+		std::string cShortName =
+				((not fun.getFunctionType().getInputs().empty() and
+					fun.getFunctionType().getInputs().front().isa<mlir::rlc::ClassType>())
+						 ? fun.getFunctionType()
+											 .getInputs()
+											 .front()
+											 .cast<mlir::rlc::ClassType>()
+											 .getName() +
+									 "_" + fun.getUnmangledName()
+						 : fun.getUnmangledName())
+						.str();
 
 		printFunctionSignature(
 				fun.getUnmangledName(),
@@ -735,6 +738,10 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 				type, OS, typeToMethods[type.getAsOpaquePointer()], builder);
 
 	OS << "#ifdef __cplusplus\n";
+	OS << "}\n";
+	OS << "#endif\n";
+
+	OS << "#ifdef __cplusplus\n";
 	for (auto& pair : typeToMethods)
 		printMethodsOfType(
 				mlir::Type::getFromOpaquePointer(pair.first),
@@ -778,6 +785,17 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	OS << "#endif\n\n";
 }
 
+static bool needsToBeEmitted(mlir::Type type)
+{
+	return not(
+			type.isa<mlir::rlc::ArrayType>() or type.isa<mlir::FunctionType>() or
+			type.isa<mlir::rlc::ReferenceType>() or
+			type.isa<mlir::rlc::OwningPtrType>() or
+			type.isa<mlir::rlc::IntegerType>() or type.isa<mlir::rlc::BoolType>() or
+			type.isa<mlir::rlc::StringLiteralType>() or
+			type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::VoidType>());
+}
+
 static std::string unmangledName(
 		mlir::Value op, mlir::rlc::ModuleBuilder& builder)
 {
@@ -791,13 +809,14 @@ static std::string unmangledName(
 		if (casted.getIsDoneFunction() == op)
 			return "is_done";
 
+		if (casted.getResult() == op)
+			return casted.getUnmangledName().str();
+
 		if (auto maybeStatement =
 						mlir::dyn_cast_or_null<mlir::rlc::ActionStatement>(
-								builder.actionFunctionValueToActionStatement(op)[0]);
+								builder.actionFunctionValueToActionStatement(op).front());
 				maybeStatement)
 			return maybeStatement.getName().str();
-
-		return casted.getUnmangledName().str();
 	}
 	llvm_unreachable("unrechable");
 	return "";
@@ -815,7 +834,8 @@ static std::string mangledName(
 	{
 		return mlir::rlc::mangledName(
 				unmangledName(op, builder),
-				false,
+				casted.getResult() !=
+						op,	 // they are all member functions except the entry point
 				op.getType().cast<mlir::FunctionType>());
 	}
 	llvm_unreachable("unrechable");
@@ -824,71 +844,62 @@ static std::string mangledName(
 
 void rlc::rlcToGodot(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 {
-	OS << "extern \"C\"{\n";
 	OS << "#define RLC_GET_TYPE_DECLS\n";
 	OS << "#define RLC_GET_FUNCTION_DECLS\n";
 
 	rlcToCHeader(Module, OS);
-	OS << "}\n";
 	mlir::rlc::ModuleBuilder builder(Module);
 
 	OS << "#ifdef RLC_GODOT\n";
 	OS << "#undef RLC_GODOT\n";
-	OS << "#include <Godot.hpp>\n";
-	OS << "#include <Node.hpp>\n";
 	for (auto type : postOrderTypes(Module))
 	{
-		if (type.isa<mlir::rlc::ArrayType>() or type.isa<mlir::FunctionType>())
+		if (not needsToBeEmitted(type))
 			continue;
-		auto wrapperNameString = nonArrayTypeToString(type) + "Wrapper";
+		auto wrapperNameString = "RLC" + nonArrayTypeToString(type);
 		const auto* wrapperName = wrapperNameString.c_str();
 		OS << llvm::format(
 				R"""""(
-class %s: public godot::Node {
-  GODOT_CLASS(%s, godot::Node);
+class %s: public godot::RefCounted {
+  GDCLASS(%s, godot::RefCounted);
 
 public:
-  %s content;
+  using ContentType = %s;
+  ContentType* content;
+  bool isOwning;
 
-  static void _register_methods() {
-    godot::register_method("_init", &%s::_init);
+  %s() { content = new ContentType(); isOwning = true; }
+  %s(ContentType* pointer) { content = pointer; isOwning = false; }
+  ~%s() { if (isOwning) delete content; }
+
+  static void _bind_methods() {
+    //godot::register_method("_init", &%s::_init);
+  }
+};
 )""""",
 				wrapperName,
 				wrapperName,
 				nonArrayTypeToString(type).c_str(),
+				wrapperName,
+				wrapperName,
 				wrapperName);
-
-		OS << llvm::format(
-				R"""""(
-		}
-  %s() {_init();}
-  void _init() {
-					)""""",
-				wrapperName);
-
-		OS << builder.getInitFunctionOf(type)
-							.getDefiningOp<mlir::rlc::FunctionOp>()
-							.getMangledName()
-			 << "(&content);\n}\n";
-
-		OS << "};\n";
 	}
 
 	OS << R"""""(
-class RLCLib: public godot::Node {
-  GODOT_CLASS(RLCLib, godot::Node);
+class RLCLib: public godot::Object {
+  GDCLASS(RLCLib, godot::Object);
 
 public:
-  static void _register_methods() {
-    register_method("_init", &RLCLib::_init);
+  static void _bind_methods() {
+    godot::ClassDB::bind_method(godot::D_METHOD("_init"), &RLCLib::_init);
 )""""";
 
 	for (const auto& pair : builder.getSymbolTable().allDirectValues())
 	{
 		if (pair.first().starts_with("_") or pair.first() == "main")
 			continue;
-		OS << "register_method(\"" << pair.first() << "\", &RLCLib::RLC_"
-			 << pair.first() << ");\n";
+		OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"" << pair.first()
+			 << "\"), &RLCLib::RLC_" << pair.first() << ");\n";
 	}
 
 	OS << R"""""(
@@ -923,23 +934,37 @@ public:
 				continue;
 
 			auto fType = overload.getType().cast<mlir::FunctionType>();
+			auto unhandledType = [](mlir::Type t) {
+				return t.isa<mlir::rlc::StringLiteralType>() or
+							 t.isa<mlir::rlc::OwningPtrType>() or
+							 t.isa<mlir::rlc::ArrayType>();
+			};
+			if (llvm::any_of(fType.getInputs(), unhandledType))
+				continue;
 			bool isVoid = fType.getNumResults() == 0 or
 										fType.getResults().front().isa<mlir::rlc::VoidType>();
+			if (not isVoid and unhandledType(fType.getResult(0)))
+				continue;
 			OS << "if (casted.size() == " << fType.getNumInputs();
 
 			for (size_t I = 0; I < fType.getNumInputs(); I++)
 			{
-				if (not fType.getInput(I).isa<mlir::rlc::ClassType>())
+				auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
+				if (not type.isa<mlir::rlc::ClassType>() and
+						not type.isa<mlir::rlc::AlternativeType>())
 					continue;
-				OS << " && godot::Object::cast_to<" << typeToString(fType.getInput(I))
-					 << "Wrapper>((godot::Object*)(casted[" << I << "]))";
+				OS << " && godot::Object::cast_to<RLC"
+					 << typeToString(fType.getInput(I)) << ">(*((godot::Ref<RLC"
+					 << typeToString(fType.getInput(I)) << ">)(casted[" << I << "])))";
 			}
 
 			OS << ") {\n";
 
 			for (size_t I = 0; I < fType.getNumInputs(); I++)
 			{
-				if (not fType.getInput(I).isa<mlir::rlc::ClassType>())
+				auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
+				if (not type.isa<mlir::rlc::ClassType>() and
+						not type.isa<mlir::rlc::AlternativeType>())
 				{
 					OS << "auto arg" << I << "= ";
 					OS << "((" << typeToString(fType.getInput(I)) << ")(casted[" << I
@@ -949,24 +974,44 @@ public:
 
 			if (not isVoid)
 			{
-				if (fType.getResult(0).isa<mlir::rlc::ClassType>())
+				if (fType.getResult(0).isa<mlir::rlc::ClassType>() or
+						fType.getResult(0).isa<mlir::rlc::AlternativeType>())
 				{
-					OS << "auto to_return =" << typeToString(fType.getResult(0))
-						 << "Wrapper::_new();\nto_return->content = ";
+					OS << typeToString(fType.getResult(0)) << "* mallocated = ("
+						 << typeToString(fType.getResult(0)) << "*) malloc(sizeof("
+						 << typeToString(fType.getResult(0)) << "));\n";
+					OS << "godot::Ref<RLC" << typeToString(fType.getResult(0))
+						 << "> to_return;\n";
+					OS << "to_return.instantiate();\n";
+					OS << "godot::Object::cast_to<RLC" << typeToString(fType.getResult(0))
+						 << ">(*to_return)->content = mallocated;\n";
 				}
 				else
 				{
-					OS << "auto to_return =";
+					OS << typeToString(fType.getResult(0)) << " to_return;\n";
 				}
 			}
 
 			OS << mangledName(overload, builder) << "(";
+			if (not isVoid)
+			{
+				if (not fType.getResult(0).isa<mlir::rlc::ClassType>() and
+						not fType.getResult(0).isa<mlir::rlc::AlternativeType>())
+					OS << "&to_return";
+				else
+					OS << "mallocated";
+				if (fType.getNumInputs() != 0)
+					OS << ",";
+			}
 
 			for (size_t I = 0; I < fType.getNumInputs(); I++)
 			{
-				if (fType.getInput(I).isa<mlir::rlc::ClassType>())
-					OS << "&(godot::Object::cast_to<" << typeToString(fType.getInput(I))
-						 << "Wrapper>((godot::Object*)(casted[" << I << "]))->content)";
+				auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
+				if (type.isa<mlir::rlc::ClassType>() or
+						type.isa<mlir::rlc::AlternativeType>())
+					OS << "(godot::Object::cast_to<RLC" << typeToString(fType.getInput(I))
+						 << ">(*((godot::Ref<RLC" << typeToString(fType.getInput(I))
+						 << ">)(casted[" << I << "])))->content)";
 				else
 					OS << "&arg" << I;
 				if (I + 1 < fType.getNumInputs())
@@ -977,7 +1022,10 @@ public:
 			if (isVoid)
 				OS << "return godot::Variant();\n";
 			else
+			{
+				auto type = fType.getResult(0);
 				OS << "return to_return;\n";
+			}
 			OS << "}\n";
 		}
 
@@ -986,32 +1034,23 @@ public:
 	}
 
 	OS << R"""""(
-/** GDNative Initialize **/
-extern "C" void GDN_EXPORT godot_gdnative_init(godot_gdnative_init_options *o) {
-  godot::Godot::gdnative_init(o);
-}
-
 /** GDNative Terminate **/
-extern "C" void GDN_EXPORT
-godot_gdnative_terminate(godot_gdnative_terminate_options *o) {
-  godot::Godot::gdnative_terminate(o);
+static void 
+godot_gdnative_terminate() {
 }
 
-/** NativeScript Initialize **/
-extern "C" void GDN_EXPORT godot_nativescript_init(void *handle) {
-  godot::Godot::nativescript_init(handle);
+static void godot_nativescript_init() {
 )""""";
 
 	for (auto type : postOrderTypes(Module))
 	{
-		if (type.isa<mlir::rlc::ArrayType>() or type.isa<mlir::FunctionType>())
-			continue;
-
-		OS << "godot::register_class<" << typeToString(type) << "Wrapper>();";
+		if (needsToBeEmitted(type))
+			OS << "godot::ClassDB::register_class<RLC" << typeToString(type)
+				 << ">();\n";
 	}
 
 	OS << R"""""(
-  godot::register_class<RLCLib>();
+  godot::ClassDB::register_class<RLCLib>();
 }
 )""""";
 

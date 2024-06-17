@@ -118,6 +118,8 @@ namespace mlir::rlc
 
 	mlir::LogicalResult isTemplateType(mlir::Type type);
 
+	mlir::Type decayCtxFrmType(mlir::Type);
+
 	mlir::FunctionType replaceTemplateParameter(
 			mlir::FunctionType original,
 			mlir::rlc::TemplateParameterType toReplace,
