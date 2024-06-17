@@ -66,7 +66,6 @@ namespace mlir::rlc
 		
 		// TODO: I could think about implementing disjointed ranges but the algorithms starts to become 
 		// very complicated (think about a multiplication, definitely not trivial)
-		
 		class IntegerRange{
 			public:
 			
@@ -112,12 +111,12 @@ namespace mlir::rlc
 				this->range.second=max;
 			}
 
-			void setMinUnbounded(){
-				this->range.first = std::nullopt;
+			void setMinTOP(){
+				this->range.first = MIN;
 			}
 
-			void setMaxUnbounded(){
-				this->range.first = std::nullopt;
+			void setMaxTOP(){
+				this->range.second = MAX;
 			}
 
 			void setConstant(const Integer con){
@@ -134,6 +133,15 @@ namespace mlir::rlc
 			Integer getMax() const {
 				return this->range.second.has_value() ? this->range.second.value() : MAX;
 			}
+
+			bool hasMin(){
+				return this->range.first.has_value();
+			}
+
+			bool hasMax(){
+				return this->range.second.has_value();
+			}
+			
 
 			// Operators useful for range operations 
 			// TODO: this needs to do a bound checking
@@ -197,37 +205,77 @@ namespace mlir::rlc
 			// Defined as: J((a,b),(c,d)):(min(a,c),max(b,d)) for each equal SSA value
 			// NB: we have to ignore the BOTTOM
 			static IntegerRange joinRange(const IntegerRange& r1, const IntegerRange& r2){
-					const auto& r1_m=r1.range.first;
-					const auto& r1_M=r1.range.second;
-					const auto& r2_m=r2.range.first;
-					const auto& r2_M=r2.range.second;
-
-					// Range initialized to std::nullopt
-					IntegerRange toReturn;
-
-					// TODO: possibly refactor
-					// MIN
-					if(r1_m.has_value())
-						toReturn.setMin(std::min(r1_m.value(),r2_m.value_or(MAX)));
-					else if (r2_m.has_value())
-						toReturn.setMin(r2_m.value());
-					
-					// MAX
-					if(r1_M.has_value())
-						toReturn.setMax(std::max(r1_M.value(),r2_M.value_or(MIN)));
-					else if (r2_M.has_value())
-						toReturn.setMax(r2_M.value());
+				const auto& r1_m=r1.range.first;
+				const auto& r1_M=r1.range.second;
+				const auto& r2_m=r2.range.first;
+				const auto& r2_M=r2.range.second;
 
 
-					return toReturn;
-					
-				}
+				// Funny case: the ranges are disjointed -> take the min of one and the max of the other
+				// This is useful in the case (?,10) and (20, ?) -> result should be (TOP,TOP)
+				
+				if((not r1_m.has_value() and not r2_M.has_value()) or
+					(not r2_m.has_value() and not r1_M.has_value()))
+					return std::make_pair(MIN,MAX);
+
+				// Range initialized to std::nullopt
+				IntegerRange toReturn;
+
+				// TODO: possibly refactor
+				// MIN
+				
+				if(r1_m.has_value())
+					toReturn.setMin(std::min(r1_m.value(),r2_m.value_or(MIN)));
+				else if (r2_m.has_value())
+					toReturn.setMin(r2_m.value());
+				else 
+					toReturn.setMinTOP();
+				
+
+				// MAX
+				
+				if(r1_M.has_value())
+					toReturn.setMax(std::max(r1_M.value(),r2_M.value_or(MAX)));
+				else if (r2_M.has_value())
+					toReturn.setMax(r2_M.value());
+				else
+					toReturn.setMaxTOP();
+				
+
+				return toReturn;
+				
+			}
+
+			// Method to update the value of a range, it is similar to a join but it works only on transfer functions
+			void update(const IntegerRange& other){
+				
+				// TODO: think about checking if inserting the min or the max
+
+				// MIN
+				if(other.range.first.has_value())
+					this->range.first=other.range.first;
+
+				// MAX
+				if(other.range.second.has_value())
+					this->range.second=other.range.second;
+
+			}
+
+			// Method to force an optional to the TOP value (use carefully)
+			void forceTop(){
+				if(not this->range.first.has_value())
+					this->range.first=MIN;
+				if(not this->range.second.has_value())
+					this->range.second=MAX;
+			}
 
 			private:
 
 			std::pair<std::optional<Integer>,std::optional<Integer>> range;
 
 		};
+		
+		
 		
 		// I will leave this here
 
@@ -339,7 +387,8 @@ namespace mlir::rlc
 				if(not this->ranges.empty()){
 					for(auto range: this->ranges){
 						os << "SSA: "<< range.first.first <<" Branch: "<< range.first.second << 
-						" RANGE: (" << range.second.getMin() << ", " << range.second.getMax() << ")\n";
+						" RANGE: (" << (range.second.hasMin() ? std::to_string(range.second.getMin()):"?") 
+						<< ", " << (range.second.hasMax() ? std::to_string(range.second.getMax()):"?") << ")\n";
 					}
 				}
 				else {
@@ -474,6 +523,7 @@ namespace mlir::rlc
 					not mlir::isa<mlir::rlc::GreaterEqualOp>(conditional_op))
 					return mlir::ChangeResult::NoChange;
 
+
 				const auto& lhs = conditional_op->getOperand(0);
 				const auto& rhs = conditional_op->getOperand(1);
 				const auto& lhs_op = lhs.getDefiningOp();
@@ -484,35 +534,51 @@ namespace mlir::rlc
 				
 				// If the rhs is a constant
 				if(auto rhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(rhs_op)){
-					if(branch_true_yield_true)
-						this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, true);	
 					
-					if(branch_true_yield_false)
-						this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, false);	
+					// If both branches yield true then there is no need to update since no more information can be retrieved
+					if(not branch_true_yield_true==branch_false_yield_true){
+
+						if(branch_true_yield_true)
+							this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, true);	
+						
+						if(branch_false_yield_true)
+							this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, true);
 					
-					if(branch_false_yield_true)
-						this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, true);	
+					}
+
+					if(not branch_true_yield_false==branch_false_yield_false){
+
+						if(branch_true_yield_false)
+							this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, false);
+						
+						if(branch_false_yield_false)
+							this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, false);	
 					
-					if(branch_false_yield_false)
-						this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, false);	
-					
+					}
 
 				}
 				// If the lhs is a constant then do the same but with inverted branches
 				else if(auto lhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(lhs_op)){
 
-					if(branch_true_yield_true)
-						this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, true);	
+					if(not branch_true_yield_true==branch_true_yield_false){
+
+						if(branch_true_yield_true)
+							this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, true);	
+						
+						if(branch_true_yield_false)
+							this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, false);	
 					
-					if(branch_true_yield_false)
-						this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, false);	
-					
-					if(branch_false_yield_true)
-						this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, true);	
-					
-					if(branch_false_yield_false)
-						this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, false);	
-					
+					}
+
+					if(not branch_false_yield_true==branch_false_yield_false){
+
+						if(branch_false_yield_true)
+							this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, true);	
+						
+						if(branch_false_yield_false)
+							this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, false);	
+						
+					}
 
 				}
 				// else do nothing
@@ -558,6 +624,16 @@ namespace mlir::rlc
 				}
 			}
 
+			void insertOrUpdate(std::pair<mlir::Value,bool> keyToInsert, IntegerRange rangeToInsert){
+				auto found=this->ranges.find(keyToInsert);
+				if(found!=this->ranges.end()){
+					found->second.update(rangeToInsert);
+				}
+				else{
+					this->ranges.insert(std::make_pair(keyToInsert,rangeToInsert));
+				}
+			}
+
 			// This method takes the operation, the range
 			// statement is the original operation
 			// other is the other operand so that we can do to_update=result operation other
@@ -587,7 +663,7 @@ namespace mlir::rlc
 						new_range=a_range-new_range;
 					llvm::outs()<<"should have changed\n";
 					// Insert the range where is needed
-					this->insertOrJoin(std::make_pair(to_update,branch_to_update),new_range);
+					this->insertOrUpdate(std::make_pair(to_update,branch_to_update),new_range);
 				}
 			}
 
@@ -628,7 +704,7 @@ namespace mlir::rlc
 				
 				llvm::outs()<<"should have changed\n";
 				// Insert the range where is needed
-				this->insertOrJoin(std::make_pair(to_update,branch_to_update),new_range);
+				this->insertOrUpdate(std::make_pair(to_update,branch_to_update),new_range);
 			}
 
 			llvm::DenseMap<std::pair<mlir::Value,bool>,IntegerRange> ranges;
@@ -690,7 +766,7 @@ namespace mlir::rlc
 				op->print(llvm::outs());
 				llvm::outs()<<"\n";
 				// For the moment implement the basic operations
-				auto res=before->copy(after);
+				auto res=before->join(after);
 				
 				// We have to decide which return values to update (true or false)
 				// In order to do so we need to :
@@ -733,7 +809,7 @@ namespace mlir::rlc
 					// And do the same in the false
 					auto rightLattice=getLattice(mlir::ProgramPoint(&casted.getFalseBranch()->front()));
 
-					for(auto pair : leftLattice->getUnderlyingLattice()){
+					for(auto pair : rightLattice->getUnderlyingLattice()){
 						if(pair.first.second==true)
 								branch_false_yield_true=true;
 							else branch_false_yield_false=true;
@@ -917,19 +993,22 @@ namespace mlir::rlc
 				if(not mlir::isa<mlir::rlc::BoolType>(fun.getResult().getType().getResult(0)) )
 					continue;
 
+				if(fun.getBlocks().size()<=2)
+					continue;
+
 				Constraints con(fun);
 				std::cout<<"In theory I should have run the analysis"<<std::endl;
 				// Here I append to the function the ranges I found
 				// TODO: understand why the analysis is done backwards but the blocks are traversed forwards
 				// https://mlir.llvm.org/doxygen/DenseAnalysis_8cpp_source.html#l00387 <- I am just stupid, here it goes through the predecessors
 				// Blocks have a getPredecessors() method
-				auto& block=fun.getRegion(0).front();
-				con.printRangesFound(&block.back());
+				auto block=fun.getRegion(0).front().getNextNode()->getNextNode();
+				con.printRangesFound(&block->back());
 
-				auto lattice = con.getOperationLattice(&block.back());
+				auto lattice = con.getOperationLattice(&block->back());
 
 				// Iterate through the arguments -> are the arguments of the first block
-				for(auto arg: block.getArguments()){
+				for(auto arg: fun.getRegion(0).front().getArguments()){
 					auto casted=mlir::dyn_cast<mlir::Value>(arg);
 					for(auto pair : lattice){
 						if(pair.first.first==casted){
@@ -937,7 +1016,6 @@ namespace mlir::rlc
 							auto stream=llvm::raw_string_ostream(to_write);
 							arg.printAsOperand(stream,mlir::OpPrintingFlags());
 							stream.flush();
-							llvm::outs()<<"\n"<<to_write<<"\n";
 							// Add range as a function argument
 							fun->setAttr("rlc.attr."+to_write+"_branch_"+std::to_string(pair.first.second)+"_MIN",mlir::IntegerAttr::get(mlir::IntegerType::get(fun->getContext(),32),pair.second.getMin()));
 							fun->setAttr("rlc.attr."+to_write+"_branch_"+std::to_string(pair.first.second)+"_MAX",mlir::IntegerAttr::get(mlir::IntegerType::get(fun->getContext(),32),pair.second.getMax()));
