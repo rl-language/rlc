@@ -101,7 +101,7 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
       act shoot(UnitArgType unit_id, UnitArgType target_id) {
         board.unit_id_is_valid(unit_id.value),
         board.unit_id_is_valid(target_id.value),
-        board.can_shoot(board.units.get(unit_id.value), board.units.get(target_id.value), false, false),
+        board.can_target(board.units.get(unit_id.value), board.units.get(target_id.value), false, false),
         board.units.get(unit_id.value).faction() == current_faction,
         !(board.units.get(target_id.value).faction() == current_faction)
       }
@@ -116,7 +116,7 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
 
       act overwatch(UnitArgType unit_id) {
         board.unit_id_is_valid(unit_id.value),
-        board.units.get(unit_id.value).can_overwatch(),
+        board.units.get(unit_id.value).can_enter_overwatch(),
         board.units.get(unit_id.value).faction() == current_faction
       }
         board.units.get(unit_id.value).action_points = board.units.get(unit_id.value).action_points - 2
@@ -125,7 +125,7 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
 
       act guard(UnitArgType unit_id) {
         board.unit_id_is_valid(unit_id.value),
-        board.units.get(unit_id.value).can_guard(),
+        board.units.get(unit_id.value).can_enter_guard(),
         board.units.get(unit_id.value).faction() == current_faction
       }
         board.units.get(unit_id.value).action_points = board.units.get(unit_id.value).action_points - 2
@@ -134,7 +134,7 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
 
       act assault(UnitArgType unit_id) {
         board.unit_id_is_valid(unit_id.value),
-        board.can_assault(board.units.get(unit_id.value)),
+        board.can_assault_target(board.units.get(unit_id.value)),
         board.units.get(unit_id.value).faction() == current_faction
       }
         subaction*(board) assault_frame = do_assault(board, unit_id)

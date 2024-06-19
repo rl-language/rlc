@@ -28,6 +28,27 @@ cls Board:
   fun set_is_random_decision():
     self.current_player = 0
 
+  fun is_closed_door(Int x, Int y) -> Bool:
+    return self.map[y][x] == 4
+
+  fun is_open_door(Int x, Int y) -> Bool:
+    return self.map[y][x] == 3
+
+  fun is_empty_cell(Int x, Int y) -> Bool:
+    return self.map[y][x] == 0
+
+  fun is_spawn_point(Int x, Int y) -> Bool:
+    return self.map[y][x] == 2
+
+  fun get_character_x(Int id) -> Int:
+    return self.units.get(id).x.value
+
+  fun get_character_y(Int id) -> Int:
+    return self.units.get(id).y.value
+
+  fun is_wall(Int x, Int y) -> Bool:
+    return self.map[y][x] == 1
+
   fun marine_must_act() -> Bool:
     return self.current_player.value == 1
 
@@ -157,7 +178,7 @@ cls Board:
     # ToDO: implement correctly actual line of sight
     return true
 
-  fun can_shoot(Unit source, Unit target, Bool overwatch, Bool is_bolter_free_shoot) -> Bool:
+  fun can_target(Unit source, Unit target, Bool overwatch, Bool is_bolter_free_shoot) -> Bool:
     if !(source.kind == UnitKind::marine):
       return false
 
@@ -196,7 +217,7 @@ cls Board:
     source.is_guarding = false
     return roll1 == 6 or roll2 == 6
 
-  fun can_assault(Unit source) -> Bool:
+  fun can_assault_target(Unit source) -> Bool:
     if source.action_points < 1:
       return false
 

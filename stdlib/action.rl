@@ -40,6 +40,15 @@ fun<FrameType, ActionType> apply(ActionType action, FrameType frame) { can_apply
                 action.apply(frame)
 
 
+fun<FrameType, ActionType> apply(Vector<ActionType> action, FrameType frame) -> Bool: 
+    let x = 0
+    while x != action.size():
+        if !can apply(action.get(x), frame):
+            return false
+        apply(action.get(x), frame)
+        x = x + 1
+    return true
+
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input, Int read_bytes):
     while read_bytes + 8 <= input.size():
         if from_byte_vector(variant, input, read_bytes):
@@ -51,6 +60,14 @@ fun<AllActionsVariant> parse_actions(AllActionsVariant variant, Vector<Byte> inp
     while read_bytes + 8 < input.size():
         if from_byte_vector(variant, input, read_bytes):
             to_return.append(variant)
+    return to_return
+
+fun<AllActionsVariant> parse_actions(AllActionsVariant variant, String input) -> Vector<AllActionsVariant>:
+    let to_return : Vector<AllActionsVariant>
+    let counter = 0 
+    while from_string(variant, input, counter):
+        print(variant)
+        to_return.append(variant)
     return to_return
 
 # parses actions taking only one byte and by taking taking the reminder of the parsed number divided by the number of actions, so that no action is ever marked as invalid
@@ -106,6 +123,26 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     v.resize(10)
     v.size()
     observation_tensor_size(state)
+    let vector : Vector<AllActionsVariant>
+    load_action_vector_file("dc"s, vector)
+    load_example(vector)
+    apply(vector, state)
+
+fun<ActionType> load_example(Vector<ActionType> result) -> Bool:
+    let content : String
+    if !load_file("/home/massimo/file.txt"s, content):
+        return false
+    let variant : ActionType
+    result = parse_actions(variant, content)
+    return true
+
+fun<ActionType> load_action_vector_file(String file_name, Vector<ActionType> out) -> Bool:
+    let content : String 
+    if !load_file(file_name, content):
+        return false
+    let variant : ActionType
+    out = parse_actions(variant, content)
+    return true
 
 trait<T> Enumerable:
     fun enumerate(T obj, Vector<T> output)

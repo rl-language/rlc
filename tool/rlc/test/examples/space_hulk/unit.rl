@@ -125,10 +125,10 @@ cls Unit:
     if cost is Int:
       self.action_points = self.action_points - cost 
 
-  fun can_overwatch() -> Bool:
+  fun can_enter_overwatch() -> Bool:
     return self.action_points >= 2 and self.kind == UnitKind::marine
 
-  fun can_guard() -> Bool:
+  fun can_enter_guard() -> Bool:
     return self.action_points >= 2 and self.kind == UnitKind::marine and !self.is_guarding
 
   fun x_of_cell_in_front() -> Int:

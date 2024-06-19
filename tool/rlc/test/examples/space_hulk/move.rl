@@ -45,7 +45,7 @@ act move_unit(ctx Board board, frm UnitArgType unit_id) -> Move:
       board.unit_id_is_valid(unit_id2.value),
       board.unit_id_is_valid(target_id.value),
       unit_id == target_id or unit_id2 == unit_id,
-      board.can_shoot(board.units.get(unit_id2.value), board.units.get(target_id.value), board.units.get(unit_id.value).kind.faction() == Faction::genestealer, !(board.units.get(unit_id.value).kind.faction() == Faction::genestealer))
+      board.can_target(board.units.get(unit_id2.value), board.units.get(target_id.value), board.units.get(unit_id.value).kind.faction() == Faction::genestealer, !(board.units.get(unit_id.value).kind.faction() == Faction::genestealer))
     }
       act roll_dice(DiceRoll roll1)
       frm roll = roll1

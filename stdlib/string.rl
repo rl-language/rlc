@@ -81,6 +81,8 @@ cls String:
             if other[counter] == '\0':
                 return false
             counter = counter + 1
+        if other[counter] != '\0':
+            return false
         return true
 
     fun equal(String other) -> Bool:
@@ -163,6 +165,7 @@ trait<T> CustomGetTypeName:
 fun append_to_string(StringLiteral x, String output):
     output.append(x)
 
+ext fun load_file(String file_name, String out) -> Bool 
 ext fun append_to_string(Int x, String output)
 ext fun append_to_string(Byte x, String output) 
 ext fun append_to_string(Float x, String output)

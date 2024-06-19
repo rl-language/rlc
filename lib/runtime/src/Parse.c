@@ -108,3 +108,27 @@ void rl_is_alphanumeric__int8_t_r_bool(bool* return_value, int8_t* input_char)
 {
 	*return_value = isalpha(*input_char) || isdigit(*input_char);
 }
+
+void rl_load_file__String_String_r_bool(
+		int8_t* result, String* file_name, String* out)
+{
+	int8_t* start = 0;
+	int64_t index = 0;
+	rl_m_get__String_int64_t_r_int8_tRef(&start, file_name, &index);
+
+	FILE* f = fopen((char*) start, "r");
+	if (!f)
+	{
+		*result = 0;
+		return;
+	}
+
+	char read[1024];
+	char* c = read;
+	read[1023] = '\0';
+	while (fgets(read, 1024, f))
+		rl_m_append__String_strlit(out, &c);
+
+	fclose(f);
+	*result = 1;
+}
