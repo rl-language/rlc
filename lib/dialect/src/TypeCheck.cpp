@@ -363,6 +363,82 @@ static mlir::LogicalResult deduceFunctionTypes(mlir::ModuleOp op)
 	return mlir::success();
 }
 
+static bool isControlFlowTerminated(mlir::Operation* current);
+
+static bool isInnerControlFlowTerminated(mlir::Operation* current)
+{
+	auto dynCasted = mlir::dyn_cast<mlir::RegionBranchOpInterface>(current);
+
+	if (!dynCasted)
+		return false;
+
+	llvm::SmallVector<mlir::RegionSuccessor, 4> next;
+	mlir::DenseSet<mlir::Region*> visited;
+
+	dynCasted.getEntrySuccessorRegions({}, next);
+
+	// bfs to see if every path is return termintead
+	while (!next.empty())
+	{
+		llvm::SmallVector<mlir::RegionSuccessor, 4> newNexts;
+		for (auto node : next)
+		{
+			// if we jump to the parent, then we found a path that
+			// is not return terminated
+			if (node.isParent())
+				return false;
+
+			visited.insert(node.getSuccessor());
+
+			// if the target region is return terminated on every path, do not
+			// continue analyzing this path
+			if (isControlFlowTerminated(&node.getSuccessor()->front().front()))
+				continue;
+
+			dynCasted.getSuccessorRegions(node, newNexts);
+		}
+
+		// erase the paths we already considered
+		llvm::erase_if(newNexts, [&](mlir::RegionSuccessor succ) {
+			return visited.contains(succ.getSuccessor());
+		});
+
+		next = std::move(newNexts);
+	}
+
+	return true;
+}
+
+static bool isControlFlowTerminated(mlir::Operation* current)
+{
+	const auto isBlockTerminatedByReturn = [](mlir::Block& block) {
+		return block.empty() or isControlFlowTerminated(&block.front());
+	};
+	while (current != nullptr)
+	{
+		if (llvm::isa<mlir::rlc::ReturnStatement>(current) or
+				isInnerControlFlowTerminated(current))
+			return true;
+
+		current = current->getNextNode();
+	}
+
+	return false;
+}
+
+// checks that every path is terminated with a return statement
+static mlir::LogicalResult checkReturnsPath(mlir::rlc::FunctionOp fun)
+{
+	auto* lastOp = &fun.getBody().getBlocks().front().back();
+	if (not isControlFlowTerminated(&fun.getBody().front().front()))
+		return mlir::rlc::logError(
+				fun,
+				"Non void function requires to be terminated by a return "
+				"statement");
+
+	return mlir::success();
+}
+
 static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 {
 	mlir::rlc::ModuleBuilder builder(op);
@@ -405,14 +481,9 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 										not fun.isDeclaration();
 
 		if (needsRet)
-			fun.walk([&](mlir::rlc::ReturnStatement statement) { needsRet = false; });
-
-		if (needsRet)
 		{
-			return mlir::rlc::logError(
-					fun,
-					"Function with non-void return type needs at least a return "
-					"statement");
+			if (checkReturnsPath(fun).failed())
+				return mlir::failure();
 		}
 	}
 	return mlir::success();
