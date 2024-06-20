@@ -313,7 +313,7 @@ fun parse_string(Bool result, String buffer, Int index) -> Bool:
         result = true
         index = index + 4
     else if buffer.substring_matches("false", index):
-        result = true
+        result = false
         index = index + 5
     else:
         return false
