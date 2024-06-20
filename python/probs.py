@@ -2,7 +2,7 @@ import ray
 import os
 
 import numpy as np
-from ml.raylib.environment import RLCEnvironment
+from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.algorithms.algorithm import Algorithm
 from ml.raylib.module_config import get_config
 
