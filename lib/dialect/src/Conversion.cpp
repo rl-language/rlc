@@ -94,8 +94,18 @@ static mlir::LLVM::ConstantOp lowerConstant(
 		mlir::Location loc)
 {
 	if (auto casted = attr.dyn_cast<mlir::BoolAttr>())
-		return rewriter.create<mlir::LLVM::ConstantOp>(
-				loc, rewriter.getI8Type(), casted.getValue());
+	{
+		if (casted.getValue())
+			return rewriter.create<mlir::LLVM::ConstantOp>(
+					loc,
+					rewriter.getI8Type(),
+					mlir::IntegerAttr::get(rewriter.getI64Type(), 1));
+		else
+			return rewriter.create<mlir::LLVM::ConstantOp>(
+					loc,
+					rewriter.getI8Type(),
+					mlir::IntegerAttr::get(rewriter.getI64Type(), 0));
+	}
 	if (auto casted = attr.dyn_cast<mlir::IntegerAttr>())
 		return rewriter.create<mlir::LLVM::ConstantOp>(
 				loc, casted.getType(), casted.getValue());
@@ -114,8 +124,7 @@ static mlir::LLVM::ConstantOp lowerConstant(
 	mlir::Type type = typeConverter->convertType(
 			mlir::rlc::ProxyType::get(op.getResult().getType()));
 
-	return rewriter.create<mlir::LLVM::ConstantOp>(
-			op.getLoc(), type, op.getValue());
+	return lowerConstant(rewriter, op.getValue(), op.getLoc());
 }
 
 class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>

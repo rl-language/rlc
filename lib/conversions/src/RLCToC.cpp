@@ -869,8 +869,7 @@ static bool isMemberFunction(mlir::Value op, mlir::rlc::ModuleBuilder& builder)
 
 static bool unhandledType(mlir::Type t)
 {
-	return t.isa<mlir::rlc::StringLiteralType>() or
-				 t.isa<mlir::rlc::OwningPtrType>() or t.isa<mlir::rlc::ArrayType>();
+	return t.isa<mlir::rlc::OwningPtrType>() or t.isa<mlir::rlc::ArrayType>();
 };
 
 static void emitGodotFunction(
@@ -880,16 +879,6 @@ static void emitGodotFunction(
 		mlir::rlc::ModuleBuilder& builder,
 		llvm::ArrayRef<bool> memberFunctions)
 {
-	if (name.starts_with("can_is_done") or name.starts_with("can_init") or
-			name.starts_with("can_drop") or name.starts_with("can_assign") or
-			name.starts_with("can_is_enum") or name.starts_with("can_max") or
-			name.starts_with("can_as_int"))
-	{
-		OS << "godot::Variant RLCLib::RLC_" << name
-			 << "(const godot::Variant **args, GDExtensionInt arg_count, "
-					"GDExtensionCallError &error){return true;}\n";
-		return;
-	}
 	if (name.starts_with("_") or name == "main")
 		return;
 	OS << "godot::Variant RLCLib::RLC_" << name
@@ -900,6 +889,8 @@ static void emitGodotFunction(
 	for (auto [overload, isMemberFunction] :
 			 llvm::zip(overloadTypes, memberFunctions))
 	{
+		if (overload == nullptr)
+			continue;
 		auto fType = overload;
 		if (llvm::any_of(fType.getInputs(), unhandledType))
 			continue;
@@ -912,12 +903,13 @@ static void emitGodotFunction(
 		for (size_t I = 0; I < fType.getNumInputs(); I++)
 		{
 			auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
-			if (not type.isa<mlir::rlc::ClassType>() and
-					not type.isa<mlir::rlc::AlternativeType>())
-				continue;
-			OS << " && godot::Object::cast_to<RLC" << typeToString(fType.getInput(I))
-				 << ">(*((godot::Ref<RLC" << typeToString(fType.getInput(I))
-				 << ">)(*(args[" << I << "]))))";
+			if (type.isa<mlir::rlc::ClassType>() or
+					type.isa<mlir::rlc::AlternativeType>())
+				OS << " && godot::Object::cast_to<RLC"
+					 << typeToString(fType.getInput(I)) << ">(*((godot::Ref<RLC"
+					 << typeToString(fType.getInput(I)) << ">)(*(args[" << I << "]))))";
+			else if (type.isa<mlir::rlc::StringLiteralType>())
+				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::STRING";
 		}
 
 		OS << ") {\n";
@@ -925,13 +917,22 @@ static void emitGodotFunction(
 		for (size_t I = 0; I < fType.getNumInputs(); I++)
 		{
 			auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
-			if (not type.isa<mlir::rlc::ClassType>() and
-					not type.isa<mlir::rlc::AlternativeType>())
+			if (type.isa<mlir::rlc::ClassType>() or
+					type.isa<mlir::rlc::AlternativeType>())
+				continue;
+
+			if (type.isa<mlir::rlc::StringLiteralType>())
 			{
-				OS << "auto arg" << I << "= ";
-				OS << "((" << typeToString(fType.getInput(I)) << ")(*(args[" << I
-					 << "])));\n ";
+				OS << "auto tmp" << I << "= ";
+				OS << "(*(args[" << I << "])).operator godot::String()\n;";
+				OS << "auto tmp2" << I << "= tmp" << I << ".utf8();\n";
+				OS << "char* arg" << I << "= const_cast<char*>(tmp2" << I
+					 << ".get_data());\n";
+				continue;
 			}
+			OS << "auto arg" << I << "= ";
+			OS << "((" << typeToString(fType.getInput(I)) << ")(*(args[" << I
+				 << "])));\n ";
 		}
 
 		if (not isVoid)
@@ -1003,6 +1004,12 @@ static void emitGodotFunction(
 					 << ">(*real_return)->setNonOwning(to_return);\n";
 				OS << "return real_return;\n";
 			}
+		}
+		else if (
+				auto casted =
+						llvm::dyn_cast<mlir::rlc::StringLiteralType>(fType.getResult(0)))
+		{
+			OS << "return godot::String(to_return);\n";
 		}
 		else
 		{
@@ -1201,6 +1208,17 @@ public:
 				continue;
 
 			memberFunctions.push_back(isMemberFunction(overload, builder));
+			if (auto casted = overload.getDefiningOp<mlir::rlc::FunctionOp>();
+					casted and casted.getPrecondition().empty())
+			{
+				canOverloads.push_back(nullptr);
+				continue;
+			}
+			if (pair.first() == "is_done")
+			{
+				canOverloads.push_back(nullptr);
+				continue;
+			}
 			overloads.push_back(overload.getType().cast<mlir::FunctionType>());
 			canOverloads.push_back(mlir::FunctionType::get(
 					ctx,
