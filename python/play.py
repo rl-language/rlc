@@ -1,7 +1,7 @@
 import ray
 
 import sys
-from ml.raylib.environment import RLCEnvironment
+from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.algorithms import ppo
 from ray.rllib.algorithms.algorithm import Algorithm
@@ -28,8 +28,10 @@ def main():
     parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
 
     args = parser.parse_args()
-    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
     with load_simulation_from_args(args, optimize=True) as sim:
+        exit_on_invalid_env(sim)
+
+        ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
         wrapper_path = sim.wrapper_path
 
         from ray import air, tune

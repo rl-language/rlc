@@ -1,4 +1,3 @@
-from ray.rllib.env.multi_agent_env_runner import MultiAgentEnvRunner
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 import torch
 import sys
@@ -7,12 +6,6 @@ from gymnasium.spaces import Dict
 import numpy as np
 from importlib import import_module, machinery, util
 import random
-from ray.rllib.core.rl_module.marl_module import (
-    MultiAgentRLModuleSpec,
-    MultiAgentRLModule,
-    MultiAgentRLModuleConfig,
-)
-
 
 class Specs:
     def __init__(self, max_steps=100):
@@ -27,6 +20,33 @@ def import_file(name, file_path):
     loader.exec_module(mod)
     return mod
 
+def exit_on_invalid_env(sim):
+    errors = validate_env(sim)
+    if len(errors) == 0:
+        return
+
+    for error in errors:
+        print(error)
+    exit(-1)
+
+def validate_env(wrapper):
+    errors = []
+    if not hasattr(wrapper.module, "rl_get_num_players__r_int64_t"):
+        errors.append("\"fun get_num_players() -> Int\" is missing, you need to defined it")
+
+    if not hasattr(wrapper.module, "rl_get_current_player__Game_r_int64_t"):
+        errors.append("\"fun get_current_player(Game game) -> Int\" is missing, you need to defined it")
+
+    if not hasattr(wrapper.module, "rl_play__r_Game"):
+        errors.append("\"act play() -> Game\" is missing, you need to defined it")
+
+    if not hasattr(wrapper.module, "rl_score__Game_int64_t_r_double"):
+        errors.append("\"act score(Game g, Int player_id) -> Float\" is missing, you need to defined it")
+
+    if not hasattr(wrapper.module, "rl_max_game_lenght__r_int64_t"):
+        errors.append("\"act max_game_lenght() -> Int\" is missing, you need to defined it")
+
+    return errors
 
 class RLCEnvironment(MultiAgentEnv):
     def __init__(self, dc="", wrapper_path="", solve_randomness=True):

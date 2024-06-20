@@ -6,7 +6,7 @@ import os
 import random
 
 from tensorboard import program
-from ml.raylib.environment import RLCEnvironment
+from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.algorithms import ppo
 from ray.rllib.algorithms.algorithm import Algorithm
@@ -99,9 +99,11 @@ def main():
     parser.add_argument("--sample-space", default=1, type=int)
 
     args = parser.parse_args()
-    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
     with load_simulation_from_args(args, True) as sim:
+        exit_on_invalid_env(sim)
         wrapper_path = sim.wrapper_path
+
+        ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
         from ray import air, tune
         args.output = os.path.abspath(args.output)
 

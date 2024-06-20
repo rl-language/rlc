@@ -5,6 +5,7 @@ from ray.rllib.core.rl_module.marl_module import (
     MultiAgentRLModuleConfig,
 )
 from hyperopt import hp
+import torch
 from ray.tune.search.hyperopt import HyperOptSearch
 from ray.rllib.core.rl_module.rl_module import SingleAgentRLModuleSpec
 from ml.raylib.action_mask import TorchActionMaskRLM
@@ -90,8 +91,8 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
             evaluation_duration=1,
         )
         .resources(
-            num_gpus=1,
-            num_gpus_per_learner_worker=1,
+            num_gpus=1 if torch.cuda.is_available() else 0,
+            num_gpus_per_learner_worker=1 if torch.cuda.is_available() else 0,
             num_cpus_per_worker=1,
             num_cpus_for_local_worker=1,
         )
