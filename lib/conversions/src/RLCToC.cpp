@@ -1093,6 +1093,24 @@ public:
 					 << "\"), &" << wrapperName << "::set_" << name << ");\n";
 			}
 		}
+		else if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+		{
+			for (auto type : casted.getUnderlying())
+			{
+				if (unhandledType(type))
+					continue;
+
+				auto name = mlir::rlc::typeToMangled(type);
+				OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"get_" << name
+					 << "\"), &" << wrapperName << "::get_" << name << ");\n";
+
+				if (type.isa<mlir::rlc::ClassType>() or
+						type.isa<mlir::rlc::AlternativeType>())
+					continue;
+				OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"set_" << name
+					 << "\"), &" << wrapperName << "::set_" << name << ");\n";
+			}
+		}
 
 		OS << "}\n";
 
@@ -1134,6 +1152,46 @@ public:
 					OS << "void set_" << name << "(" << typeToString(type)
 						 << " newVal) {\n";
 					OS << "content->content." << name << " =newVal;\n}\n";
+				}
+			}
+		}
+
+		if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+		{
+			for (auto pair : llvm::enumerate(casted.getUnderlying()))
+			{
+				auto type = pair.value();
+				if (unhandledType(type))
+					continue;
+
+				auto index = pair.index();
+				auto name = mlir::rlc::typeToMangled(type);
+				if (type.isa<mlir::rlc::ClassType>() or
+						type.isa<mlir::rlc::AlternativeType>())
+				{
+					OS << "godot::Variant get_" << name << "() {\n";
+
+					OS << "if (content->active_index != " << index
+						 << ") return nullptr;\n";
+					OS << "godot::Ref<RLC" << typeToString(type) << "> to_return;\n";
+					OS << "to_return.instantiate();\n";
+					OS << "godot::Object::cast_to<RLC" << typeToString(type)
+						 << ">(*to_return)->setNonOwning(&content->content.field" << index
+						 << ");\n";
+					OS << "return to_return;\n}\n";
+				}
+				else
+				{
+					OS << "godot::Variant  get_" << name << "() {\n";
+
+					OS << "if (content->active_index != " << index
+						 << ") return nullptr;\n";
+					OS << "return content->content.field" << index << ";\n}\n";
+
+					OS << "void set_" << name << "(" << typeToString(type)
+						 << " newVal) {\n";
+					OS << "if (content->active_index == " << index << ") \n";
+					OS << "content->content.field" << index << " =newVal;\n}\n";
 				}
 			}
 		}
