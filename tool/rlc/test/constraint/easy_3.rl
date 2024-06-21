@@ -15,7 +15,7 @@ fun main() -> Int:
 
 fun foo(Int a, Int b) -> Bool:
 	if b > 10:
-        if a < 10:
-            return true
-    return false
+		if a < 10:
+			return true
+	return false
 
