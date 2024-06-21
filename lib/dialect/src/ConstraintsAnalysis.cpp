@@ -248,8 +248,6 @@ namespace mlir::rlc
 
 			// Method to update the value of a range, it is similar to a join but it works only on transfer functions
 			void update(const IntegerRange& other){
-				
-				// TODO: think about checking if inserting the min or the max
 
 				// MIN
 				if(other.range.first.has_value())
@@ -340,8 +338,6 @@ namespace mlir::rlc
 				auto copy = *this;
 
 				llvm::outs()<<"Did i join?\n";
-				this->print(llvm::outs());
-				other.print(llvm::outs());
 
 				//Insert the other in this
 				for(auto other_range : other.ranges){
@@ -407,10 +403,21 @@ namespace mlir::rlc
     			// rlc.yield %12 : !rlc.bool
 				// So I need to retrieve "true" in this case
 
+				// So here we need to be very careful 
+				// We could also directly return something that is not a constant
+				// For instant we could do 'return a>10' but in this case we can just call the function that handles it
 				// Here we get the rlc.constant true
-				auto value=
+				const auto& value=
 					branchOp->getOperation() // gets the rlc.yield
 					->getOperand(0); // get the first operand of the yield (%12:!rlc.bool)
+
+				value.getDefiningOp()->print(llvm::outs());
+
+				if( mlir::isa<mlir::rlc::GreaterOp>(value.getDefiningOp()) or	
+					mlir::isa<mlir::rlc::GreaterEqualOp>(value.getDefiningOp()) or
+					mlir::isa<mlir::rlc::LessOp>(value.getDefiningOp()) or
+					mlir::isa<mlir::rlc::LessEqualOp>(value.getDefiningOp()))
+					return this->visitBranchOperation(branchOp->getOperation(),true,false,false,true);
 
 				// We can only do this analysis if the function return true or false
 				if(auto bool_branch=mlir::dyn_cast<BoolAttr>(value.getDefiningOp()->getAttr("value"))){
@@ -499,8 +506,12 @@ namespace mlir::rlc
 
 				auto copy=*this;
 
-				// This can always be performed
-				auto casted=mlir::dyn_cast<mlir::rlc::CondBranch>(statement);
+				mlir::Operation* conditional_op=nullptr;
+				if(auto casted=mlir::dyn_cast<mlir::rlc::CondBranch>(statement))
+					conditional_op=casted.getCond().getDefiningOp();
+				else if(auto casted=mlir::dyn_cast<mlir::rlc::Yield>(statement))
+					conditional_op=casted.getOperand(0).getDefiningOp();
+				else return mlir::ChangeResult::NoChange;
 
 				// We can assume that a control operation is always the last in its basic block
 				// NB: always true but it can be either a conditional or a simple jump
@@ -510,11 +521,16 @@ namespace mlir::rlc
 				// Whic%5 !rlc.bool ^bb2 ^bb1h can be either value operation const or const operation value
 				// So what we can do actually is undersand where is the constant and if it is on the left just flip the condition ;)
 
-				// As I thought it is not possible, so let's do an easier way ;)
+				if(auto casted=mlir::dyn_cast<rlc::UninitializedConstruct>(conditional_op)){
+					llvm::outs()<<"See something about this:\n";
+					// I am guessing what I have to do is just go back in the graph until I reach a builtin assign op
+					for(auto oper:statement->getBlock()->getPrevNode()->getOps<mlir::rlc::BuiltinAssignOp>()){
+						conditional_op = oper.getRhs().getDefiningOp();
+						conditional_op->print(llvm::outs());
+						llvm::outs()<<"\n";
+					}
+				}
 
-				// Now it gives a range, but a wrong one. So I will debug it later
-
-				auto conditional_op = casted.getCond().getDefiningOp();
 
 				// Do the checking only if the operation is a conditional (relational)
 				if(	not mlir::isa<mlir::rlc::LessOp>(conditional_op) and 
@@ -522,7 +538,6 @@ namespace mlir::rlc
 					not mlir::isa<mlir::rlc::LessEqualOp>(conditional_op) and 
 					not mlir::isa<mlir::rlc::GreaterEqualOp>(conditional_op))
 					return mlir::ChangeResult::NoChange;
-
 
 				const auto& lhs = conditional_op->getOperand(0);
 				const auto& rhs = conditional_op->getOperand(1);
@@ -802,8 +817,8 @@ namespace mlir::rlc
 
 					for(auto pair : leftLattice->getUnderlyingLattice()){
 						if(pair.first.second==true)
-								branch_true_yield_true=true;
-							else branch_true_yield_false=true;
+							branch_true_yield_true=true;
+						else branch_true_yield_false=true;
 					}
 
 					// And do the same in the false
@@ -811,8 +826,8 @@ namespace mlir::rlc
 
 					for(auto pair : rightLattice->getUnderlyingLattice()){
 						if(pair.first.second==true)
-								branch_false_yield_true=true;
-							else branch_false_yield_false=true;
+							branch_false_yield_true=true;
+						else branch_false_yield_false=true;
 					}
 					propagateIfChanged(before,before->visitBranchOperation(op,branch_true_yield_true, branch_true_yield_false, branch_false_yield_true, branch_false_yield_false));
 
