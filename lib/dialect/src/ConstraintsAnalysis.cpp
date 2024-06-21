@@ -134,11 +134,11 @@ namespace mlir::rlc
 				return this->range.second.has_value() ? this->range.second.value() : MAX;
 			}
 
-			bool hasMin(){
+			bool hasMin() const{
 				return this->range.first.has_value();
 			}
 
-			bool hasMax(){
+			bool hasMax() const{
 				return this->range.second.has_value();
 			}
 			
@@ -340,7 +340,7 @@ namespace mlir::rlc
 				llvm::outs()<<"Did i join?\n";
 
 				//Insert the other in this
-				for(auto other_range : other.ranges){
+				for(const auto& other_range : other.ranges){
 					
 					// We have to insert the other range
 					// If we find it then we have to join, else we have to insert it
@@ -407,30 +407,40 @@ namespace mlir::rlc
 				// We could also directly return something that is not a constant
 				// For instant we could do 'return a>10' but in this case we can just call the function that handles it
 				// Here we get the rlc.constant true
-				const auto& value=
-					branchOp->getOperation() // gets the rlc.yield
-					->getOperand(0); // get the first operand of the yield (%12:!rlc.bool)
+				const auto& value= mlir::cast<mlir::rlc::Yield>(branchOp->getOperation()).getArguments()[0];
 
 				value.getDefiningOp()->print(llvm::outs());
 
+				// TODO: wrap in some static method or put a trait
 				if( mlir::isa<mlir::rlc::GreaterOp>(value.getDefiningOp()) or	
 					mlir::isa<mlir::rlc::GreaterEqualOp>(value.getDefiningOp()) or
 					mlir::isa<mlir::rlc::LessOp>(value.getDefiningOp()) or
 					mlir::isa<mlir::rlc::LessEqualOp>(value.getDefiningOp()))
 					return this->visitBranchOperation(branchOp->getOperation(),true,false,false,true);
 
-				// We can only do this analysis if the function return true or false
-				if(auto bool_branch=mlir::dyn_cast<BoolAttr>(value.getDefiningOp()->getAttr("value"))){
-					// Insert in the lattice the constant I have found
-					// We can insert an empty range since this is used just for check
-					this->ranges.insert(std::make_pair(
-						std::make_pair(value,bool_branch.getValue()),
-						this->getBottom() ));
+				auto bool_branch= mlir::dyn_cast<BoolAttr>(value.getDefiningOp()->getAttr("value"));
+				if (not bool_branch)
+					return mlir::ChangeResult::NoChange;
+
+				this->ranges.insert(std::make_pair(
+					std::make_pair(value,bool_branch.getValue()),
+					this->getBottom() ));
 					
-					return mlir::ChangeResult::Change;
+				return mlir::ChangeResult::Change;
+			}
+
+			std::pair<bool,bool> branchesContainedInLattice(){
+				bool can_true=false;
+					bool can_false=false;
+
+				// Since here we have a lattice that is copied we can just look at it
+				for(auto pair : this->ranges){
+					if(pair.first.second)
+						can_true=true;
+					else can_false=true;
 				}
 
-				return mlir::ChangeResult::NoChange;
+				return std::make_pair(can_true,can_false);
 			}
 
 			// TODO: divide this operation in (at least) two parts
@@ -506,6 +516,7 @@ namespace mlir::rlc
 
 				auto copy=*this;
 
+				// TODO: Think about a typeswitch here too
 				mlir::Operation* conditional_op=nullptr;
 				if(auto casted=mlir::dyn_cast<mlir::rlc::CondBranch>(statement))
 					conditional_op=casted.getCond().getDefiningOp();
@@ -791,45 +802,29 @@ namespace mlir::rlc
 				// - keep in mind that information
 
 				if (mlir::rlc::ConstraintsAnalysis::isArithmetic(op)){
-					bool can_true=false;
-					bool can_false=false;
 
-					// Since here we have a lattice that is copied we can just look at it
-					for(auto pair : before->getUnderlyingLattice()){
-						if(pair.first.second==true)
-							can_true=true;
-						else can_false=true;
-					}
+					//NB: here the operation can be done also implicitly -> actually should be done implicitly maybe
+					auto can = before->branchesContainedInLattice();
 
-					propagateIfChanged(before,before->visitArithmeticOperation(op,can_true,can_false));
+					propagateIfChanged(before,before->visitArithmeticOperation(op,can.first,can.second));
 				}
 				else if(mlir::rlc::ConstraintsAnalysis::isConditional(op)){
 
 					// If it is a conditional then I need to peek in the next block from each branch
-					bool branch_true_yield_true=false;
-					bool branch_true_yield_false=false;
-					bool branch_false_yield_true=false;
-					bool branch_false_yield_false=false;
 
 					// Look at the next lattice in the true branch
 					auto casted = mlir::dyn_cast_or_null<mlir::rlc::CondBranch>(op);
-                	auto leftLattice=getLattice(mlir::ProgramPoint(&casted.getTrueBranch()->front()));
+                	auto trueLattice=getLattice(mlir::ProgramPoint(&casted.getTrueBranch()->front()));
 
-					for(auto pair : leftLattice->getUnderlyingLattice()){
-						if(pair.first.second==true)
-							branch_true_yield_true=true;
-						else branch_true_yield_false=true;
-					}
+					auto branch_true=trueLattice->branchesContainedInLattice();
 
 					// And do the same in the false
-					auto rightLattice=getLattice(mlir::ProgramPoint(&casted.getFalseBranch()->front()));
+					auto falseLattice=getLattice(mlir::ProgramPoint(&casted.getFalseBranch()->front()));
 
-					for(auto pair : rightLattice->getUnderlyingLattice()){
-						if(pair.first.second==true)
-							branch_false_yield_true=true;
-						else branch_false_yield_false=true;
-					}
-					propagateIfChanged(before,before->visitBranchOperation(op,branch_true_yield_true, branch_true_yield_false, branch_false_yield_true, branch_false_yield_false));
+					auto branch_false=falseLattice->branchesContainedInLattice();
+
+					// TODO: maybe these functions could accept pairs
+					propagateIfChanged(before,before->visitBranchOperation(op,branch_true.first, branch_true.second, branch_false.first, branch_false.second));
 
 				}
 				// This is for the instructions which do not modify the lattice
@@ -1024,18 +1019,19 @@ namespace mlir::rlc
 
 				// Iterate through the arguments -> are the arguments of the first block
 				for(auto arg: fun.getRegion(0).front().getArguments()){
-					auto casted=mlir::dyn_cast<mlir::Value>(arg);
-					for(auto pair : lattice){
-						if(pair.first.first==casted){
-							std::string to_write;
-							auto stream=llvm::raw_string_ostream(to_write);
-							arg.printAsOperand(stream,mlir::OpPrintingFlags());
-							stream.flush();
-							// Add range as a function argument
-							fun->setAttr("rlc.attr."+to_write+"_branch_"+std::to_string(pair.first.second)+"_MIN",mlir::IntegerAttr::get(mlir::IntegerType::get(fun->getContext(),32),pair.second.getMin()));
-							fun->setAttr("rlc.attr."+to_write+"_branch_"+std::to_string(pair.first.second)+"_MAX",mlir::IntegerAttr::get(mlir::IntegerType::get(fun->getContext(),32),pair.second.getMax()));
-						}
+
+					auto pair_true=lattice.find(std::make_pair(arg,true));
+					auto pair_false=lattice.find(std::make_pair(arg,false));
+
+					// Better but still very ugly, think about another way to insert the attribute
+					// Add range as a function argument
+					if(pair_true!=lattice.end()){
+						fun->setAttr(mlir::StringAttr::get(fun->getContext(),mlir::dyn_cast<mlir::StringAttr>(fun.getArgNames()[arg.getArgNumber()]).getValue().str()+"_T"), 
+							mlir::StringAttr::get(fun->getContext(),"(" + std::to_string(pair_true->second.getMin()) + ","+ std::to_string(pair_true->second.getMax())  + ")"));
 					}
+					if(pair_false!=lattice.end()){
+						fun->setAttr(mlir::StringAttr::get(fun->getContext(),mlir::dyn_cast<mlir::StringAttr>(fun.getArgNames()[arg.getArgNumber()]).getValue().str()+"_F"), 
+							mlir::StringAttr::get(fun->getContext(),"(" + std::to_string(pair_false->second.getMin()) + ","+ std::to_string(pair_false->second.getMax())  + ")"));}
 				}
 			}
 		}
