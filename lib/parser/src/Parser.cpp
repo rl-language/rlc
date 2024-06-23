@@ -1178,7 +1178,12 @@ Expected<mlir::rlc::BreakStatement> Parser::breakStatement()
 
 	EXPECT(Token::KeywordBreak);
 	EXPECT(Token::Newline);
-	return builder.create<mlir::rlc::BreakStatement>(location);
+	auto toReturn = builder.create<mlir::rlc::BreakStatement>(location);
+	builder.createBlock(&toReturn.getOnEnd());
+	builder.create<mlir::rlc::Yield>(location);
+	builder.setInsertionPointAfter(toReturn);
+
+	return toReturn;
 }
 
 /**
@@ -1190,7 +1195,13 @@ Expected<mlir::rlc::ContinueStatement> Parser::continueStatement()
 
 	EXPECT(Token::KeywordContinue);
 	EXPECT(Token::Newline);
-	return builder.create<mlir::rlc::ContinueStatement>(location);
+	auto toReturn = builder.create<mlir::rlc::ContinueStatement>(location);
+
+	builder.createBlock(&toReturn.getOnEnd());
+	builder.create<mlir::rlc::Yield>(location);
+	builder.setInsertionPointAfter(toReturn);
+
+	return toReturn;
 }
 
 /**

@@ -77,6 +77,18 @@ namespace mlir::rlc
 			return mlir::failure();
 		}
 
+		if (toConsider.isa<mlir::rlc::ContextType>())
+		{
+			requireDestructor[toConsider] = false;
+			return mlir::failure();
+		}
+
+		if (toConsider.isa<mlir::rlc::FrameType>())
+		{
+			requireDestructor[toConsider] = false;
+			return mlir::failure();
+		}
+
 		if (toConsider.isa<mlir::rlc::StringLiteralType>())
 		{
 			requireDestructor[toConsider] = false;
@@ -154,6 +166,25 @@ namespace mlir::rlc
 		// the yield of the return.
 		region.walk([&](mlir::rlc::ReturnStatement returnOp) {
 			discoverAllEndOfLifeTimeInRegion(value, returnOp.getRegion(), out);
+		});
+
+		// annotate breaks and continues too, making sure not to visit those of
+		// inner loops
+		region.walk<mlir::WalkOrder::PreOrder>([&](mlir::Operation* current) {
+			if (auto continueOp =
+							mlir::dyn_cast<mlir::rlc::ContinueStatement>(current))
+			{
+				discoverAllEndOfLifeTimeInRegion(value, continueOp.getRegion(), out);
+				return mlir::WalkResult::advance();
+			}
+			if (auto breakOp = mlir::dyn_cast<mlir::rlc::BreakStatement>(current))
+			{
+				discoverAllEndOfLifeTimeInRegion(value, breakOp.getRegion(), out);
+				return mlir::WalkResult::advance();
+			}
+			if (auto returnOp = mlir::dyn_cast<mlir::rlc::WhileStatement>(current))
+				return mlir::WalkResult::skip();
+			return mlir::WalkResult::advance();
 		});
 	}
 
@@ -395,18 +426,15 @@ namespace mlir::rlc
 			llvm::SmallVector<mlir::Value, 3> toEmitDestroy;
 			llvm::DenseMap<mlir::Type, bool> requireDestructor;
 
-			for (auto function : getOperation().getOps<mlir::rlc::FunctionOp>())
-			{
-				function.walk([&](mlir::Operation* op) {
-					if (not mlir::isa<mlir::rlc::DeclarationStatement>(op))
-						return;
-					for (mlir::Value result : op->getResults())
-						if (typeRequiresDestructor(
-										builder, requireDestructor, result.getType())
-										.succeeded())
-							toEmitDestroy.push_back(result);
-				});
-			}
+			getOperation().walk([&](mlir::Operation* op) {
+				if (not mlir::isa<mlir::rlc::DeclarationStatement>(op))
+					return;
+				for (mlir::Value result : op->getResults())
+					if (typeRequiresDestructor(
+									builder, requireDestructor, result.getType())
+									.succeeded())
+						toEmitDestroy.push_back(result);
+			});
 			getOperation().walk([&](mlir::rlc::CallOp op) {
 				if (op.getNumResults() == 0 or
 						op.getCalleeType().getResult(0).isa<mlir::rlc::ReferenceType>())

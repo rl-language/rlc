@@ -208,8 +208,12 @@ def RLC_ContinueStatement : RLC_Dialect<"continue", [Terminator, DeclareOpInterf
   }];
 
   let assemblyFormat = [{
-	attr-dict
+	$on_end attr-dict
   }];
+
+  let regions = (region
+  AnyRegion:$on_end
+  );
 
 }
 
@@ -221,8 +225,13 @@ def RLC_BreakStatement : RLC_Dialect<"break", [Terminator, DeclareOpInterfaceMet
   }];
 
   let assemblyFormat = [{
-	attr-dict
+	$on_end attr-dict
   }];
+
+  let regions = (region
+  AnyRegion:$on_end
+  );
+
 
 }
 

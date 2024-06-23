@@ -466,13 +466,20 @@ static mlir::LogicalResult flatten(
 		mlir::IRRewriter& rewriter,
 		FlatteningContext& ctx)
 {
-	rewriter.setInsertionPoint(op);
 	if (ctx.destinationOfBreak.find(op) == ctx.destinationOfBreak.end())
 	{
 		return mlir::failure();
 	}
-	rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(
+	assert(op.getOnEnd().front().getOperations().size() == 1);
+	auto terminatingYield =
+			mlir::dyn_cast<mlir::rlc::Yield>(op.getOnEnd().front().front());
+	terminatingYield->moveBefore(op);
+
+	rewriter.setInsertionPoint(op);
+	auto newBranch = rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(
 			op, ctx.destinationOfBreak[op]);
+
+	eraseYield(rewriter, terminatingYield, newBranch);
 
 	return mlir::LogicalResult::success();
 }
@@ -487,9 +494,16 @@ static mlir::LogicalResult flatten(
 	{
 		return mlir::failure();
 	}
-	rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(
+	assert(op.getOnEnd().front().getOperations().size() == 1);
+	auto terminatingYield =
+			mlir::dyn_cast<mlir::rlc::Yield>(op.getOnEnd().front().front());
+	terminatingYield->moveBefore(op);
+
+	rewriter.setInsertionPoint(op);
+	auto newBranch = rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(
 			op, ctx.destinationOfContinue[op]);
 
+	eraseYield(rewriter, terminatingYield, newBranch);
 	return mlir::LogicalResult::success();
 }
 
