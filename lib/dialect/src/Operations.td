@@ -494,14 +494,57 @@ def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op", [NoTerminator, No
 	implements malloc.
   }];
 
-  let arguments = (ins StrAttr:$name, StrArrayAttr:$enum_names);
+  let arguments = (ins StrAttr:$name);
+
+  let regions = (region
+    AnyRegion:$body
+  );
+
+  code extraClassDeclaration = [{
+	size_t countFields();
+  }];
+
+  let assemblyFormat = [{
+	$name $body attr-dict 
+  }];
+}
+
+def RLC_EnumFieldExpressionOp : RLC_Dialect<"enum_field_expression", [NoRegionArguments, HasOnlyGraphRegion]> {
+  let summary = "implement malloc";
+
+  let description = [{
+	 a entry of a enum.
+  }];
+
+  let arguments = (ins StrAttr:$name);
+
+  let regions = (region
+    AnyRegion:$body
+  );
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+	$name $body `:` type($result) attr-dict 
+  }];
+}
+
+def RLC_EnumFieldDeclarationOp : RLC_Dialect<"enum_field_declaration", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
+  let summary = "implement malloc";
+
+  let description = [{
+	 a entry of a enum.
+  }];
+
+  let arguments = (ins StrAttr:$name);
 
   let regions = (region
   AnyRegion:$body
   );
 
+
   let assemblyFormat = [{
-	$name $enum_names $body attr-dict 
+	$name $body attr-dict 
   }];
 }
 

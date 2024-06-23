@@ -2465,3 +2465,9 @@ mlir::OpFoldResult mlir::rlc::InitializerListOp::fold(
 
 	return mlir::ArrayAttr::get(getContext(), toReturn);
 }
+
+size_t mlir::rlc::EnumDeclarationOp::countFields()
+{
+	auto range = getBody().front().getOps<mlir::rlc::EnumFieldDeclarationOp>();
+	return std::distance(range.begin(), range.end());
+}

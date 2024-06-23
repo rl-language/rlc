@@ -59,6 +59,7 @@ namespace rlc
 		llvm::Expected<mlir::Operation*> builtinConstruct();
 		llvm::Expected<mlir::Value> expression();
 		llvm::Expected<mlir::Value> unaryExpression();
+		llvm::Expected<mlir::rlc::EnumFieldDeclarationOp> enumFieldDeclaration();
 		llvm::Expected<mlir::rlc::EnumDeclarationOp> enumDeclaration();
 		llvm::Expected<mlir::Value> initializerList();
 		llvm::Expected<mlir::Value> enumUse();
