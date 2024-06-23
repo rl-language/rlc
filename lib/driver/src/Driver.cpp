@@ -135,6 +135,7 @@ namespace mlir::rlc
 		if (request == Request::executable and not emitFuzzer)
 			manager.addPass(mlir::rlc::createEmitMainPass());
 		manager.addPass(mlir::createCanonicalizerPass());
+		manager.addPass(mlir::rlc::createHoistAllocaPass());
 
 		if (request == Request::dumpMLIR)
 		{

@@ -235,3 +235,7 @@ def LowerInitializerListsPass : Pass<"rlc-lower-initializer-lists", "mlir::Modul
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def HoistAllocaPass : Pass<"rlc-hoist-allocasa", "mlir::ModuleOp"> {
+  let summary = "lower initializer list either to regular array";
+  let dependentDialects = ["LLVM::LLVMDialect"];
+}
