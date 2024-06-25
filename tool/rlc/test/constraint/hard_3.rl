@@ -8,7 +8,7 @@ fun main() -> Int:
 	else:
 		return -1
 
-# a_true  : (11,19)
+# a_true  : (11,20)
 # a_false : (20,MAX_INT) <- this is not entirely correct, it is missing the part where (a<10)
 
 # but conceptually we cannot know it since that return false could be any other statement, and if no information

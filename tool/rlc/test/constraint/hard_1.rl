@@ -11,7 +11,7 @@ fun main() -> Int:
 # NORMALLY HERE GO THE UNCORRECT TESTS WHICH I THINK FOR THE MOMENT ARE NOT FIXABLE
 
 # a_true  : (1, MAX_INT)
-# a_false : (MIN_INT,10) <- this is not entirely correct
+# a_false : (MIN_INT,11) <- this is not entirely correct
 
 fun foo(Int a) -> Bool:
 	if a > 10:

@@ -9,12 +9,11 @@ fun main() -> Int:
 		return -1
 
 # a_true  : (MIN_INT, MAX_INT)
-# a_false : (10,10)
+# a_false : (10,11)
 
 fun foo(Int a) -> Bool:
 	if a > 10:
-        return true
-	# NB can be both an if or an else if -> does not matter
+		return true
 	else if a < 10:
 		return true
 	return false

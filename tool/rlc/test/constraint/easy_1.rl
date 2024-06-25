@@ -8,8 +8,10 @@ fun main() -> Int:
 	else:
 		return -1
 
+# THE POLICY WE USE NOW IS [min,max)
+
 # a_true  : (11, MAX_INT)
-# a_false : (MIN_INT, 10)
+# a_false : (MIN_INT, 11)
 
 fun foo(Int a) -> Bool:
 	if a > 10:

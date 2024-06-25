@@ -13,7 +13,7 @@ fun main() -> Int:
 # MEET operations (which for the moment are joins) it will meet the path of the basic blocks 
 # at lines 21 and 23 because both have as predecessor the basic block at line 20
 
-# a_true  : (MIN_INT, 10) <- should be a 9 not 10 
+# a_true  : (MIN_INT, 11) <- should be a 10 not 11 
 # a_false : (MIN_INT, MAX_INT)
 
 fun foo(Int a) -> Bool:
