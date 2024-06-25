@@ -16,6 +16,6 @@ fun foo(Int a) -> Bool:
         if a < 20:
             return true
 	if a < -10:
-        return true
+		return true
 	return false
 

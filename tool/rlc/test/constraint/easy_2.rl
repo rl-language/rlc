@@ -8,7 +8,7 @@ fun main() -> Int:
 	else:
 		return -1
 
-# a_true  : (MIN_INT, 9)
+# a_true  : (MIN_INT, 10)
 # a_false : (10, MAX_INT)
 
 fun foo(Int a) -> Bool:
