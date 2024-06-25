@@ -12,6 +12,7 @@
 #--- source.rl
 act to_invoke(frm Int arg) -> Frame:
     frm to_return = 4 
+    act f()
 
 #--- to_run.c
 #include <stdint.h>

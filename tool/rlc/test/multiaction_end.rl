@@ -1,4 +1,4 @@
-# RUN: rlc %s -o %t -i %stdlib 
+# RUN: rlc %s -o %t -i %stdlib --sanitize
 # RUN: %t
 
 import collections.vector
@@ -10,14 +10,14 @@ act play(Int seed) -> Play:
 
 	while !over:
 		actions:
-			act not_quit()
+			act not_quit(Int x)
 			over = false	
 			
-			act quit()
+			act quit(Int y)
 			over = true
 
-
 fun main() -> Int:
-	let state = play(5)
-	state.quit()
-	return int(state.over) - 1
+    let state = play(4)
+    state.not_quit(2)
+    state.quit(2)
+    return 0

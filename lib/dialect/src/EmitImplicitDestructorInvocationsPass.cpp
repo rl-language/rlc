@@ -18,6 +18,7 @@ limitations under the License.
 #include "mlir/IR/Dominance.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
+#include "rlc/dialect/ReachingDefinitions.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 #include "rlc/utils/IRange.hpp"
 
@@ -185,6 +186,18 @@ namespace mlir::rlc
 			if (auto returnOp = mlir::dyn_cast<mlir::rlc::WhileStatement>(current))
 				return mlir::WalkResult::skip();
 			return mlir::WalkResult::advance();
+		});
+
+		region.walk([&](mlir::rlc::ActionStatement actionStm) {
+			out.push_back(actionStm);
+		});
+
+		region.walk([&](mlir::rlc::ActionsStatement actionStm) {
+			out.push_back(actionStm);
+		});
+
+		region.walk([&](mlir::rlc::SubActionStatement actionStm) {
+			out.push_back(actionStm);
 		});
 	}
 
@@ -408,6 +421,27 @@ namespace mlir::rlc
 		}
 	};
 
+	// sets the rewriter insertion point to be at the location where destructor
+	// invocations must be inserted, for yields it is the block inside the yeild,
+	// for actions it is just before the action
+	static mlir::Operation* setRewriterToInsertionPoint(
+			mlir::IRRewriter& rewriter, mlir::Operation* op)
+	{
+		auto casted = mlir::dyn_cast<mlir::rlc::Yield>(op);
+		if (casted)
+		{
+			if (casted.getOnEnd().empty())
+			{
+				rewriter.createBlock(&casted.getOnEnd(), casted.getOnEnd().begin());
+				rewriter.create<mlir::rlc::Yield>(
+						casted.getLoc(), mlir::ValueRange({}));
+			}
+			return casted.getOnEnd().front().getTerminator();
+		}
+
+		return op;
+	}
+
 #define GEN_PASS_DEF_EMITIMPLICITDESTRUCTORINVOCATIONSPASS
 #include "rlc/dialect/Passes.inc"
 	struct EmitImplictDestructoInvocationsPass
@@ -418,15 +452,14 @@ namespace mlir::rlc
 				EmitImplictDestructoInvocationsPass>::
 				EmitImplicitDestructorInvocationsPassBase;
 
-		void runOnOperation() override
+		void runOfFunction(mlir::rlc::ModuleBuilder& builder, mlir::Operation* fun)
 		{
-			mlir::rlc::ModuleBuilder builder(getOperation());
 			mlir::IRRewriter& rewriter = builder.getRewriter();
 
 			llvm::SmallVector<mlir::Value, 3> toEmitDestroy;
 			llvm::DenseMap<mlir::Type, bool> requireDestructor;
 
-			getOperation().walk([&](mlir::Operation* op) {
+			fun->walk([&](mlir::Operation* op) {
 				if (not mlir::isa<mlir::rlc::DeclarationStatement>(op))
 					return;
 				for (mlir::Value result : op->getResults())
@@ -435,7 +468,7 @@ namespace mlir::rlc
 									.succeeded())
 						toEmitDestroy.push_back(result);
 			});
-			getOperation().walk([&](mlir::rlc::CallOp op) {
+			fun->walk([&](mlir::rlc::CallOp op) {
 				if (op.getNumResults() == 0 or
 						op.getCalleeType().getResult(0).isa<mlir::rlc::ReferenceType>())
 					return;
@@ -445,26 +478,92 @@ namespace mlir::rlc
 									.succeeded())
 						toEmitDestroy.push_back(result);
 			});
+			llvm::SmallVector<std::pair<mlir::Value, mlir::Operation*>>
+					valueDestructionPairs;
+			mlir::rlc::ReachingDefinitions analysis(fun);
 			for (auto value : toEmitDestroy)
 			{
 				llvm::SmallVector<mlir::Operation*, 2> destructionPoints;
 				auto* parentScope = value.getDefiningOp()->getParentRegion();
 				discoverAllEndOfLifeTimeInRegion(
 						value, *parentScope, destructionPoints);
+				llvm::erase_if(destructionPoints, [&](mlir::Operation* lifeTimeEnd) {
+					return not analysis.reachesOperation(value, lifeTimeEnd);
+				});
 
-				for (auto* yield : destructionPoints)
+				for (auto* lifeTimeEnd : destructionPoints)
 				{
-					auto casted = mlir::cast<mlir::rlc::Yield>(yield);
-					if (casted.getOnEnd().empty())
-					{
-						rewriter.createBlock(&casted.getOnEnd(), casted.getOnEnd().begin());
-						rewriter.create<mlir::rlc::Yield>(
-								casted.getLoc(), mlir::ValueRange({}));
-					}
-					rewriter.setInsertionPoint(casted.getOnEnd().front().getTerminator());
-					rewriter.create<mlir::rlc::DestroyOp>(value.getLoc(), value);
+					auto insertionPoint =
+							setRewriterToInsertionPoint(rewriter, lifeTimeEnd);
+					valueDestructionPairs.push_back(
+							std::make_pair(value, insertionPoint));
 				}
 			}
+
+			for (auto& pair : valueDestructionPairs)
+			{
+				rewriter.setInsertionPoint(pair.second);
+				rewriter.create<mlir::rlc::DestroyOp>(
+						pair.second->getLoc(), pair.first);
+			}
+		}
+
+		void runOnOperation() override
+		{
+			mlir::rlc::ModuleBuilder builder(getOperation());
+			for (auto fun : getOperation().getOps<mlir::rlc::FunctionOp>())
+				runOfFunction(builder, fun);
+
+			for (auto fun : getOperation().getOps<mlir::rlc::ActionFunction>())
+				runOfFunction(builder, fun);
+		}
+	};
+
+#define GEN_PASS_DEF_TESTREACHINGDEFINITIONSPASS
+#include "rlc/dialect/Passes.inc"
+	struct TestReachingDefinitionsPass
+			: impl::TestReachingDefinitionsPassBase<TestReachingDefinitionsPass>
+	{
+		using impl::TestReachingDefinitionsPassBase<
+				TestReachingDefinitionsPass>::TestReachingDefinitionsPassBase;
+
+		void runOnFunction(mlir::Operation* op)
+		{
+			ReachingDefinitions analysis(op);
+			op->walk([&](mlir::rlc::DeclarationStatement stm) {
+				op->walk([&](mlir::Operation* inner) {
+					if (analysis.reachesOperation(stm, inner))
+					{
+						inner->setAttr(
+								stm.getSymName(),
+								mlir::StringAttr::get(inner->getContext(), "true"));
+					}
+				});
+			});
+
+			int i = 0;
+
+			op->walk([&](mlir::rlc::CallOp stm) {
+				if (stm.getNumResults() == 0)
+					return;
+				op->walk([&](mlir::Operation* inner) {
+					if (analysis.reachesOperation(stm.getResult(0), inner))
+					{
+						inner->setAttr(
+								("call_n" + llvm::Twine(i)).str(),
+								mlir::StringAttr::get(inner->getContext(), "true"));
+					}
+				});
+				i++;
+			});
+		}
+
+		void runOnOperation() override
+		{
+			for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
+				runOnFunction(op);
+			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
+				runOnFunction(op);
 		}
 	};
 }	 // namespace mlir::rlc

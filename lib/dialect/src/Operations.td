@@ -1081,7 +1081,7 @@ def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeC
   let regions = (region AnyRegion:$precondition);
 
   let assemblyFormat = [{
-	$name `{` $declared_names`}` attr-dict `->` type($results) $precondition
+	$name `{` $declared_names`}` $precondition attr-dict `:` type($results)
   }];
 }
 
@@ -1180,7 +1180,7 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
   }];
 }
 
-def RLC_ExplicitConstructOp : RLC_Dialect<"explicit_construct"> {
+def RLC_ExplicitConstructOp : RLC_Dialect<"explicit_construct", [DeclareOpInterfaceMethods<CallOpInterface>]> {
   let summary = "constant.";
 
   let description = [{
@@ -1198,6 +1198,7 @@ def RLC_ExplicitConstructOp : RLC_Dialect<"explicit_construct"> {
 		OpBuilder<(ins "mlir::Value":$initializer), [{
             build($_builder, $_state, initializer.getType().cast<mlir::FunctionType>().getInput(0), initializer);
     }]>];
+
 }
 
 def RLC_DestroyOp : RLC_Dialect<"destroy", [DeclareOpInterfaceMethods<TypeCheckable>]> {
@@ -1710,6 +1711,22 @@ def RLC_NotEqualOp : RLC_RelationalOp<"not_equal"> {
 
   let assemblyFormat = [{
 	$rhs `:` type($rhs) `,` $lhs `:` type($lhs) `->` type($result) attr-dict
+  }];
+}
+
+
+def RLC_CurrentActionResumeIndex : RLC_Dialect<"current_action_resume_index"> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins I64Attr:$index);
+
+
+  let assemblyFormat = [{
+	$index attr-dict
   }];
 }
 

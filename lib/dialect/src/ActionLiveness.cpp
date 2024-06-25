@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -259,6 +259,22 @@ namespace mlir::rlc
 				return analysis->isDeadAfter(value, after);
 			}
 
+			bool isUsedAcrossActions(mlir::rlc::ActionFunction fun, mlir::Value val)
+			{
+				bool isUsedAcrossActions = false;
+				fun.walk([&](mlir::rlc::ActionStatement subAction) {
+					// the action defining the value is allowed have uses after it, of
+					// course
+					if (val.getDefiningOp() == subAction)
+						return;
+
+					if (not isDeadAfter(val, subAction))
+						isUsedAcrossActions = true;
+				});
+
+				return isUsedAcrossActions;
+			}
+
 			private:
 			mlir::SymbolTableCollection symbolTable;
 			mlir::rlc::ActionFunction entry;
@@ -266,26 +282,8 @@ namespace mlir::rlc
 			std::unique_ptr<DataFlowSolver> solver;
 			ActionValueLivenessAnalysis* analysis;
 		};
+
 	}	 // namespace detail
-
-	static bool isUsedAcrossActions(
-			mlir::rlc::ActionFunction fun,
-			mlir::Value val,
-			detail::ActionLiveness& liveness)
-	{
-		bool isUsedAcrossActions = false;
-		fun.walk([&](mlir::rlc::ActionStatement subAction) {
-			// the action defining the value is allowed have uses after it, of
-			// course
-			if (val.getDefiningOp() == subAction)
-				return;
-
-			if (not liveness.isDeadAfter(val, subAction))
-				isUsedAcrossActions = true;
-		});
-
-		return isUsedAcrossActions;
-	}
 
 #define GEN_PASS_DEF_VALIDATESTORAGEQUALIFIERSPASS
 #include "rlc/dialect/Passes.inc"
@@ -306,7 +304,7 @@ namespace mlir::rlc
 				{
 					if ((not arg.getType().isa<mlir::rlc::FrameType>() and
 							 not arg.getType().isa<mlir::rlc::ContextType>()) and
-							isUsedAcrossActions(fun, arg, liveness))
+							liveness.isUsedAcrossActions(fun, arg))
 					{
 						auto _ = mlir::rlc::logError(
 								fun,
@@ -320,7 +318,7 @@ namespace mlir::rlc
 
 				fun.walk([&, this](mlir::rlc::DeclarationStatement statemenet) {
 					if (not statemenet.getType().isa<mlir::rlc::FrameType>() and
-							isUsedAcrossActions(fun, statemenet, liveness))
+							liveness.isUsedAcrossActions(fun, statemenet))
 					{
 						auto _ = mlir::rlc::logError(
 								statemenet,
@@ -335,7 +333,7 @@ namespace mlir::rlc
 					for (auto res : statemenet.getResults())
 						if ((not res.getType().isa<mlir::rlc::FrameType>() and
 								 not res.getType().isa<mlir::rlc::ContextType>()) and
-								isUsedAcrossActions(fun, res, liveness))
+								liveness.isUsedAcrossActions(fun, res))
 						{
 							auto _ = mlir::rlc::logError(
 									statemenet,

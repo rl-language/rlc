@@ -459,12 +459,12 @@ static void printTypeDefinition(
 				OS << "struct " << alternative.getMangledName() << " {\n";
 
 				OS.indent(2);
-				OS << "union _Content {\n";
+				OS << "union _Content" << alternative.getMangledName() << "{\n";
 
 				OS.indent(4);
 				OS << "#ifdef __cplusplus\n";
-				OS << "_Content() {};\n";
-				OS << "~_Content() {};\n";
+				OS << "_Content" << alternative.getMangledName() << "() {};\n";
+				OS << "~_Content" << alternative.getMangledName() << "() {};\n";
 				OS << "#endif\n";
 				for (auto field : llvm::enumerate(alternative.getUnderlying()))
 				{
@@ -490,7 +490,7 @@ static void printTypeDefinition(
 			.Case([&](mlir::rlc::ClassType Class) {
 				OS << "typedef union " << Class.mangledName() << " {\n";
 
-				OS << "struct _Content {\n";
+				OS << "struct _Content" << Class.mangledName() << " {\n";
 				for (const auto& [name, fieldType] :
 						 llvm::zip(Class.getFieldNames(), Class.getBody()))
 				{
@@ -782,7 +782,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 	for (auto alias : Module.getOps<mlir::rlc::TypeAliasOp>())
 	{
-		OS << "typedef " << typeToString(alias.getAliased()) << " "
+		OS << "typedef struct " << typeToString(alias.getAliased()) << " "
 			 << alias.getName() << ";\n";
 	}
 

@@ -26,9 +26,7 @@ namespace mlir::rlc
 	static mlir::Type getHiddenFrameType(mlir::rlc::ActionFunction fun)
 	{
 		return mlir::rlc::ClassType::getIdentified(
-				fun.getContext(),
-				(fun.getClassType().getName() + "_shadow").str(),
-				{});
+				fun.getContext(), (fun.getClassType().getName() + "_shadow").str(), {});
 	}
 
 	static void replaceAllAccessesWithIndirectOnes(
@@ -302,6 +300,8 @@ namespace mlir::rlc
 		// the resumption point stored in the frame is not enough to discrimated
 		// among alternative resumption points, so we have to store the actual id
 		// of the selected action so it can resume
+		rewriter.create<CurrentActionResumeIndex>(
+				action.getLoc(), rewriter.getI64IntegerAttr(subAction.getId()));
 		auto resumptionPointSelector = rewriter.create<mlir::rlc::Constant>(
 				subF.getLoc(), static_cast<int64_t>(subAction.getId()));
 		auto candidatesResumptionPoint = rewriter.create<mlir::rlc::MemberAccess>(
@@ -494,8 +494,7 @@ namespace mlir::rlc
 
 		action.getOperation()->getResult(0).replaceAllUsesWith(f);
 
-		auto classType =
-				builder.typeOfAction(action).cast<mlir::rlc::ClassType>();
+		auto classType = builder.typeOfAction(action).cast<mlir::rlc::ClassType>();
 		auto initFunction = builder.getInitFunctionOf(classType);
 		auto frame = rewriter.create<mlir::rlc::ExplicitConstructOp>(
 				action.getLoc(), initFunction);
@@ -503,11 +502,13 @@ namespace mlir::rlc
 		auto frameHidden = rewriter.create<mlir::rlc::UninitializedConstruct>(
 				action.getLoc(), getHiddenFrameType(action));
 
-		auto ptrToIndex =
-				rewriter.create<mlir::rlc::MemberAccess>(action.getLoc(), frame, 0);
-
+		rewriter.create<CurrentActionResumeIndex>(
+				action.getLoc(), rewriter.getI64IntegerAttr(0));
 		auto constantZero =
 				rewriter.create<mlir::rlc::Constant>(action.getLoc(), int64_t(0));
+
+		auto ptrToIndex =
+				rewriter.create<mlir::rlc::MemberAccess>(action.getLoc(), frame, 0);
 
 		rewriter.create<mlir::rlc::BuiltinAssignOp>(
 				action.getLoc(), ptrToIndex, constantZero);

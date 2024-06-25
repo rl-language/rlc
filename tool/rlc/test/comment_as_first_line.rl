@@ -3,6 +3,7 @@
 
 act asd() -> A: #asd
     # asd
+    act f()
     return
 
 fun main() -> Int: #asd

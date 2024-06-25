@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "rlc/dialect/Operations.hpp"
@@ -89,25 +90,25 @@ static llvm::SmallVector<mlir::rlc::Yield, 2> getYieldTerminators(
 	return terminators;
 }
 
-static void pruneUnrechableBlocks(mlir::Region& op, mlir::IRRewriter& rewriter)
+void mlir::rlc::pruneUnrechableBlocks(
+		mlir::Region& op, mlir::IRRewriter& rewriter)
 {
-	bool foundOne = true;
+	if (op.empty())
+		return;
+	llvm::DenseSet<mlir::Block*> visited;
+	for (auto block : llvm::depth_first(&op.front()))
+		visited.insert(block);
 
-	while (foundOne)
+	llvm::DenseSet<mlir::Block*> toErase;
+	for (auto& b : op.getBlocks())
+		if (not visited.contains(&b))
+			toErase.insert(&b);
+
+	for (auto& b : toErase)
 	{
-		foundOne = false;
-		llvm::SmallVector<mlir::Block*, 3> blocks;
-		for (auto& block : op)
-			blocks.push_back(&block);
-
-		for (auto& block : blocks)
-		{
-			if (block->hasNoPredecessors() and not block->isEntryBlock())
-			{
-				rewriter.eraseBlock(block);
-				foundOne = true;
-			}
-		}
+		b->dropAllReferences();
+		b->dropAllDefinedValueUses();
+		rewriter.eraseBlock(b);
 	}
 }
 
@@ -595,7 +596,7 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 		rewriter.cloneRegionBefore(
 				f.getBody(), newF.getBody(), newF.getBody().begin());
 
-		pruneUnrechableBlocks(newF.getBody(), rewriter);
+		mlir::rlc::pruneUnrechableBlocks(newF.getBody(), rewriter);
 
 		rewriter.setInsertionPoint(f);
 		llvm::SmallVector<mlir::OpOperand*> operands;

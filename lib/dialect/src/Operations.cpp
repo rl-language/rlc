@@ -561,6 +561,13 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 	if (declareActionTypes(newF, builder2).failed())
 		return nullptr;
 
+	if (newF.getActions().empty())
+	{
+		auto _ = logError(
+				fun, "Actions cannot have 0 actions, turn it into a function instead");
+		return nullptr;
+	}
+
 	return newF;
 }
 
@@ -577,6 +584,30 @@ static llvm::SmallVector<mlir::Operation *, 4> ops(mlir::Region &region)
 		::mlir::SymbolTableCollection &symbolTable)
 {
 	return LogicalResult::success();
+}
+
+mlir::MutableOperandRange
+mlir::rlc::ExplicitConstructOp::getArgOperandsMutable()
+{
+	return mlir::MutableOperandRange(*this, 0, 0);
+}
+
+/// Get the argument operands to the called function.
+mlir::OperandRange mlir::rlc::ExplicitConstructOp::getArgOperands()
+{
+	return getArgOperandsMutable();
+}
+
+mlir::CallInterfaceCallable
+mlir::rlc::ExplicitConstructOp::getCallableForCallee()
+{
+	return getInitializer();
+}
+
+void mlir::rlc::ExplicitConstructOp::setCalleeFromCallable(
+		mlir::CallInterfaceCallable callee)
+{
+	(*this)->setOperand(0, callee.get<mlir::Value>());
 }
 
 ::mlir::LogicalResult mlir::rlc::ArrayCallOp::verifySymbolUses(

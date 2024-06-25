@@ -81,6 +81,12 @@ def LowerConstructOpPass : Pass<"rlc-lower-construct-op", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+
+def TestReachingDefinitionsPass : Pass<"rlc-test-reaching-definitions-pass", "mlir::ModuleOp"> {
+  let summary = "test reaching definitions";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def EmitImplicitInitPass : Pass<"rlc-emit-implicit-init-pass", "mlir::ModuleOp"> {
   let summary = "emits default builtin init functions";
   let dependentDialects = ["rlc::RLCDialect"];
