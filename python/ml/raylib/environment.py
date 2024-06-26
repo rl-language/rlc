@@ -176,21 +176,15 @@ class RLCEnvironment(MultiAgentEnv):
         while self.current_player() == -1:  # random player
             action = random.choice(self.legal_actions_list())
             assert self.wrapper.functions.can_apply_impl(action, self.state).value
-
-            stringed1 = self.action_to_string(action)
             self.wrapper.functions.apply(action, self.state)
-            stringed2 = self.action_to_string(action)
-            assert(stringed1 == stringed2)
 
     def step(self, action):
         to_apply = action[self.current_player()] if self.current_player != -1 else action[0]
-        assert self.wrapper.functions.can_apply(
+        if not self.wrapper.functions.can_apply(
             self.actions[to_apply], self.state
-            ).value
-        stringed1 = self.action_to_string(self.actions[to_apply])
+            ).value:
+            to_apply = random.choice(self.legal_actions_indicies())
         self.wrapper.functions.apply(self.actions[to_apply], self.state)
-        stringed2 = self.action_to_string(self.actions[to_apply])
-        assert(stringed1 == stringed2)
 
         self.resolve_randomness()
 
@@ -252,20 +246,15 @@ class RLCEnvironment(MultiAgentEnv):
 
         return self.actions[sampled]
 
-    def _probs_data(self):
+    def print_probs(self, model):
       obs = self._current_state()
+      policy_id = f"p{self.current_player()}"
+      module = model.get_module(policy_id)
       obs[self.current_player()]["observations"] = torch.tensor(np.expand_dims(obs[self.current_player()]["observations"], 0), dtype=torch.float32)
       obs[self.current_player()]["action_mask"] = torch.tensor(np.expand_dims(obs[self.current_player()]["action_mask"], 0), dtype=torch.float32)
       data = {"obs": obs[self.current_player()]}
-      return data
-
-    def print_probs(self, model):
-      policy_id = f"p{self.current_player()}"
-      module = model.get_module(policy_id)
       with torch.no_grad():
-        value = module._compute_values(self._probs_data())
-        print("Expected utility {:0.4f}".format(value[0].item()))
-        logits = module._forward_inference(self._probs_data())
+        logits = module._forward_inference(data)
 
         action_probs = torch.softmax(logits["action_dist_inputs"], dim=-1)
 
