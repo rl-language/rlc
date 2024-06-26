@@ -178,6 +178,13 @@ namespace mlir::rlc
 			mlir::IRRewriter& rewriter)
 	{
 		llvm::StringMap<mlir::rlc::FunctionOp> funs;
+		if (declaration.getRegion()
+						.front()
+						.getOps<mlir::rlc::EnumFieldDeclarationOp>()
+						.empty())
+		{
+			return logError(declaration, "enum must have at least one field");
+		}
 
 		auto firstField = *declaration.getRegion()
 													 .front()

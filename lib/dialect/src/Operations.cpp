@@ -564,7 +564,7 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 	if (newF.getActions().empty())
 	{
 		auto _ = logError(
-				fun, "Actions cannot have 0 actions, turn it into a function instead");
+				newF, "Actions cannot have 0 actions, turn it into a function instead");
 		return nullptr;
 	}
 
@@ -1548,6 +1548,18 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 				*this, "Action statements can only appear in Action Functions");
 
 	auto &rewriter = builder.getRewriter();
+	auto point = rewriter.saveInsertionPoint();
+
+	if (getPrecondition().empty())
+	{
+		rewriter.createBlock(&getPrecondition());
+
+		auto trueValue =
+				builder.getRewriter().create<mlir::rlc::Constant>(getLoc(), true);
+		builder.getRewriter().create<mlir::rlc::Yield>(
+				getLoc(), mlir::ValueRange({ trueValue }));
+	}
+	rewriter.restoreInsertionPoint(point);
 
 	llvm::SmallVector<mlir::Type, 4> newResultTypes;
 	llvm::SmallVector<std::string, 4> newArgNames;

@@ -449,6 +449,8 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 			op.getOps<mlir::rlc::FunctionOp>());
 	for (auto fun : funs)
 	{
+		if (fun.isDeclaration())
+			continue;
 		auto _ = builder.addSymbolTable();
 		for (auto templateParameter : fun.getTemplateParameters())
 		{

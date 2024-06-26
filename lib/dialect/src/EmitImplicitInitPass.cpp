@@ -110,9 +110,8 @@ namespace mlir::rlc
 			types.push_back(op.getValue().getType());
 		});
 
-		op.walk([&](mlir::rlc::ClassDeclaration op) {
-			types.push_back(op.getType());
-		});
+		op.walk(
+				[&](mlir::rlc::ClassDeclaration op) { types.push_back(op.getType()); });
 
 		op.walk([&](mlir::rlc::ActionFunction op) {
 			types.push_back(op.getClassType());
@@ -351,6 +350,8 @@ namespace mlir::rlc
 			auto fun = op.getDefiningOp<mlir::rlc::FunctionOp>();
 			assert(fun != nullptr);
 			if (not fun.getBody().empty())
+				continue;
+			if (fun.getArgumentTypes().size() != 1)
 				continue;
 
 			auto type = fun.getArgumentTypes().front();

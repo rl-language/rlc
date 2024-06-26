@@ -230,7 +230,7 @@ llvm::StringRef rlc::tokenToString(Token t)
 
 void Lexer::consumeWhiteSpaceUntilNextMeaningfullChar()
 {
-	while (isspace(*in) != 0 and *in != '\n' and *in != '\0')
+	while (isspace(*in) != 0 and *in != '\n' and *in != '\0' and *in != '\f')
 		eatChar();
 	eatComment();
 }
@@ -239,7 +239,7 @@ optional<Token> Lexer::eatSpaces()
 {
 	bool beginOfLine = newLine;
 	size_t indent = 0;
-	while (isspace(*in) != 0 and *in != '\n')
+	while (isspace(*in) != 0 and *in != '\n' and *in != '\f')
 	{
 		eatChar();
 		indent++;

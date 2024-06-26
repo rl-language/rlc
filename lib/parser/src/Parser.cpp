@@ -915,7 +915,7 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 	};
 
 	TRY(exp, expression(), onExit(nullptr));
-	EXPECT(Token::Newline);
+	EXPECT(Token::Newline, onExit(*exp));
 	onExit(*exp);
 
 	return operation;
@@ -1306,6 +1306,8 @@ void Parser::removeYieldIfNotNeeded()
 {
 	auto& ops = builder.getBlock()->getOperations();
 	auto size = ops.size();
+	if (size == 0)
+		return;
 	if (not mlir::isa<mlir::rlc::Yield>(ops.back()))
 		return;
 
@@ -1714,8 +1716,9 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 			for (auto name : argName)
 				strs.push_back(name.str());
 
-			return builder.create<mlir::rlc::ActionStatement>(
+			auto toReturn = builder.create<mlir::rlc::ActionStatement>(
 					location, argTypes, builder.getStringAttr(nm), strs);
+			return toReturn;
 		}
 	};
 
