@@ -195,3 +195,1574 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 #### for 1.0
 * windows support, blocked by ray
 
+--------------------------------
+
+# CURRENT FORK PROJECT: CONSTRAINT ANALYSIS
+
+This branch is developed for implementing a specific compiler pass in MLIR for understanding the range of values that an argument passed to a RLC function can obtain.
+
+## FOR ME:
+
+Compile with : `--flattened --hide-position`
+
+To run the passes (after doing `ninja all`) look at `tool/rlc-opt/rlc-opt`
+
+Operations defined in `operations.td`
+
+When pushing: `git push --set-upstream rlc_constraint_analysis constraint_analysis` 
+
+## SOME INTRODUCTION ON THE FRAMEWORK AND ASSUMPTIONS
+
+We have to develop a monotonic framework, so we need to define explicitly *backward/forward* - *lattice* - *join* - *transfer function* .
+
+But before we start with that let's dive into some basic definitions and assumptions:
+
+* at the end we expect that our program will output for each input argument a label of the form $( min , max )$ ( NB: in formal notation they should be squared brackets since the bounds are included but we are programmers not mere mathematicians )
+* we can work under the assumption that $ min < max\quad\forall min,max \in \mathbb{I} $ , where $\mathbb{I}$ is our domain, indeed all the integer numbers between INT_MIN and INT_MAX ( we keep C++ notation here )
+* notice that here we take INT_MIN and INT_MAX as the upper bounds of our domain ( infinity if you want )
+* we can have that $min==max$ if we are **100% SURE** that a value is a constant
+* for the moment we do not have the **overflow** of our variables, for a bit of reasons: 1) a pita to code 2) we hope that the developers will not purposely make variables overflow because they do not hate us
+
+Now we are good to go and describe our particular analysys:
+
+### BACKWARD/FORWARD
+
+This is actually not a trivial idea and the solution to the problem comes after thinking a bit about the algorithm.
+
+If you are thinking that a forward analysis is the correct one (like I did the first time), well you are pretty wrong I'm sorry.
+
+The reason for this will become clear with an example later, for the moment just think that with a forward analysis if we perform an operation the new range we get is the one of the operation, so we can lose a bit of information on the initial variable unless we perform some backtracking.
+
+### LATTICE 
+
+As described in the assumptions above, we have a finite ( but decently big ) lattice of elements. To start we can define our interval as 
+
+$$ \mathbb{I}=\{ x\in\mathbb{Z}:INT \textunderscore MIN\leq x \leq INT \textunderscore MAX\ \} $$
+
+Where we remind that $INT \textunderscore MIN=-2^{31}$ and  $INT \textunderscore MAX=+2^{31}$ for 32 bit integer values.
+
+Before describing the lattice we are missing another important piece, which is that any of our functions can either return true or false, so we define it simply as $B=\{0,1\}$ (or true/false, as you prefer).
+
+Now our complete definition of the lattice is:
+
+$$ E=\{\mathbb{I}\times\mathbb{I}\}\times B $$
+
+But for simplicity we can just take it as $E=\mathbb{I}\times\mathbb{I}$ ( hopefully remembering that we have to keep track of both )
+
+We can impose a partial ordering on it, but this will be done in the next section when we analyze the funny join function
+
+NB: to be extremely precise the real lattice is a subset of the one described above since we work under the assumption that the left hand side (minimum) is less than the right hand side (maximum).
+
+### JOIN
+
+The join function is responsible for deciding which values should we consider when arriving from different paths of the program to a same node.
+
+It needs to satisfy some useful properties, indeed it should be idempotent, commutative and associative. 
+
+In our analysis is pretty straightforward to understand which is the join function.
+
+Let's try to figure it out with an example. 
+Suppose that my intervals to join are $(-5,8)$ and $(2,10)$. Then the minimums are -5 and 2 respectively. This means that from two different branches of our program ( they could be in a *for* loop for example ) we can have two different minimums. But by definition of a minimum it should be... the minimum, who whould have thougth!
+
+We can do a similar reasoning with the maximum and arrive at the conclusion that in our example the join should return $(-5,10)$.
+
+So we can say that in general:
+
+For a pair of tuples $(a,b),(c,d)$ with $a,b,c,d \in \mathbb{I}$ we can define the join between them as:
+
+$$ J((a,b),(c,d))=(\min(a,c),\max(b,d)) $$
+
+Notice how this works also at the bounds of our domain.
+
+Notice also how this creates a partial ordering relation, indeed for the minimum bound we have: $INT \textunderscore MIN>INT \textunderscore MIN+1>\cdots>0>1>\cdots INT \textunderscore MAX-1>INT \textunderscore MAX$ and for the maximum is reversed. 
+
+Why? well because we define a partial ordering as $a\subseteq b \Longleftrightarrow J(a,b)=b$.
+
+### TRANSFER FUNCTION
+
+The idea behind the transfer function is to understand how the properties of our analysis change in the single basic blocks of the program.
+
+Here in particular we need to analyze each single instruction that is derived after the **flattening** operation.
+
+Now each operation acts as a possible transformation on our range, so it is better to keep each analysis separated and to start with a trivial example:
+
+Consider the following pseudocode snippet:
+
+```
+fun trivial(int a):
+	
+	if(a > 0):
+
+		temp1 = a + 2;
+		if(temp1 < 10):
+
+			return true;
+		
+		endif
+
+	endif
+
+	return false;
+
+end
+```
+
+Now this is a simple program with a simple control-flow-graph (CFG). It is immediate to see that for the two returns the possible value of *a* is:
+
+* $true: a\in(1,7)$
+* $false: a\in(INT \textunderscore MIN,INT \textunderscore MAX)\setminus true $
+
+Note that we want disjointed sets ( we can also overestimate if we want )
+
+In order to understand how the algorithm should work we can fill a table of the form:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+
+Where we store at each step the information we found.
+
+Now I will not draw the CFG of this problem since one can easily imagine it, so we can start with our backward analysis.
+
+It should be indipendent which way we travel due to the properties of the join operation described above, so we can simply start by taking the path `if(a > 0) //false -> return false;`.
+
+Here we know that we arrived from a false branch so the conditional `(a > 0)` has evaluated to false, which means that we can update our information as :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,0)$| - |
+
+We can take another branch for example `if(temp1 < 10) //false -> return false;`. Here things start to become a bit funky but we can still work with it. Now we can do the same reasoning as above and the new table becomes:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,0)$| $(10,INT \textunderscore MAX)$ |
+
+We can continue going up this branch and encounter the operation `temp1 = a + 2` Which can be rewritten as `a = temp1 - 2` (NB: this for binary operations is a pretty easy transformation). Then if we are moving into false we can update our table but remaining very careful because we have already infromation about *a* in it, so we need to join:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $J((INT \textunderscore MIN,0),(8,INT \textunderscore MAX-2))$| $(10,INT \textunderscore MAX)$ |
+
+Now performing the join we can collapse the information as :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
+
+The only thing that we are left with in this branch is the fact that we arrive from `if(a > 0) //true`, so we should add to our table the information $(1,INT \textunderscore MAX)$ but we get the same, since it is a subset.
+
+We are missing only one branch which is `if(temp1 < 10) //true -> return true;`. Now it should be pretty easy to compile the table since we understood how the algorithm works, so we start with
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MIN -2)$| $(10,INT \textunderscore MAX)$ |
+
+Now we pass in `temp1 = a + 2` which gives a new value to *a* :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| $(INT \textunderscore MIN -2,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX)$| $(10,INT \textunderscore MAX)$ |
+
+And finally we know that we passed from `if(a > 0) //true` but remember, this is not a join but a transformation of our interval. So in the end the final table we compile is :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| $(1,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
+
+At the end we can discard the temporary information and perform a disjunction of the sets to obtain the result above.
+
+We can actually see that our final table gives us a bit more infromation, which is that if we for example decide to take *a* as INT_MAX-1 we will not get a meaningful answer ( probabily correct in this particular case ) because of overflow problems.
+
+## OPERATIONS
+
+We can start discussing which are the main operations treated in this analysis. For the moment i will subdivide them in :
+
+* ARITHMETIC OPERATIONS ( + , * , - , /)
+* BOOLEAN OPERATORS 
+* ASSIGNMENTS 
+* CONDITIONALS
+
+Starting from the easiest :
+
+### ADDITION
+
+Now the addition is a pretty easy operator to resolve, since we can consider it as a shift of our range of values.
+
+Then we can easily formalize the addition as:
+
+$$ (a,b)+(c,d):(a+b,c+d) $$
+
+Remembering that $a,b,c,d\in\mathbb{I}$.
+
+NB: pay attention to the overflows
+
+### MULTIPLICATION 
+
+Multiplication is a bit more tricky but the general idea is that a multiplication by an integer number is a rescaling of my interval, with the only catch that if the number is negative we need to first invert it w.r.t. 0.
+
+For example: $(-10,-3)\cdot(-2)=(3,10)\cdot2=(6,20)$.
+
+Before presenting the general algorithm is interesting to formalize the multiplication by a scalar, so that we have it and do not forget it:
+
+Assume $a,b,c\in\mathbb{I}$, then
+
+$$ (a,b)\cdot c:(\min(a\cdot c,b\cdot c),\max(a\cdot c,b\cdot c)) $$
+
+Then we can write a general algorithm, derived from all the possible transformations of the range:
+
+```
+(a,b)*(c,d):(min,max)
+
+start
+
+if b < 0 :
+	if c > 0 :		//(-5,-3)*(3,5):(-25,-9)
+		min = a * d
+		max = b * c
+	else if d < 0 :	//(-5,-3)*(-5,-3):(9,25)
+		min = b * d
+		max = a * c
+	else :			//(-5,-3)*(-3,5):(-25,15)
+		min = a * d 
+		max = a * c
+else if a > 0 : 
+	if c > 0 :		//(3,5)*(3,5):(9,25)
+		min = a * c
+		max = b * d
+	else if d < 0 :	//(3,5)*(-5,-3):(-25,-9)
+		min = b * c
+		max = a * d
+	else :			//(3,5)*(-3,5):(-15,25)
+		min = b * c
+		max = b * d
+else :
+	if c > 0 :		//(-3,5)*(3,5):(-15,25)
+		min = a * d
+		max = b * d
+	else if d < 0 :	//(-3,5)*(-5,-3):(-15,9)
+		min = b * c
+		max = a * d
+	else : 			//(-3,5)*(-3,5):(-15,25)
+		min = min( b * c , a * d )
+		max = max( a * c , b * d )
+
+end
+```
+
+I left also some comments with an example for each case.
+
+NB: this can be rearranged in a more efficient way.
+
+### SUBTRACTION
+
+So, subtraction actually is not that different from addition, so we can basically use the same formula:
+
+$$ (a,b)-(c,d):(a-b,c-d) $$
+
+NB: the only thing to remember here is the non-commutativity
+
+### DIVISION
+
+Now i think division will be actually incredibly fun to do.
+
+We have to remember that integer division ( at least in C and C++ ) truncates towards zero, this means that $5/2=2$ and $(-5)/2=-2$.
+
+As the multiplication, the division is a rescaling of the range, but we have to be careful because we have a potential loss of information due to the truncation.
+
+Before understanding the general case let's analyze also here the case for division by a constant:
+
+Assume $a,b,c\in\mathbb{I}$, then
+
+$$ (a,b)/c:(\min(a/c,b/c),\max(a/c,b/c)) $$
+
+We can construct an general algorithm similar to the one above since the signs should be treated the same way, but with some small changes
+
+```
+(a,b)/(c,d):(min,max)
+
+start
+
+if b < 0 :
+	if c > 0 :		//(-10,-3)/(3,10):(-3,0)
+		min = a / c
+		max = b / d
+	else if d < 0 :	//(-10,-3)/(-10,-3):(0,3)
+		min = b / c
+		max = a / d
+	else :			//(-10,-3)/(-3,10):(-10,10)
+		min = a
+		max = -a
+else if a > 0 : 
+	if c > 0 :		//(3,10)/(3,10):(0,3)
+		min = a / d
+		max = b / c
+	else if d < 0 :	//(3,10)/(-10,-3):(-3,0)
+		min = b / d
+		max = a / c
+	else :			//(3,10)/(-3,10):(-10,10)
+		min = -b
+		max = b
+else :
+	if c > 0 :		//(-3,10)/(3,10):(-1,3)
+		min = a / c
+		max = b / c
+	else if d < 0 :	//(-3,10)/(-10,-3):(-3,1)
+		min = b / d
+		max = a / d
+	else : 			//(-3,10)/(-3,10):(-3,10)
+		min = a
+		max = b
+
+end
+```
+
+Here we can perform some interesting observations:
+
+* there is a clear loss of information due to the truncation
+* when the range (c,d) is discording this means that our range will include the numbers -1 and 1 => some cases can be simplified
+
+NB: is this ok ?
+
+### REMAINDER 
+
+For the remainder I think we can perform some basic assumptions, indeed:
+
+* we cannot perform the reminder with negative numbers as a base. If for some funky reason a programmer will try to do it he/she/it should be retroactively aborted (this is a citation to a famous programmer).
+
+* can we perform the operation with a range of numbers ? Sure why not, but we still assume everything greater than zero.
+
+Then under these assumptions the operation becomes actually quite simple, indeed:
+
+Assume $a,b,c,d\in\mathbb{I}^{+}$, then
+
+$$ (a,b)rem(c,d):(0,\max(b,d)) $$
+
+With $\mathbb{I}^{+}=\{a\in\mathbb{I}:a\geq0\}$
+
+Also here we notice an important loss of information that we need to cope with.
+
+## ACTUAL ALGORITHM
+
+Now everyone can do this kind of reasoning, but we need someone that integrates this analysis using a real tool (shame on you mathematicians! ). Aaaand here I am implementing it (or at least trying to).
+
+More or less I have an idea of what the algorithm should do. Indeed a pseudo-pseudo code should be:
+
+```
+input : flattened_IR
+output: flattened_IR_but_cooler 
+
+algorithm:
+
+	foreach (flat_function in flattened_IR):
+
+		// ACTUAL ANALYSIS
+
+		con = constraint_analysis(flat_function);
+
+		// ATTACH TO THE NEW IR THE INFORMATION FOUND
+
+		attach_arg_ranges_to_function(flat_function, con)
+
+
+```
+
+Now we encounter our first problem (this early? yes, such is the life of a programmer) : the analysis should be performed for each argument or for each function? (in mlir is the same as asking if we want a sparse or dense analysis) Because maybe they can be summed together and it is possible that i know the value of one before another. But if this is the case which argument should i try to evaluate first?
+
+Sooooooo... what to do? Assuming that crying is not an option, we actually might have a solution. The solution is indeed hidden in the fact that we are performing a backward analysis! Let's assume that we have a case of `temp=a+b if(temp>0) return true else return false`, We do not know the range of both a and b, but we can say that if we return true we have $temp\in(0,INT \textunderscore MAX)$ and from that we can derive for both a and b that we have no information. Indeed the only information that we can pass along is that they are both non-negative and that the modulus of one is greater that the modulus of the other one. We still have no information on the constraints, they can be any number.
+
+Then in the end... just using an analysis on the function should be enough.
+
+Now be careful, the pseudo-pseudo-algorithm above is the algorithm the pass should perform because the analysis works on the dataflow, everything else works on the simple IR.
+
+So now we have to define our lattice `mlir::rlc::ConstraintsLattice` and start from a `mlir::DenseBackwardDataFlowAnalysis`.
+
+* windows support
+* some very large hand written program with machine learning and all
+* some other language testsuite transpiled to rl
+
+--------------------------------
+
+# CURRENT FORK PROJECT: CONSTRAINT ANALYSIS
+
+This branch is developed for implementing a specific compiler pass in MLIR for understanding the range of values that an argument passed to a RLC function can obtain.
+
+## FOR ME:
+
+Compile with : `--flattened --hide-position`
+
+To run the passes (after doing `ninja all`) look at `tool/rlc-opt/rlc-opt`
+
+Operations defined in `operations.td`
+
+When pushing: `git push --set-upstream rlc_constraint_analysis constraint_analysis` 
+
+## SOME INTRODUCTION ON THE FRAMEWORK AND ASSUMPTIONS
+
+We have to develop a monotonic framework, so we need to define explicitly *backward/forward* - *lattice* - *join* - *transfer function* .
+
+But before we start with that let's dive into some basic definitions and assumptions:
+
+* at the end we expect that our program will output for each input argument a label of the form $( min , max )$ ( NB: in formal notation they should be squared brackets since the bounds are included but we are programmers not mere mathematicians )
+* we can work under the assumption that $ min < max\quad\forall min,max \in \mathbb{I} $ , where $\mathbb{I}$ is our domain, indeed all the integer numbers between INT_MIN and INT_MAX ( we keep C++ notation here )
+* notice that here we take INT_MIN and INT_MAX as the upper bounds of our domain ( infinity if you want )
+* we can have that $min==max$ if we are **100% SURE** that a value is a constant
+* for the moment we do not have the **overflow** of our variables, for a bit of reasons: 1) a pita to code 2) we hope that the developers will not purposely make variables overflow because they do not hate us
+
+Now we are good to go and describe our particular analysys:
+
+### BACKWARD/FORWARD
+
+This is actually not a trivial idea and the solution to the problem comes after thinking a bit about the algorithm.
+
+If you are thinking that a forward analysis is the correct one (like I did the first time), well you are pretty wrong I'm sorry.
+
+The reason for this will become clear with an example later, for the moment just think that with a forward analysis if we perform an operation the new range we get is the one of the operation, so we can lose a bit of information on the initial variable unless we perform some backtracking.
+
+### LATTICE 
+
+As described in the assumptions above, we have a finite ( but decently big ) lattice of elements. To start we can define our interval as 
+
+$$ \mathbb{I}=\{ x\in\mathbb{Z}:INT \textunderscore MIN\leq x \leq INT \textunderscore MAX\ \} $$
+
+Where we remind that $INT \textunderscore MIN=-2^{31}$ and  $INT \textunderscore MAX=+2^{31}$ for 32 bit integer values.
+
+Before describing the lattice we are missing another important piece, which is that any of our functions can either return true or false, so we define it simply as $B=\{0,1\}$ (or true/false, as you prefer).
+
+Now our complete definition of the lattice is:
+
+$$ E=\{\mathbb{I}\times\mathbb{I}\}\times B $$
+
+But for simplicity we can just take it as $E=\mathbb{I}\times\mathbb{I}$ ( hopefully remembering that we have to keep track of both )
+
+We can impose a partial ordering on it, but this will be done in the next section when we analyze the funny join function
+
+NB: to be extremely precise the real lattice is a subset of the one described above since we work under the assumption that the left hand side (minimum) is less than the right hand side (maximum).
+
+### JOIN
+
+The join function is responsible for deciding which values should we consider when arriving from different paths of the program to a same node.
+
+It needs to satisfy some useful properties, indeed it should be idempotent, commutative and associative. 
+
+In our analysis is pretty straightforward to understand which is the join function.
+
+Let's try to figure it out with an example. 
+Suppose that my intervals to join are $(-5,8)$ and $(2,10)$. Then the minimums are -5 and 2 respectively. This means that from two different branches of our program ( they could be in a *for* loop for example ) we can have two different minimums. But by definition of a minimum it should be... the minimum, who whould have thougth!
+
+We can do a similar reasoning with the maximum and arrive at the conclusion that in our example the join should return $(-5,10)$.
+
+So we can say that in general:
+
+For a pair of tuples $(a,b),(c,d)$ with $a,b,c,d \in \mathbb{I}$ we can define the join between them as:
+
+$$ J((a,b),(c,d))=(\min(a,c),\max(b,d)) $$
+
+Notice how this works also at the bounds of our domain.
+
+Notice also how this creates a partial ordering relation, indeed for the minimum bound we have: $INT \textunderscore MIN>INT \textunderscore MIN+1>\cdots>0>1>\cdots INT \textunderscore MAX-1>INT \textunderscore MAX$ and for the maximum is reversed. 
+
+Why? well because we define a partial ordering as $a\subseteq b \Longleftrightarrow J(a,b)=b$.
+
+### TRANSFER FUNCTION
+
+The idea behind the transfer function is to understand how the properties of our analysis change in the single basic blocks of the program.
+
+Here in particular we need to analyze each single instruction that is derived after the **flattening** operation.
+
+Now each operation acts as a possible transformation on our range, so it is better to keep each analysis separated and to start with a trivial example:
+
+Consider the following pseudocode snippet:
+
+```
+fun trivial(int a):
+	
+	if(a > 0):
+
+		temp1 = a + 2;
+		if(temp1 < 10):
+
+			return true;
+		
+		endif
+
+	endif
+
+	return false;
+
+end
+```
+
+Now this is a simple program with a simple control-flow-graph (CFG). It is immediate to see that for the two returns the possible value of *a* is:
+
+* $true: a\in(1,7)$
+* $false: a\in(INT \textunderscore MIN,INT \textunderscore MAX)\setminus true $
+
+Note that we want disjointed sets ( we can also overestimate if we want )
+
+In order to understand how the algorithm should work we can fill a table of the form:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+
+Where we store at each step the information we found.
+
+Now I will not draw the CFG of this problem since one can easily imagine it, so we can start with our backward analysis.
+
+It should be indipendent which way we travel due to the properties of the join operation described above, so we can simply start by taking the path `if(a > 0) //false -> return false;`.
+
+Here we know that we arrived from a false branch so the conditional `(a > 0)` has evaluated to false, which means that we can update our information as :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,0)$| - |
+
+We can take another branch for example `if(temp1 < 10) //false -> return false;`. Here things start to become a bit funky but we can still work with it. Now we can do the same reasoning as above and the new table becomes:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,0)$| $(10,INT \textunderscore MAX)$ |
+
+We can continue going up this branch and encounter the operation `temp1 = a + 2` Which can be rewritten as `a = temp1 - 2` (NB: this for binary operations is a pretty easy transformation). Then if we are moving into false we can update our table but remaining very careful because we have already infromation about *a* in it, so we need to join:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $J((INT \textunderscore MIN,0),(8,INT \textunderscore MAX-2))$| $(10,INT \textunderscore MAX)$ |
+
+Now performing the join we can collapse the information as :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
+
+The only thing that we are left with in this branch is the fact that we arrive from `if(a > 0) //true`, so we should add to our table the information $(1,INT \textunderscore MAX)$ but we get the same, since it is a subset.
+
+We are missing only one branch which is `if(temp1 < 10) //true -> return true;`. Now it should be pretty easy to compile the table since we understood how the algorithm works, so we start with
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MIN -2)$| $(10,INT \textunderscore MAX)$ |
+
+Now we pass in `temp1 = a + 2` which gives a new value to *a* :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| $(INT \textunderscore MIN -2,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX)$| $(10,INT \textunderscore MAX)$ |
+
+And finally we know that we passed from `if(a > 0) //true` but remember, this is not a join but a transformation of our interval. So in the end the final table we compile is :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| $(1,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
+
+At the end we can discard the temporary information and perform a disjunction of the sets to obtain the result above.
+
+We can actually see that our final table gives us a bit more infromation, which is that if we for example decide to take *a* as INT_MAX-1 we will not get a meaningful answer ( probabily correct in this particular case ) because of overflow problems.
+
+## OPERATIONS
+
+We can start discussing which are the main operations treated in this analysis. For the moment i will subdivide them in :
+
+* ARITHMETIC OPERATIONS ( + , * , - , /)
+* BOOLEAN OPERATORS 
+* ASSIGNMENTS 
+* CONDITIONALS
+
+Starting from the easiest :
+
+### ADDITION
+
+Now the addition is a pretty easy operator to resolve, since we can consider it as a shift of our range of values.
+
+Then we can easily formalize the addition as:
+
+$$ (a,b)+(c,d):(a+b,c+d) $$
+
+Remembering that $a,b,c,d\in\mathbb{I}$.
+
+NB: pay attention to the overflows
+
+### MULTIPLICATION 
+
+Multiplication is a bit more tricky but the general idea is that a multiplication by an integer number is a rescaling of my interval, with the only catch that if the number is negative we need to first invert it w.r.t. 0.
+
+For example: $(-10,-3)\cdot(-2)=(3,10)\cdot2=(6,20)$.
+
+Before presenting the general algorithm is interesting to formalize the multiplication by a scalar, so that we have it and do not forget it:
+
+Assume $a,b,c\in\mathbb{I}$, then
+
+$$ (a,b)\cdot c:(\min(a\cdot c,b\cdot c),\max(a\cdot c,b\cdot c)) $$
+
+Then we can write a general algorithm, derived from all the possible transformations of the range:
+
+```
+(a,b)*(c,d):(min,max)
+
+start
+
+if b < 0 :
+	if c > 0 :		//(-5,-3)*(3,5):(-25,-9)
+		min = a * d
+		max = b * c
+	else if d < 0 :	//(-5,-3)*(-5,-3):(9,25)
+		min = b * d
+		max = a * c
+	else :			//(-5,-3)*(-3,5):(-25,15)
+		min = a * d 
+		max = a * c
+else if a > 0 : 
+	if c > 0 :		//(3,5)*(3,5):(9,25)
+		min = a * c
+		max = b * d
+	else if d < 0 :	//(3,5)*(-5,-3):(-25,-9)
+		min = b * c
+		max = a * d
+	else :			//(3,5)*(-3,5):(-15,25)
+		min = b * c
+		max = b * d
+else :
+	if c > 0 :		//(-3,5)*(3,5):(-15,25)
+		min = a * d
+		max = b * d
+	else if d < 0 :	//(-3,5)*(-5,-3):(-15,9)
+		min = b * c
+		max = a * d
+	else : 			//(-3,5)*(-3,5):(-15,25)
+		min = min( b * c , a * d )
+		max = max( a * c , b * d )
+
+end
+```
+
+I left also some comments with an example for each case.
+
+NB: this can be rearranged in a more efficient way.
+
+### SUBTRACTION
+
+So, subtraction actually is not that different from addition, so we can basically use the same formula:
+
+$$ (a,b)-(c,d):(a-b,c-d) $$
+
+NB: the only thing to remember here is the non-commutativity
+
+### DIVISION
+
+Now i think division will be actually incredibly fun to do.
+
+We have to remember that integer division ( at least in C and C++ ) truncates towards zero, this means that $5/2=2$ and $(-5)/2=-2$.
+
+As the multiplication, the division is a rescaling of the range, but we have to be careful because we have a potential loss of information due to the truncation.
+
+Before understanding the general case let's analyze also here the case for division by a constant:
+
+Assume $a,b,c\in\mathbb{I}$, then
+
+$$ (a,b)/c:(\min(a/c,b/c),\max(a/c,b/c)) $$
+
+We can construct an general algorithm similar to the one above since the signs should be treated the same way, but with some small changes
+
+```
+(a,b)/(c,d):(min,max)
+
+start
+
+if b < 0 :
+	if c > 0 :		//(-10,-3)/(3,10):(-3,0)
+		min = a / c
+		max = b / d
+	else if d < 0 :	//(-10,-3)/(-10,-3):(0,3)
+		min = b / c
+		max = a / d
+	else :			//(-10,-3)/(-3,10):(-10,10)
+		min = a
+		max = -a
+else if a > 0 : 
+	if c > 0 :		//(3,10)/(3,10):(0,3)
+		min = a / d
+		max = b / c
+	else if d < 0 :	//(3,10)/(-10,-3):(-3,0)
+		min = b / d
+		max = a / c
+	else :			//(3,10)/(-3,10):(-10,10)
+		min = -b
+		max = b
+else :
+	if c > 0 :		//(-3,10)/(3,10):(-1,3)
+		min = a / c
+		max = b / c
+	else if d < 0 :	//(-3,10)/(-10,-3):(-3,1)
+		min = b / d
+		max = a / d
+	else : 			//(-3,10)/(-3,10):(-3,10)
+		min = a
+		max = b
+
+end
+```
+
+Here we can perform some interesting observations:
+
+* there is a clear loss of information due to the truncation
+* when the range (c,d) is discording this means that our range will include the numbers -1 and 1 => some cases can be simplified
+
+NB: is this ok ?
+
+### REMAINDER 
+
+For the remainder I think we can perform some basic assumptions, indeed:
+
+* we cannot perform the reminder with negative numbers as a base. If for some funky reason a programmer will try to do it he/she/it should be retroactively aborted (this is a citation to a famous programmer).
+
+* can we perform the operation with a range of numbers ? Sure why not, but we still assume everything greater than zero.
+
+Then under these assumptions the operation becomes actually quite simple, indeed:
+
+Assume $a,b,c,d\in\mathbb{I}^{+}$, then
+
+$$ (a,b)rem(c,d):(0,\max(b,d)) $$
+
+With $\mathbb{I}^{+}=\{a\in\mathbb{I}:a\geq0\}$
+
+Also here we notice an important loss of information that we need to cope with.
+
+## ACTUAL ALGORITHM
+
+Now everyone can do this kind of reasoning, but we need someone that integrates this analysis using a real tool (shame on you mathematicians! ). Aaaand here I am implementing it (or at least trying to).
+
+More or less I have an idea of what the algorithm should do. Indeed a pseudo-pseudo code should be:
+
+```
+input : flattened_IR
+output: flattened_IR_but_cooler 
+
+algorithm:
+
+	foreach (flat_function in flattened_IR):
+
+		// ACTUAL ANALYSIS
+
+		con = constraint_analysis(flat_function);
+
+		// ATTACH TO THE NEW IR THE INFORMATION FOUND
+
+		attach_arg_ranges_to_function(flat_function, con)
+
+
+```
+
+Now we encounter our first problem (this early? yes, such is the life of a programmer) : the analysis should be performed for each argument or for each function? (in mlir is the same as asking if we want a sparse or dense analysis) Because maybe they can be summed together and it is possible that i know the value of one before another. But if this is the case which argument should i try to evaluate first?
+
+Sooooooo... what to do? Assuming that crying is not an option, we actually might have a solution. The solution is indeed hidden in the fact that we are performing a backward analysis! Let's assume that we have a case of `temp=a+b if(temp>0) return true else return false`, We do not know the range of both a and b, but we can say that if we return true we have $temp\in(0,INT \textunderscore MAX)$ and from that we can derive for both a and b that we have no information. Indeed the only information that we can pass along is that they are both non-negative and that the modulus of one is greater that the modulus of the other one. We still have no information on the constraints, they can be any number.
+
+Then in the end... just using an analysis on the function should be enough.
+
+Now be careful, the pseudo-pseudo-algorithm above is the algorithm the pass should perform because the analysis works on the dataflow, everything else works on the simple IR.
+
+So now we have to define our lattice `mlir::rlc::ConstraintsLattice` and start from a `mlir::DenseBackwardDataFlowAnalysis`.
+
+## A MORE IN DEPTH ANALYSIS
+
+After writing some code, I realized that the algorithm is not that trivial as I initially thought. There are some tricky complications that make the whole mathematical formulation a lot more complicated.
+
+The transfer function pretty much stays the same (well in reality not, we need to modify it a bit), what changes and becomes more tricky is the definition of the lattice and of the join function.
+
+Why ? Let's try to understand first what the whole analysis must do, construct the lattice from there, see some complications, reconstruct the lattice, and repeat in a loop until we reach a fixed point (hopefully we will).
+
+Then at this point in time our problem becomes: *given a function that returns a boolean value, can i deduce the ranges of the input values for which the function **can** return true or false?* .
+
+I have highlighted the second *can* because it is very important: indeed we do not want to find the exact ranges, we can use some "large" assumptions that help us.
+
+Sooo... let's start from an example then and understand how our analysis should behave.
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	return false
+```
+
+Ok so wee need two ranges, one for the `return true` and one for the `return false` branches. And also we can easily arrive at the conclusion that the ranges are $a_T\in[1,INF] \land a_F\in[-INF,0] $ ,where INF represents the biggest integer that can be represented.
+
+But how do we arrive at this conclusion algorithmically? A possible IR that we can obtain from this function can be: 
+
+```
+ %3 = rlc.flat_fun "foo" (!rlc.int<64>) -> !rlc.bool ["a"] {
+  } {
+  ^bb0(%arg0: !rlc.int<64>):
+    %4 = rlc.ref @rl_can_foo__int64_t_r_bool : (!rlc.int<64>) -> !rlc.bool
+    %5 = rlc.call %4 : (!rlc.int<64>) -> !rlc.bool(%arg0) {is_member_call = false} : (!rlc.int<64>) -> !rlc.bool
+    rlc.crb %5 !rlc.bool ^bb2 ^bb1
+  ^bb1:  // pred: ^bb0
+    rlc.abort
+  ^bb2:  // pred: ^bb0
+    %6 = rlc.constant 0 : i64 !rlc.int<64>
+    %7 = rlc.greater %6 : !rlc.int<64>, %arg0 : !rlc.int<64> -> !rlc.bool
+    rlc.crb %7 !rlc.bool ^bb4 ^bb3
+  ^bb3:  // pred: ^bb2
+    %8 = rlc.constant false !rlc.bool
+    rlc.yield %8 : !rlc.bool
+  ^bb4:  // pred: ^bb2
+    %9 = rlc.constant true !rlc.bool
+    rlc.yield %9 : !rlc.bool
+  }
+```
+
+So at first this may seem a lot for a simple function like that but it contains every passage that is important for its correct execution.
+
+Here we can focus only on the `if` part which can be found in the *bb2*. At the end there is `rlc.crb` which expresses a conditional branch, so if `%7` is `true` we will end in *bb4* which returns **true** and if is `false` we will end in *bb3* which returns **false**.
+
+The main part is this `rlc.crb` which tells us where to jump. Then when we arrive to analyze this operation what do we need to do?
+
+Now assume that we analyze this operation in isolation: what information do we need in order to extract the information about our input range?
+
+Well, first of all of course we need to know the condition, `%7` in this case, and extract the information: "hey here we are checking if `arg0` is greater than a constant `0`". 
+
+Then we have to ask, ok where are we jumping to ? Well if the result of the conditional is `true` we are jumping to a place where there will be a `return true`, and if `false` we jump to `return false`.
+
+But now notice that if we work in isolation we do not know that the next basic block will return the function, it maybe can bring us to other operations, conditionals... and so on. 
+Then let's be smart from the start: we need some information that tells us if our true branch will yield a `return true` or a `return false` (later we will show an example where both have to be considered).
+
+This information can easily be extracted, just carry in the lattice two flags, one for *true* and one for *false*, updated when our graph traversal reaches the `yield` (note that the join operation will carry on both of the flags if i am joining from two different paths).
+
+Ok awesome then if we know this information at this moment we can say: if the conditional `a>0` is *true* then we know we will reach the `return true`. So construct the information: $a_T\in[1,INF]$ (for the other branch it is easy to associate the other range).
+
+Cool, but now what bothers me is: what does that $INF$ represent? Because when we analyze this operation we are not sure of what comes after (well if we perform a backward analysis we do, but this is actually the whole point) and for example we could have a situation like this:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		if a < 10:
+			return true
+	return false
+```
+
+Now if we try to analyze `if a > 0:` we cannot extract the same information as before since we know that after there is a `a < 10`. And since this is a backward analysis when analyzing `if a < 10:` we cannot say $a_T\in[-INF,10]$ since before there is a `a > 0`.
+
+Then how do we unlock this apparent circular dependency? The only sensible way is to **not treat this particular $INF$ value as a real infinity**. We can describe it instead as **$?$**, a state where I can say: I do not have enough information about the bound on the range but for the moment the value it can assume can be $INF$ or something else, that will be established later (spoiler: in the join) or at the end of the analysis.
+
+So we need another information in our lattice, which definitely complicates a lot more the join operation, which we will try to understand now with some code examples.
+
+### THE NEW JOIN FUNCTION
+
+Previously the join was defined as:
+
+$\forall(a,b),(c,d)$ with $a,b,c,d \in \mathbb{I}$
+$$ J((a,b),(c,d))=(\min(a,c),\max(b,d)) $$
+
+And we can keep this definition for the numbers in $\mathbb{I}$. But now we need to add another state denoted as $?$ that we are not sure where should belong in our lattice. So let's see some examples to make some clarity:
+
+* $J((a,b),(?,?))$
+
+Well this is pretty easy, or is it? Maybe before we need to construct this interval (?,?) in order to understand what it is and how it behaves.
+
+Let's start from the example we can find above:
+
+* $J((a,?),(?,b))$
+
+Indeed we will find that in our case above $a=0$ and $b=10$. Then the situation we are in is (using a backward reasoning approach): "we know that from our program in order to return true we need $a<10$ and we also know that we need $a>0$". 
+
+So our intuition should tell us that the correct result should be $a\in[1,9]$. But is that really the case ? Let's see another simple example:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	else if a < 10:
+		return true
+	return false
+```
+
+Now we do have a similar situation as before, same ranges, but here we have another condition: it is not and *and* but it is an **or**, and our actual range should be $a\in[-INF,INF]$. 
+
+Then how do we differentiate this condition ? Can we even do it ? 
+
+Well actually yes. There is a huge difference between the two. That is **the join is performed only in the second example**, not the first !
+
+The first example performs an update (what the update does will be described later), the second must perform a join since they are two "parallel" conditions.
+
+Then it is obvious that the result should be in the end:
+
+$$J((a,?),(?,b)):(-INF,INF)$$
+
+NB: notice that the example works with $a\lesseqgtr b$ since we can be conservative and "cover the holes (or the overlaps) in our ranges"
+
+Is it $INF$ or $?$ , good question. But I think the result should be the first, intuitively you can think it in this way: arriving from two different paths we notice that we can return true with two unbounded ranges in opposite directions, so all the number line is covered.
+
+* $J((?,a),(b,?))$
+
+This is obviously the same case as above for commutativity.
+
+* $J((a,?),(b,?))$
+
+Well this is obviously easier, and we can easily show that:
+
+$$J((a,?),(b,?)):(\min(a,b),INF)$$
+
+For reference, I will leave a simple example that demonstrates it:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	else if a > 10:
+		return true
+	return false
+```
+
+Actually this example is interesting because it allows us to see the other case, indeed if we look at what happens in the false branch I need to join the two ranges $[?,0]$ and [?,10]. 
+
+Now would it be correct to say that the expected result is $[-INF,10]$ ? (applying the join to the opposite range using a maximum)
+
+Well yes, but it is obvious that 5 for example will never yield true, so a better range (actually correct) would be $[-INF,0]$. The only problem here is that we cannot extract the information that there is an `else if` condition, we do know only if-else.
+
+
+* $J((a,b),(c,?))$
+
+It is now pretty obvious that the result should be the same as above, indeed
+
+$$J((a,b),(c,?)):(\min(a,c),INF)$$
+
+*
+
+Now are there any other interesting cases ? Well this undefined value is starting to behave as **TOP**, but why cannot we just simply use it?
+
+The problem resides still in the exmaple above
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		if a < 10:
+			return true
+	return false
+```
+
+When passing through `a < 10` we do not know if in our path we will encounter also another conditional which will force our range to assume another boundary.
+
+That is why the transfer function needs to perform the **update**.
+
+## THE NEW UPDATE FUNCTION
+
+When passing through a conditional (`rlc.crb` for example) we need if possible to update the information about the range we are analyzing (not joining with another).
+
+Indeed above when we pass from `a > 0` we have already in mind the fact that we passed through `a < 10` since it is after in the graph of the program.
+
+Then we already have something as $a_T\in[?,9] \land a_F\in[10,?] $ in the lattice, since we also know where we will return true and false.
+
+So how does passing through `a > 0` affect our ranges ? Well which information can we extract? 
+
+We can think about it in this way: this if statement knows that if the condition is true it can affect both branches, and if the condition is false it will affect only the false branch (since it will never return true).
+
+So we can say that if the condition is true we will have the range $[1,?)$ and if false $(?,0]$. But remember, we are not passing through a join, then which information od we extract?
+
+Well along the true branch we already know a bound, and with this information we can also set a lower bound which yields to the full range $[1,9]$. 
+
+And along the false branch ? Weeeeeeeelll actually here let's analyze what is happening before thinking about what we update: we know that if the conditional will be evaluated to true we could finish in a yield false, but also if the conditional is false we will finish in a yield false.
+
+Sooooooo... ? This means that it does not matter if we pass through the true or false branch... we **do not gain more information** by evaluating both branches to true and false, then we can just ignore the operation.
+
+--------------------------------
+
+# CURRENT FORK PROJECT: CONSTRAINT ANALYSIS
+
+This branch is developed for implementing a specific compiler pass in MLIR for understanding the range of values that an argument passed to a RLC function can obtain.
+
+## FOR ME:
+
+Compile with : `--flattened --hide-position`
+
+To run the passes (after doing `ninja all`) look at `tool/rlc-opt/rlc-opt`
+
+Operations defined in `operations.td`
+
+When pushing: `git push --set-upstream rlc_constraint_analysis constraint_analysis` 
+
+## SOME INTRODUCTION ON THE FRAMEWORK AND ASSUMPTIONS
+
+We have to develop a monotonic framework, so we need to define explicitly *backward/forward* - *lattice* - *join* - *transfer function* .
+
+But before we start with that let's dive into some basic definitions and assumptions:
+
+* at the end we expect that our program will output for each input argument a label of the form $( min , max )$ ( NB: in formal notation they should be squared brackets since the bounds are included but we are programmers not mere mathematicians )
+* we can work under the assumption that $ min < max\quad\forall min,max \in \mathbb{I} $ , where $\mathbb{I}$ is our domain, indeed all the integer numbers between INT_MIN and INT_MAX ( we keep C++ notation here )
+* notice that here we take INT_MIN and INT_MAX as the upper bounds of our domain ( infinity if you want )
+* we can have that $min==max$ if we are **100% SURE** that a value is a constant
+* for the moment we do not have the **overflow** of our variables, for a bit of reasons: 1) a pita to code 2) we hope that the developers will not purposely make variables overflow because they do not hate us
+
+Now we are good to go and describe our particular analysys:
+
+### BACKWARD/FORWARD
+
+This is actually not a trivial idea and the solution to the problem comes after thinking a bit about the algorithm.
+
+If you are thinking that a forward analysis is the correct one (like I did the first time), well you are pretty wrong I'm sorry.
+
+The reason for this will become clear with an example later, for the moment just think that with a forward analysis if we perform an operation the new range we get is the one of the operation, so we can lose a bit of information on the initial variable unless we perform some backtracking.
+
+### LATTICE 
+
+As described in the assumptions above, we have a finite ( but decently big ) lattice of elements. To start we can define our interval as 
+
+$$ \mathbb{I}=\{ x\in\mathbb{Z}:INT \textunderscore MIN\leq x \leq INT \textunderscore MAX\ \} $$
+
+Where we remind that $INT \textunderscore MIN=-2^{31}$ and  $INT \textunderscore MAX=+2^{31}$ for 32 bit integer values.
+
+Before describing the lattice we are missing another important piece, which is that any of our functions can either return true or false, so we define it simply as $B=\{0,1\}$ (or true/false, as you prefer).
+
+Now our complete definition of the lattice is:
+
+$$ E=\{\mathbb{I}\times\mathbb{I}\}\times B $$
+
+But for simplicity we can just take it as $E=\mathbb{I}\times\mathbb{I}$ ( hopefully remembering that we have to keep track of both )
+
+We can impose a partial ordering on it, but this will be done in the next section when we analyze the funny join function
+
+NB: to be extremely precise the real lattice is a subset of the one described above since we work under the assumption that the left hand side (minimum) is less than the right hand side (maximum).
+
+### JOIN
+
+The join function is responsible for deciding which values should we consider when arriving from different paths of the program to a same node.
+
+It needs to satisfy some useful properties, indeed it should be idempotent, commutative and associative. 
+
+In our analysis is pretty straightforward to understand which is the join function.
+
+Let's try to figure it out with an example. 
+Suppose that my intervals to join are $(-5,8)$ and $(2,10)$. Then the minimums are -5 and 2 respectively. This means that from two different branches of our program ( they could be in a *for* loop for example ) we can have two different minimums. But by definition of a minimum it should be... the minimum, who whould have thougth!
+
+We can do a similar reasoning with the maximum and arrive at the conclusion that in our example the join should return $(-5,10)$.
+
+So we can say that in general:
+
+For a pair of tuples $(a,b),(c,d)$ with $a,b,c,d \in \mathbb{I}$ we can define the join between them as:
+
+$$ J((a,b),(c,d))=(\min(a,c),\max(b,d)) $$
+
+Notice how this works also at the bounds of our domain.
+
+Notice also how this creates a partial ordering relation, indeed for the minimum bound we have: $INT \textunderscore MIN>INT \textunderscore MIN+1>\cdots>0>1>\cdots INT \textunderscore MAX-1>INT \textunderscore MAX$ and for the maximum is reversed. 
+
+Why? well because we define a partial ordering as $a\subseteq b \Longleftrightarrow J(a,b)=b$.
+
+### TRANSFER FUNCTION
+
+The idea behind the transfer function is to understand how the properties of our analysis change in the single basic blocks of the program.
+
+Here in particular we need to analyze each single instruction that is derived after the **flattening** operation.
+
+Now each operation acts as a possible transformation on our range, so it is better to keep each analysis separated and to start with a trivial example:
+
+Consider the following pseudocode snippet:
+
+```
+fun trivial(int a):
+	
+	if(a > 0):
+
+		temp1 = a + 2;
+		if(temp1 < 10):
+
+			return true;
+		
+		endif
+
+	endif
+
+	return false;
+
+end
+```
+
+Now this is a simple program with a simple control-flow-graph (CFG). It is immediate to see that for the two returns the possible value of *a* is:
+
+* $true: a\in(1,7)$
+* $false: a\in(INT \textunderscore MIN,INT \textunderscore MAX)\setminus true $
+
+Note that we want disjointed sets ( we can also overestimate if we want )
+
+In order to understand how the algorithm should work we can fill a table of the form:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+
+Where we store at each step the information we found.
+
+Now I will not draw the CFG of this problem since one can easily imagine it, so we can start with our backward analysis.
+
+It should be indipendent which way we travel due to the properties of the join operation described above, so we can simply start by taking the path `if(a > 0) //false -> return false;`.
+
+Here we know that we arrived from a false branch so the conditional `(a > 0)` has evaluated to false, which means that we can update our information as :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,0)$| - |
+
+We can take another branch for example `if(temp1 < 10) //false -> return false;`. Here things start to become a bit funky but we can still work with it. Now we can do the same reasoning as above and the new table becomes:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,0)$| $(10,INT \textunderscore MAX)$ |
+
+We can continue going up this branch and encounter the operation `temp1 = a + 2` Which can be rewritten as `a = temp1 - 2` (NB: this for binary operations is a pretty easy transformation). Then if we are moving into false we can update our table but remaining very careful because we have already infromation about *a* in it, so we need to join:
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $J((INT \textunderscore MIN,0),(8,INT \textunderscore MAX-2))$| $(10,INT \textunderscore MAX)$ |
+
+Now performing the join we can collapse the information as :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | -     | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
+
+The only thing that we are left with in this branch is the fact that we arrive from `if(a > 0) //true`, so we should add to our table the information $(1,INT \textunderscore MAX)$ but we get the same, since it is a subset.
+
+We are missing only one branch which is `if(temp1 < 10) //true -> return true;`. Now it should be pretty easy to compile the table since we understood how the algorithm works, so we start with
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| -    | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MIN -2)$| $(10,INT \textunderscore MAX)$ |
+
+Now we pass in `temp1 = a + 2` which gives a new value to *a* :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| $(INT \textunderscore MIN -2,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX)$| $(10,INT \textunderscore MAX)$ |
+
+And finally we know that we passed from `if(a > 0) //true` but remember, this is not a join but a transformation of our interval. So in the end the final table we compile is :
+
+| TRUE |       | FALSE |       |
+|------|-------|-------|-------|
+| a    | temp1 | a     | temp1 |
+| $(1,7)$ | $(INT \textunderscore MIN,9)$ | $(INT \textunderscore MIN,INT \textunderscore MAX -2)$| $(10,INT \textunderscore MAX)$ |
+
+At the end we can discard the temporary information and perform a disjunction of the sets to obtain the result above.
+
+We can actually see that our final table gives us a bit more infromation, which is that if we for example decide to take *a* as INT_MAX-1 we will not get a meaningful answer ( probabily correct in this particular case ) because of overflow problems.
+
+## OPERATIONS
+
+We can start discussing which are the main operations treated in this analysis. For the moment i will subdivide them in :
+
+* ARITHMETIC OPERATIONS ( + , * , - , /)
+* BOOLEAN OPERATORS 
+* ASSIGNMENTS 
+* CONDITIONALS
+
+Starting from the easiest :
+
+### ADDITION
+
+Now the addition is a pretty easy operator to resolve, since we can consider it as a shift of our range of values.
+
+Then we can easily formalize the addition as:
+
+$$ (a,b)+(c,d):(a+b,c+d) $$
+
+Remembering that $a,b,c,d\in\mathbb{I}$.
+
+NB: pay attention to the overflows
+
+### MULTIPLICATION 
+
+Multiplication is a bit more tricky but the general idea is that a multiplication by an integer number is a rescaling of my interval, with the only catch that if the number is negative we need to first invert it w.r.t. 0.
+
+For example: $(-10,-3)\cdot(-2)=(3,10)\cdot2=(6,20)$.
+
+Before presenting the general algorithm is interesting to formalize the multiplication by a scalar, so that we have it and do not forget it:
+
+Assume $a,b,c\in\mathbb{I}$, then
+
+$$ (a,b)\cdot c:(\min(a\cdot c,b\cdot c),\max(a\cdot c,b\cdot c)) $$
+
+Then we can write a general algorithm, derived from all the possible transformations of the range:
+
+```
+(a,b)*(c,d):(min,max)
+
+start
+
+if b < 0 :
+	if c > 0 :		//(-5,-3)*(3,5):(-25,-9)
+		min = a * d
+		max = b * c
+	else if d < 0 :	//(-5,-3)*(-5,-3):(9,25)
+		min = b * d
+		max = a * c
+	else :			//(-5,-3)*(-3,5):(-25,15)
+		min = a * d 
+		max = a * c
+else if a > 0 : 
+	if c > 0 :		//(3,5)*(3,5):(9,25)
+		min = a * c
+		max = b * d
+	else if d < 0 :	//(3,5)*(-5,-3):(-25,-9)
+		min = b * c
+		max = a * d
+	else :			//(3,5)*(-3,5):(-15,25)
+		min = b * c
+		max = b * d
+else :
+	if c > 0 :		//(-3,5)*(3,5):(-15,25)
+		min = a * d
+		max = b * d
+	else if d < 0 :	//(-3,5)*(-5,-3):(-15,9)
+		min = b * c
+		max = a * d
+	else : 			//(-3,5)*(-3,5):(-15,25)
+		min = min( b * c , a * d )
+		max = max( a * c , b * d )
+
+end
+```
+
+I left also some comments with an example for each case.
+
+NB: this can be rearranged in a more efficient way.
+
+### SUBTRACTION
+
+So, subtraction actually is not that different from addition, so we can basically use the same formula:
+
+$$ (a,b)-(c,d):(a-b,c-d) $$
+
+NB: the only thing to remember here is the non-commutativity
+
+### DIVISION
+
+Now i think division will be actually incredibly fun to do.
+
+We have to remember that integer division ( at least in C and C++ ) truncates towards zero, this means that $5/2=2$ and $(-5)/2=-2$.
+
+As the multiplication, the division is a rescaling of the range, but we have to be careful because we have a potential loss of information due to the truncation.
+
+Before understanding the general case let's analyze also here the case for division by a constant:
+
+Assume $a,b,c\in\mathbb{I}$, then
+
+$$ (a,b)/c:(\min(a/c,b/c),\max(a/c,b/c)) $$
+
+We can construct an general algorithm similar to the one above since the signs should be treated the same way, but with some small changes
+
+```
+(a,b)/(c,d):(min,max)
+
+start
+
+if b < 0 :
+	if c > 0 :		//(-10,-3)/(3,10):(-3,0)
+		min = a / c
+		max = b / d
+	else if d < 0 :	//(-10,-3)/(-10,-3):(0,3)
+		min = b / c
+		max = a / d
+	else :			//(-10,-3)/(-3,10):(-10,10)
+		min = a
+		max = -a
+else if a > 0 : 
+	if c > 0 :		//(3,10)/(3,10):(0,3)
+		min = a / d
+		max = b / c
+	else if d < 0 :	//(3,10)/(-10,-3):(-3,0)
+		min = b / d
+		max = a / c
+	else :			//(3,10)/(-3,10):(-10,10)
+		min = -b
+		max = b
+else :
+	if c > 0 :		//(-3,10)/(3,10):(-1,3)
+		min = a / c
+		max = b / c
+	else if d < 0 :	//(-3,10)/(-10,-3):(-3,1)
+		min = b / d
+		max = a / d
+	else : 			//(-3,10)/(-3,10):(-3,10)
+		min = a
+		max = b
+
+end
+```
+
+Here we can perform some interesting observations:
+
+* there is a clear loss of information due to the truncation
+* when the range (c,d) is discording this means that our range will include the numbers -1 and 1 => some cases can be simplified
+
+NB: is this ok ?
+
+### REMAINDER 
+
+For the remainder I think we can perform some basic assumptions, indeed:
+
+* we cannot perform the reminder with negative numbers as a base. If for some funky reason a programmer will try to do it he/she/it should be retroactively aborted (this is a citation to a famous programmer).
+
+* can we perform the operation with a range of numbers ? Sure why not, but we still assume everything greater than zero.
+
+Then under these assumptions the operation becomes actually quite simple, indeed:
+
+Assume $a,b,c,d\in\mathbb{I}^{+}$, then
+
+$$ (a,b)rem(c,d):(0,\max(b,d)) $$
+
+With $\mathbb{I}^{+}=\{a\in\mathbb{I}:a\geq0\}$
+
+Also here we notice an important loss of information that we need to cope with.
+
+## ACTUAL ALGORITHM
+
+Now everyone can do this kind of reasoning, but we need someone that integrates this analysis using a real tool (shame on you mathematicians! ). Aaaand here I am implementing it (or at least trying to).
+
+More or less I have an idea of what the algorithm should do. Indeed a pseudo-pseudo code should be:
+
+```
+input : flattened_IR
+output: flattened_IR_but_cooler 
+
+algorithm:
+
+	foreach (flat_function in flattened_IR):
+
+		// ACTUAL ANALYSIS
+
+		con = constraint_analysis(flat_function);
+
+		// ATTACH TO THE NEW IR THE INFORMATION FOUND
+
+		attach_arg_ranges_to_function(flat_function, con)
+
+
+```
+
+Now we encounter our first problem (this early? yes, such is the life of a programmer) : the analysis should be performed for each argument or for each function? (in mlir is the same as asking if we want a sparse or dense analysis) Because maybe they can be summed together and it is possible that i know the value of one before another. But if this is the case which argument should i try to evaluate first?
+
+Sooooooo... what to do? Assuming that crying is not an option, we actually might have a solution. The solution is indeed hidden in the fact that we are performing a backward analysis! Let's assume that we have a case of `temp=a+b if(temp>0) return true else return false`, We do not know the range of both a and b, but we can say that if we return true we have $temp\in(0,INT \textunderscore MAX)$ and from that we can derive for both a and b that we have no information. Indeed the only information that we can pass along is that they are both non-negative and that the modulus of one is greater that the modulus of the other one. We still have no information on the constraints, they can be any number.
+
+Then in the end... just using an analysis on the function should be enough.
+
+Now be careful, the pseudo-pseudo-algorithm above is the algorithm the pass should perform because the analysis works on the dataflow, everything else works on the simple IR.
+
+So now we have to define our lattice `mlir::rlc::ConstraintsLattice` and start from a `mlir::DenseBackwardDataFlowAnalysis`.
+
+## A MORE IN DEPTH ANALYSIS
+
+After writing some code, I realized that the algorithm is not that trivial as I initially thought. There are some tricky complications that make the whole mathematical formulation a lot more complicated.
+
+The transfer function pretty much stays the same (well in reality not, we need to modify it a bit), what changes and becomes more tricky is the definition of the lattice and of the join function.
+
+Why ? Let's try to understand first what the whole analysis must do, construct the lattice from there, see some complications, reconstruct the lattice, and repeat in a loop until we reach a fixed point (hopefully we will).
+
+Then at this point in time our problem becomes: *given a function that returns a boolean value, can i deduce the ranges of the input values for which the function **can** return true or false?* .
+
+I have highlighted the second *can* because it is very important: indeed we do not want to find the exact ranges, we can use some "large" assumptions that help us.
+
+Sooo... let's start from an example then and understand how our analysis should behave.
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	return false
+```
+
+Ok so wee need two ranges, one for the `return true` and one for the `return false` branches. And also we can easily arrive at the conclusion that the ranges are $a_T\in[1,INF] \land a_F\in[-INF,0] $ ,where INF represents the biggest integer that can be represented.
+
+But how do we arrive at this conclusion algorithmically? A possible IR that we can obtain from this function can be: 
+
+```
+ %3 = rlc.flat_fun "foo" (!rlc.int<64>) -> !rlc.bool ["a"] {
+  } {
+  ^bb0(%arg0: !rlc.int<64>):
+    %4 = rlc.ref @rl_can_foo__int64_t_r_bool : (!rlc.int<64>) -> !rlc.bool
+    %5 = rlc.call %4 : (!rlc.int<64>) -> !rlc.bool(%arg0) {is_member_call = false} : (!rlc.int<64>) -> !rlc.bool
+    rlc.crb %5 !rlc.bool ^bb2 ^bb1
+  ^bb1:  // pred: ^bb0
+    rlc.abort
+  ^bb2:  // pred: ^bb0
+    %6 = rlc.constant 0 : i64 !rlc.int<64>
+    %7 = rlc.greater %6 : !rlc.int<64>, %arg0 : !rlc.int<64> -> !rlc.bool
+    rlc.crb %7 !rlc.bool ^bb4 ^bb3
+  ^bb3:  // pred: ^bb2
+    %8 = rlc.constant false !rlc.bool
+    rlc.yield %8 : !rlc.bool
+  ^bb4:  // pred: ^bb2
+    %9 = rlc.constant true !rlc.bool
+    rlc.yield %9 : !rlc.bool
+  }
+```
+
+So at first this may seem a lot for a simple function like that but it contains every passage that is important for its correct execution.
+
+Here we can focus only on the `if` part which can be found in the *bb2*. At the end there is `rlc.crb` which expresses a conditional branch, so if `%7` is `true` we will end in *bb4* which returns **true** and if is `false` we will end in *bb3* which returns **false**.
+
+The main part is this `rlc.crb` which tells us where to jump. Then when we arrive to analyze this operation what do we need to do?
+
+Now assume that we analyze this operation in isolation: what information do we need in order to extract the information about our input range?
+
+Well, first of all of course we need to know the condition, `%7` in this case, and extract the information: "hey here we are checking if `arg0` is greater than a constant `0`". 
+
+Then we have to ask, ok where are we jumping to ? Well if the result of the conditional is `true` we are jumping to a place where there will be a `return true`, and if `false` we jump to `return false`.
+
+But now notice that if we work in isolation we do not know that the next basic block will return the function, it maybe can bring us to other operations, conditionals... and so on. 
+Then let's be smart from the start: we need some information that tells us if our true branch will yield a `return true` or a `return false` (later we will show an example where both have to be considered).
+
+This information can easily be extracted, just carry in the lattice two flags, one for *true* and one for *false*, updated when our graph traversal reaches the `yield` (note that the join operation will carry on both of the flags if i am joining from two different paths).
+
+Ok awesome then if we know this information at this moment we can say: if the conditional `a>0` is *true* then we know we will reach the `return true`. So construct the information: $a_T\in[1,INF]$ (for the other branch it is easy to associate the other range).
+
+Cool, but now what bothers me is: what does that $INF$ represent? Because when we analyze this operation we are not sure of what comes after (well if we perform a backward analysis we do, but this is actually the whole point) and for example we could have a situation like this:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		if a < 10:
+			return true
+	return false
+```
+
+Now if we try to analyze `if a > 0:` we cannot extract the same information as before since we know that after there is a `a < 10`. And since this is a backward analysis when analyzing `if a < 10:` we cannot say $a_T\in[-INF,10]$ since before there is a `a > 0`.
+
+Then how do we unlock this apparent circular dependency? The only sensible way is to **not treat this particular $INF$ value as a real infinity**. We can describe it instead as **$?$**, a state where I can say: I do not have enough information about the bound on the range but for the moment the value it can assume can be $INF$ or something else, that will be established later (spoiler: in the join) or at the end of the analysis.
+
+So we need another information in our lattice, which definitely complicates a lot more the join operation, which we will try to understand now with some code examples.
+
+### THE NEW JOIN FUNCTION
+
+Previously the join was defined as:
+
+$\forall(a,b),(c,d)$ with $a,b,c,d \in \mathbb{I}$
+$$ J((a,b),(c,d))=(\min(a,c),\max(b,d)) $$
+
+And we can keep this definition for the numbers in $\mathbb{I}$. But now we need to add another state denoted as $?$ that we are not sure where should belong in our lattice. So let's see some examples to make some clarity:
+
+* $J((a,b),(?,?))$
+
+Well this is pretty easy, or is it? Maybe before we need to construct this interval (?,?) in order to understand what it is and how it behaves.
+
+Let's start from the example we can find above:
+
+* $J((a,?),(?,b))$
+
+Indeed we will find that in our case above $a=0$ and $b=10$. Then the situation we are in is (using a backward reasoning approach): "we know that from our program in order to return true we need $a<10$ and we also know that we need $a>0$". 
+
+So our intuition should tell us that the correct result should be $a\in[1,9]$. But is that really the case ? Let's see another simple example:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	else if a < 10:
+		return true
+	return false
+```
+
+Now we do have a similar situation as before, same ranges, but here we have another condition: it is not and *and* but it is an **or**, and our actual range should be $a\in[-INF,INF]$. 
+
+Then how do we differentiate this condition ? Can we even do it ? 
+
+Well actually yes. There is a huge difference between the two. That is **the join is performed only in the second example**, not the first !
+
+The first example performs an update (what the update does will be described later), the second must perform a join since they are two "parallel" conditions.
+
+Then it is obvious that the result should be in the end:
+
+$$J((a,?),(?,b)):(-INF,INF)$$
+
+NB: notice that the example works with $a\lesseqgtr b$ since we can be conservative and "cover the holes (or the overlaps) in our ranges"
+
+Is it $INF$ or $?$ , good question. But I think the result should be the first, intuitively you can think it in this way: arriving from two different paths we notice that we can return true with two unbounded ranges in opposite directions, so all the number line is covered.
+
+* $J((?,a),(b,?))$
+
+This is obviously the same case as above for commutativity.
+
+* $J((a,?),(b,?))$
+
+Well this is obviously easier, and we can easily show that:
+
+$$J((a,?),(b,?)):(\min(a,b),INF)$$
+
+For reference, I will leave a simple example that demonstrates it:
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		return true
+	else if a > 10:
+		return true
+	return false
+```
+
+Actually this example is interesting because it allows us to see the other case, indeed if we look at what happens in the false branch I need to join the two ranges $[?,0]$ and [?,10]. 
+
+Now would it be correct to say that the expected result is $[-INF,10]$ ? (applying the join to the opposite range using a maximum)
+
+Well yes, but it is obvious that 5 for example will never yield true, so a better range (actually correct) would be $[-INF,0]$. The only problem here is that we cannot extract the information that there is an `else if` condition, we do know only if-else.
+
+
+* $J((a,b),(c,?))$
+
+It is now pretty obvious that the result should be the same as above, indeed
+
+$$J((a,b),(c,?)):(\min(a,c),INF)$$
+
+*
+
+Now are there any other interesting cases ? Well this undefined value is starting to behave as **TOP**, but why cannot we just simply use it?
+
+The problem resides still in the exmaple above
+
+```
+fun foo(Int a) -> Bool:
+	if a > 0:
+		if a < 10:
+			return true
+	return false
+```
+
+When passing through `a < 10` we do not know if in our path we will encounter also another conditional which will force our range to assume another boundary.
+
+That is why the transfer function needs to perform the **update**.
+
+## THE NEW UPDATE FUNCTION
+
+When passing through a conditional (`rlc.crb` for example) we need if possible to update the information about the range we are analyzing (not joining with another).
+
+Indeed above when we pass from `a > 0` we have already in mind the fact that we passed through `a < 10` since it is after in the graph of the program.
+
+Then we already have something as $a_T\in[?,9] \land a_F\in[10,?] $ in the lattice, since we also know where we will return true and false.
+
+So how does passing through `a > 0` affect our ranges ? Well which information can we extract? 
+
+We can think about it in this way: this if statement knows that if the condition is true it can affect both branches, and if the condition is false it will affect only the false branch (since it will never return true).
+
+So we can say that if the condition is true we will have the range $[1,?)$ and if false $(?,0]$. But remember, we are not passing through a join, then which information od we extract?
+
+Well along the true branch we already know a bound, and with this information we can also set a lower bound which yields to the full range $[1,9]$. 
+
+And along the false branch ? Weeeeeeeelll actually here let's analyze what is happening before thinking about what we update: we know that if the conditional will be evaluated to true we could finish in a yield false, but also if the conditional is false we will finish in a yield false.
+
+Sooooooo... ? This means that it does not matter if we pass through the true or false branch... we **do not gain more information** by evaluating both branches to true and false, then we can just ignore the operation.
+
