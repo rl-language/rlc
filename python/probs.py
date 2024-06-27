@@ -5,6 +5,7 @@ import numpy as np
 from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.algorithms.algorithm import Algorithm
 from ml.raylib.module_config import get_config
+from ray.rllib.algorithms.ppo import PPOConfig, PPO
 
 from command_line import load_simulation_from_args, make_rlc_argparse
 
@@ -14,7 +15,7 @@ from command_line import load_simulation_from_args, make_rlc_argparse
 def main():
     parser = make_rlc_argparse("probs", description="print the probability of executing each action")
     parser.add_argument("checkpoint", type=str)
-    parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
+    parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--pretty-print", "-pp", action="store_true", default=False)
     parser.add_argument("--state", "-s", default="")
 
@@ -33,22 +34,17 @@ def main():
 
         num_players = (
             1
-            if not args.no_one_agent_per_player
+            if args.true_self_play
             else sim.module.functions.get_num_players()
         )
         ppo_config, hyperopt_search = get_config(
             sim.wrapper_path, num_players, exploration=False
         )
 
-        num_players = (
-            1
-            if not args.no_one_agent_per_player
-            else sim.module.functions.get_num_players()
-        )
         model = Algorithm.from_checkpoint(args.checkpoint)
         for i in range(num_players):
             model.workers.local_worker().module[f"p{i}"].load_state(
-                f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/"
+                f"{args.checkpoint}/learner/net_p{i}/"
             )
         env = RLCEnvironment(wrapper_path=wrapper_path)
         state_to_load = args.state if args.state != "" else None
@@ -63,7 +59,7 @@ def main():
             else:
                 env.wrapper.functions.print(env.state)
             print("--------- probs --------------")
-            action = env.print_probs(model)
+            action = env.print_probs(model, policy_to_use=0 if args.true_self_play else None)
             print("------------------------------")
             if args.pretty_print:
                 user_input = input()

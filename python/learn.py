@@ -67,7 +67,7 @@ def get_multi_train(num_players):
     return train_impl
 
 
-def get_trainer(output_path, total_train_iterations):
+def get_trainer(output_path, total_train_iterations, num_players):
     def single_agent_train(config):
         config = PPOConfig().update_from_dict(config)
         model = config.build()
@@ -76,6 +76,16 @@ def get_trainer(output_path, total_train_iterations):
                 train.report(model.train())
             if output_path != "":
                 model.save(output_path)
+                for player_id in range(num_players):
+                    if not os.path.exists(f"{output_path}/learner/net_p{player_id}"):
+                        os.makedirs(f"{output_path}/learner/net_p{player_id}")
+                    model.workers.local_worker().module[f"p{player_id}"].save_state(
+                        f"{output_path}/learner/net_p{player_id}"
+                    )
+                    model.workers.local_worker().module[f"p{player_id}"].load_state(
+                        f"{output_path}/learner/net_p{player_id}"
+                    )
+
         model.save()
         model.stop()
 
@@ -107,13 +117,11 @@ def main():
         from ray import air, tune
         args.output = os.path.abspath(args.output)
 
+        num_players =  1 if args.true_self_play else sim.module.functions.get_num_players()
+
         ppo_config, hyperopt_search = get_config(
             sim.wrapper_path,
-            (
-                1
-                if args.true_self_play
-                else sim.module.functions.get_num_players()
-            ),
+            num_players,
             league_play=args.league_play
         )
         tune.register_env(
@@ -139,7 +147,7 @@ def main():
                 (
                     get_multi_train(sim.module.functions.get_num_players())
                     if args.league_play
-                    else get_trainer(args.output, total_train_iterations=args.total_train_iterations)
+                    else get_trainer(args.output, total_train_iterations=args.total_train_iterations, num_players=num_players)
                 ),
                 resources=resources,
             ),

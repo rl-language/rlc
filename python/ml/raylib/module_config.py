@@ -50,7 +50,8 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
             ),
             policies_to_train=[f"p{x}" for x in range(num_agents)],
         )
-        .experimental(_enable_new_api_stack=True, _disable_preprocessor_api=True)
+        .experimental(_disable_preprocessor_api=True)
+        .api_stack(enable_rl_module_and_learner=True,  enable_env_runner_and_connector_v2=True)
         .rl_module(
             rl_module_spec=MultiAgentRLModuleSpec(
                 module_specs=(
@@ -59,7 +60,7 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
                             TorchActionMaskRLM,
                             observation_space=RLCEnvironment(
                                 wrapper_path=wrapper_path
-                            ).unwrapper_space,
+                            ).observation_space[0],
                         )
                         for x in range(num_agents * 2)
                     }
@@ -69,7 +70,7 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
                             TorchActionMaskRLM,
                             observation_space=RLCEnvironment(
                                 wrapper_path=wrapper_path
-                            ).unwrapper_space,
+                            ).observation_space[0],
                         )
                     }
                 ),
@@ -87,8 +88,8 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
                 )
             ),
             evaluation_num_workers=1,
-            evaluation_num_episodes=1,
             evaluation_duration=1,
+            evaluation_duration_unit='episodes',
         )
         .resources(
             num_gpus=1 if torch.cuda.is_available() else 0,
@@ -101,7 +102,10 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
             env_config={
                 "observation_space": RLCEnvironment(
                     wrapper_path=wrapper_path
-                ).observation_space
+                ).observation_space,
+                "action_space": RLCEnvironment(
+                    wrapper_path=wrapper_path
+                ).action_space,
             },
         )
         .rollouts(
@@ -179,6 +183,6 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
     }
 
     hyperopt_search = HyperOptSearch(
-        space, "episode_reward_mean", mode="max", points_to_evaluate=[initial3]
+        space, "env_runners/episode_return_mean", mode="max", points_to_evaluate=[initial3]
     )
     return ppo_config, hyperopt_search

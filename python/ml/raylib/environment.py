@@ -59,7 +59,7 @@ class RLCEnvironment(MultiAgentEnv):
         action = self.wrapper.AnyGameAction()
         self.num_agents = self.wrapper.functions.get_num_players()
         self._actions = self.wrapper.functions.enumerate(action)
-        self.state_size = self.wrapper.functions.observation_tensor_size(self.wrapper.Game())
+        self.state_size = self.wrapper.functions.observation_tensor_size(self.wrapper.Game()) + 1
         self.actions = []
         for i in range(self.wrapper.functions.size(self._actions)):
             self.actions.append(self.wrapper.functions.get(self._actions, i).contents)
@@ -212,6 +212,7 @@ class RLCEnvironment(MultiAgentEnv):
           serialized = self.wrapper.VectorTdoubleT()
           self.wrapper.functions.resize(serialized, self.state_size)
           self.wrapper.functions.to_observation_tensor(self.state, i, serialized)
+          self.wrapper.functions.append(serialized, float(i))
 
           vec = np.rint(
             np.ctypeslib.as_array(
@@ -246,9 +247,10 @@ class RLCEnvironment(MultiAgentEnv):
 
         return self.actions[sampled]
 
-    def print_probs(self, model):
+    def print_probs(self, model, policy_to_use=None):
       obs = self._current_state()
-      policy_id = f"p{self.current_player()}"
+      policy_to_use = policy_to_use if policy_to_use != None else self.current_player()
+      policy_id = f"p{policy_to_use}"
       module = model.get_module(policy_id)
       obs[self.current_player()]["observations"] = torch.tensor(np.expand_dims(obs[self.current_player()]["observations"], 0), dtype=torch.float32)
       obs[self.current_player()]["action_mask"] = torch.tensor(np.expand_dims(obs[self.current_player()]["action_mask"], 0), dtype=torch.float32)

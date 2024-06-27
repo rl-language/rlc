@@ -52,7 +52,7 @@ def main():
         model = Algorithm.from_checkpoint(args.checkpoint)
         for i in range(num_players):
             model.workers.local_worker().module[f"p{i}"].load_state(
-                f"{args.checkpoint}/learner/module_state/p{i}/module_state_dir/"
+                f"{args.checkpoint}/learner/net_p{i}/"
             )
         env = RLCEnvironment(wrapper_path=wrapper_path, solve_randomness=False)
         out = open(args.output, "w+") if args.output != "" else sys.stdout
