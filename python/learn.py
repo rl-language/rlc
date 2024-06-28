@@ -30,6 +30,20 @@ from typing import (
     Union,
 )
 
+def check_ray_bug():
+    import ray.rllib.algorithms.ppo.ppo as ppo
+    file_path = os.path.join(os.path.dirname(ppo.__file__), "ppo.py")
+    found = False
+    with open(file_path, "r") as file:
+        contents = file.readlines()
+        for line in contents:
+            if "default=0," in line:
+                found = True
+    if not found:
+        print("The installed version of Ray, a library RLC depends upon, is known to be bugged.\nRun rlc-fix-ray to patch it. This will modify the installed file.")
+        exit(-1)
+
+
 
 def get_multi_train(num_players):
     def train_impl(config, fixed_nets=0):
@@ -93,6 +107,7 @@ def get_trainer(output_path, total_train_iterations, num_players):
 
 
 def main():
+    check_ray_bug()
     parser = make_rlc_argparse("train", description="runs a action of the simulation")
     parser.add_argument(
         "--output",

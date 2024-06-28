@@ -51,7 +51,7 @@ extra_files_lib = package_files(["./lib/"], "lib")
 
 setup(
     name="rl_language",
-    version="0.1.16",
+    version="0.1.19",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
@@ -68,6 +68,7 @@ setup(
             "rlc-play=impl.play:main",
             "rlc-random=impl.solve:main",
             "rlc-probs=impl.probs:main",
+            "rlc-fix-ray=impl.fix-ray:main",
         ],
     },
     classifiers=[
