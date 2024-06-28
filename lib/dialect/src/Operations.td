@@ -200,7 +200,7 @@ def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeChe
   }];
 }
 
-def RLC_ContinueStatement : RLC_Dialect<"continue", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_ContinueStatement : RLC_Dialect<"continue", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]> ]> {
   let summary = "continue.";
 
   let description = [{
@@ -217,7 +217,7 @@ def RLC_ContinueStatement : RLC_Dialect<"continue", [Terminator, DeclareOpInterf
 
 }
 
-def RLC_BreakStatement : RLC_Dialect<"break", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_BreakStatement : RLC_Dialect<"break", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "break.";
 
   let description = [{

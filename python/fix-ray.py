@@ -15,7 +15,7 @@ def main():
     print("ppo.py was already fixed")
     exit()
 
-  contents.insert(535, "                            default=0,\n")
+  contents.insert(535, "                            ,default=0,\n")
 
   with open(file_path, "w") as file:
     file.writelines(contents)

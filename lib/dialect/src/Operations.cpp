@@ -2289,6 +2289,50 @@ void mlir::rlc::ShortCircuitingOr::getRegionInvocationBounds(
 	invocationBounds.push_back(mlir::InvocationBounds(0, 1));
 }
 
+void mlir::rlc::ContinueStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the on_exit_scope code once
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::ContinueStatement::getSuccessorRegions(
+		mlir::RegionBranchPoint succ,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	if (succ.isParent())
+		regions.push_back(
+				mlir::RegionSuccessor(&getOnEnd(), getOnEnd().front().getArguments()));
+
+	if (succ.getRegionOrNull() == &getOnEnd())
+	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+}
+
+void mlir::rlc::BreakStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the on_exit_scope code once
+	invocationBounds.push_back(mlir::InvocationBounds(1, 1));
+}
+
+void mlir::rlc::BreakStatement::getSuccessorRegions(
+		mlir::RegionBranchPoint succ,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	if (succ.isParent())
+		regions.push_back(
+				mlir::RegionSuccessor(&getOnEnd(), getOnEnd().front().getArguments()));
+
+	if (succ.getRegionOrNull() == &getOnEnd())
+	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+}
+
 void mlir::rlc::ShortCircuitingAnd::getRegionInvocationBounds(
 		llvm::ArrayRef<mlir::Attribute> operands,
 		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
