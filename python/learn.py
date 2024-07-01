@@ -44,7 +44,7 @@ def check_ray_bug():
         exit(-1)
 
 
-def save(model, output_path):
+def save(model, output_path, num_players):
     if output_path != "":
       model.save(output_path)
       for player_id in range(num_players):
@@ -87,7 +87,7 @@ def get_multi_train(num_players, output):
                             policies=[f"p{i + num_players}" for i in range(num_players)]
                         )
             model.save(f"./checkpoint")
-            save(model, output)
+            save(model, output, num_players)
         model.save()
         model.stop()
 
@@ -101,7 +101,7 @@ def get_trainer(output_path, total_train_iterations, num_players):
         for _ in range(math.ceil(total_train_iterations / 10)):
             for i in range(10):
                 train.report(model.train())
-            save(model, output_path)
+            save(model, output_path, num_players)
 
         model.save()
         model.stop()
