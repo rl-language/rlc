@@ -58,7 +58,7 @@ setup(
     include_package_data=True,
     data_files=extra_files_bin
     + extra_files_lib
-    + [("./bin/impl", ["./test.py", "./action.py", "./learn.py", "./play.py", "./solve.py", "./probs.py"])],
+    + [("./bin/impl", ["./test.py", "./action.py", "./learn.py", "./play.py", "./solve.py", "./probs.py", "./fix_ray.py"])],
     install_requires=read_requirements("../run-requirements.txt"),
     entry_points={
         "console_scripts": [
@@ -68,7 +68,7 @@ setup(
             "rlc-play=impl.play:main",
             "rlc-random=impl.solve:main",
             "rlc-probs=impl.probs:main",
-            "rlc-fix-ray=impl.fix-ray:main",
+            "rlc-fix-ray=impl.fix_ray:main",
         ],
     },
     classifiers=[
