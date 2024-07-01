@@ -44,8 +44,20 @@ def check_ray_bug():
         exit(-1)
 
 
+def save(model, output_path):
+    if output_path != "":
+      model.save(output_path)
+      for player_id in range(num_players):
+          if not os.path.exists(f"{output_path}/learner/net_p{player_id}"):
+              os.makedirs(f"{output_path}/learner/net_p{player_id}")
+          model.workers.local_worker().module[f"p{player_id}"].save_state(
+              f"{output_path}/learner/net_p{player_id}"
+          )
+          model.workers.local_worker().module[f"p{player_id}"].load_state(
+              f"{output_path}/learner/net_p{player_id}"
+          )
 
-def get_multi_train(num_players):
+def get_multi_train(num_players, output):
     def train_impl(config, fixed_nets=0):
         config = PPOConfig().update_from_dict(config)
         model = config.build()
@@ -75,6 +87,7 @@ def get_multi_train(num_players):
                             policies=[f"p{i + num_players}" for i in range(num_players)]
                         )
             model.save(f"./checkpoint")
+            save(model, output)
         model.save()
         model.stop()
 
@@ -88,17 +101,7 @@ def get_trainer(output_path, total_train_iterations, num_players):
         for _ in range(math.ceil(total_train_iterations / 10)):
             for i in range(10):
                 train.report(model.train())
-            if output_path != "":
-                model.save(output_path)
-                for player_id in range(num_players):
-                    if not os.path.exists(f"{output_path}/learner/net_p{player_id}"):
-                        os.makedirs(f"{output_path}/learner/net_p{player_id}")
-                    model.workers.local_worker().module[f"p{player_id}"].save_state(
-                        f"{output_path}/learner/net_p{player_id}"
-                    )
-                    model.workers.local_worker().module[f"p{player_id}"].load_state(
-                        f"{output_path}/learner/net_p{player_id}"
-                    )
+            save(model, output_path)
 
         model.save()
         model.stop()
@@ -160,7 +163,7 @@ def main():
         tuner = tune.Tuner(
             tune.with_resources(
                 (
-                    get_multi_train(sim.module.functions.get_num_players())
+                    get_multi_train(sim.module.functions.get_num_players(), args.output)
                     if args.league_play
                     else get_trainer(args.output, total_train_iterations=args.total_train_iterations, num_players=num_players)
                 ),

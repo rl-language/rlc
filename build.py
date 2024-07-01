@@ -60,6 +60,7 @@ def build_rlc(
         "Ninja",
         "-DMLIR_DIR={}/lib/cmake/mlir".format(llvm_install_dir),
         "-DLLVM_DIR={}/lib/cmake/llvm".format(llvm_install_dir),
+        "-DClang_DIR={}/lib/cmake/clang".format(llvm_install_dir),
         f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}",
         f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++",
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),

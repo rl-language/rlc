@@ -15,9 +15,13 @@ limitations under the License.
 */
 #include "rlc/backend/BackEnd.hpp"
 
+#include <clang/Driver/Job.h>
 #include <string>
 #include <vector>
 
+#include "clang/Driver/Compilation.h"
+#include "clang/Driver/Driver.h"
+#include "clang/Driver/Tool.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
@@ -272,6 +276,68 @@ static void compile(
 	OS.flush();
 }
 
+static mlir::LogicalResult getLinkerInvocation(
+		llvm::StringRef clangPath,
+		llvm::ArrayRef<string> clangInvocation,
+		llvm::StringRef triple)
+{
+	llvm::SmallVector<const char *, 4> args;
+	for (auto &arg : clangInvocation)
+		args.push_back(arg.data());
+	llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> VFS =
+			new llvm::vfs::OverlayFileSystem(llvm::vfs::getRealFileSystem());
+	llvm::IntrusiveRefCntPtr diagIds(new clang::DiagnosticIDs());
+	llvm::IntrusiveRefCntPtr opts(new clang::DiagnosticOptions());
+	clang::DiagnosticsEngine engine(diagIds, opts);
+	clang::driver::Driver driver(
+			clangInvocation[0], triple, engine, "clang LLVM Compiler", VFS);
+	driver.setCheckInputsExist(false);
+	auto binDir = llvm::sys::path::parent_path(clangPath);
+	auto installDir = llvm::sys::path::parent_path(binDir);
+	llvm::SmallVector<char, 4> clangResourceDir;
+	llvm::sys::path::append(clangResourceDir, installDir, "lib", "clang", "18");
+	driver.ResourceDir =
+			llvm::StringRef(clangResourceDir.data(), clangResourceDir.size());
+
+	std::unique_ptr<clang::driver::Compilation> C(driver.BuildCompilation(args));
+	if (!C)
+	{
+		llvm::errs()
+				<< "Interal compiler error, could not create clang compilation\n";
+		return mlir::failure();
+	}
+
+	const clang::driver::JobList &Jobs = C->getJobs();
+	const clang::driver::Command *LinkCommand = nullptr;
+
+	for (const auto &Job : Jobs)
+	{
+		if (llvm::StringRef(Job.getCreator().getName()).contains("Linker"))
+		{
+			LinkCommand = &Job;
+			break;
+		}
+	}
+
+	if (!LinkCommand)
+	{
+		llvm::errs()
+				<< "Interal compiler error, could not deduce proper linker command\n";
+		return mlir::failure();
+	}
+
+	std::string Error;
+	bool failed = false;
+	LinkCommand->Execute({}, &Error, &failed);
+	if (failed)
+	{
+		llvm::errs() << Error;
+		return mlir::failure();
+	}
+
+	return mlir::success();
+}
+
 static int linkLibraries(
 		llvm::ToolOutputFile &library,
 		llvm::StringRef clangPath,
@@ -287,12 +353,20 @@ static int linkLibraries(
 	auto maybeRealPath =
 			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath));
 
+	if (!maybeRealPath and (linkAgainstFuzzer or emitSanitizerInstrumentation))
+	{
+		llvm::consumeError(maybeRealPath.takeError());
+		llvm::errs()
+				<< "could not find clang, it is mandatory when using the fuzzer or the "
+					 "sanitizer, install it or specify it which to "
+					 "use --clang \n";
+		return -1;
+	}
+
 	if (!maybeRealPath)
 	{
 		llvm::consumeError(maybeRealPath.takeError());
-		llvm::errs() << "could not find clang, install it or specify it which to "
-										"use --clang \n";
-		return -1;
+		maybeRealPath = "clang";
 	}
 
 	auto realPath = *maybeRealPath;
@@ -339,19 +413,16 @@ static int linkLibraries(
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
 
-	llvm::SmallVector<llvm::StringRef, 4> args(
-			argSource.begin(), argSource.end());
-
-	auto res = llvm::sys::ExecuteAndWait(
-			realPath, args, std::nullopt, {}, 0, 0, &Errors);
-	llvm::errs() << Errors;
+	if (getLinkerInvocation(*maybeRealPath, argSource, info.pimpl->triple.str())
+					.failed())
+		return -1;
 
 	Errors.clear();
 	auto perms = llvm::cantFail(
 			llvm::errorOrToExpected(llvm::sys::fs::getPermissions(outputFile)));
 	llvm::sys::fs::setPermissions(
 			outputFile, llvm::sys::fs::perms::owner_exe | perms);
-	return res;
+	return 0;
 }
 
 namespace mlir::rlc
