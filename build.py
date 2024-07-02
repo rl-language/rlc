@@ -47,7 +47,8 @@ def build_rlc(
     build_type: str,
     llvm_install_dir,
     clang_path: str,
-    python_path: str
+    python_path: str,
+    is_windows: bool,
 ):
     assert_run_program(
         execution_dir,
@@ -61,8 +62,8 @@ def build_rlc(
         "-DMLIR_DIR={}/lib/cmake/mlir".format(llvm_install_dir),
         "-DLLVM_DIR={}/lib/cmake/llvm".format(llvm_install_dir),
         "-DClang_DIR={}/lib/cmake/clang".format(llvm_install_dir),
-        f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}",
-        f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++",
+        f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}{".exe" is_windows ""}",
+        f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++{".exe" is_windows ""}",
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
         "-DCMAKE_BUILD_WITH_INSTALL_RPATH={}".format("OFF" if build_shared else "ON"),
         "-DHAVE_STD_REGEX=ON",
@@ -93,9 +94,9 @@ def build_llvm(
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;lld;",
         "-DLLVM_USE_LINKER=lld" if use_lld else "",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
-        "-DLLVM_ENABLE_RUNTIMES=libcxx;libunwind",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
+        "-DLLVM_ENABLE_RUNTIMES=libcxx",
         "-G",
         "Ninja",
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
@@ -128,6 +129,11 @@ def main():
     )
     parser.add_argument(
         "--no-debug-llvm",
+        help="does not build debug llvm",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--no-debug-rlc",
         help="does not build debug llvm",
         action="store_true",
     )
@@ -250,8 +256,11 @@ def main():
     else:
         build_shared = args.rlc_shared
 
+    is_windows = os.name == "nt"
+
     # build debug
-    build_rlc(
+    if not args.no_debug_rlc:
+      build_rlc(
         execution_dir=rlc_build_dir,
         cmake_path=cmake,
         rlc_source_dir=rlc_dir,
@@ -260,9 +269,10 @@ def main():
         build_type="Debug",
         llvm_install_dir=llvm_dir,
         clang_path=f"{llvm_install_release_dir}/bin/clang",
-        python_path=python
-    )
-    install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
+        python_path=python,
+        is_windows=is_windows,
+      )
+      install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
 
     build_rlc(
         execution_dir=rlc_release_dir,
@@ -273,8 +283,8 @@ def main():
         build_type="Release",
         llvm_install_dir=llvm_install_release_dir,
         clang_path=f"{llvm_install_release_dir}/bin/clang",
-        python_path=python
-
+        python_path=python,
+        is_windows=is_windows,
     )
     install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=True)
 

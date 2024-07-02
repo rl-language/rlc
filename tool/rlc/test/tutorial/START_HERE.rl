@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 # These files are a series of examples to introduce you to the rulebook language.
 # Each of these files is a valid rl program that can be run by pressing ctrl+shift+b.

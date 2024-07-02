@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 fun function(Int x) -> Int {x < 4}:
     return x - 1

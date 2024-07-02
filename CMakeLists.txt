@@ -43,7 +43,6 @@ SET(BENCHMARK_FORCE_WERROR OFF CACHE INTERNAL "")
 SET(BENCHMARK_ENABLE_WERROR ON CACHE INTERNAL "")
 SET(BENCHMARK_USE_BUNDLED_GTEST CACHE INTERNAL "")
 
-add_subdirectory(benchmark)
 
 ##############################
 ###        Project         ###
@@ -54,6 +53,9 @@ enable_testing()
 include("CPack")
 include(CTest)
 set(CMAKE_DEBUG_POSTFIX "-d")
+set(CXX_STANDARD 20)
+
+add_subdirectory(benchmark)
 
 ##############################
 ###        Globals         ###
@@ -63,9 +65,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter -Wno-comment -Wno-unused-function -Wno-deprecated-this-capture")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-int-float-conversion")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-int-float-conversion -Wno-reserved-macro-identifier -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-old-style-cast -Wno-sign-conversion -Wshadow-field-in-constructor -Wno-language-extension-token")
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
+set(LIBEXT ${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(SHAREDEXT ${CMAKE_SHARED_LIBRARY_SUFFIX})
 
 set_tests_properties(${noArgsTests} PROPERTIES TIMEOUT 10)
 include(macros.cmake)

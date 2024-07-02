@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 cls some_entity:
 	Int field

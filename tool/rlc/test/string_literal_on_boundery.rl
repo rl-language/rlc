@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 # RUN: rlc %s -o %t --header 
 # RUN: rlc %s -o %t --python
 

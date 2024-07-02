@@ -33,6 +33,7 @@ limitations under the License.
 #include "llvm/Pass.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
@@ -108,11 +109,25 @@ static void addFuzzerInstrumentationPass(llvm::ModulePassManager &MPM)
 	MPM.addPass(SanitizerCoveragePass(opts));
 }
 
+class AddWindowsDLLExportPass: public PassInfoMixin<AddWindowsDLLExportPass>
+{
+	public:
+	PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM)
+	{
+		if (F.getName().starts_with("rl__") or F.getName().starts_with("rl_m__"))
+			return PreservedAnalyses::none();
+
+		F.setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+		return PreservedAnalyses::none();
+	};
+};
+
 static void runOptimizer(
 		llvm::Module &M,
 		bool optimize,
 		bool emitSanitizerInstrumentation,
-		bool linkAgainsFuzzer)
+		bool linkAgainsFuzzer,
+		bool targetIsWindows)
 {
 	// Create the analysis managers.
 	LoopAnalysisManager LAM;
@@ -139,10 +154,12 @@ static void runOptimizer(
 	{
 		ModulePassManager passManager;
 		FunctionPassManager functionPassManager;
+		if (targetIsWindows)
+			functionPassManager.addPass(AddWindowsDLLExportPass());
 		functionPassManager.addPass(llvm::PromotePass());
 		passManager.addPass(
 				createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
-		if (emitSanitizerInstrumentation)
+		if (emitSanitizerInstrumentation and not targetIsWindows)
 			addFuzzerInstrumentationPass(passManager);
 		passManager.run(M, MAM);
 
@@ -163,7 +180,9 @@ static void runOptimizer(
 	{
 		ModulePassManager MPM =
 				PB.buildO0DefaultPipeline(OptimizationLevel::O0, true);
-		if (emitSanitizerInstrumentation)
+		if (targetIsWindows)
+			MPM.addPass(createModuleToFunctionPassAdaptor(AddWindowsDLLExportPass()));
+		if (emitSanitizerInstrumentation and not targetIsWindows)
 			addFuzzerInstrumentationPass(MPM);
 		MPM.run(M, MAM);
 	}
@@ -380,22 +399,37 @@ static int linkLibraries(
 		argSource.push_back("-fuse-ld=lld");
 		argSource.push_back("-Wl,-subsystem:console");
 	}
-	argSource.push_back("-o");
-	argSource.push_back(outputFile.str());
-	if (not info.isMacOS())
+	else if (not info.isMacOS())
 		argSource.push_back("-lm");
+
+	argSource.push_back("-o");
 	if (shared)
 	{
-		argSource.push_back("--shared");
-		if (not info.isWindows())
+		if (info.isWindows())
+		{
+			argSource.push_back(outputFile.str() + ".dll");
+		}
+		else
+		{
+			argSource.push_back(outputFile.str());
 			argSource.push_back("-fPIE");
+		}
+		argSource.push_back("--shared");
 	}
 	else
 	{
-		if (not info.isWindows())
+		if (info.isWindows())
+		{
+			argSource.push_back(outputFile.str() + ".exe");
+		}
+		else
+		{
+			argSource.push_back(outputFile.str());
 			argSource.push_back("-no-pie");
+		}
 	}
-	if (emitSanitizerInstrumentation or linkAgainstFuzzer)
+	if ((emitSanitizerInstrumentation or linkAgainstFuzzer) and
+			not info.isWindows())
 	{
 		std::string arg("-fsanitize=");
 		if (emitSanitizerInstrumentation)
@@ -405,10 +439,12 @@ static int linkLibraries(
 		if (linkAgainstFuzzer)
 			arg += "fuzzer";
 		argSource.push_back(arg);
+		if (info.isWindows())
+		{
+			argSource.push_back("-Wl,/NODEFAULTLIB:libcmt");
+			argSource.push_back("-Wl,-defaultlib:msvcrt");
+		}
 	}
-
-	for (auto rpathEntry : rpaths)
-		argSource.push_back("-Wl,-rpath," + rpathEntry);
 
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
@@ -441,7 +477,12 @@ namespace mlir::rlc
 			assert(Module);
 			Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
 
-			runOptimizer(*Module, targetInfo->optimize(), emitSanitizer, emitFuzzer);
+			runOptimizer(
+					*Module,
+					targetInfo->optimize(),
+					emitSanitizer,
+					emitFuzzer,
+					targetInfo->isWindows());
 
 			if (dumpIR)
 			{

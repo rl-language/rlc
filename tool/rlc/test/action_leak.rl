@@ -1,5 +1,5 @@
 # RUN: rlc %s -i %stdlib -o %t --sanitize
-# RUN: %t
+# RUN: %t%exeext
 import collections.vector
 
 act asd() -> Move:

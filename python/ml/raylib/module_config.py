@@ -31,9 +31,9 @@ def agent_to_module_mapping_fn_single(agent_id, episode, **kwargs):
     return "p0"
 
 
-def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
-    state_size = RLCEnvironment(wrapper_path=wrapper_path).state_size
-    actions_count = RLCEnvironment(wrapper_path=wrapper_path).num_actions
+def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
+    state_size = RLCEnvironment(wrapper=wrapper).state_size
+    actions_count = RLCEnvironment(wrapper=wrapper).num_actions
     print("state size", state_size)
     print("actions count", actions_count)
     # Step 1: Configure PPO to run 64 parallel workers to collect samples from the env.
@@ -59,7 +59,7 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
                         f"p{x}": SingleAgentRLModuleSpec(
                             TorchActionMaskRLM,
                             observation_space=RLCEnvironment(
-                                wrapper_path=wrapper_path
+                                wrapper=wrapper
                             ).observation_space[0],
                         )
                         for x in range(num_agents * 2)
@@ -69,7 +69,7 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
                         f"p{0}": SingleAgentRLModuleSpec(
                             TorchActionMaskRLM,
                             observation_space=RLCEnvironment(
-                                wrapper_path=wrapper_path
+                                wrapper=wrapper
                             ).observation_space[0],
                         )
                     }
@@ -101,10 +101,10 @@ def get_config(wrapper_path, num_agents=1, exploration=True, league_play=False):
             env="rlc_env",
             env_config={
                 "observation_space": RLCEnvironment(
-                    wrapper_path=wrapper_path
+                    wrapper=wrapper
                 ).observation_space,
                 "action_space": RLCEnvironment(
-                    wrapper_path=wrapper_path
+                    wrapper=wrapper
                 ).action_space,
             },
         )

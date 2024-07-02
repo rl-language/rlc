@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 import bounded_arg
 import serialization.print
 

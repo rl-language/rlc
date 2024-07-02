@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 fun main() -> Int:
 	let converted = __builtin_to_array(6)

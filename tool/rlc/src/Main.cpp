@@ -332,7 +332,7 @@ static mlir::rlc::Driver configureDriver(
 	if (runtimeLibPath.empty())
 	{
 		if (envVal.has_value())
-			runtimeLibPath = *envVal;
+			runtimeLibPath = toNative(*envVal);
 		else
 			runtimeLibPath = toNative(llvm::sys::path::parent_path(pathToRlc).str() +
 											 "/../lib/" + RUNTIME_LIBRARY_FILENAME);

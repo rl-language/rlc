@@ -87,7 +87,8 @@ namespace mlir::rlc
 		{
 			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
 			manager.addPass(mlir::python::createRLCTypesToPythonTypesPass());
-			manager.addPass(mlir::python::createRLCToPythonPass());
+			manager.addPass(
+					mlir::python::createRLCToPythonPass({ targetInfo->isWindows() }));
 			if (request == Request::dumpPythonAST)
 				manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			else

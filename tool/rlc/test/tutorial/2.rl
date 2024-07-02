@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 # The rulebook language offers a coroutine-based solution for the problem of writing 
 # efficient and readable code that requires lots of user inputs.

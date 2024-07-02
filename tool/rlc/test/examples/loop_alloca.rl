@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib --sanitize
-# RUN: %t
+# RUN: %t%exeext
 
 fun main() -> Int:
     let a = 0

@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 act inner(frm Int local_var) -> Inner:
   act to_call(Int other){

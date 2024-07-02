@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib --sanitize -O2 -g
-# RUN: %t
+# RUN: %t%exeext
 
 import string
 

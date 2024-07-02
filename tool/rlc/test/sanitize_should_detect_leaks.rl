@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib --sanitize -g
-# RUN: %t
+# RUN: %t%exeext
 # XFAIL: *
 
 fun has_loop():

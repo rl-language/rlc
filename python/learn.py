@@ -8,6 +8,7 @@ import random
 from tensorboard import program
 from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.env.multi_agent_env import make_multi_agent
+from importlib import import_module, machinery, util
 from ray.rllib.algorithms import ppo
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig, PPO
@@ -109,6 +110,13 @@ def get_trainer(output_path, total_train_iterations, num_players):
     return single_agent_train
 
 
+def import_file(name, file_path):
+    loader = machinery.SourceFileLoader(name, file_path)
+    spec = util.spec_from_loader(name, loader)
+    mod = util.module_from_spec(spec)
+    loader.exec_module(mod)
+    return mod
+
 def main():
     check_ray_bug()
     parser = make_rlc_argparse("train", description="runs a action of the simulation")
@@ -127,63 +135,65 @@ def main():
     parser.add_argument("--sample-space", default=1, type=int)
 
     args = parser.parse_args()
-    with load_simulation_from_args(args, True) as sim:
-        exit_on_invalid_env(sim)
-        wrapper_path = sim.wrapper_path
+    sim = load_simulation_from_args(args, True)
+    exit_on_invalid_env(sim)
+    wrapper_path = sim.wrapper_path
 
-        ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
-        from ray import air, tune
-        args.output = os.path.abspath(args.output)
+    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
+    from ray import air, tune
+    args.output = os.path.abspath(args.output)
 
-        num_players =  1 if args.true_self_play else sim.module.functions.get_num_players()
+    num_players =  1 if args.true_self_play else sim.module.functions.get_num_players()
 
-        ppo_config, hyperopt_search = get_config(
-            sim.wrapper_path,
-            num_players,
-            league_play=args.league_play
+    ppo_config, hyperopt_search = get_config(
+        sim.module,
+        num_players,
+        league_play=args.league_play
+    )
+    wrapper_path = sim.wrapper_path
+    tune.register_env(
+        "rlc_env", lambda config: RLCEnvironment(wrapper=import_file("dc", wrapper_path))
+    )
+
+    stop = {
+        "timesteps_total": 1e15,
+        # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
+    }
+
+    # resumption_dir = os.path.abspath("./results")
+    resources = PPO.default_resource_request(ppo_config)
+
+    air_config = air.RunConfig(
+            stop=stop,
+            verbose=2,
+            # storage_path=resumption_dir
         )
-        tune.register_env(
-            "rlc_env", lambda config: RLCEnvironment(wrapper_path=wrapper_path)
-        )
 
-        stop = {
-            "timesteps_total": 1e15,
-            # "episode_reward_mean": 2,  # divide by num_agents for actual reward per agent
-        }
-
-        # resumption_dir = os.path.abspath("./results")
-        resources = PPO.default_resource_request(ppo_config)
-
-        air_config = air.RunConfig(
-                stop=stop,
-                verbose=2,
-                # storage_path=resumption_dir
-            )
-
-        tuner = tune.Tuner(
-            tune.with_resources(
-                (
-                    get_multi_train(sim.module.functions.get_num_players(), args.output)
-                    if args.league_play
-                    else get_trainer(args.output, total_train_iterations=args.total_train_iterations, num_players=num_players)
-                ),
-                resources=resources,
+    tuner = tune.Tuner(
+        tune.with_resources(
+            (
+                get_multi_train(sim.module.functions.get_num_players(), args.output)
+                if args.league_play
+                else get_trainer(args.output, total_train_iterations=args.total_train_iterations, num_players=num_players)
             ),
-            param_space=ppo_config.to_dict(),
-            tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search),
-            run_config=air.RunConfig(
-                stop=stop,
-                verbose=2,
-                # storage_path=resumption_dir
-            ),
-        )
+            resources=resources,
+        ),
+        param_space=ppo_config.to_dict(),
+        tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search),
+        run_config=air.RunConfig(
+            stop=stop,
+            verbose=2,
+            # storage_path=resumption_dir
+        ),
+    )
 
-        if not args.no_tensorboard:
-            tb = program.TensorBoard()
-            tb.configure(argv=[None, "--logdir", "/tmp/ray/session_latest/"])
-            url = tb.launch()
+    if not args.no_tensorboard:
+        tb = program.TensorBoard()
+        tb.configure(argv=[None, "--logdir", "/tmp/ray/session_latest/"])
+        url = tb.launch()
 
-        results = tuner.fit()
+    results = tuner.fit()
+    sim.cleanup()
 
 
 if __name__ == "__main__":

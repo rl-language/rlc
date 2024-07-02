@@ -3,6 +3,10 @@ include "mlir/Rewrite/PassUtil.td"
 
 def RLCToPythonPass: Pass<"rlc-to-python", "mlir::ModuleOp"> {
   let summary = "convert rlc to python";
+  let options = [
+    Option<"target_is_windows", "target is windows", "bool", /*default=*/"false",
+           "true if the target is windows">
+  ];
 }
 
 def RLCTypesToPythonTypesPass: Pass<"rlc-types-to-python-types", "mlir::ModuleOp"> {

@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 fun fun_with_trailing_type() -> Void:
 	let aasds = 0

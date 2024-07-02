@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 fun<X, Int T> f(X[T] x) -> X:
 	let to_return = x[0]

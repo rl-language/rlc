@@ -4,7 +4,6 @@ import sys
 from gymnasium import spaces
 from gymnasium.spaces import Dict
 import numpy as np
-from importlib import import_module, machinery, util
 import random
 
 class Specs:
@@ -12,13 +11,6 @@ class Specs:
         self.max_episode_steps = max_steps
         self.id = random.randint(0, 10)
 
-
-def import_file(name, file_path):
-    loader = machinery.SourceFileLoader(name, file_path)
-    spec = util.spec_from_loader(name, loader)
-    mod = util.module_from_spec(spec)
-    loader.exec_module(mod)
-    return mod
 
 def exit_on_invalid_env(sim):
     errors = validate_env(sim)
@@ -49,13 +41,12 @@ def validate_env(wrapper):
     return errors
 
 class RLCEnvironment(MultiAgentEnv):
-    def __init__(self, dc="", wrapper_path="", solve_randomness=True):
+    def __init__(self, wrapper, dc="", solve_randomness=True):
         self.solve_randomess = solve_randomness
-        self.wrapper_path = wrapper_path
+        self.wrapper = wrapper
         self.setup()
 
     def setup(self):
-        self.wrapper = import_file("wrapper", self.wrapper_path)
         action = self.wrapper.AnyGameAction()
         self.num_agents = self.wrapper.functions.get_num_players()
         self._actions = self.wrapper.functions.enumerate(action)
@@ -92,14 +83,6 @@ class RLCEnvironment(MultiAgentEnv):
         self._obs_space_in_preferred_format = True
         self._action_space_in_preferred_format = True
 
-    def __getstate__(self):
-        return {
-            "wrapper_path": self.wrapper_path,
-        }
-
-    def __setstate__(self, state):
-        self.wrapper_path = state["wrapper_path"]
-        self.setup()
 
     @property
     def legal_actions(self):

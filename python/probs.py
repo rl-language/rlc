@@ -24,21 +24,13 @@ def main():
         exit_on_invalid_env(sim)
 
         ray.init(num_cpus=12, num_gpus=1, include_dashboard=False, log_to_driver=False, logging_level="ERROR")
-        wrapper_path = sim.wrapper_path
 
         from ray import air, tune
-        tune.register_env(
-            "rlc_env",
-            lambda config: RLCEnvironment(wrapper_path=wrapper_path),
-        )
 
         num_players = (
             1
             if args.true_self_play
             else sim.module.functions.get_num_players()
-        )
-        ppo_config, hyperopt_search = get_config(
-            sim.wrapper_path, num_players, exploration=False
         )
 
         model = Algorithm.from_checkpoint(args.checkpoint)
@@ -46,7 +38,7 @@ def main():
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/net_p{i}/"
             )
-        env = RLCEnvironment(wrapper_path=wrapper_path)
+        env = RLCEnvironment(wrapper=sim.module)
         state_to_load = args.state if args.state != "" else None
         obs, info = env.reset(path_to_binary_state=state_to_load)
         i = 0

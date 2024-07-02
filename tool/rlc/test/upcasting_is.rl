@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 fun<T> returnDoubleIfInt(T a) -> T:
 	let to_return : T

@@ -618,6 +618,11 @@ Token Lexer::nextWithoutTrailingConsume()
 			indentStack.pop_back();
 			return Token::Deindent;
 		}
+		while (deindentToEmit != 0)
+		{
+			deindentToEmit--;
+			return Token::Deindent;
+		}
 		return Token::End;
 	}
 

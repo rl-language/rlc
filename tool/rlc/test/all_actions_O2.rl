@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib -O2
-# RUN: %t
+# RUN: %t%exeext
 
 import action
 import bounded_arg

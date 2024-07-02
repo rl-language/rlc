@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib -g
-# RUN: %t
+# RUN: %t%exeext
 
 import collections.graph
 

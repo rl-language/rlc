@@ -32,7 +32,6 @@ def main():
         exit_on_invalid_env(sim)
 
         ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
-        wrapper_path = sim.wrapper_path
 
         from ray import air, tune
 
@@ -41,20 +40,13 @@ def main():
             if not args.no_one_agent_per_player
             else sim.module.functions.get_num_players()
         )
-        ppo_config, hyperopt_search = get_config(
-            sim.wrapper_path, num_players, exploration=False
-        )
-        tune.register_env(
-            "rlc_env",
-            lambda config: RLCEnvironment(wrapper_path=wrapper_path, solve_randomness=False),
-        )
 
         model = Algorithm.from_checkpoint(args.checkpoint)
         for i in range(num_players):
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/net_p{i}/"
             )
-        env = RLCEnvironment(wrapper_path=wrapper_path, solve_randomness=False)
+        env = RLCEnvironment(wrapper=wrapper, solve_randomness=False)
         out = open(args.output, "w+") if args.output != "" else sys.stdout
         while env.current_player() != -4:
             action = env.one_action_according_to_model(model)

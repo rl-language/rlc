@@ -1,5 +1,5 @@
-# RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: rlc %s -o %t -i %stdlib
+# RUN: %t%exeext
 
 act to_run() -> ToRun:
 	frm to_ret : Int

@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib --fuzzer --fuzzer-lib=%fuzzer_lib
-# RUN: %t -runs=100000
+# RUN: %t%exeext -runs=100000
 # XFAIL: *
 
 import action

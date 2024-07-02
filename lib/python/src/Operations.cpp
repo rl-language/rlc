@@ -336,12 +336,13 @@ mlir::LogicalResult mlir::rlc::python::CTypesLoad::emit(
 		llvm::raw_ostream& OS, SerializationContext& context)
 {
 	OS << "from ctypes import *\n";
+	OS << "import os\n";
 	OS << "from typing import overload\n";
 	OS << "from pathlib import Path\n";
 	OS << "import builtins\n";
 	OS << "from collections import defaultdict\n\n";
-	OS << "lib = CDLL(Path(__file__).resolve().parent / \"" << getLibName()
-		 << "\")\n";
+	OS << "lib = CDLL(os.path.join(Path(__file__).resolve().parent, \"" << getLibName()
+		 << "\"))\n";
 	context.registerValue(getResult(), "lib");
 
 	OS << "actions = defaultdict(list)\n";

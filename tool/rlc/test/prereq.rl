@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 act example(frm Int x) -> Example {x < 4}: 
 	x = x + 1

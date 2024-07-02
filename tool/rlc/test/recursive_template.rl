@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 fun<T> counter(T dc, Int x) -> Int:
 	x = x + 1	

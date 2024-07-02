@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 trait<T, T2> Comparable:
     fun equal(T a, T2 b) -> Bool

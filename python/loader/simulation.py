@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 from importlib import import_module, machinery, util
+import os
 import inspect
 from math import log2, ceil, floor
 from pathlib import Path
@@ -243,6 +244,14 @@ class Simulation:
         self.__exit__()
 
     def __exit__(self, *args):
+        import ctypes
+        import _ctypes
+        libHandle = self.module.lib._handle
+        print(libHandle)
+        del self.module.lib
+        if os.name == "nt":
+            _ctypes.FreeLibrary(libHandle)
+
         if self.tmp_dir is not None:
             self.tmp_dir.cleanup()
 
@@ -271,7 +280,8 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
         ).returncode
         == 0
     )
-    args = [rlc_compiler, source, "--shared", "-o", Path(tmp_dir.name) / Path("lib.so"), "-O2" if optimized else ""]
+    lib_name = "lib" if os.name == "nt" else "lib.so"
+    args = [rlc_compiler, source, "--shared", "-o", Path(tmp_dir.name) / Path(lib_name), "-O2" if optimized else ""]
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
     assert run(args + include_args).returncode == 0

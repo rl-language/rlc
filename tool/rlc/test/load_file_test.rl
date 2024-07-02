@@ -1,6 +1,6 @@
 # RUN: split-file %s %t
 # RUN: rlc %t/source.rl -o %t/exec -i %stdlib 
-# RUN: cd %t && %t/exec
+# RUN: cd %t && %t/exec%exeext
 
 #--- source.rl
 import string

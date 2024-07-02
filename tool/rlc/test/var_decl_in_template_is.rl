@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib --sanitize
-# RUN: %t
+# RUN: %t%exeext
 
 trait<T> CustomTrait:
     fun to_call(T x) -> Bool

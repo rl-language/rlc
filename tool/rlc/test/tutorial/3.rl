@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t
+# RUN: %t%exeext
 
 # In the previous example we saw the relationship between how an `action function` is 
 # declared and how it can be used. Now we will investigate how you can compose and 

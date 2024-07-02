@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib 
-# RUN: %t | FileCheck %s
+# RUN: %t%exeext | FileCheck %s
 
 import serialization.print
 
