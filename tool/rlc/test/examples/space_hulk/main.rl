@@ -159,7 +159,8 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
       act toggle_door(UnitArgType unit_id) {
         board.unit_id_is_valid(unit_id.value),
         board.units.get(unit_id.value).action_points != 0,
-        board.is_facing_door(board.units.get(unit_id.value))
+        board.is_facing_door(board.units.get(unit_id.value)),
+        board.units.get(unit_id.value).faction() == current_faction
       }
        ref unit = board.units.get(unit_id.value)
        unit.action_points = unit.action_points - 1
