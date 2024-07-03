@@ -3,6 +3,7 @@ import pickle
 import copy
 import math
 import os
+import tempfile
 import random
 
 from tensorboard import program
@@ -32,6 +33,9 @@ from typing import (
     Union,
 )
 
+def trial_str_creator(trial):
+    return str(trial.trial_id)
+
 def check_ray_bug():
     import ray.rllib.algorithms.ppo.ppo as ppo
     file_path = os.path.join(os.path.dirname(ppo.__file__), "ppo.py")
@@ -50,13 +54,13 @@ def save(model, output_path, num_players):
     if output_path != "":
       model.save(output_path)
       for player_id in range(num_players):
-          if not os.path.exists(f"{output_path}/learner/net_p{player_id}"):
-              os.makedirs(f"{output_path}/learner/net_p{player_id}")
+          if not os.path.exists(os.path.join(output_path, "learner", f"net_p{player_id}")):
+              os.makedirs(os.path.join(output_path, "learner", f"net_p{player_id}"))
           model.workers.local_worker().module[f"p{player_id}"].save_state(
-              f"{output_path}/learner/net_p{player_id}"
+              os.path.join(output_path, "learner", f"net_p{player_id}")
           )
           model.workers.local_worker().module[f"p{player_id}"].load_state(
-              f"{output_path}/learner/net_p{player_id}"
+              os.path.join(output_path, "learner", f"net_p{player_id}")
           )
 
 def get_multi_train(num_players, output):
@@ -65,12 +69,12 @@ def get_multi_train(num_players, output):
         model = config.build()
 
         for _ in range(1000000000):
-            with open(f"./list_of_fixed.txt", "wb+") as f:
+            with open(f"list_of_fixed.txt", "wb+") as f:
                 for i in range(num_players):
-                    if not os.path.exists(f"./net_p{num_players + i}_{fixed_nets}"):
-                        os.makedirs(f"./net_p{num_players + i}_{fixed_nets}")
+                    if not os.path.exists(f"net_p{num_players + i}_{fixed_nets}"):
+                        os.makedirs(f"net_p{num_players + i}_{fixed_nets}")
                     model.workers.local_worker().module[f"p{i}"].save_state(
-                        f"./net_p{num_players + i}_{fixed_nets}"
+                        f"net_p{num_players + i}_{fixed_nets}"
                     )
                 fixed_nets = fixed_nets + 1
                 pickle.dump(fixed_nets, f)
@@ -83,12 +87,12 @@ def get_multi_train(num_players, output):
                             model.workers.local_worker().module[
                                 f"p{i + num_players}"
                             ].load_state(
-                                f"./net_p{i + num_players}_{random.choice(range(fixed_nets))}"
+                                f"net_p{i + num_players}_{random.choice(range(fixed_nets))}"
                             )
                         model.workers.sync_weights(
                             policies=[f"p{i + num_players}" for i in range(num_players)]
                         )
-            model.save(f"./checkpoint")
+            model.save(f"checkpoint")
             save(model, output, num_players)
         model.save()
         model.stop()
@@ -119,7 +123,7 @@ def main():
         type=str,
         nargs="?",
         help="path where to write the output",
-        default="./network",
+        default="network",
     )
     parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--league-play", action="store_true", default=False)
@@ -130,9 +134,10 @@ def main():
     args = parser.parse_args()
     sim = load_simulation_from_args(args, True)
     exit_on_invalid_env(sim)
-    wrapper_path = sim.wrapper_path
+    wrapper_path = os.path.abspath(sim.wrapper_path)
 
     ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
+    session_dir = ray.worker._global_node.get_session_dir_path()
     from ray import air, tune
     args.output = os.path.abspath(args.output)
 
@@ -172,7 +177,7 @@ def main():
             resources=resources,
         ),
         param_space=ppo_config.to_dict(),
-        tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search),
+        tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search, trial_name_creator=trial_str_creator, trial_dirname_creator=trial_str_creator),
         run_config=air.RunConfig(
             stop=stop,
             verbose=2,
@@ -182,7 +187,7 @@ def main():
 
     if not args.no_tensorboard:
         tb = program.TensorBoard()
-        tb.configure(argv=[None, "--logdir", "/tmp/ray/session_latest/"])
+        tb.configure(argv=[None, "--logdir", session_dir])
         url = tb.launch()
 
     results = tuner.fit()

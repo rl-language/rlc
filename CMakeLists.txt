@@ -65,7 +65,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter -Wno-comment -Wno-unused-function -Wno-deprecated-this-capture")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-int-float-conversion -Wno-reserved-macro-identifier -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-old-style-cast -Wno-sign-conversion -Wshadow-field-in-constructor -Wno-language-extension-token")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-int-float-conversion -Wno-reserved-macro-identifier -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-old-style-cast -Wno-sign-conversion -Wshadow-field-in-constructor -Wno-language-extension-token -Wno-deprecated-declarations -Wno-invalid-offsetof")
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})

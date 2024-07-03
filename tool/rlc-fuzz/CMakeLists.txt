@@ -1,3 +1,5 @@
+IF (WIN32)
+ELSE()
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
 rlcAddTool(rlc-fuzz
@@ -13,3 +15,4 @@ rlcAddTool(rlc-fuzz
     )
 
 target_link_options(rlc-fuzz PUBLIC -fsanitize=fuzzer)
+ENDIF()

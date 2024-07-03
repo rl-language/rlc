@@ -3,6 +3,7 @@ from os.path import exists, isdir
 from os import mkdir, path, chdir, scandir
 from subprocess import run
 import argparse
+import os
 
 dry_run = False
 
@@ -62,14 +63,15 @@ def build_rlc(
         "-DMLIR_DIR={}/lib/cmake/mlir".format(llvm_install_dir),
         "-DLLVM_DIR={}/lib/cmake/llvm".format(llvm_install_dir),
         "-DClang_DIR={}/lib/cmake/clang".format(llvm_install_dir),
-        f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}{".exe" is_windows ""}",
-        f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++{".exe" is_windows ""}",
+        f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}" + (".exe" if is_windows else ""),
+        f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++" + (".exe" if is_windows else ""),
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
         "-DCMAKE_BUILD_WITH_INSTALL_RPATH={}".format("OFF" if build_shared else "ON"),
         "-DHAVE_STD_REGEX=ON",
+        "-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument",
         "-DRUN_HAVE_STD_REGEX=1",
         "-DPython_EXECUTABLE:FILEPATH={}".format(python_path),
-        "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" else "",
+        "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" and not is_windows else "",
     )
 
 

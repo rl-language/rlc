@@ -286,7 +286,6 @@ static void compile(
 	llvm::TargetLibraryInfoImpl TLII(Triple(M->getTargetTriple()));
 
 	manager.add(new TargetLibraryInfoWrapperPass(TLII));
-	manager.add(new TargetLibraryInfoWrapperPass(TLII));
 
 	bool Err = LLVMTM.addPassesToEmitFile(
 			manager, OS, nullptr, llvm::CodeGenFileType::ObjectFile, true, MMIWP);
@@ -407,7 +406,10 @@ static int linkLibraries(
 	{
 		if (info.isWindows())
 		{
-			argSource.push_back(outputFile.str() + ".dll");
+			if (outputFile.ends_with(".dll"))
+				argSource.push_back(outputFile.str());
+			else
+				argSource.push_back(outputFile.str() + ".dll");
 		}
 		else
 		{
