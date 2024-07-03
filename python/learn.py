@@ -196,8 +196,9 @@ def main():
     results = tuner.fit()
     while ray_count_alive_nodes() != 0:
         print(ray_count_alive_nodes(), "alive nodes")
-        time.sleep(10)
+        time.sleep(1)
     ray.shutdown()
+    time.sleep(3)
     sim.cleanup()
 
 

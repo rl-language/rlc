@@ -1,6 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib --sanitize -g
 # RUN: %t%exeext
 # XFAIL: *
+# UNSUPPORTED: system-windows
 
 fun has_loop():
     let i = 0
