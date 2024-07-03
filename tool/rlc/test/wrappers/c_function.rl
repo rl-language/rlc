@@ -1,9 +1,10 @@
 # RUN: split-file %s %t
 
-# RUN: rlc %t/source.rl -o %t/lib.so -i %stdlib --shared
+# RUN: rlc %t/source.rl -o %t/lib%sharedext -i %stdlib --shared
+# RUN: rlc %t/source.rl -o %t/lib%libext -i %stdlib --compile
 
 # RUN: rlc %t/source.rl -o %t/header.h -i %stdlib --header
-# RUN: clang %t/to_run.c %t/lib%sharedext -o %t/result%exeext
+# RUN: clang %t/to_run.c %t/lib%libext -o %t/result%exeext
 # RUN: %t/result%exeext
 
 # RUN: rlc %t/source.rl -o %t/wrapper.py -i %stdlib --python

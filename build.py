@@ -291,7 +291,7 @@ def main():
     install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=True)
 
     assert_run_program(
-        rlc_dir,
+        rlc_release_dir,
         python,
         "python/solve.py",
         "./tool/rlc/test/tic_tac_toe.rl",

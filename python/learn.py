@@ -2,6 +2,7 @@ import ray
 import pickle
 import copy
 import math
+import time
 import os
 import tempfile
 import random
@@ -114,6 +115,9 @@ def get_trainer(output_path, total_train_iterations, num_players):
 
     return single_agent_train
 
+def ray_count_alive_nodes():
+    return len([node for node in ray.nodes() if node['Alive'] and node['NodeManagerAddress'] != ray._private.services.get_node_ip_address()])
+
 def main():
     check_ray_bug()
     parser = make_rlc_argparse("train", description="runs a action of the simulation")
@@ -148,7 +152,6 @@ def main():
         num_players,
         league_play=args.league_play
     )
-    wrapper_path = sim.wrapper_path
     tune.register_env(
         "rlc_env", lambda config: RLCEnvironment(wrapper=import_file("dc", wrapper_path))
     )
@@ -191,6 +194,10 @@ def main():
         url = tb.launch()
 
     results = tuner.fit()
+    while ray_count_alive_nodes() != 0:
+        print(ray_count_alive_nodes(), "alive nodes")
+        time.sleep(10)
+    ray.shutdown()
     sim.cleanup()
 
 
