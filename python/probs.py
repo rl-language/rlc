@@ -6,6 +6,7 @@ from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.algorithms.algorithm import Algorithm
 from ml.raylib.module_config import get_config
 from ray.rllib.algorithms.ppo import PPOConfig, PPO
+from loader.simulation import import_file
 
 from command_line import load_simulation_from_args, make_rlc_argparse
 
@@ -26,6 +27,11 @@ def main():
         ray.init(num_cpus=12, num_gpus=1, include_dashboard=False, log_to_driver=False, logging_level="ERROR")
 
         from ray import air, tune
+        wrapper_path = sim.wrapper_path
+
+        tune.register_env(
+            "rlc_env", lambda config: RLCEnvironment(wrapper=import_file("dc", wrapper_path))
+        )
 
         num_players = (
             1

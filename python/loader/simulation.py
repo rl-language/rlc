@@ -247,9 +247,8 @@ class Simulation:
         import ctypes
         import _ctypes
         libHandle = self.module.lib._handle
-        print(libHandle)
-        del self.module.lib
         if os.name == "nt":
+            del self.module.lib
             _ctypes.FreeLibrary(libHandle)
 
         if self.tmp_dir is not None:

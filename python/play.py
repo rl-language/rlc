@@ -10,6 +10,7 @@ from ray.rllib.algorithms.ppo import PPOTorchPolicy
 from ray import train
 from ml.raylib.module_config import  get_config
 
+from loader.simulation import import_file
 from command_line import load_simulation_from_args, make_rlc_argparse
 
 
@@ -34,6 +35,10 @@ def main():
         ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
 
         from ray import air, tune
+        wrapper_path = sim.wrapper_path
+        tune.register_env(
+            "rlc_env", lambda config: RLCEnvironment(wrapper=import_file("dc", wrapper_path))
+        )
 
         num_players = (
             1
@@ -46,7 +51,7 @@ def main():
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/net_p{i}/"
             )
-        env = RLCEnvironment(wrapper=wrapper, solve_randomness=False)
+        env = RLCEnvironment(wrapper=sim.module, solve_randomness=False)
         out = open(args.output, "w+") if args.output != "" else sys.stdout
         while env.current_player() != -4:
             action = env.one_action_according_to_model(model)

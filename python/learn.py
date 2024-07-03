@@ -17,6 +17,7 @@ from ray import train
 from ml.raylib.module_config import get_config
 
 from command_line import load_simulation_from_args, make_rlc_argparse
+from loader.simulation import import_file
 
 from typing import (
     Any,
@@ -108,14 +109,6 @@ def get_trainer(output_path, total_train_iterations, num_players):
         model.stop()
 
     return single_agent_train
-
-
-def import_file(name, file_path):
-    loader = machinery.SourceFileLoader(name, file_path)
-    spec = util.spec_from_loader(name, loader)
-    mod = util.module_from_spec(spec)
-    loader.exec_module(mod)
-    return mod
 
 def main():
     check_ray_bug()
