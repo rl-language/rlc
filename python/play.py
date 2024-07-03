@@ -1,6 +1,8 @@
 import ray
 
+import os
 import sys
+import time
 from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.env.multi_agent_env import make_multi_agent
 from ray.rllib.algorithms import ppo
@@ -12,7 +14,6 @@ from ml.raylib.module_config import  get_config
 
 from loader.simulation import import_file
 from command_line import load_simulation_from_args, make_rlc_argparse
-
 
 
 def main():
@@ -32,10 +33,10 @@ def main():
     with load_simulation_from_args(args, optimize=True) as sim:
         exit_on_invalid_env(sim)
 
-        ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
+        ray.init(num_cpus=1, num_gpus=1, include_dashboard=False, local_mode=True)
 
         from ray import air, tune
-        wrapper_path = sim.wrapper_path
+        wrapper_path = os.path.abspath(sim.wrapper_path)
         tune.register_env(
             "rlc_env", lambda config: RLCEnvironment(wrapper=import_file("dc", wrapper_path))
         )
@@ -56,6 +57,8 @@ def main():
         while env.current_player() != -4:
             action = env.one_action_according_to_model(model)
             out.write(env.action_to_string(action) + "\n")
+
+
 
 if __name__ == "__main__":
     main()

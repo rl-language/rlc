@@ -24,12 +24,16 @@ from subprocess import run
 from ctypes import Structure, Array
 from sys import stdout, stderr
 
+loaded_libs = {}
 
 def import_file(name, file_path):
+    if name in loaded_libs:
+        return loaded_libs[name]
     loader = machinery.SourceFileLoader(name, file_path)
     spec = util.spec_from_loader(name, loader)
     mod = util.module_from_spec(spec)
     loader.exec_module(mod)
+    loaded_libs[name] = mod
     return mod
 
 
@@ -247,12 +251,12 @@ class Simulation:
         import ctypes
         import _ctypes
         libHandle = self.module.lib._handle
-        if os.name == "nt":
-            del self.module.lib
-            _ctypes.FreeLibrary(libHandle)
 
         if self.tmp_dir is not None:
-            self.tmp_dir.cleanup()
+          if os.name == "nt":
+            del self.module
+            _ctypes.FreeLibrary(libHandle)
+          self.tmp_dir.cleanup()
 
     @property
     def functions(self):
@@ -264,7 +268,7 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
     for arg in rlc_includes:
         include_args.append("-i")
         include_args.append(arg)
-    tmp_dir = TemporaryDirectory()
+    tmp_dir = TemporaryDirectory(ignore_cleanup_errors=True)
     assert (
         run(
             [
