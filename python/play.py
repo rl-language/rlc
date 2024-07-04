@@ -33,7 +33,7 @@ def main():
     with load_simulation_from_args(args, optimize=True) as sim:
         exit_on_invalid_env(sim)
 
-        ray.init(num_cpus=1, num_gpus=1, include_dashboard=False, local_mode=True)
+        ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
 
         from ray import air, tune
         wrapper_path = os.path.abspath(sim.wrapper_path)
