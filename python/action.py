@@ -93,7 +93,7 @@ def main():
 
             if args.pretty_print:
                 input()
-                os.system("clear")
+                os.system("cls||clear")
                 state.simulation.module.functions.pretty_print(state.state)
             if not args.print_all:
                 print(i, action)

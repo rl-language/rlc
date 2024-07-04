@@ -50,7 +50,7 @@ def main():
         i = 0
         while True:
             if args.pretty_print:
-                os.system("clear")
+                os.system("cls||clear")
             print(f"---------- {i} : p{env.current_player()} ------------")
             if args.pretty_print:
                 env.wrapper.functions.pretty_print(env.state)
