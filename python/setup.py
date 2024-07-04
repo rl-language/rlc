@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 import os
 import shutil
 import subprocess
+from distutils.sysconfig import get_python_lib
 
 
 def read_requirements(filename):
@@ -42,12 +43,16 @@ def copy_binaries(source_directory, destination_directory):
 
 
 # Assuming binaries are in /path/to/cmake/install/bin and /path/to/cmake/install/lib
-copy_binaries("../../rlc-release/install/bin/rlc", "./bin")
-copy_binaries("../../rlc-release/install/bin/rlc-lsp", "./bin")
-copy_binaries("../../rlc-release/install/lib/libruntime.a", "./lib/")
-copy_binaries("../../rlc-release/install/lib/rlc", "./lib/rlc/")
-extra_files_bin = package_files(["./bin/"], "bin")
-extra_files_lib = package_files(["./lib/"], "lib")
+target_bin_dir = "bin" if os.name != "nt" else "Scripts"
+exec_ext = "" if os.name != "nt" else ".exe"
+copy_binaries(os.path.join("..", "..", "rlc-release", "install", "bin", "rlc" + exec_ext), target_bin_dir)
+copy_binaries(os.path.join("..", "..", "rlc-release", "install", "bin", "rlc-lsp" + exec_ext), target_bin_dir)
+copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", "runtime.lib"), "lib")
+copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", "rlc"), os.path.join("lib", "rlc"))
+extra_files_bin = package_files([target_bin_dir], target_bin_dir)
+extra_files_lib = package_files(["lib"], "lib")
+
+site_packages_path = target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
 
 setup(
     name="rl_language",
@@ -58,8 +63,8 @@ setup(
     include_package_data=True,
     data_files=extra_files_bin
     + extra_files_lib
-    + [("./bin/impl", ["./test.py", "./action.py", "./learn.py", "./play.py", "./solve.py", "./probs.py", "./fix_ray.py"])],
-    install_requires=read_requirements("../run-requirements.txt"),
+    + [(os.path.join(site_packages_path, "impl"), ["test.py", "action.py", "learn.py", "play.py", "solve.py", "probs.py", "fix_ray.py"])],
+    install_requires=read_requirements(os.path.join("..", "run-requirements.txt")),
     entry_points={
         "console_scripts": [
             "rlc-test=impl.test:main",
@@ -92,5 +97,5 @@ setup(
     commit_hash=get_commit_hash()
 )
 
-shutil.rmtree("bin/")
-shutil.rmtree("lib/")
+shutil.rmtree(target_bin_dir)
+shutil.rmtree("lib")
