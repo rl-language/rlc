@@ -297,10 +297,10 @@ def main():
     assert_run_program(
         rlc_release_dir,
         python,
-        "python/solve.py",
+        f"{rlc_dir}/python/solve.py",
         f"{rlc_dir}/tool/rlc/test/tic_tac_toe.rl",
         "--rlc",
-        "{}/install/bin/rlc".format(rlc_build_dir),
+        f"{rlc_release_dir}/install/bin/rlc".format(rlc_build_dir),
     )
 
 
