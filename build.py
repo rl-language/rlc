@@ -86,6 +86,7 @@ def build_llvm(
     clang: str,
     clang_plus_plus: str,
     use_lld: bool,
+    is_windows: bool,
 ):
     assert_run_program(
         execution_dir,
@@ -99,7 +100,7 @@ def build_llvm(
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
-        "-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi;libunwind",
+        "-DLLVM_ENABLE_RUNTIMES=libcxx" + ";libcxxabi;libunwind" if not is_windows else "",
         "-G",
         "Ninja",
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
@@ -230,6 +231,7 @@ def main():
             clang=args.c_compiler,
             clang_plus_plus=args.cxx_compiler,
             use_lld=not args.no_use_lld,
+            is_windows=is_windows,
         )
         install(execution_dir=llvm_build_debug_dir, ninja_path=ninja)
 
@@ -246,6 +248,7 @@ def main():
             clang=args.c_compiler,
             clang_plus_plus=args.cxx_compiler,
             use_lld=not args.no_use_lld,
+            is_windows=is_windows,
         )
         install(execution_dir=llvm_build_release_dir, ninja_path=ninja)
 
