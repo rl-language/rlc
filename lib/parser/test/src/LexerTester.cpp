@@ -29,6 +29,17 @@ TEST(LexerTest, lexerTestIf)
 	EXPECT_EQ(lexer.next(), Token::End);
 }
 
+TEST(LexerTest, lexerTestNewLinePos)
+{
+	Lexer lexer("\n\n\nif");
+	EXPECT_EQ(lexer.next(), Token::Newline);
+	EXPECT_EQ(lexer.getCurrentColumn(), 1);
+	EXPECT_EQ(lexer.getCurrentLine(), 4);
+	EXPECT_EQ(lexer.next(), Token::KeywordIf);
+	EXPECT_EQ(lexer.next(), Token::Newline);
+	EXPECT_EQ(lexer.next(), Token::End);
+}
+
 TEST(LexerTest, lexerLongTest)
 {
 	Lexer lexer("if 34 in ()");

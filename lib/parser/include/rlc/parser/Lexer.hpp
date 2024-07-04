@@ -114,7 +114,10 @@ namespace rlc
 	class Lexer
 	{
 		public:
-		Lexer(const char* i): in(i), indentStack({ 0 }) {}
+		Lexer(const char* i): in(i), indentStack({ 0 }) {
+			if (*in == '\r')
+				in++;
+		}
 
 		Token next();
 

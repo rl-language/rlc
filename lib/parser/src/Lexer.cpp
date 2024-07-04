@@ -44,6 +44,8 @@ char Lexer::eatChar()
 	}
 
 	in++;
+	if (*in == '\r')
+		in++;
 	return c;
 }
 
