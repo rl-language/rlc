@@ -256,7 +256,10 @@ class Simulation:
           if os.name == "nt":
             del self.module
             _ctypes.FreeLibrary(libHandle)
-          self.tmp_dir.cleanup()
+          try:
+            self.tmp_dir.cleanup()
+          except:
+            pass
 
     @property
     def functions(self):
@@ -268,7 +271,7 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
     for arg in rlc_includes:
         include_args.append("-i")
         include_args.append(arg)
-    tmp_dir = TemporaryDirectory(ignore_cleanup_errors=True)
+    tmp_dir = TemporaryDirectory()
     assert (
         run(
             [
