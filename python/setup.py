@@ -45,9 +45,12 @@ def copy_binaries(source_directory, destination_directory):
 # Assuming binaries are in /path/to/cmake/install/bin and /path/to/cmake/install/lib
 target_bin_dir = "bin" if os.name != "nt" else "Scripts"
 exec_ext = "" if os.name != "nt" else ".exe"
+lib_ext = ".a" if os.name != "nt" else ".lib"
+lib_prefix = "lib" if os.name != "nt" else ""
 copy_binaries(os.path.join("..", "..", "rlc-release", "install", "bin", "rlc" + exec_ext), target_bin_dir)
 copy_binaries(os.path.join("..", "..", "rlc-release", "install", "bin", "rlc-lsp" + exec_ext), target_bin_dir)
-copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", "runtime.lib"), "lib")
+copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", lib_prefix + "runtime" + lib_ext), "lib")
+copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", lib_prefix + "fuzzer" + lib_ext), "lib")
 copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", "rlc"), os.path.join("lib", "rlc"))
 extra_files_bin = package_files([target_bin_dir], target_bin_dir)
 extra_files_lib = package_files(["lib"], "lib")
@@ -56,7 +59,7 @@ site_packages_path = target_bin_dir if os.name != "nt" else os.path.join("Lib", 
 
 setup(
     name="rl_language",
-    version="0.1.20",
+    version="0.1.21",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
