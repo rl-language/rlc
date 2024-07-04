@@ -30,6 +30,7 @@ limitations under the License.
 #include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
+#include "lld/Common/Driver.h"
 #include "llvm/Pass.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -57,6 +58,7 @@ limitations under the License.
 #include "rlc/dialect/Passes.hpp"
 using namespace llvm;
 using namespace std;
+LLD_HAS_DRIVER(coff)
 
 namespace mlir::rlc
 {
@@ -298,7 +300,8 @@ static void compile(
 static mlir::LogicalResult getLinkerInvocation(
 		llvm::StringRef clangPath,
 		llvm::ArrayRef<string> clangInvocation,
-		llvm::StringRef triple)
+		llvm::StringRef triple, 
+		bool targetWindows)
 {
 	llvm::SmallVector<const char *, 4> args;
 	for (auto &arg : clangInvocation)
@@ -345,13 +348,26 @@ static mlir::LogicalResult getLinkerInvocation(
 		return mlir::failure();
 	}
 
-	std::string Error;
-	bool failed = false;
-	LinkCommand->Execute({}, &Error, &failed);
-	if (failed)
-	{
+	// on windows invoke lld in process, because we can't assume lld is
+	// installed
+	if (targetWindows) {
+	   std::vector<const char *> LinkerArgs;
+	   LinkerArgs.push_back("lld");
+    	   for (const auto &Arg : LinkCommand->getArguments()) {
+                  LinkerArgs.push_back(Arg);
+    	   }
+    	   if (not lld::coff::link(LinkerArgs, llvm::outs(), llvm::errs(), false, false))
+		return mlir::failure();
+
+	} else {
+	  bool failed = false;
+	  std::string Error;
+	  LinkCommand->Execute({}, &Error, &failed);
+	  if (failed)
+	  {
 		llvm::errs() << Error;
 		return mlir::failure();
+	  }
 	}
 
 	return mlir::success();
@@ -452,7 +468,7 @@ static int linkLibraries(
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
 
-	if (getLinkerInvocation(*maybeRealPath, argSource, info.pimpl->triple.str())
+	if (getLinkerInvocation(*maybeRealPath, argSource, info.pimpl->triple.str(), info.isWindows())
 					.failed())
 		return -1;
 

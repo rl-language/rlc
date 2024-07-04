@@ -20,6 +20,7 @@ target_link_libraries(backend
 	MLIRTargetLLVMIRExport
 	MLIRTranslateLib
 	MLIRSPIRVDialect
+	lldCOFF
     clangDriver
 	${dialect_libs}
 	${translation_libs}

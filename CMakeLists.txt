@@ -76,6 +76,7 @@ set_tests_properties(${noArgsTests} PROPERTIES TIMEOUT 10)
 include(macros.cmake)
 
 find_package(LLVM REQUIRED CONFIG)
+find_package(LLD REQUIRED CONFIG)
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 
