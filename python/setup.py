@@ -59,7 +59,7 @@ site_packages_path = target_bin_dir if os.name != "nt" else os.path.join("Lib", 
 
 setup(
     name="rl_language",
-    version="0.1.29",
+    version="0.1.31",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),

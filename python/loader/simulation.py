@@ -19,7 +19,7 @@ import inspect
 from math import log2, ceil, floor
 from pathlib import Path
 from collections import defaultdict
-from tempfile import TemporaryDirectory
+from tempfile import mkdtemp
 from subprocess import run
 from ctypes import Structure, Array
 from sys import stdout, stderr
@@ -252,14 +252,6 @@ class Simulation:
         import _ctypes
         libHandle = self.module.lib._handle
 
-        if self.tmp_dir is not None:
-          if os.name == "nt":
-            del self.module
-            _ctypes.FreeLibrary(libHandle)
-          try:
-            self.tmp_dir.cleanup()
-          except:
-            pass
 
     @property
     def functions(self):
@@ -271,7 +263,7 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
     for arg in rlc_includes:
         include_args.append("-i")
         include_args.append(arg)
-    tmp_dir = TemporaryDirectory()
+    tmp_dir = mkdtemp() 
     assert (
         run(
             [
@@ -279,7 +271,7 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
                 source,
                 "--python",
                 "-o",
-                Path(tmp_dir.name) / Path("wrapper.py"),
+                Path(tmp_dir) / Path("wrapper.py"),
                 "-O2" if optimized else "",
             ]
             + include_args
@@ -287,8 +279,8 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
         == 0
     )
     lib_name = "lib.dll" if os.name == "nt" else "lib.so"
-    args = [rlc_compiler, source, "--shared", "-o", Path(tmp_dir.name) / Path(lib_name), "-O2" if optimized else ""]
+    args = [rlc_compiler, source, "--shared", "-o", Path(tmp_dir) / Path(lib_name), "-O2" if optimized else ""]
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
     assert run(args + include_args).returncode == 0
-    return Simulation(str(Path(tmp_dir.name) / Path("wrapper.py")), tmp_dir)
+    return Simulation(str(Path(tmp_dir) / Path("wrapper.py")), tmp_dir)
