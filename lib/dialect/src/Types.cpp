@@ -445,6 +445,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 				maybeType.getSize() !=
 						mlir::rlc::IntegerLiteralType::get(maybeType.getContext(), 0))
 		{
+			typeToPretty(OS, maybeType.getUnderlying());
 			OS << "[";
 			typeToPretty(OS, maybeType.getSize());
 			OS << "]";

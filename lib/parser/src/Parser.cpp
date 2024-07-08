@@ -42,6 +42,8 @@ void Parser::next()
 		lDouble = lexer.lastDouble();
 	if (current == Token::String)
 		lString = lexer.lastString();
+	if (attachComments)
+		accumulatedComments += lexer.getLastComment();
 	current = lexer.next();
 }
 
@@ -736,9 +738,6 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	EXPECT(Token::Indent);
-	while (accept(Token::Newline))
-	{
-	}
 	SmallVector<mlir::Type, 3> fieldTypes;
 	SmallVector<mlir::Attribute, 3> fieldNames;
 
@@ -761,11 +760,18 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 		return toReturn;
 	};
 
+	accumulatedComments.clear();
+	while (accept(Token::Newline))
+		;
+
 	while (!accept<Token::Deindent>())
 	{
 		if (current == Token::KeywordFun)
 		{
-			TRY(_, functionDefinition(true), on_exit());
+			auto currentFunctionComments = std::move(accumulatedComments);
+			accumulatedComments = "";
+			TRY(f, functionDefinition(true), on_exit());
+			setComment(*f, currentFunctionComments);
 		}
 		else
 		{
@@ -1388,6 +1394,8 @@ Expected<bool> Parser::statementList()
 		while (accept<Token::Newline>())
 			;
 		TRY(s, statement());
+		setComment(*s, accumulatedComments);
+		accumulatedComments.clear();
 	}
 
 	return true;
@@ -1918,6 +1926,15 @@ llvm::Expected<mlir::rlc::TypeAliasOp> Parser::usingStatement()
 	return builder.create<mlir::rlc::TypeAliasOp>(location, name, *typeUse);
 }
 
+void Parser::setComment(mlir::Operation* op, llvm::StringRef comment)
+{
+	if (not attachComments)
+		return;
+	if (comment.empty())
+		return;
+	op->setAttr("comment", builder.getStringAttr(comment));
+}
+
 Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 {
 	auto location = getCurrentSourcePos();
@@ -1937,9 +1954,17 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 
 	while (current != Token::End)
 	{
-		if (accept<Token::Newline>() or accept<Token::Indent>() or
-				accept<Token::Deindent>())
+		accumulatedComments = "";
+		while (accept<Token::Newline>() or accept<Token::Indent>() or
+					 accept<Token::Deindent>())
+			;
+
+		std::string comment = std::move(accumulatedComments);
+
+		if (current == Token::End)
+		{
 			continue;
+		}
 
 		if (current == Token::KeywordExtern)
 		{
@@ -1950,24 +1975,28 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		if (current == Token::KeywordAction)
 		{
 			TRY(f, actionDefinition());
+			setComment(*f, comment);
 			continue;
 		}
 
 		if (current == Token::KeywordFun)
 		{
 			TRY(f, functionDefinition());
+			setComment(*f, comment);
 			continue;
 		}
 
 		if (current == Token::KeywordEnum)
 		{
 			TRY(f, enumDeclaration());
+			setComment(*f, comment);
 			continue;
 		}
 
 		if (current == Token::KeywordClass)
 		{
 			TRY(f, classDeclaration());
+			setComment(*f, comment);
 			continue;
 		}
 

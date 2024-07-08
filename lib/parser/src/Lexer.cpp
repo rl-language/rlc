@@ -26,7 +26,7 @@ using namespace rlc;
 
 char Lexer::eatChar()
 {
-	char c = *in;
+	const char c = *in;
 	currentColumn++;
 	newLine = c == '\n';
 	if (c == '\n')
@@ -529,6 +529,7 @@ Token Lexer::eatIdent()
 
 Token Lexer::next()
 {
+	lComment.clear();
 	auto result = nextWithoutTrailingConsume();
 
 	// unless we are at the start of line, we skip over the next white space
@@ -543,8 +544,10 @@ bool Lexer::eatComment()
 {
 	if (*in == '#')
 	{
+		eatChar();
 		while (*in != '\n' and *in != '\0')
-			eatChar();
+			lComment += eatChar();
+		lComment += "\n";
 		return true;
 	}
 	return false;

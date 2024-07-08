@@ -34,13 +34,18 @@ namespace rlc
 			llvm::SmallVector<mlir::Location> argLocs;
 		};
 
-		Parser(mlir::MLIRContext* ctx, std::string source, std::string sourceName)
+		Parser(
+				mlir::MLIRContext* ctx,
+				std::string source,
+				std::string sourceName,
+				bool attachComments = false)
 				: ctx(ctx),
 					builder(ctx),
 					pos(mlir::FileLineColLoc::get(ctx, sourceName, 1, 1)),
 					toParse(std::move(source)),
 					fileName(sourceName),
-					lexer(toParse.data())
+					lexer(toParse.data()),
+					attachComments(attachComments)
 
 		{
 			next();
@@ -48,6 +53,7 @@ namespace rlc
 
 		[[nodiscard]] mlir::Location getCurrentSourcePos() const;
 
+		void setComment(mlir::Operation* op, llvm::StringRef comment);
 		llvm::Expected<mlir::Value> primaryExpression();
 		llvm::Expected<mlir::Value> postFixExpression();
 		llvm::Expected<mlir::Value> canCallExpression();
@@ -144,6 +150,8 @@ namespace rlc
 		double lDouble{ 0 };
 		std::string lIdent;
 		std::string lString;
+		std::string accumulatedComments;
+		bool attachComments{ false };
 
 		llvm::SmallVector<std::string, 4> importedFiles;
 	};

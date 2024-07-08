@@ -91,7 +91,7 @@ fun main() -> Int:
 
 ### Try it!
 
-At the moment we provide binaries only for linux x64.
+At the moment we provide binaries only for linux x64 and windows x64.
 
 ```
 pip install rl_language
@@ -118,7 +118,7 @@ We wish for `RLC` to be usable by all as a compiler, for both commercial and non
 
 ### Installation for developers
 
-We provide a setup script that downloads the rlc repository and a setup script that will download and compile `LLVM` as well as `RLC`. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM.
+We provide a setup script that downloads the rlc repository and a setup script that will download and compile `LLVM` as well as `RLC`. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM. This is only required when building from sources, pypi packages are much less than 1gb on each operating system.
 
 Hard drive space can be reclaimed by deleting `LLVM` build directory after it has been fully built.
 
@@ -127,6 +127,11 @@ Download the setup.sh file in the root of the repository and then run:
 chmod +x setup.sh
 source ./setup.sh # clones RLC repo and initialize virtualenvs and submodules
 python rlc/build.py # clones LLVM, builds it and builds RLC
+```
+
+on mac and windows replace the last line with
+```
+python rlc/build.py --no-use-lld
 ```
 
 If that script terminates successfully, you are fully set up to start working on `RLC`.

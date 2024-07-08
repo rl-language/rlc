@@ -56,10 +56,15 @@ cls Board:
     fun next_turn():
         self.playerTurn = !self.playerTurn
 
+# tic tac toe implementation
 act play() -> Game:
     frm board : Board
     frm score = 10
     while !board.full():
+        # sets the indicated board as beloning 
+        # to the current player
+        
+        #asdasd
         act mark(BInt<0, 3> x, BInt<0, 3> y) {
             board.get(x.value, y.value) == 0
         }

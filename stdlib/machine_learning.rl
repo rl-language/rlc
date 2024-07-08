@@ -17,15 +17,20 @@ import action
 import collections.vector
 import string
 
+# A Hidden object rapresents a object that is not visibile to machine
+# learning algorithms. For example a machine learning algorithms learning
+# to play black jack should not have access to the deck of cards, so it can be wrapped into a hidden to achieve that effect
 cls<T> Hidden:
     T value
 
     fun assign(T content):
         self.value = content
 
+# since the underlying object is hidden, this function does nothing.
 fun<T> write_in_observation_tensor(Hidden<T> obj, Int observer_id, Vector<Float> output, Int index):
     return
 
+# since the underlying object is hidden, always returns zero 
 fun<T> size_as_observation_tensor(Hidden<T> obj) -> Int:
     return 0 
 

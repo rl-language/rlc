@@ -14,6 +14,8 @@
 
 import collections.vector
 
+# a c style string, composed of a series of ascii characters
+# terminated by a null terminator.
 cls String:
     Vector<Byte> _data 
 
@@ -21,6 +23,8 @@ cls String:
         self._data.init()
         self._data.append('\0')
 
+    # append the byte b, interpreted as a ascii
+    # character to the string
     fun append(Byte b):
         self._data.back() = b
         self._data.append('\0')
@@ -433,5 +437,8 @@ fun<T> from_string(T result, String buffer) -> Bool:
     let index = 0
     return _parse_string_impl(result, buffer, index)
 
+# given a String *buffer* and a offset into that string index,
+# parses buffer starting from *index* and uses those information
+# to set the value of *result*.
 fun<T> from_string(T result, String buffer, Int index) -> Bool:
     return _parse_string_impl(result, buffer, index)
