@@ -413,6 +413,9 @@ static int linkLibraries(
 	if (info.isWindows())
 	{
 		argSource.push_back("-fuse-ld=lld");
+		argSource.push_back("-nostdlib");
+		argSource.push_back("-nodefaultlibs");
+		argSource.push_back("-Wl,-nodefaultlib");
 		argSource.push_back("-Wl,-subsystem:console");
 	}
 	else if (not info.isMacOS())

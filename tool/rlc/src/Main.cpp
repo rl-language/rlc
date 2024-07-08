@@ -337,6 +337,7 @@ static mlir::rlc::Driver configureDriver(
 			runtimeLibPath = toNative(llvm::sys::path::parent_path(pathToRlc).str() +
 											 "/../lib/" + RUNTIME_LIBRARY_FILENAME);
 	}
+
 	ExtraObjectFiles.addValue(runtimeLibPath);
 
 	Driver driver(srcManager, { InputFilePath }, outputFile, OS);

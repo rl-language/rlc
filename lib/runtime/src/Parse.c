@@ -15,9 +15,40 @@ limitations under the License.
 */
 #include <ctype.h>
 #include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 
+
 #include "rlc/runtime/Runtime.h"
+
+struct String {
+  char* str;
+  int64_t size;
+  int64_t capacity;
+};
+
+// fun get(String self, Int index) -> ref Byte 
+static void rl_m_get__String_int64_t_r_int8_tRef(
+		int8_t** out, String* self, int64_t* index) {
+	*out = (int8_t*) &(self->str[*index]);
+
+}
+
+// fun append(String self, StringLiteral l)
+static void rl_m_append__String_strlit(String* self, char** to_append) {
+	size_t selflen = self->size; // size includes terminator
+	size_t to_copy_len = strlen(*to_append); // size does not include terminator
+
+	if (selflen + to_copy_len >= self->capacity) {
+	   size_t new_capacity = (selflen + to_copy_len) * 2;
+	   self->str = realloc(self->str, new_capacity);  
+	   self->capacity = new_capacity; 
+	}
+
+	memcpy(self->str + selflen - 1, *to_append, to_copy_len + 1);
+	self->size =  selflen + to_copy_len; 
+}
 
 void rl_append_to_string__int64_t_String(int64_t* toConvert, String* out)
 {

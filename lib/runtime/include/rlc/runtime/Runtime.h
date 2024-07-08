@@ -29,13 +29,6 @@ typedef struct String String;
 // fun init(String self)
 EXPORT void rl_m_init__String(String* self);
 
-// fun get(String self, Int index)
-EXPORT void rl_m_get__String_int64_t_r_int8_tRef(
-		int8_t** out, String* self, int64_t* index);
-
-// fun append(String self, StringLiteral l)
-EXPORT void rl_m_append__String_strlit(String* self, char** to_append);
-
 // fun append(String self, Int to_append)
 EXPORT void rl_append_to_string__int64_t_String(int64_t* member, String* out);
 // fun append(String self, Byte to_append)
