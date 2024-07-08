@@ -26,6 +26,8 @@ limitations under the License.
 
 typedef struct String String;
 
+void impl_rl_m_append__String_strlit(String* self, char** to_append);
+
 // fun init(String self)
 EXPORT void rl_m_init__String(String* self);
 

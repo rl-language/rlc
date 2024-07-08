@@ -15,39 +15,41 @@ limitations under the License.
 */
 #include <ctype.h>
 #include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
-
+#include <stdlib.h>
+#include <string.h>
 
 #include "rlc/runtime/Runtime.h"
 
-struct String {
-  char* str;
-  int64_t size;
-  int64_t capacity;
+struct String
+{
+	char* str;
+	int64_t size;
+	int64_t capacity;
 };
 
-// fun get(String self, Int index) -> ref Byte 
+// fun get(String self, Int index) -> ref Byte
 static void rl_m_get__String_int64_t_r_int8_tRef(
-		int8_t** out, String* self, int64_t* index) {
+		int8_t** out, String* self, int64_t* index)
+{
 	*out = (int8_t*) &(self->str[*index]);
-
 }
 
 // fun append(String self, StringLiteral l)
-static void rl_m_append__String_strlit(String* self, char** to_append) {
-	size_t selflen = self->size; // size includes terminator
-	size_t to_copy_len = strlen(*to_append); // size does not include terminator
+void impl_rl_m_append__String_strlit(String* self, char** to_append)
+{
+	size_t selflen = self->size;							// size includes terminator
+	size_t to_copy_len = strlen(*to_append);	// size does not include terminator
 
-	if (selflen + to_copy_len >= self->capacity) {
-	   size_t new_capacity = (selflen + to_copy_len) * 2;
-	   self->str = realloc(self->str, new_capacity);  
-	   self->capacity = new_capacity; 
+	if (selflen + to_copy_len >= self->capacity)
+	{
+		size_t new_capacity = (selflen + to_copy_len) * 2;
+		self->str = realloc(self->str, new_capacity);
+		self->capacity = new_capacity;
 	}
 
 	memcpy(self->str + selflen - 1, *to_append, to_copy_len + 1);
-	self->size =  selflen + to_copy_len; 
+	self->size = selflen + to_copy_len;
 }
 
 void rl_append_to_string__int64_t_String(int64_t* toConvert, String* out)
@@ -55,7 +57,7 @@ void rl_append_to_string__int64_t_String(int64_t* toConvert, String* out)
 	char buffer[256];
 	sprintf(buffer, "%" PRId64, *toConvert);
 	char* addres = buffer;
-	rl_m_append__String_strlit(out, &addres);
+	impl_rl_m_append__String_strlit(out, &addres);
 }
 
 void rl_append_to_string__int8_t_String(int8_t* toConvert, String* out)
@@ -63,7 +65,7 @@ void rl_append_to_string__int8_t_String(int8_t* toConvert, String* out)
 	char buffer[256];
 	sprintf(buffer, "%" PRId8, *toConvert);
 	char* addres = buffer;
-	rl_m_append__String_strlit(out, &addres);
+	impl_rl_m_append__String_strlit(out, &addres);
 }
 
 void rl_append_to_string__double_String(double* toConvert, String* out)
@@ -71,7 +73,7 @@ void rl_append_to_string__double_String(double* toConvert, String* out)
 	char buffer[256];
 	sprintf(buffer, "%f", *toConvert);
 	char* addres = buffer;
-	rl_m_append__String_strlit(out, &addres);
+	impl_rl_m_append__String_strlit(out, &addres);
 }
 
 void rl_print_string__String(String* s)
@@ -157,7 +159,7 @@ void rl_load_file__String_String_r_bool(
 	char* c = read;
 	read[1023] = '\0';
 	while (fgets(read, 1024, f))
-		rl_m_append__String_strlit(out, &c);
+		impl_rl_m_append__String_strlit(out, &c);
 
 	fclose(f);
 	*result = 1;

@@ -19,25 +19,17 @@ limitations under the License.
 
 struct String
 {
-	std::string content;
+	char* str;
+	int64_t size;
+	int64_t capacity;
+
+	String(): str(new char[4]), size(1), capacity(4) { str[0] = '\0'; }
+	~String() { delete[] str; }
 };
 
 extern "C"
 {
 #include "rlc/runtime/Runtime.h"
-
-	void rl_m_append__String_strlit(String* self, char** to_append)
-	{
-		self->content.append(*to_append);
-	}
-
-	void rl_m_init__String(String* self) {}
-
-	void rl_m_get__String_int64_t_r_int8_tRef(
-			int8_t** out, String* self, int64_t* index)
-	{
-		*out = ((int8_t*) &self->content[*index]);
-	}
 }
 
 TEST(parseTest, printInt64)
@@ -45,7 +37,7 @@ TEST(parseTest, printInt64)
 	String result;
 	int64_t to_parse = -258;
 	rl_append_to_string__int64_t_String(&to_parse, &result);
-	EXPECT_EQ(result.content, "-258");
+	EXPECT_STREQ(result.str, "-258");
 }
 
 TEST(parseTest, printInt8)
@@ -53,7 +45,7 @@ TEST(parseTest, printInt8)
 	String result;
 	int8_t to_parse = -4;
 	rl_append_to_string__int8_t_String(&to_parse, &result);
-	EXPECT_EQ(result.content, "-4");
+	EXPECT_STREQ(result.str, "-4");
 }
 
 TEST(parseTest, printDouble)
@@ -61,13 +53,15 @@ TEST(parseTest, printDouble)
 	String result;
 	double to_parse = -42.3;
 	rl_append_to_string__double_String(&to_parse, &result);
-	EXPECT_EQ(result.content, "-42.300000");
+	EXPECT_STREQ(result.str, "-42.300000");
 }
 
 TEST(parseTest, parseInt64)
 {
 	String to_parse;
-	to_parse.content = "-42 asd";
+	char buffer[] = "-42 asd";
+	char* ref = buffer;
+	impl_rl_m_append__String_strlit(&to_parse, &ref);
 	int64_t result = 0;
 	int64_t index = 0;
 	bool result_value = false;
@@ -81,7 +75,9 @@ TEST(parseTest, parseInt64)
 TEST(parseTest, parseInt8)
 {
 	String to_parse;
-	to_parse.content = " -42 asd";
+	char buffer[] = "-42 asd";
+	char* ref = buffer;
+	impl_rl_m_append__String_strlit(&to_parse, &ref);
 	int8_t result = 0;
 	int64_t index = 0;
 	bool result_value = false;
@@ -89,13 +85,15 @@ TEST(parseTest, parseInt8)
 			&result_value, &result, &to_parse, &index);
 	EXPECT_EQ(result, -42);
 	EXPECT_EQ(result_value, true);
-	EXPECT_EQ(index, 4);
+	EXPECT_EQ(index, 3);
 }
 
 TEST(parseTest, parseDouble)
 {
 	String to_parse;
-	to_parse.content = " -42.3 asd";
+	char buffer[] = "-42.3 asd";
+	char* ref = buffer;
+	impl_rl_m_append__String_strlit(&to_parse, &ref);
 	double result = 0;
 	int64_t index = 0;
 	bool result_value = false;
@@ -103,5 +101,5 @@ TEST(parseTest, parseDouble)
 			&result_value, &result, &to_parse, &index);
 	EXPECT_EQ(result, -42.3);
 	EXPECT_EQ(result_value, true);
-	EXPECT_EQ(index, 6);
+	EXPECT_EQ(index, 5);
 }
