@@ -1001,6 +1001,9 @@ llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 	EXPECT(Token::Newline, onExit());
 	onExit();
 
+	setComment(action, accumulatedComments);
+	accumulatedComments.clear();
+
 	return action;
 }
 
@@ -1394,8 +1397,6 @@ Expected<bool> Parser::statementList()
 		while (accept<Token::Newline>())
 			;
 		TRY(s, statement());
-		setComment(*s, accumulatedComments);
-		accumulatedComments.clear();
 	}
 
 	return true;
@@ -2025,6 +2026,7 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		if (current == Token::KeywordTrait)
 		{
 			TRY(f, traitDefinition());
+			setComment(*f, comment);
 			continue;
 		}
 		auto location = getCurrentSourcePos();

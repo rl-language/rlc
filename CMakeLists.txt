@@ -99,6 +99,24 @@ add_test(NAME pytest
 COMMAND ${Python_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/python
 )
 
+##############################
+###       STDLIBDOC        ###
+##############################
+file(GLOB_RECURSE STDLIBFILES "${CMAKE_SOURCE_DIR}/stdlib/*.rl")
+foreach(RLFILE ${STDLIBFILES})
+    file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}" "${RLFILE}")
+    string(REPLACE ".rl" ".md" MD_FILE "${REL_PATH}")
+    set(MD_FILE_PATH "${CMAKE_BINARY_DIR}/${MD_FILE}")
+
+    add_custom_command(
+        OUTPUT ${MD_FILE_PATH}
+        COMMAND rlc-doc ${RLFILE} -o ${MD_FILE_PATH}  --create-dirs=true
+        DEPENDS rlc-doc ${RLFILE})
+    list(APPEND MD_FILES "${MD_FILE_PATH}")
+endforeach()
+
+add_custom_target(stdlibdoc ALL DEPENDS ${MD_FILES})
+
 
 ##############################
 ###        DOXYGEN         ###

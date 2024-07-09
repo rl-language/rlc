@@ -64,15 +64,15 @@ As of the moment of writing (1/6/2024), games with multiple players do not work 
 
 To run the following examples, you need:
 
-* A Linux x64 machine (we plan to support every major architecture and OS in the future, but currently, we are limited by the systems supported by the libraries we depend upon).
+* A Linux or windows x64 machine (we plan to support every major architecture and OS in the future, but currently, we are limited by the CI machine we own).
 * At least Python 3.8 installed with `pip`.
-* Clang, which can be installed with `sudo apt install clang` or `sudo yum install clang`.
 
 Optionally, you can install:
 
 * Visual Studio Code, for which we provide syntax highlighting and autocomplete plugins. They are called `rl-lsp` and `rl-language`.
 
 ## Installation
+If you are on windows, you can refer to the following [video.](https://www.youtube.com/watch?v=U5pCPj6_TnY)
 
 You can install the `RL` compiler, autocomplete support, and machine learning dependencies by opening a terminal and running:
 ```bash

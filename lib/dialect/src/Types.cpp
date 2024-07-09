@@ -652,6 +652,33 @@ std::string mlir::rlc::mangledName(
 	return s;
 }
 
+std::string mlir::rlc::prettyPrintFunctionTypeWithNameArgs(
+		mlir::FunctionType fType, mlir::ArrayAttr attr)
+{
+	std::string toReturn = "(";
+	size_t current = 0;
+	if (fType.getNumInputs() != attr.size())
+		return mlir::rlc::prettyType(fType);
+
+	for (auto [type, name] : llvm::zip(fType.getInputs(), attr))
+	{
+		toReturn += mlir::rlc::prettyType(type);
+		toReturn += " ";
+		toReturn += name.cast<mlir::StringAttr>().getValue().str();
+		current++;
+		if (current != fType.getInputs().size())
+			toReturn += ", ";
+	}
+	toReturn += ") ";
+	if (fType.getNumResults() != 0 and
+			not fType.getResult(0).isa<mlir::rlc::VoidType>())
+	{
+		toReturn += " -> ";
+		toReturn += mlir::rlc::prettyType(fType.getResult(0));
+	}
+	return toReturn;
+}
+
 std::string mlir::rlc::prettyType(mlir::Type type)
 {
 	std::string s;

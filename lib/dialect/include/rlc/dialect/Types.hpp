@@ -45,6 +45,9 @@ namespace mlir::rlc
 
 	std::string prettyType(mlir::Type type);
 
+	std::string prettyPrintFunctionTypeWithNameArgs(
+			mlir::FunctionType fType, mlir::ArrayAttr attr);
+
 	class ClassType
 			: public Type::
 						TypeBase<ClassType, Type, StructTypeStorage, TypeTrait::IsMutable>

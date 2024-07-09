@@ -545,9 +545,12 @@ bool Lexer::eatComment()
 	if (*in == '#')
 	{
 		eatChar();
+		bool doubleComment = *in == '#';
 		while (*in != '\n' and *in != '\0')
 			lComment += eatChar();
 		lComment += "\n";
+		if (doubleComment)
+			lComment.clear();
 		return true;
 	}
 	return false;

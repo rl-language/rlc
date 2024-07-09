@@ -100,7 +100,8 @@ fun<AllActionsVariant> parse_actions(AllActionsVariant variant, Vector<Byte> inp
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input):
     parse_and_execute(state, variant, input, 0)
 
-
+# method that bust be present in binary to ensure that all methods 
+# required by rlc-learn are available
 fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActionsVariant variant):
     let state : FrameType
     let serialized = as_byte_vector(state)
@@ -125,16 +126,7 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     observation_tensor_size(state)
     let vector : Vector<AllActionsVariant>
     load_action_vector_file("dc"s, vector)
-    load_example(vector)
     apply(vector, state)
-
-fun<ActionType> load_example(Vector<ActionType> result) -> Bool:
-    let content : String
-    if !load_file("/home/massimo/file.txt"s, content):
-        return false
-    let variant : ActionType
-    result = parse_actions(variant, content)
-    return true
 
 fun<ActionType> load_action_vector_file(String file_name, Vector<ActionType> out) -> Bool:
     let content : String 
@@ -144,6 +136,12 @@ fun<ActionType> load_action_vector_file(String file_name, Vector<ActionType> out
     out = parse_actions(variant, content)
     return true
 
+# trait that must be implemented by a type to enumerate all
+# possible values of that types (ex: enumerate(bool) return 
+# {true, false})
+# 
+# this is used by machine learning techniques that need to
+# enumerate all possible actions.
 trait<T> Enumerable:
     fun enumerate(T obj, Vector<T> output)
 
@@ -199,6 +197,10 @@ fun<T> enumerate(T obj) -> Vector<T>:
 
     return to_return
 
+# trait that must be implemented to specify how
+# a given type is to be converted into a tensor
+# for machine learning consumptions. The encoding
+# should be, when possible, one-hot encoding.
 trait<T> Tensorable:
     fun write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter) 
     fun size_as_observation_tensor(T obj) -> Int

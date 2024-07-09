@@ -14,6 +14,9 @@
 
 import collections.vector
 
+# Trait that must be implemented by a type 
+# to override the standad way it is added to
+# a vector of bytes
 trait<T> ByteVectorSerializable:
     fun append_to_vector(T to_add, Vector<Byte> output)
 
@@ -66,14 +69,20 @@ fun<T> _to_vector_impl(T to_add, Vector<Byte> output):
         for field of to_add:
             _to_vector_impl(field, output)
 
+# converts `to_convert` to a sequence of bytes and adds it
+# to `out`.
 fun<T> append_to_byte_vector(T to_convert, Vector<Byte> out):
     _to_vector_impl(to_convert, out)
 
+# converts `to_convert` to a sequence of bytes 
 fun<T> as_byte_vector(T to_convert) -> Vector<Byte>:
     let vec : Vector<Byte>
     _to_vector_impl(to_convert, vec)
     return vec
 
+# Trait that can be implemented to override the default conversion
+# from a array of bytes to a object.
+# It must be implemented if the trait has implemented ByteVectorSerializable
 trait<T> ByteVectorParsable:
     fun parse_from_vector(T result, Vector<Byte> input, Int index) -> Bool
 
@@ -161,8 +170,14 @@ fun<T> _from_vector_impl(T to_add, Vector<Byte> input, Int index) -> Bool:
                 return false
         return true
 
+# converts the bytes in `input` into a T and 
+# assigns the value to `result`. Returns false if the conversion failed.
 fun<T> from_byte_vector(T result, Vector<Byte> input) -> Bool:
     return _from_vector_impl(result, input, 0)
 
+# converts the bytes in `input` starting at `read_bytes` into a T and 
+# assigns the value to `result`. Returns false if the conversion failed.
+# read_bytes is advanced up to the index of the first bytes not used to
+# parse `result`
 fun<T> from_byte_vector(T result, Vector<Byte> input, Int read_bytes) -> Bool:
     return _from_vector_impl(result, input, read_bytes)

@@ -98,6 +98,7 @@ pip install rl_language
 ```
 
 Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
+Language reference and stdlib documentation [here](https://github.com/rl-language/rlc-stdlib-doc/tree/master).
 
 ### Dependencies
 Base:

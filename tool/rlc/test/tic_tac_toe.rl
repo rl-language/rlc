@@ -63,8 +63,6 @@ act play() -> Game:
     while !board.full():
         # sets the indicated board as beloning 
         # to the current player
-        
-        #asdasd
         act mark(BInt<0, 3> x, BInt<0, 3> y) {
             board.get(x.value, y.value) == 0
         }

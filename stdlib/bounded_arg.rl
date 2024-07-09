@@ -14,6 +14,9 @@
 import serialization.to_byte_vector
 import string 
 
+# A integer with a max and min, so that
+# enumerate will return the range of values
+# between the two.
 cls<Int min, Int max> BInt:
     Int value
 

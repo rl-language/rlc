@@ -15,7 +15,9 @@
 import collections.vector
 
 # a c style string, composed of a series of ascii characters
-# terminated by a null terminator.
+# terminated by a null terminator. If the string changes, it 
+# may be reallocated, causing all references to its 
+# characters to be invalidated.
 cls String:
     Vector<Byte> _data 
 
@@ -29,9 +31,13 @@ cls String:
         self._data.back() = b
         self._data.append('\0')
 
+    # returns a reference to the character
+    # at the `index` location
     fun get(Int index) -> ref Byte:
         return self._data.get(index)
 
+    # returns true if the current string contains the
+    # string `lit` starting from the character at `pos`
     fun substring_matches(StringLiteral lit, Int pos) -> Bool:
         if pos >= self.size():
             return false
@@ -43,9 +49,13 @@ cls String:
             current = current + 1
         return true
 
+    # returns the size of the string, excluding
+    # the null terminator
     fun size() -> Int:
         return self._data.size() - 1
 
+    # returns the number of occurences
+    # a certain character appears in the string
     fun count(Byte b) -> Int:
         let to_return = 0
         let index = 0
@@ -55,6 +65,7 @@ cls String:
             index = index + 1
         return to_return
 
+    # appens `str` to the current string
     fun append(StringLiteral str):
         self._data.pop()
         let val = 0
@@ -63,6 +74,7 @@ cls String:
             val = val + 1
         self._data.append('\0')
 
+    # appens `str` to the current string
     fun append(String str):
         self._data.pop()
         let val = 0
@@ -71,12 +83,18 @@ cls String:
             val = val + 1
         self._data.append('\0')
 
+    # returns the concatenation of this
+    # string and `other`, without modifying
+    # this string.
     fun add(String other) -> String:
         let to_ret : String
         to_ret.append(self)
         to_ret.append(other)
         return to_ret
 
+    # returns true if every character of this
+    # string is equal to every character of
+    # the `other` string
     fun equal(StringLiteral other) -> Bool:
         let counter = 0
         while counter < self.size():
@@ -89,6 +107,9 @@ cls String:
             return false
         return true
 
+    # returns true if every character of this
+    # string is equal to every character of
+    # the `other` string
     fun equal(String other) -> Bool:
         if other.size() != self.size():
             return false
@@ -105,12 +126,17 @@ cls String:
     fun not_equal(StringLiteral other) -> Bool:
         return !(self.equal(other))
 
+    # removes `quantity` characters from the
+    # end of the string
     fun drop_back(Int quantity):
         self._data.drop_back(quantity)
 
+    # returns a reference the last character before 
+    # the null terminator of the string
     fun back() -> ref Byte:
         return self._data.get(self._data.size() - 2)
 
+    # reverses inplace the string
     fun reverse():
         let x = 0
         let y = self.size() - 1
@@ -121,6 +147,10 @@ cls String:
             x = x + 1
             y = y - 1
 
+    # returns a string such that every parantesys
+    # in this string generates a new line indented
+    # as many times as the number of 
+    # parentesys not yet closed
     fun to_indented_lines() -> String:
         let to_return : String
 
@@ -155,20 +185,29 @@ fun _indent_string(String output, Int count):
         output.append("  ")
         counter2 = counter2 + 1
 
+# transforms a string literal into a String
+# ex: let str = "hey"s.add(" bye")
 fun s(StringLiteral literal) -> String:
     let to_return : String
     to_return.append(literal)
     return to_return
 
+# Trait that can be implemented by a type to override
+# the regular conversion to string for that type.
 trait<T> StringSerializable:
     fun append_to_string(T to_add, String output)
 
+# Trait that can be implemented by a type to override
+# which name is displayed in serialization of alternative 
+# types
 trait<T> CustomGetTypeName:
     fun get_type_name(T to_add) -> StringLiteral
 
 fun append_to_string(StringLiteral x, String output):
     output.append(x)
 
+# loads the file at path `file_name`, placing its contents
+# inside `out`. returns false if the file could not be read
 ext fun load_file(String file_name, String out) -> Bool 
 ext fun append_to_string(Int x, String output)
 ext fun append_to_string(Byte x, String output) 
@@ -251,11 +290,15 @@ fun<T> _to_string_impl(T to_add, String output):
 fun<T> to_string(T to_stringyfi, String output):
     _to_string_impl(to_stringyfi, output)
 
+# convert a object type into a string 
 fun<T> to_string(T to_stringyfi) -> String:
     let to_return : String
     _to_string_impl(to_stringyfi, to_return)
     return to_return
 
+# Trait that must be implemented to allow to convert
+# string into a type when StringSerializable has been
+# overwritten as well.
 trait<T> StringParsable:
     fun parse_string(T result, String buffer, Int index) -> Bool
 
@@ -278,7 +321,8 @@ fun _consume_space(String buffer, Int index):
     while is_space(buffer.get(index)):
         index = index + 1 
 
-fun lenght(StringLiteral literal) -> Int:
+# returns the length of a string literal
+fun length(StringLiteral literal) -> Int:
     let size = 0
     while literal[size] != '\0':
         size = size + 1
@@ -288,7 +332,7 @@ fun _consume_literal(String buffer, StringLiteral literal, Int index) -> Bool:
     _consume_space(buffer, index)
     if !buffer.substring_matches(literal, index):
         return false
-    let size = lenght(literal)
+    let size = length(literal)
     index = index + size
     return true
 
@@ -296,7 +340,7 @@ fun _consume_literal_token(String buffer, StringLiteral literal, Int index) -> B
     _consume_space(buffer, index)
     if !buffer.substring_matches(literal, index):
         return false
-    let counter = lenght(literal)
+    let counter = length(literal)
 
     # if there is a trailing alphanumeric character it means
     # we did not perfectly matched the name we were looking for

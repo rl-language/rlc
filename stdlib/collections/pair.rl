@@ -13,10 +13,15 @@
 # limitations under the License.
 import collections.vector
 
+# A parameterized container with two fields, first and second
 cls<T1,T2> Pair:
   T1 first
   T2 second
 
+# Accepts two vectors x, y of types T1, T2 of any length and returns 
+# a vector with length equal to the shortest of the lengths of the 
+# two input vectors. output.get(i).first == x.get(i) and 
+# output.get(i).second == y.get(i) for all i from 0 to output.length()
 fun<T1, T2> zip(Vector<T1> x,  Vector<T2> y) -> Vector<Pair<T1, T2>>:
   let to_return : Vector<Pair<T1, T2>>
   let i = 0

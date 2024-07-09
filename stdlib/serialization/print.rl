@@ -17,6 +17,7 @@ import string
 ext fun print_string(String s)
 ext fun print_string_lit(StringLiteral s)
 
+# print a arbitrary object to stdout
 fun<T> print(T to_print):
     if to_print is String:
         print_string(to_print)
@@ -25,6 +26,8 @@ fun<T> print(T to_print):
     else:
         print_string(to_string(to_print)) 
 
+# print a arbitrary object to stdout on multiple 
+# lines and indented
 fun<T> print_indented(T to_print):
     if to_print is String:
         print_string(to_print.to_indented_lines())

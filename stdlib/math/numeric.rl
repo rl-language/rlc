@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# returns the max between two numbers
 fun max(Int a, Int b) -> Int:
   if a > b:
     return a
   return b
 
+# retursn the min between two numbers
 fun min(Int a, Int b) -> Int:
   if b > a:
     return a

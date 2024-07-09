@@ -21,7 +21,7 @@ fun<T, Int X> custom_equal(T[X] lhs, T[X] rhs) -> Bool:
         counter = counter + 1
     return true
 
-# to implement
+# Nof fully impelemted, do not use
 fun<T> equal(T lhs, T rhs) -> Bool:
     if lhs is Comparable:
         if rhs is Comparable:
