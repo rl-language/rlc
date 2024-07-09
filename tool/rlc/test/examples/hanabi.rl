@@ -95,7 +95,8 @@ act play() -> Game:
         
         ## not sure how to implement give_information 
         actions:
-            act give_information()
+            act give_information() {info_token != 0}
+                info_token = info_token - 1
             act discard_card(HandCardIndex index)
                 player_hands[current_player.value].value.erase(index.value)
                 act draw_random_card(CardIndex index) {index < deck.value.size()}
