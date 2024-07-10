@@ -175,7 +175,7 @@ If you use some whacky shell of your own or you did not followed the default set
 [Youtube](https://www.youtube.com/watch?v=tMnBo3TGIbU)
 
 
-### How to contruibute for developers
+### How to contribute for developers
 * fork this project.
 * push your branches to your fork
 * open a pull request for the branch relevant to your project
