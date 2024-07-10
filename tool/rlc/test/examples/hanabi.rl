@@ -19,10 +19,16 @@ cls Card:
     Suit suit
     CardValueType value 
 
+cls CardInfo:
+    HandCardIndex index
+    Suit suit
+    CardValueType value 
+
 using CardIndex = BInt<0, 41>
 using HandCardIndex = BInt<0, 6>
 using DeckType = BoundedVector<Card, 40>
 using PlayerHand = BoundedVector<Card, 5>
+using PlayerObtainedInformations = BoundedVector<CardInfo, 5>
 using Fuses = BInt<0, 4>
 using InfoToken = BInt<0, 6>
 
@@ -63,6 +69,11 @@ fun have_all_5s_been_played(MaxCardValueType[5] cards_played) -> Bool:
 
 using CurrentPlayerIndex = BInt<0, 3>
 
+fun other_player(Int current_player) -> Int:
+    if current_player == 0:
+        return 1
+    return 0
+
 act play() -> Game:
     # hanabi deck is secret to all players
     frm deck : Hidden<DeckType>
@@ -78,6 +89,7 @@ act play() -> Game:
     frm fuses : Fuses
     fuses = 3
     frm highest_card_played : MaxCardValueType[5] 
+    frm player_infos : PlayerObtainedInformations[2]
     
     # randomly draw 5 cards for each player
     frm current_player : CurrentPlayerIndex
@@ -95,7 +107,15 @@ act play() -> Game:
         
         ## not sure how to implement give_information 
         actions:
-            act give_information() {info_token != 0}
+            act give_information(HandCardIndex index) {info_token != 0}
+                ref card = player_hands[other_player(current_player.value)].value.get(index.value)
+                let info : CardInfo
+                info.suit = card.suit
+                info.value = card.value
+                info.index = index
+                if player_infos[current_player.value].size() == 5:
+                    player_infos[current_player.value].erase(0)
+                player_infos[current_player.value].append(info)
                 info_token = info_token - 1
             act discard_card(HandCardIndex index)
                 player_hands[current_player.value].value.erase(index.value)
