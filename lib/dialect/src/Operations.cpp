@@ -1009,8 +1009,11 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 
 	if (auto parentFunction = newOne->getParentOfType<mlir::rlc::FunctionOp>())
 	{
-		if (not isReturnTypeCompatible(
-						newOne.getResult(), parentFunction.getResultTypes()[0]))
+		mlir::Type returnType =
+				(parentFunction.getType().getNumResults() != 0
+						 ? parentFunction.getResultTypes()[0]
+						 : mlir::rlc::VoidType::get(getContext()));
+		if (not isReturnTypeCompatible(newOne.getResult(), returnType))
 		{
 			auto _ = mlir::rlc::logError(
 					newOne,
@@ -1097,7 +1100,7 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 	}
 
 	rewriter.setInsertionPoint(getOperation());
-	auto replaced = rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
+	rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
 			*this, getExpression(), deducedType);
 
 	return mlir::success();

@@ -39,10 +39,22 @@ namespace mlir::rlc
 				iter != requireDestructor.end())
 			return mlir::success(iter->second);
 
+		if (toConsider.isa<mlir::rlc::TraitMetaType>())
+		{
+			requireDestructor[toConsider] = false;
+			return mlir::failure();
+		}
+
 		if (toConsider.isa<mlir::rlc::TemplateParameterType>())
 		{
 			requireDestructor[toConsider] = true;
 			return mlir::success();
+		}
+
+		if (toConsider.isa<mlir::rlc::VoidType>())
+		{
+			requireDestructor[toConsider] = false;
+			return mlir::failure();
 		}
 
 		if (toConsider.isa<mlir::FunctionType>())

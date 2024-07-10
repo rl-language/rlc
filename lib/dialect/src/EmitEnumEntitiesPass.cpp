@@ -24,6 +24,41 @@ namespace mlir::rlc
 #define GEN_PASS_DEF_EMITENUMENTITIESPASS
 #include "rlc/dialect/Passes.inc"
 
+	static void emitFromIntFunction(
+			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+	{
+		rewriter.setInsertionPoint(enumOp);
+		auto argType =
+				mlir::rlc::ScalarUseType::get(rewriter.getContext(), enumOp.getName());
+		auto intType = mlir::rlc::IntegerType::getInt64(rewriter.getContext());
+		auto argName = "self";
+		auto valueName = "new_value";
+
+		auto f = rewriter.create<mlir::rlc::FunctionOp>(
+				enumOp.getLoc(),
+				"from_int",
+				mlir::FunctionType::get(
+						rewriter.getContext(), { argType, intType }, {}),
+				rewriter.getStrArrayAttr({ argName, valueName }),
+				false);
+
+		auto* bb = rewriter.createBlock(
+				&f.getBody(),
+				f.getBody().begin(),
+				{ argType, intType },
+				{ enumOp.getLoc(), enumOp.getLoc() });
+		rewriter.setInsertionPointToStart(bb);
+
+		auto value = rewriter.create<mlir::rlc::UnresolvedMemberAccess>(
+				enumOp.getLoc(),
+				mlir::rlc::UnknownType::get(rewriter.getContext()),
+				f.getBody().front().getArgument(0),
+				"value");
+		rewriter.create<mlir::rlc::BuiltinAssignOp>(
+				enumOp.getLoc(), value, f.getBody().front().getArgument(1));
+		rewriter.create<mlir::rlc::Yield>(enumOp.getLoc());
+	}
+
 	static void emitAsIntFunction(
 			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
@@ -131,6 +166,7 @@ namespace mlir::rlc
 		emitIsEnumMemberFunction(rewriter, enumOp);
 		emitMaxMemberFunction(rewriter, enumOp);
 		emitAsIntFunction(rewriter, enumOp);
+		emitFromIntFunction(rewriter, enumOp);
 	}
 
 	static void moveAllFunctionDeclsToNewClass(

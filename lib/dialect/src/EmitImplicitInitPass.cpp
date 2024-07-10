@@ -127,6 +127,10 @@ namespace mlir::rlc
 					return;
 				if (isTemplateType(subtype).succeeded())
 					return;
+				if (subtype.isa<mlir::rlc::TraitMetaType>())
+					return;
+				if (subtype.isa<mlir::rlc::VoidType>())
+					return;
 				if (subtype.template isa<mlir::rlc::IntegerLiteralType>())
 					return;
 

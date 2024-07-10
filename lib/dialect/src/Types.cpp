@@ -709,6 +709,13 @@ mlir::FunctionType mlir::rlc::replaceTemplateParameter(
 			.cast<mlir::FunctionType>();
 }
 
+static mlir::Type resultTypeOrVoid(mlir::FunctionType fType)
+{
+	return fType.getNumResults() == 0
+						 ? mlir::rlc::VoidType::get(fType.getContext())
+						 : fType.getResults()[0];
+}
+
 static mlir::LogicalResult sameSignatureMethodExists(
 		mlir::Location callPoint,
 		ValueTable &table,
@@ -721,8 +728,9 @@ static mlir::LogicalResult sameSignatureMethodExists(
 
 	for (auto &overload : overloads)
 	{
-		if (overload.getType().cast<mlir::FunctionType>().getResults() ==
-				functionType.getResults())
+		auto overloadType = overload.getType().cast<mlir::FunctionType>();
+
+		if (resultTypeOrVoid(overloadType) == resultTypeOrVoid(functionType))
 			return mlir::success();
 	}
 	return mlir::failure();

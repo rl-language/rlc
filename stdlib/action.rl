@@ -149,6 +149,14 @@ fun enumerate(Bool b, Vector<Bool> output):
     output.append(true)
     output.append(false)
 
+fun<Enum T> enumerate(T b, Vector<T> output):
+    let i = 0
+    while i != b.max() + 1:
+        let b : T 
+        b.from_int(i)
+        output.append(b)
+        i = i + 1
+
 fun<T> _enumerate_impl(T obj, Int current_argument, Vector<T> out, Int num_args):
     let counter = 0
     for field of obj:
@@ -209,6 +217,7 @@ trait<T> Enum:
     fun max(T obj) -> Int
     fun is_enum(T obj) -> Bool 
     fun as_int(T obj) -> Int
+    fun from_int(T obj, Int new_value)
 
 fun write_in_observation_tensor(Int value, Int min, Int max, Vector<Float> output, Int index):
     let counter = min

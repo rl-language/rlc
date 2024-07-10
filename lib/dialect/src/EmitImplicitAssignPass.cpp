@@ -91,9 +91,8 @@ namespace mlir::rlc
 			ops.push_back(op);
 			types.push_back(op.getLhs().getType());
 		});
-		op.walk([&](mlir::rlc::ClassDeclaration op) {
-			types.push_back(op.getType());
-		});
+		op.walk(
+				[&](mlir::rlc::ClassDeclaration op) { types.push_back(op.getType()); });
 		op.walk([&](mlir::rlc::ActionFunction op) {
 			types.push_back(op.getClassType());
 		});
@@ -104,7 +103,9 @@ namespace mlir::rlc
 				if (isBuiltinType(subtype) or
 						subtype.template isa<mlir::rlc::OwningPtrType>() or
 						isTemplateType(subtype).succeeded() or
-						subtype.template isa<mlir::rlc::IntegerLiteralType>())
+						subtype.template isa<mlir::rlc::IntegerLiteralType>() or
+						subtype.template isa<mlir::rlc::TraitMetaType>() or
+						subtype.template isa<mlir::rlc::VoidType>())
 					return;
 
 				auto toCall = declareImplicitAssign(
