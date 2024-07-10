@@ -886,7 +886,7 @@ llvm::Expected<bool> Parser::requirementList()
 
 /**
  * subActionStatement: subaction (*)? ("(" argumentExpressionList ")")?
- * `ident` = expression \n \n
+ * (`ident` =)? expression \n \n
  */
 llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 {
@@ -904,9 +904,22 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 	}
 
 	std::string name;
-	EXPECT(Token::Identifier);
+	accept(Token::Identifier);
 	name = lIdent;
-	EXPECT(Token::Equal);
+	// is we don't see a equal it means that the
+	// user has written `subaction name `
+	if (not accept(Token::Equal))
+	{
+		auto operation = builder.create<mlir::rlc::SubActionStatement>(
+				location, "", runOnce, expressions);
+		builder.createBlock(&operation.getBody());
+		auto exp = builder.create<mlir::rlc::UnresolvedReference>(location, name);
+		builder.create<mlir::rlc::Yield>(
+				getCurrentSourcePos(), mlir::ValueRange(exp));
+		builder.setInsertionPointAfter(operation);
+		EXPECT(Token::Newline);
+		return operation;
+	}
 
 	auto operation = builder.create<mlir::rlc::SubActionStatement>(
 			location, name, runOnce, expressions);

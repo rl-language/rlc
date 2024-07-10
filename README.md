@@ -185,19 +185,14 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 ### Roadmap
 
 #### machine learning
-* update to newer ray that does not leak [Blocked by them]
-* update and pin to the newer ray that works on windows and does not have trivial issues [Blocked by them]
-* figure out how to make transformers fast [Blocked by them]
-* figure out how to not duplicate the state at every action and thus allow true self play [Blocked by them]
+* improve ray performances
+* figure out how to not duplicate the state at every action and thus allow true self play [Blocked by rai]
 
 #### language
 * better debug support
 * inline initializers
 
 #### standard lib
-* graph library
 * dictionary library
 
-#### for 1.0
-* windows support, blocked by ray
 

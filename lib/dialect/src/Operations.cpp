@@ -730,10 +730,25 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	mlir::IRRewriter &rewiter = builder.getRewriter();
 	rewiter.setInsertionPoint(*this);
 
-	auto decl = rewiter.create<mlir::rlc::DeclarationStatement>(
-			getLoc(), mlir::rlc::FrameType::get(underlyingType), getName());
-	decl.getBody().takeBody(getBody());
-	builder.getSymbolTable().add(getName(), decl);
+	mlir::Value decl = nullptr;
+	if (getName().empty())
+	{
+		auto terminator =
+				mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
+		while (not getBody().front().empty())
+			getBody().front().front().moveBefore(getOperation());
+
+		decl = terminator.getArguments()[0];
+		terminator.erase();
+	}
+	else
+	{
+		auto varDecl = rewiter.create<mlir::rlc::DeclarationStatement>(
+				getLoc(), mlir::rlc::FrameType::get(underlyingType), getName());
+		varDecl.getBody().takeBody(getBody());
+		builder.getSymbolTable().add(getName(), varDecl);
+		decl = varDecl;
+	}
 
 	frameVar = builder.getRewriter().create<mlir::rlc::StorageCast>(
 			getLoc(), underlyingType, decl);
