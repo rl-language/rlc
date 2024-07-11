@@ -536,7 +536,8 @@ static mlir::Operation* emitBuiltinAssign(
 		mlir ::rlc::ModuleBuilder& builder,
 		mlir::Operation* callSite,
 		llvm::StringRef name,
-		mlir::ValueRange arguments)
+		mlir::ValueRange arguments,
+		bool allowImplicitAssigns)
 {
 	auto argTypes = arguments.getType();
 	if (name != mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>() or
@@ -558,6 +559,8 @@ static mlir::Operation* emitBuiltinAssign(
 	if (overload)
 		return builder.getRewriter().create<mlir::rlc::CallOp>(
 				callSite->getLoc(), overload, true, arguments);
+	if (!allowImplicitAssigns)
+		return nullptr;
 
 	return builder.getRewriter().create<mlir::rlc::ImplicitAssignOp>(
 			callSite->getLoc(), arguments[0], arguments[1]);
@@ -620,12 +623,14 @@ mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
 		bool isMemberCall,
 		llvm::StringRef name,
 		mlir::ValueRange arguments,
-		bool emitLog)
+		bool emitLog,
+		bool allowImplicitAssigns)
 {
 	if (auto maybeCast = emitCast(rewriter, callSite, name, arguments))
 		return maybeCast;
 
-	if (auto* maybeCast = emitBuiltinAssign(*this, callSite, name, arguments))
+	if (auto* maybeCast = emitBuiltinAssign(
+					*this, callSite, name, arguments, allowImplicitAssigns))
 		return maybeCast;
 
 	auto argTypes = arguments.getType();

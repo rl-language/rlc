@@ -125,6 +125,10 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 					decl.getBody().front().back().getLoc().cast<mlir::FileLineColLoc>();
 			functionAndActionFunctions.emplace_back(
 					locsToRange(loc, yieldLoc), decl.getOperation());
+			// increment the range by one so that if the user
+			// writes the first empty line after the function it thinks
+			// it belongs to the function
+			functionAndActionFunctions.back().first.end.line++;
 		});
 		module.walk([this](mlir::rlc::ActionFunction decl) {
 			if (decl.getBody().empty())
@@ -338,6 +342,25 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return true;
 	}
 
+	llvm::StringRef lineOfPosition(const mlir::lsp::Position &completePos) const
+	{
+		auto line = completePos.line;
+		size_t current_pos = 0;
+		llvm::StringRef currentLine = currentFileContent;
+		while (line != 0 and current_pos != llvm::StringRef::npos)
+		{
+			current_pos = currentLine.find('\n', current_pos + 1);
+			line--;
+		}
+		if (current_pos == llvm::StringRef::npos)
+			return "";
+
+		size_t end = currentLine.find('\n', current_pos + 1);
+		if (end == llvm::StringRef::npos)
+			end = currentLine.end() - currentLine.begin();
+		return currentLine.substr(current_pos, end - current_pos);
+	}
+
 	mlir::LogicalResult getCompleteType(
 			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
 	{
@@ -345,7 +368,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 		module.walk([&](mlir::Operation *current) {
 			if (auto op = llvm::dyn_cast<mlir::rlc::DeclarationStatement>(current))
-				if (sameLineAsOp(completePos, op))
+				if (sameLineAsOp(completePos, op) and
+						not lineOfPosition(completePos).contains(" ="))
 				{
 					construct = op;
 					return mlir::WalkResult::interrupt();

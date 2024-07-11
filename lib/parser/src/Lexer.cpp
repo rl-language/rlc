@@ -529,6 +529,10 @@ Token Lexer::eatIdent()
 
 Token Lexer::next()
 {
+	if (nestedParentesys == 300)
+	{
+		return Token::Error;
+	}
 	lComment.clear();
 	auto result = nextWithoutTrailingConsume();
 

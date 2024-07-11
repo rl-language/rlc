@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -77,10 +77,13 @@ namespace mlir::rlc
 					function.setArgNamesAttr(rewriter.getStrArrayAttr(argNames));
 					function.getResult().setType(newType);
 
-					function.getPrecondition().insertArgument(
-							(unsigned int) 0, newArgs[0], function.getLoc());
-					function.getBody().insertArgument(
-							(unsigned int) 0, newArgs[0], function.getLoc());
+					if (not function.isDeclaration())
+					{
+						function.getPrecondition().insertArgument(
+								(unsigned int) 0, newArgs[0], function.getLoc());
+						function.getBody().insertArgument(
+								(unsigned int) 0, newArgs[0], function.getLoc());
+					}
 					function->moveAfter(decl);
 				}
 			}

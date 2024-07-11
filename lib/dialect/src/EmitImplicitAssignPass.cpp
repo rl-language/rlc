@@ -81,7 +81,7 @@ namespace mlir::rlc
 		return fun;
 	}
 
-	static void declareImplicitAssigns(mlir::ModuleOp op)
+	static mlir::LogicalResult declareImplicitAssigns(mlir::ModuleOp op)
 	{
 		mlir::rlc::ModuleBuilder builder(op);
 
@@ -133,14 +133,31 @@ namespace mlir::rlc
 			if (isTemplateType(assign.getLhs().getType()).succeeded())
 				continue;
 
+			if (isBuiltinType(assign.getLhs().getType()) and
+					isBuiltinType(assign.getRhs().getType()) and
+					assign.getLhs().getType() != assign.getRhs().getType())
+			{
+				return logError(
+						assign,
+						"Cannot assign " +
+								mlir::rlc::prettyType(assign.getRhs().getType()) + " to " +
+								mlir::rlc::prettyType(assign.getLhs().getType()) +
+								". Cast it instead.");
+			}
+
 			builder.getRewriter().setInsertionPoint(assign);
 			auto* result = builder.emitCall(
 					assign,
 					true,
 					mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
-					{ assign.getLhs(), assign.getRhs() });
+					{ assign.getLhs(), assign.getRhs() },
+					true,
+					false);
+			if (!result)
+				return mlir::failure();
 			assign.erase();
 		}
+		return mlir::success();
 	}
 
 	static void emitMemMove(
@@ -368,6 +385,8 @@ namespace mlir::rlc
 		auto& rewriter = builder.getRewriter();
 		if (not fun.getBody().empty())
 			return;
+		if (fun.getType().getNumInputs() != 2)
+			return;
 
 		auto lhs = fun.getArgumentTypes().front();
 
@@ -420,10 +439,12 @@ namespace mlir::rlc
 			emitImplicitAssign(builder, decl.getDefiningOp<mlir::rlc::FunctionOp>());
 	}
 
-	void emitImplicitAssign(mlir::ModuleOp op)
+	mlir::LogicalResult emitImplicitAssign(mlir::ModuleOp op)
 	{
-		declareImplicitAssigns(op);
+		if (declareImplicitAssigns(op).failed())
+			return mlir::failure();
 		emitImplicitAssigments(op);
+		return mlir::success();
 	}
 
 #define GEN_PASS_DEF_EMITIMPLICITASSIGNPASS
@@ -435,7 +456,11 @@ namespace mlir::rlc
 		using impl::EmitImplicitAssignPassBase<
 				EmitImplicitAssignPass>::EmitImplicitAssignPassBase;
 
-		void runOnOperation() override { emitImplicitAssign(getOperation()); }
+		void runOnOperation() override
+		{
+			if (emitImplicitAssign(getOperation()).failed())
+				signalPassFailure();
+		}
 	};
 
 }	 // namespace mlir::rlc

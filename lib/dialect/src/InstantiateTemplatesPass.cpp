@@ -246,7 +246,8 @@ namespace mlir::rlc
 			{
 				declareInstantiatedStructs(
 						originalEntiDecl, alreadDeclared, getOperation());
-				emitImplicitAssign(getOperation());
+				if (emitImplicitAssign(getOperation()).failed())
+					return signalPassFailure();
 				emitImplicitInits(getOperation());
 				mlir::rlc::ModuleBuilder builder(getOperation());
 				replacedAtLeastOne = false;

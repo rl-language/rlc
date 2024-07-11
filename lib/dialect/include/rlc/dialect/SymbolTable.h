@@ -221,7 +221,8 @@ namespace mlir::rlc
 				bool isMemberCall,
 				llvm::StringRef name,
 				mlir::ValueRange arguments,
-				bool log = true);
+				bool log = true,
+				bool allowImplicitAssigns = true);
 
 		ValueTable& getRootTable() { return values.front()->getRoot(); }
 
