@@ -12,7 +12,7 @@ enum Suit:
         return self.value == other.value 
 
 cls Card:
-    Int rank
+    BInt<1, 15> rank
     Suit suit
 
     fun equal(Card other) -> Bool:
@@ -24,9 +24,9 @@ cls Card:
 using Deck = Vector<Card>
 
 cls Player:
-    Int chips
-    Int current_bet 
-    Vector<Card> cards
+    BInt<0, 101> chips
+    BInt<0, 101> current_bet 
+    BoundedVector<Card, 5> cards
     
     fun hand_value() -> Int:
         # ToDo, it should map the cards
@@ -51,7 +51,7 @@ fun make_deck() -> Deck:
 using DeckCardIndex = BInt<0, 52>
 using Bet = BInt<0, 52>
 
-act deal_cards(ctx Deck deck, ctx Vector<Card> cards, frm Int num_to_deal) -> Deal:
+act deal_cards(ctx Deck deck, ctx BoundedVector<Card, 5> cards, frm Int num_to_deal) -> Deal:
     while num_to_deal != 0:
         act deal(DeckCardIndex card) { card < deck.size() and card >= 0 }
         cards.append(deck.get(card.value))
@@ -60,12 +60,12 @@ act deal_cards(ctx Deck deck, ctx Vector<Card> cards, frm Int num_to_deal) -> De
 
 act _wrapped_deal_carts(Int num_to_deal) -> WrappedDeal:
     frm deck = make_deck()
-    frm cards : Vector<Card>
+    frm cards : BoundedVector<Card, 5>
     subaction*(deck, cards) _ = deal_cards(deck, cards, num_to_deal)
 
 act _multi_deal_wrapped_deal_carts(frm Int num_to_deal) -> MultiDealWrappedDeal:
     frm deck = make_deck()
-    frm cards : Vector<Card>
+    frm cards : BoundedVector<Card, 5>
     subaction*(deck, cards) _ = deal_cards(deck, cards, num_to_deal)
     subaction*(deck, cards) _ = deal_cards(deck, cards, num_to_deal)
 
@@ -182,7 +182,7 @@ act play() -> Game:
         players[0].cards.clear()
         players[1].cards.clear()
         frm deck = make_deck()
-        frm face_up_cards : Vector<Card>
+        frm face_up_cards : BoundedVector<Card, 5>
         frm i = 0
         while i != 2:
             subaction*(deck, players[i].cards) _ = deal_cards(deck, players[i].cards, 2)
@@ -203,14 +203,13 @@ act play() -> Game:
         if bet.folded:
             continue
         resolve_winner(players) 
-    print(players)
 
 fun get_current_player(Game g) -> Int:
     return 0
 
 # the game is cooperative, player_id is irrelevant
 fun score(Game g, Int player_id) -> Float:
-    return float(g.players[0].chips)
+    return float(g.players[0].chips.value)
 
 fun get_num_players() -> Int:
     return 1
