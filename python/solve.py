@@ -26,6 +26,14 @@ def main():
         help="path where to write the output",
         default="",
     )
+    parser.add_argument(
+        "--max-actions",
+        "-m",
+        type=int,
+        nargs="?",
+        help="max number of actions to execute before exiting",
+        default=-1,
+    )
 
     args = parser.parse_args()
     with load_simulation_from_args(args) as sim:
@@ -33,12 +41,22 @@ def main():
 
         out = open(args.output, "w+") if args.output != "" else sys.stdout
         while True:
-            actions = [random.choice(env.legal_actions_indicies()) for i in range(env.num_agents)]
+            if args.max_actions != -1:
+                if args.max_actions == 0:
+                    exit()
+                args.max_actions = args.max_actions - 1
+            actions = env.legal_actions_indicies()
+            if len(actions) == 0:
+                print("found state with no valid action")
+                sim.functions.print(env.state)
+                exit(-1)
+            actions = [random.choice(actions) for i in range(env.num_agents)]
             obs, reward, done, truncated, info = env.step(
                actions
             )
             out.write(env.action_to_string(env.actions[actions[0]]))
             out.write("\n")
+            out.flush()
             if done["__all__"] or truncated["__all__"]:
                 break
 

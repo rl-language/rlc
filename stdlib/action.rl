@@ -268,13 +268,10 @@ fun<T, Int X> size_as_observation_tensor(T[X] obj) -> Int:
     return _size_as_observation_tensor_impl(obj[0]) * X
 
 fun<T> write_in_observation_tensor(Vector<T> obj, Int observer_id, Vector<Float> output, Int index):
-    let counter = 0
-    while counter < obj.size():
-        _to_observation_tensor(obj.get(counter), observer_id, output, index)
-        counter = counter + 1
+    return
 
 fun<T> size_as_observation_tensor(Vector<T> obj) -> Int:
-    return _size_as_observation_tensor_impl(obj.get(0)) * obj.size()
+    return 0
 
 fun<T, Int max_size> write_in_observation_tensor(BoundedVector<T, max_size> obj, Int observer_id, Vector<Float> output, Int index):
     let counter = 0

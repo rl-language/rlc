@@ -808,6 +808,16 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			}
 		}
 		size_t contextArgsCount = resultTypes.size();
+		if (getForwardedArgs().size() > referred.getResultTypes().size())
+		{
+			return logError(
+					*this,
+					(llvm::Twine("subaction statements is trying to forward ") +
+					 llvm::Twine(getForwardedArgs().size()) +
+					 llvm::Twine(" arguments, but the invoked action only accepts ") +
+					 llvm::Twine(referred.getResultTypes().size()))
+							.str());
+		}
 
 		for (auto type :
 				 llvm::drop_begin(referred.getResultTypes(), getForwardedArgs().size()))
