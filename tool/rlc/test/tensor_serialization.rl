@@ -6,7 +6,7 @@ import action
 fun main() -> Int:
     let vec : Vector<Float>
     let y : Bool | BInt<0, 3>
-    let v : Vector<Bool | BInt<0, 3>>
+    let v : BoundedVector<Bool | BInt<0, 3>, 2>
     let bounded_arg : BInt<0, 3>
 
     bounded_arg.value = 1

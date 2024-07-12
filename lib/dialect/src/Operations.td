@@ -686,18 +686,25 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
 def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "subaction.";
 
-  let arguments = (ins DefaultValuedAttr<StrAttr, "\"\"">:$name, BoolAttr:$run_once, Variadic<AnyType>:$forwarded_args);
+  let arguments = (ins DefaultValuedAttr<StrAttr, "\"\"">:$name, BoolAttr:$run_once);
   let description = [{
 	subaction.
   }];
 
   let regions = (region
-  AnyRegion:$body
+    AnyRegion:$body,
+    AnyRegion:$forwarded_args
   );
 
   let assemblyFormat = [{
-	( $name^ `=` )? $body ( $forwarded_args^ `:` type($forwarded_args))? attr-dict 
+	( $name^ `=` )? $forwarded_args $body attr-dict 
   }];
+
+    let extraClassDeclaration = [{
+	
+	size_t forwardedArgsCount();
+	
+	}];
 }
 
 def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {

@@ -896,12 +896,17 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 	bool runOnce = not accept<Token::Mult>();
 
 	llvm::SmallVector<mlir::Value, 3> expressions;
+	auto insertionPoint = builder.saveInsertionPoint();
+	mlir::Region region;
+	builder.createBlock(&region);
 	if (accept<Token::LPar>())
 	{
 		TRY(list, argumentExpressionList());
 		expressions = *list;
 		EXPECT(Token::RPar);
 	}
+	builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), expressions);
+	builder.restoreInsertionPoint(insertionPoint);
 
 	std::string name;
 	accept(Token::Identifier);
@@ -910,8 +915,9 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 	// user has written `subaction name `
 	if (not accept(Token::Equal))
 	{
-		auto operation = builder.create<mlir::rlc::SubActionStatement>(
-				location, "", runOnce, expressions);
+		auto operation =
+				builder.create<mlir::rlc::SubActionStatement>(location, "", runOnce);
+		operation.getForwardedArgs().takeBody(region);
 		builder.createBlock(&operation.getBody());
 		auto exp = builder.create<mlir::rlc::UnresolvedReference>(location, name);
 		builder.create<mlir::rlc::Yield>(
@@ -921,8 +927,9 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 		return operation;
 	}
 
-	auto operation = builder.create<mlir::rlc::SubActionStatement>(
-			location, name, runOnce, expressions);
+	auto operation =
+			builder.create<mlir::rlc::SubActionStatement>(location, name, runOnce);
+	operation.getForwardedArgs().takeBody(region);
 	builder.createBlock(&operation.getBody());
 	auto onExit = [&, this](mlir::Value exp) {
 		if (exp)

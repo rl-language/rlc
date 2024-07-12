@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "llvm/ADT/StringExtras.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/OpDefinition.h"
 #include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Dialect.h"
@@ -699,6 +700,13 @@ mlir::LogicalResult mlir::rlc::UnderTypeCheckMarker::typeCheck(
 	return mlir::success();
 }
 
+size_t mlir::rlc::SubActionStatement::forwardedArgsCount()
+{
+	return mlir::dyn_cast<mlir::rlc::Yield>(getForwardedArgs().front().back())
+			.getArguments()
+			.size();
+}
+
 mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -706,6 +714,12 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	if (not parent)
 		return mlir::rlc::logError(
 				*this, "SubAction statements can only appear in Action Functions");
+	for (auto *child : ops(getForwardedArgs()))
+	{
+		if (mlir::rlc::typeCheck(*child, builder).failed())
+			return mlir::failure();
+	}
+
 	for (auto *child : ops(getBody()))
 	{
 		if (mlir::rlc::typeCheck(*child, builder).failed())
@@ -808,19 +822,19 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			}
 		}
 		size_t contextArgsCount = resultTypes.size();
-		if (getForwardedArgs().size() > referred.getResultTypes().size())
+		if (forwardedArgsCount() > referred.getResultTypes().size())
 		{
 			return logError(
 					*this,
 					(llvm::Twine("subaction statements is trying to forward ") +
-					 llvm::Twine(getForwardedArgs().size()) +
+					 llvm::Twine(forwardedArgsCount()) +
 					 llvm::Twine(" arguments, but the invoked action only accepts ") +
 					 llvm::Twine(referred.getResultTypes().size()))
 							.str());
 		}
 
 		for (auto type :
-				 llvm::drop_begin(referred.getResultTypes(), getForwardedArgs().size()))
+				 llvm::drop_begin(referred.getResultTypes(), forwardedArgsCount()))
 		{
 			if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 				resultTypes.push_back(casted.getUnderlying());
@@ -829,8 +843,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			resultLoc.push_back(actions.getLoc());
 		}
 
-		for (auto name : llvm::drop_begin(
-						 referred.getDeclaredNames(), getForwardedArgs().size()))
+		for (auto name :
+				 llvm::drop_begin(referred.getDeclaredNames(), forwardedArgsCount()))
 		{
 			nameAttrs.push_back(name.cast<mlir::StringAttr>().str());
 		}
@@ -848,9 +862,17 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 				fixed.getPrecondition().begin(),
 				resultTypes,
 				resultLoc);
+		mlir::IRMapping mapping;
+		for (auto &op : getForwardedArgs().front())
+			rewiter.clone(op, mapping);
+		auto terminator =
+				mlir::dyn_cast<mlir::rlc::Yield>(mapping.getOperationMap().at(
+						getForwardedArgs().front().getTerminator()));
 
 		llvm::SmallVector<mlir::Value, 4> canArgs(
-				getForwardedArgs().begin(), getForwardedArgs().end());
+				terminator.getArguments().begin(), terminator.getArguments().end());
+		terminator.erase();
+
 		for (auto arg : llvm::drop_begin(newBody->getArguments(), contextArgsCount))
 			canArgs.push_back(arg);
 		canArgs.insert(canArgs.begin(), frameVar);
@@ -862,8 +884,15 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 				actions.getLoc(), mlir::ValueRange({ result.getResult(0) }));
 		rewiter.setInsertionPointAfter(fixed);
 
+		mlir::IRMapping mapping2;
+		for (auto &op : getForwardedArgs().front())
+			rewiter.clone(op, mapping2);
+		terminator = mlir::dyn_cast<mlir::rlc::Yield>(mapping2.getOperationMap().at(
+				getForwardedArgs().front().getTerminator()));
+
 		llvm::SmallVector<mlir::Value, 4> args(
-				getForwardedArgs().begin(), getForwardedArgs().end());
+				terminator.getArguments().begin(), terminator.getArguments().end());
+		terminator.erase();
 		for (auto result : llvm::drop_begin(fixed.getResults(), contextArgsCount))
 			args.push_back(result);
 
