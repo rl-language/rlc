@@ -28,6 +28,8 @@ def main():
     )
     parser.add_argument("checkpoint", type=str)
     parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
+    parser.add_argument("--print-scores", action="store_true", default=False)
+    parser.add_argument("--iterations", default=1, type=int)
 
     args = parser.parse_args()
     with load_simulation_from_args(args, optimize=True) as sim:
@@ -52,11 +54,15 @@ def main():
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/net_p{i}/"
             )
-        env = RLCEnvironment(wrapper=sim.module, solve_randomness=False)
         out = open(args.output, "w+") if args.output != "" else sys.stdout
-        while env.current_player() != -4:
+        for i in range(args.iterations):
+          env = RLCEnvironment(wrapper=sim.module, solve_randomness=False)
+          while env.current_player() != -4:
             action = env.one_action_according_to_model(model)
             out.write(env.action_to_string(action) + "\n")
+          if args.print_scores:
+            out.write(str(env.current_score))
+            out.write('\n')
 
 
 

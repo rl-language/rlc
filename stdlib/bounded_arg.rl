@@ -86,6 +86,18 @@ cls<Int min, Int max> BInt:
             to_return.value = min
         return to_return
 
+    fun reminder(Int val) -> BInt<min, max>:
+        let to_return : BInt<min, max>
+        let value = self.value % val
+        to_return = value
+        return to_return 
+
+    fun reminder(BInt<min, max> val) -> BInt<min, max>:
+        let to_return : BInt<min, max>
+        let value = self.value % val.value
+        to_return = value
+        return to_return 
+
     fun mul(Int val) -> BInt<min, max>:
         let other : BInt<min, max>
         other.value = val

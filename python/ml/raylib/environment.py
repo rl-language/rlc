@@ -219,7 +219,6 @@ class RLCEnvironment(MultiAgentEnv):
       data = {"obs": obs[self.current_player()]}
       with torch.no_grad():
         logits = module._forward_inference(data)
-
         action_probs = torch.softmax(logits["action_dist_inputs"], dim=-1)
         return torch.multinomial(action_probs, num_samples=1)[0, 0].item()
 
@@ -250,7 +249,7 @@ class RLCEnvironment(MultiAgentEnv):
            if prob != 0:
                print(f"{i}: "+self.action_to_string(action), "{:0.4f} %".format(prob * 100))
                i = i + 1
-        return best_actions[0][2]
+        return [id for prob, action, id in best_actions]
 
     def as_byte_vector(self):
         result = self.wrapper.functions.as_byte_vector(self.state)

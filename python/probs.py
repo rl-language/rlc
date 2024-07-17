@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--pretty-print", "-pp", action="store_true", default=False)
     parser.add_argument("--state", "-s", default="")
+    parser.add_argument("--iterations",  default=1, type=int)
 
     args = parser.parse_args()
     with load_simulation_from_args(args, optimize=True) as sim:
@@ -44,11 +45,12 @@ def main():
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/net_p{i}/"
             )
-        env = RLCEnvironment(wrapper=sim.module)
-        state_to_load = args.state if args.state != "" else None
-        obs, info = env.reset(path_to_binary_state=state_to_load)
-        i = 0
-        while True:
+        for iteration in range(args.iterations):
+          env = RLCEnvironment(wrapper=sim.module)
+          state_to_load = args.state if args.state != "" else None
+          obs, info = env.reset(path_to_binary_state=state_to_load)
+          i = 0
+          while True:
             if args.pretty_print:
                 os.system("cls||clear")
             print(f"---------- {i} : p{env.current_player()} ------------")
@@ -57,17 +59,18 @@ def main():
             else:
                 env.wrapper.functions.print(env.state)
             print("--------- probs --------------")
-            action = env.print_probs(model, policy_to_use=0 if args.true_self_play else None)
+            actions = env.print_probs(model, policy_to_use=0 if args.true_self_play else None)
+            action = actions[0]
             print("------------------------------")
             if args.pretty_print:
                 user_input = input()
-                action = action if user_input == "" else int(user_input)
+                action = actions[0] if user_input == "" else actions[int(user_input)]
             observation, reward, done, truncated, info = env.step([action for i in range(env.num_agents)])
             i = i + 1
             if done["__all__"] or truncated["__all__"]:
                 break
 
-        env.wrapper.functions.pretty_print(env.state)
+          env.wrapper.functions.pretty_print(env.state)
 
 
 

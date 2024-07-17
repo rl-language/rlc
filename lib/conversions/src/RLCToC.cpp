@@ -782,8 +782,15 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 	for (auto alias : Module.getOps<mlir::rlc::TypeAliasOp>())
 	{
-		OS << "typedef struct " << typeToString(alias.getAliased()) << " "
-			 << alias.getName() << ";\n";
+		if (alias.getAliased().isa<mlir::rlc::ClassType>())
+			OS << "typedef union " << typeToString(alias.getAliased()) << " "
+				 << alias.getName() << ";\n";
+		else if (alias.getAliased().isa<mlir::rlc::AlternativeType>())
+			OS << "typedef struct " << typeToString(alias.getAliased()) << " "
+				 << alias.getName() << ";\n";
+		else
+			OS << "typedef " << typeToString(alias.getAliased()) << " "
+				 << alias.getName() << ";\n";
 	}
 
 	OS << "#ifdef __cplusplus\n";

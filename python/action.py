@@ -99,6 +99,11 @@ def main():
                 print(i, action)
             action.run(state)
 
+        if args.pretty_print:
+            input()
+            os.system("cls||clear")
+            state.simulation.module.functions.pretty_print(state.state)
+
         if args.output != "":
             state.write_binary(args.output)
         elif not args.pretty_print:

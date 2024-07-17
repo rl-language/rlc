@@ -8,7 +8,6 @@
 #
 import argparse
 from loader import Simulation, compile, State
-from solvers import find_end
 import sys
 from shutil import which
 from command_line import load_simulation_from_args, make_rlc_argparse, load_network

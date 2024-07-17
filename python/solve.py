@@ -50,7 +50,8 @@ def main():
                 print("found state with no valid action")
                 sim.functions.print(env.state)
                 exit(-1)
-            actions = [random.choice(actions) for i in range(env.num_agents)]
+            action = random.choice(actions)
+            actions = [action for i in range(env.num_agents)]
             obs, reward, done, truncated, info = env.step(
                actions
             )

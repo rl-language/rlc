@@ -78,8 +78,6 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
         )
         .training(lr=2e-4)
         .evaluation(
-            evaluation_interval=20,
-            evaluation_parallel_to_training=True,
             evaluation_config=PPOConfig.overrides(
                 policy_mapping_fn=(
                     configure_mapping(num_agents, league_play=league_play)
@@ -87,9 +85,13 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
                     else agent_to_module_mapping_fn_single
                 )
             ),
-            evaluation_num_workers=1,
             evaluation_duration=1,
             evaluation_duration_unit='episodes',
+            # disabled evaluation due to crash of ray in 2.30
+            # ToDo: enable me back
+            evaluation_parallel_to_training=False,
+            evaluation_interval=0,
+            evaluation_num_workers=0,
         )
         .resources(
             num_gpus=1 if torch.cuda.is_available() else 0,

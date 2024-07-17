@@ -192,6 +192,8 @@ def main():
     # create root dir
     rlc_infrastructure = path.abspath("./")
 
+    is_windows = os.name == "nt"
+
     # create dirs
     rlc_dir = path.abspath("rlc")
     assert isdir(
@@ -261,8 +263,6 @@ def main():
         llvm_dir = llvm_install_debug_dir if debug_llvm else llvm_install_release_dir
     else:
         build_shared = args.rlc_shared
-
-    is_windows = os.name == "nt"
 
     # build debug
     if not args.no_debug_rlc:

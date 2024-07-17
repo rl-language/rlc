@@ -52,7 +52,7 @@ fun make_deck() -> DeckType:
         card.value = 4
         to_return.append(card)
         to_return.append(card)
-        card.value = 4
+        card.value = 5
         to_return.append(card)
         i = i + 1
     return to_return
