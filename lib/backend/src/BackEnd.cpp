@@ -22,6 +22,7 @@ limitations under the License.
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/Tool.h"
+#include "lld/Common/Driver.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
@@ -30,7 +31,6 @@ limitations under the License.
 #include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
-#include "lld/Common/Driver.h"
 #include "llvm/Pass.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -300,7 +300,7 @@ static void compile(
 static mlir::LogicalResult getLinkerInvocation(
 		llvm::StringRef clangPath,
 		llvm::ArrayRef<string> clangInvocation,
-		llvm::StringRef triple, 
+		llvm::StringRef triple,
 		bool targetWindows)
 {
 	llvm::SmallVector<const char *, 4> args;
@@ -350,24 +350,28 @@ static mlir::LogicalResult getLinkerInvocation(
 
 	// on windows invoke lld in process, because we can't assume lld is
 	// installed
-	if (targetWindows) {
-	   std::vector<const char *> LinkerArgs;
-	   LinkerArgs.push_back("lld");
-    	   for (const auto &Arg : LinkCommand->getArguments()) {
-                  LinkerArgs.push_back(Arg);
-    	   }
-    	   if (not lld::coff::link(LinkerArgs, llvm::outs(), llvm::errs(), false, false))
-		return mlir::failure();
-
-	} else {
-	  bool failed = false;
-	  std::string Error;
-	  LinkCommand->Execute({}, &Error, &failed);
-	  if (failed)
-	  {
-		llvm::errs() << Error;
-		return mlir::failure();
-	  }
+	if (targetWindows)
+	{
+		std::vector<const char *> LinkerArgs;
+		LinkerArgs.push_back("lld");
+		for (const auto &Arg : LinkCommand->getArguments())
+		{
+			LinkerArgs.push_back(Arg);
+		}
+		if (not lld::coff::link(
+						LinkerArgs, llvm::outs(), llvm::errs(), false, false))
+			return mlir::failure();
+	}
+	else
+	{
+		bool failed = false;
+		std::string Error;
+		LinkCommand->Execute({}, &Error, &failed);
+		if (failed)
+		{
+			llvm::errs() << Error;
+			return mlir::failure();
+		}
 	}
 
 	return mlir::success();
@@ -388,7 +392,7 @@ static int linkLibraries(
 	auto maybeRealPath =
 			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath));
 
-	if (!maybeRealPath and (linkAgainstFuzzer or emitSanitizerInstrumentation))
+	if (!maybeRealPath and emitSanitizerInstrumentation)
 	{
 		llvm::consumeError(maybeRealPath.takeError());
 		llvm::errs()
@@ -461,17 +465,13 @@ static int linkLibraries(
 		if (linkAgainstFuzzer)
 			arg += "fuzzer";
 		argSource.push_back(arg);
-		if (info.isWindows())
-		{
-			argSource.push_back("-Wl,/NODEFAULTLIB:libcmt");
-			argSource.push_back("-Wl,-defaultlib:msvcrt");
-		}
 	}
 
 	for (auto extraObject : extraObjectFiles)
 		argSource.push_back(extraObject);
 
-	if (getLinkerInvocation(*maybeRealPath, argSource, info.pimpl->triple.str(), info.isWindows())
+	if (getLinkerInvocation(
+					*maybeRealPath, argSource, info.pimpl->triple.str(), info.isWindows())
 					.failed())
 		return -1;
 

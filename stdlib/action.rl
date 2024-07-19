@@ -127,6 +127,8 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     let vector : Vector<AllActionsVariant>
     load_action_vector_file("dc"s, vector)
     apply(vector, state)
+    emit_observation_tensor_warnings(state)
+    print_enumeration_errors(variant)
 
 fun<ActionType> load_action_vector_file(String file_name, Vector<ActionType> out) -> Bool:
     let content : String 
@@ -178,6 +180,72 @@ fun<T> _enumerate_impl(T obj, Int current_argument, Vector<T> out, Int num_args)
                     counter_2 = counter_2 + 1
             return
         counter = counter + 1
+
+trait<T> CustomEnumerationError:
+    fun enumeration_error(T x, String out, Vector<String> context) 
+
+fun enumeration_error(Int x, String out, Vector<String> context):
+    out.append("ERROR: ")
+    write_tensor_warning_context(out, context)
+    out.append(" is of type Int, which is not enumerable. Replace it instead with a BInt with appropriate bounds or specify yourself how to enumerate it.\n")
+
+fun enumeration_error(Float x, String out, Vector<String> context):
+    out.append("ERROR: ")
+    write_tensor_warning_context(out, context)
+    out.append(" is of type Float, which is not enumerable. Specify yourself how to enumerate it.\n")
+
+fun<T> enumeration_error(OwningPtr<T> x, String out, Vector<String> context):
+    out.append("ERROR: ")
+    write_tensor_warning_context(out, context)
+    out.append(" is of type OwningPtr, which is not enumerable.\n")
+
+fun<T, Int size> enumeration_error(T[size] x, String out, Vector<String> context):
+    let t : T
+    context.append("[0]"s)
+    _observation_tensor_warnings(t, out, context)
+    context.pop()
+
+fun<T> enumeration_error(Vector<T> x, String out, Vector<String> context):
+    let t : T
+    context.append("[0]"s)
+    _observation_tensor_warnings(t, out, context)
+    context.pop()
+
+fun<T> get_enumeration_errors_impl(T obj, String out, Vector<String> context): 
+    if obj is CustomEnumerationError:
+        obj.enumeration_error(out, context)
+        return 
+    if obj is Enumerable:
+        return 
+    if obj is Alternative:
+        let current = 0
+        for name, field of obj:
+            using Type = type(field)
+            let t : Type
+            context.append(s(name))
+            get_enumeration_errors_impl(t, out, context)
+            context.pop()
+            current = current + 1
+        return
+    for name, field of obj:
+        context.append(s(name))
+        get_enumeration_errors_impl(field, out, context)
+        context.pop()
+    
+
+fun<T> get_enumeration_errors(T obj) -> String:
+    let to_return : String
+    let context : Vector<String>
+    get_enumeration_errors_impl(obj, to_return, context)
+
+    return to_return
+    
+fun<T> print_enumeration_errors(T obj) -> Bool:
+    let s = get_enumeration_errors(obj)
+    if s.size() == 0:
+        return true
+    print(s)
+    return false 
 
 
 fun<T> enumerate(T obj) -> Vector<T>:
@@ -355,3 +423,75 @@ fun<T> to_observation_tensor(T obj, Int observer_id) -> Vector<Float>:
 
 fun<T> observation_tensor_size(T obj) -> Int:
     return _size_as_observation_tensor_impl(obj)
+
+trait<T> CustomTensorWarnings:
+    fun tensorable_warning(T x, String out, Vector<String> context) 
+
+fun write_tensor_warning_context(String out, Vector<String> context):
+    let i = 0
+    while i != context.size():
+        out.append(context[i])
+        if i+1 != context.size():
+            out.append(".") 
+        i = i + 1
+
+fun tensorable_warning(Int x, String out, Vector<String> context):
+    out.append("WARNING: ")
+    write_tensor_warning_context(out, context)
+    out.append(" is of type Int, which is not tensorable. Replace it instead with a BInt with appropriate bounds or specify yourself how to serialize it, or wrap it in a Hidden object. It will be ignored by machine learning.\n")
+
+fun tensorable_warning(Float x, String out, Vector<String> context):
+    out.append("WARNING: ")
+    write_tensor_warning_context(out, context)
+    out.append(" is of type Float, which is not tensorable. Specify yourself how to serialize it, or wrap it in a Hidden object. It will be ignored by machine learning\n")
+
+fun<T> tensorable_warning(OwningPtr<T> x, String out, Vector<String> context):
+    out.append("WARNING: ")
+    write_tensor_warning_context(out, context)
+    out.append(" is of type OwningPtr, which is not tensorable. Specify yourself how to serialize it, or wrap it in a Hidden object. It will be ignored by machine learning.\n")
+
+fun<T, Int size> tensorable_warning(T[size] x, String out, Vector<String> context):
+    let t : T
+    context.append("[0]"s)
+    _observation_tensor_warnings(t, out, context)
+    context.pop()
+
+fun<T> tensorable_warning(Vector<T> x, String out, Vector<String> context):
+    let t : T
+    context.append("[0]"s)
+    _observation_tensor_warnings(t, out, context)
+    context.pop()
+
+
+fun<T> _observation_tensor_warnings(T obj, String out, Vector<String> context):
+    if obj is CustomTensorWarnings:
+        obj.tensorable_warning(out, context)
+        return
+    if obj is Tensorable:
+        return 
+    if obj is Enum:
+        return
+    if obj is Alternative:
+        let current = 0
+        for field of obj:
+            using Type = type(field)
+            let t : Type
+            _observation_tensor_warnings(t, out, context)
+            current = current + 1
+        return
+    for name, field of obj:
+        if s(name) != "resume_index":
+            context.append(s(name))
+            _observation_tensor_warnings(field, out, context)
+            context.pop()
+
+
+fun<T> to_observation_tensor_warnings(T obj) -> String:
+    let x : Vector<String>
+    x.append("obj"s)
+    let s : String
+    _observation_tensor_warnings(obj, s, x)
+    return s
+
+fun<T> emit_observation_tensor_warnings(T obj):
+    print(to_observation_tensor_warnings(obj))

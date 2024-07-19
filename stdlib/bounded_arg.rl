@@ -170,3 +170,6 @@ fun<Int min, Int max> enumerate(BInt<min, max> to_add, Vector<BInt<min, max>> ou
         x.value = counter
         output.append(x)
         counter = counter + 1
+
+fun<Int min, Int max> tensorable_warning(BInt<min, max> x, String out):
+    return

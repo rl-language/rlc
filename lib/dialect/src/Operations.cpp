@@ -1016,11 +1016,11 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 			not getValue().getType().isa<mlir::rlc::OwningPtrType>() and
 			not getValue().getType().isa<mlir::rlc::StringLiteralType>())
 	{
-		return logError(
-				*this,
-				"Type of argument of array access expression must be a array or a "
-				"owning "
-				"pointer or a string literal");
+		auto newCall =
+				builder.emitCall(*this, true, "get", { getValue(), getMemberIndex() });
+		replaceAllUsesWith(newCall);
+		erase();
+		return mlir::success();
 	}
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());

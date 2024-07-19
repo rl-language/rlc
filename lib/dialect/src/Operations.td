@@ -1164,7 +1164,7 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
 	expression.
   }];
 
-  let arguments = (ins RLCArrayOrUnkownType:$value, RLCIntegerOrUnkownType:$member_index);
+  let arguments = (ins AnyType:$value, AnyType:$member_index);
   let results = (outs AnyType:$result);
 
   let builders = [

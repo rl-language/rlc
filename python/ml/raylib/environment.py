@@ -12,8 +12,8 @@ class Specs:
         self.id = random.randint(0, 10)
 
 
-def exit_on_invalid_env(sim):
-    errors = validate_env(sim)
+def exit_on_invalid_env(sim, forced_one_player=False):
+    errors = validate_env(sim, forced_one_player=forced_one_player)
     if len(errors) == 0:
         return
 
@@ -21,34 +21,39 @@ def exit_on_invalid_env(sim):
         print(error)
     exit(-1)
 
-def validate_env(wrapper):
+def validate_env(wrapper, forced_one_player=False):
     errors = []
-    if not hasattr(wrapper.module, "rl_get_num_players__r_int64_t"):
-        errors.append("\"fun get_num_players() -> Int\" is missing, you need to defined it")
+    if not forced_one_player:
+        if not hasattr(wrapper.module, "rl_get_num_players__r_int64_t"):
+            errors.append("\"fun get_num_players() -> Int\" is missing, you need to defined it")
 
-    if not hasattr(wrapper.module, "rl_get_current_player__Game_r_int64_t"):
-        errors.append("\"fun get_current_player(Game game) -> Int\" is missing, you need to defined it")
+        if not hasattr(wrapper.module, "rl_get_current_player__Game_r_int64_t"):
+            errors.append("\"fun get_current_player(Game game) -> Int\" is missing, you need to defined it")
 
     if not hasattr(wrapper.module, "rl_play__r_Game"):
-        errors.append("\"act play() -> Game\" is missing, you need to defined it")
+        errors.append("\"fun play() -> Game\" is missing, you need to defined it")
 
     if not hasattr(wrapper.module, "rl_score__Game_int64_t_r_double"):
-        errors.append("\"act score(Game g, Int player_id) -> Float\" is missing, you need to defined it")
+        errors.append("\"fun score(Game g, Int player_id) -> Float\" is missing, you need to defined it")
 
     if not hasattr(wrapper.module, "rl_max_game_lenght__r_int64_t"):
-        errors.append("\"act max_game_lenght() -> Int\" is missing, you need to defined it")
+        errors.append("\"fun max_game_lenght() -> Int\" is missing, you need to defined it")
 
     return errors
 
 class RLCEnvironment(MultiAgentEnv):
-    def __init__(self, wrapper, dc="", solve_randomness=True):
+    def __init__(self, wrapper, dc="", solve_randomness=True, forced_one_player=False):
         self.solve_randomess = solve_randomness
         self.wrapper = wrapper
+        self.forced_one_player = forced_one_player
+        if not forced_one_player:
+            self.num_agents = self.wrapper.functions.get_num_players()
+        else:
+            self.num_agents = 1
         self.setup()
 
     def setup(self):
         action = self.wrapper.AnyGameAction()
-        self.num_agents = self.wrapper.functions.get_num_players()
         self._actions = self.wrapper.functions.enumerate(action)
         self.state_size = self.wrapper.functions.observation_tensor_size(self.wrapper.Game()) + 1
         self.actions = []
@@ -186,6 +191,8 @@ class RLCEnvironment(MultiAgentEnv):
         return observation, reward, done, truncated, info
 
     def current_player(self):
+        if self.forced_one_player:
+            return 0
         return self.wrapper.functions.get_current_player(self.state)
 
     def _current_state(self):

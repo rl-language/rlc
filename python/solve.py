@@ -12,7 +12,7 @@ import random
 import sys
 from loader import Simulation, compile
 from shutil import which
-from ml.raylib.environment import RLCEnvironment
+from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from command_line import load_simulation_from_args, make_rlc_argparse
 
 
@@ -37,7 +37,10 @@ def main():
 
     args = parser.parse_args()
     with load_simulation_from_args(args) as sim:
-        env = RLCEnvironment(wrapper=sim.module)
+        if not sim.functions.print_enumeration_errors(sim.module.AnyGameAction()):
+            exit(-1);
+        exit_on_invalid_env(sim, forced_one_player=True)
+        env = RLCEnvironment(wrapper=sim.module, forced_one_player=True)
 
         out = open(args.output, "w+") if args.output != "" else sys.stdout
         while True:

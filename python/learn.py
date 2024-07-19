@@ -137,6 +137,9 @@ def main():
 
     args = parser.parse_args()
     sim = load_simulation_from_args(args, True)
+    if not sim.functions.print_enumeration_errors(sim.module.AnyGameAction()):
+        exit(-1);
+    sim.functions.emit_observation_tensor_warnings(sim.functions.play())
     exit_on_invalid_env(sim)
     wrapper_path = os.path.abspath(sim.wrapper_path)
 
