@@ -392,8 +392,15 @@ static int linkLibraries(
 	auto maybeRealPath =
 			llvm::errorOrToExpected(llvm::sys::findProgramByName(clangPath));
 
-	if (!maybeRealPath and emitSanitizerInstrumentation)
+	if (!maybeRealPath and (emitSanitizerInstrumentation or linkAgainstFuzzer))
 	{
+
+		if (info.isWindows()) {
+			llvm::consumeError(maybeRealPath.takeError());
+			llvm::errs()
+				<< "sanitizers and fuzzer are not supported on windows\n";
+			return  -1;
+		}
 		llvm::consumeError(maybeRealPath.takeError());
 		llvm::errs()
 				<< "could not find clang, it is mandatory when using the fuzzer or the "
