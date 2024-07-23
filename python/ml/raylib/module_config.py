@@ -5,6 +5,7 @@ from ray.rllib.core.rl_module.marl_module import (
     MultiAgentRLModuleConfig,
 )
 from hyperopt import hp
+import ray
 import torch
 from ray.tune.search.hyperopt import HyperOptSearch
 from ray.rllib.core.rl_module.rl_module import SingleAgentRLModuleSpec
@@ -30,6 +31,19 @@ def configure_mapping(num_players, league_play):
 def agent_to_module_mapping_fn_single(agent_id, episode, **kwargs):
     return "p0"
 
+class CallBack(ray.rllib.algorithms.callbacks.DefaultCallbacks):
+    def on_episode_end(
+        self,
+        *,
+        episode,
+        env_runner,
+        metrics_logger,
+        env,
+        env_index,
+        rl_module,
+        **kwargs,
+    ):
+        env.log_extra_metrics(metrics_logger)
 
 def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
     state_size = RLCEnvironment(wrapper=wrapper).state_size
@@ -52,6 +66,7 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
         )
         .experimental(_disable_preprocessor_api=True)
         .api_stack(enable_rl_module_and_learner=True,  enable_env_runner_and_connector_v2=True)
+        .callbacks(CallBack)
         .rl_module(
             rl_module_spec=MultiAgentRLModuleSpec(
                 module_specs=(

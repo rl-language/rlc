@@ -51,6 +51,7 @@ class RLCEnvironment(MultiAgentEnv):
         else:
             self.num_agents = 1
         self.setup()
+        self.metrics_to_log = self.collect_env_metrics_to_log()
 
     def setup(self):
         action = self.wrapper.AnyGameAction()
@@ -125,6 +126,27 @@ class RLCEnvironment(MultiAgentEnv):
         }
 
         return is_done, scores  # return (False, 0.0)
+
+    def collect_env_metrics_to_log(self):
+        to_return = {}
+        module = self.wrapper
+        for name, overloads in module.wrappers.items():
+            if not name.startswith("log_"):
+                continue
+
+            for overload in overloads:
+                if (
+                    len(module.signatures[overload]) == 2
+                    and (module.signatures[overload][0] == float or module.signatures[overload][0] == int)
+                    and module.signatures[overload][1] == module.Game
+                ):
+                    to_return[name[4:]] = overload
+
+        return to_return
+
+    def log_extra_metrics(self, metrics_logger):
+        for name, metric in self.metrics_to_log.items():
+            metrics_logger.log_value(name, metric(self.state))
 
     def _get_info(self):
         done, reward = self._get_done_winner()

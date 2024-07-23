@@ -529,7 +529,7 @@ fun other_player(Int i) -> Int:
     return 0
 
 fun score(Game g, Int player_id) -> Float:
-    if g.is_done():
+    if !g.is_done():
         return 0.0
     if g.players[player_id].kites(g.bonuses) > g.players[other_player(player_id)].kites(g.bonuses):
         return 1.0
@@ -551,6 +551,18 @@ fun gen_printer_parser():
     let state : Game
     let any_action :  AnyGameAction
     gen_python_methods(state, any_action)
+
+fun log_p1_kites(Game g) -> Int:
+    return g.players[0].kites(g.bonuses)
+
+fun log_p2_kites(Game g) -> Int:
+    return g.players[1].kites(g.bonuses)
+
+fun log_p1_flags(Game g) -> Int:
+    return g.players[0].flags()
+
+fun log_p2_flags(Game g) -> Int:
+    return g.players[1].flags()
 
 fun fuzz(Vector<Byte> input):
     let state = play()

@@ -376,6 +376,12 @@ fun fuzz(Vector<Byte> input):
         print(executable.get(num_action % executable.size()))
         apply(executable.get(num_action % executable.size()), state)
 
+fun log_p1_score(Game g) -> Int:
+    return g.players[0].net_worth(g.stocks)
+
+fun log_p2_score(Game g) -> Int:
+    return g.players[0].net_worth(g.stocks)
+
 fun pretty_print(Game g):
     print(g.stocks.get(0))
     print(g.stocks.get(1))
