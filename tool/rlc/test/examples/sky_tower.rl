@@ -136,6 +136,39 @@ cls Player:
     Towers incomplete_towers 
     Towers complete_towers 
 
+    fun kites(BonusesController bonuses) -> Int:
+        let to_return = 0
+        let i = 0
+        while i != self.complete_towers.size():
+            ref tower = self.complete_towers[i]
+            let c = 0
+            while c != tower.size():
+                to_return = to_return + tower[c].kites.value
+                c = c + 1
+            i = i + 1
+
+        i = 0
+        while i != 10:
+            if bonuses[i] == self.hand.owner + 1:
+                let card : BonusCard
+                card.value = i 
+                to_return = to_return + card.kites()
+            i = i + 1
+
+        return to_return 
+
+    fun flags() -> Int:
+        let flags = 0
+        let i = 0
+        while i != self.complete_towers.size():
+            ref tower = self.complete_towers[i]
+            let c = 0
+            while c != tower.size():
+                flags = flags + int(tower[c].has_flag)
+                c = c + 1
+            i = i + 1
+        return flags
+
 act initialize_game(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, frm Int players_count) -> InitSequence:
     frm current_player = 0
     while current_player != players_count:
@@ -390,10 +423,10 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx
                     other_player != current_player, 
                     players[other_player.value].hand.value.size() >= 2 
                 }
-                act pick_card(CardIndex to_give) {players[other_player.value].hand.value.size() > to_give.value }
+                act opponent_pick_card(CardIndex to_give) {players[other_player.value].hand.value.size() > to_give.value }
                 players[current_player.value].hand.value.append(players[other_player.value].hand.value[to_give.value])
                 players[other_player.value].hand.value.erase(to_give.value)
-                act pick_card(CardIndex to_give) {players[other_player.value].hand.value.size() > to_give.value }
+                act opponent_pick_card(CardIndex to_give) {players[other_player.value].hand.value.size() > to_give.value }
                 players[current_player.value].hand.value.append(players[other_player.value].hand.value[to_give.value])
                 players[other_player.value].hand.value.erase(to_give.value)
                 act pick_card(CardIndex to_give) {players[current_player.value].hand.value.size() > to_give.value }
@@ -421,12 +454,12 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx
                         if deck.empty():
                             run_out_of_cards = true
                         return
-                    act ask_card(frm PlayerIndex other_player, frm TowerValue requested_value) {other_player != current_player}
+                    act ask_card(frm PlayerIndex to_ask_to, frm TowerValue requested_value) {to_ask_to != current_player}
                         let i = 0
-                        while i != players[other_player.value].hand.value.size():
-                            if players[other_player.value].hand.value[i].value == requested_value:
-                                players[current_player.value].hand.value.append(players[other_player.value].hand.value[i])
-                                players[other_player.value].hand.value.erase(i)
+                        while i != players[to_ask_to.value].hand.value.size():
+                            if players[to_ask_to.value].hand.value[i].value == requested_value:
+                                players[current_player.value].hand.value.append(players[to_ask_to.value].hand.value[i])
+                                players[to_ask_to.value].hand.value.erase(i)
                                 return 
                             i = i + 1
                         return
@@ -482,9 +515,30 @@ act play() -> Game:
 fun get_current_player(Game g) -> Int:
     if g.is_done():
         return -4
-    return 0 
+    let index : CardIndex
+    index = 0
+    if can g.deal_card(index):
+        return -1
+    if can g.opponent_pick_card(index):
+        return g.action.other_player.value
+    return g.current_player.value
+
+fun other_player(Int i) -> Int:
+    if i == 0:
+        return 1
+    return 0
 
 fun score(Game g, Int player_id) -> Float:
+    if g.is_done():
+        return 0.0
+    if g.players[player_id].kites(g.bonuses) > g.players[other_player(player_id)].kites(g.bonuses):
+        return 1.0
+    if g.players[player_id].kites(g.bonuses) < g.players[other_player(player_id)].kites(g.bonuses):
+        return -1.0
+    if g.players[player_id].flags() > g.players[other_player(player_id)].flags():
+        return 1.0
+    if g.players[player_id].flags() < g.players[other_player(player_id)].flags():
+        return -1.0
     return 0.0
 
 fun get_num_players() -> Int:
