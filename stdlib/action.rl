@@ -348,7 +348,8 @@ fun<T, Int max_size> write_in_observation_tensor(BoundedVector<T, max_size> obj,
         counter = counter + 1
 
 fun<T, Int max_size> size_as_observation_tensor(BoundedVector<T, max_size> obj) -> Int:
-    return _size_as_observation_tensor_impl(obj.get(0)) * max_size
+    let t : T
+    return _size_as_observation_tensor_impl(t) * max_size
 
 fun<Int min, Int max> write_in_observation_tensor(BInt<min, max> obj, Int observer_id, Vector<Float> output, Int index):
     write_in_observation_tensor(obj.value, min, max, output, index)

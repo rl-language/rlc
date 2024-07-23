@@ -2015,14 +2015,16 @@ def RLC_UnderTypeCheckMarker : RLC_Dialect<"under_type_check", [DeclareOpInterfa
 
 def RLC_AbortOp : RLC_Dialect<"abort", [Terminator]> {
   let summary="terminates the execution.";
+
+  let arguments = (ins StrAttr:$message);
   
-  let assemblyFormat = "attr-dict";
+  let assemblyFormat = "$message attr-dict";
 }
 
-def RLC_AssertOp : RLC_Dialect<"assert"> {
+def RLC_AssertOp : RLC_Dialect<"assert", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary="terminates the execution if the assertion does not evaluate to true.";
 
-  let arguments = (ins RLCBoolOrUnkownType:$assertion);
+  let arguments = (ins RLCBoolOrUnkownType:$assertion, StrAttr:$message);
 
   let assemblyFormat = "$assertion type($assertion) attr-dict";
 }

@@ -341,6 +341,26 @@ fun tower_index_valid(BoundedVector<Player, 4> players, Int current_player, Int 
     else:
         return towers.size() > tower_index
 
+fun card_is_selectable(CardIndex index, Bool from_extra_cards, PlayerHand extra_revealed_cards, BoundedVector<Player, 4> players, Int current_player, Bool is_building_4s) -> Bool:
+    let card : TowerCard
+
+    if from_extra_cards:
+        if extra_revealed_cards.size() <= index.value:
+            return false
+        card = extra_revealed_cards[index.value]
+    else:
+        if players[current_player].hand.value.size() <= index.value:
+            return false
+        card = players[current_player].hand.value[index.value]
+
+    if card_is_blocked(players, current_player, card):
+        return false
+
+    if is_building_4s:
+        return card.value == 4
+
+    return true
+
 act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx BonusesController bonuses, ctx PlayerHand extra_revealed_cards, frm PlayerIndex current_player) -> ActionSequence:
     frm compleated_towers = 0
     frm extra_rounds = 0
@@ -377,10 +397,7 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx
         act do_nothing() { is_building_4s or deck.empty()}
             return
         act select_card(frm CardIndex index, frm Bool from_extra_cards) {
-            (!from_extra_cards and players[current_player.value].hand.value.size() > index.value) or 
-            (from_extra_cards and extra_revealed_cards.size() > index.value),
-            !card_is_blocked(players, current_player.value, players[current_player.value].hand.value[index.value]),
-            !is_building_4s or players[current_player.value].hand.value[index.value].value == 4
+            card_is_selectable(index, from_extra_cards, extra_revealed_cards, players, current_player.value, is_building_4s)
             }
             frm to_play : TowerCard 
             if from_extra_cards:
@@ -394,9 +411,9 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx
               players.size() > target_player.value,
               tower_index_valid(players, current_player.value, target_player.value, tower_index.value),
               tower_sum(players[target_player.value], tower_index, to_play) <= 21,
-              check_foundation(players[target_player.value], tower_index, players[current_player.value].hand.value[index.value]),
-              check_top(players[target_player.value], tower_index, players[current_player.value].hand.value[index.value]),
-              check_mayhem(current_player, target_player, players[current_player.value].hand.value[index.value])
+              check_foundation(players[target_player.value], tower_index, to_play),
+              check_top(players[target_player.value], tower_index, to_play),
+              check_mayhem(current_player, target_player, to_play)
             }
             ref player = players[target_player.value]
             ref hand_player = players[current_player.value]
@@ -454,7 +471,7 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx
                         if deck.empty():
                             run_out_of_cards = true
                         return
-                    act ask_card(frm PlayerIndex to_ask_to, frm TowerValue requested_value) {to_ask_to != current_player}
+                    act ask_card(frm PlayerIndex to_ask_to, frm TowerValue requested_value) {to_ask_to != current_player, players.size() > to_ask_to.value}
                         let i = 0
                         while i != players[to_ask_to.value].hand.value.size():
                             if players[to_ask_to.value].hand.value[i].value == requested_value:

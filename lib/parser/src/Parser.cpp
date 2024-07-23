@@ -1265,6 +1265,23 @@ Expected<mlir::rlc::ReturnStatement> Parser::returnStatement()
 	return expStatement;
 }
 
+/**
+ * assertStatements : assert`(` expression `,` strlit`)`'\n'
+ */
+Expected<mlir::rlc::AssertOp> Parser::assertStatement()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordAssert);
+	EXPECT(Token::LPar);
+	TRY(exp, expression());
+	EXPECT(Token::Comma);
+	EXPECT(Token::String);
+	auto message = lexer.lastString();
+	EXPECT(Token::RPar);
+	EXPECT(Token::Newline);
+	return builder.create<mlir::rlc::AssertOp>(location, *exp, message);
+}
+
 Expected<mlir::Operation*> Parser::statement()
 {
 	if (current == Token::KeywordAction)
@@ -1312,6 +1329,9 @@ Expected<mlir::Operation*> Parser::statement()
 
 	if (current == Token::KeywordContstruct)
 		return builtinConstruct();
+
+	if (current == Token::KeywordAssert)
+		return assertStatement();
 
 	if (current == Token::Indent)
 	{

@@ -1281,13 +1281,39 @@ class FromByteArrayRewriter
 
 class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 {
-	using mlir::OpConversionPattern<mlir::rlc::AbortOp>::OpConversionPattern;
+	public:
+	AbortRewriter(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			mlir::LLVM::LLVMFuncOp puts)
+			: mlir::OpConversionPattern<mlir::rlc::AbortOp>::OpConversionPattern(
+						converter, ctx),
+				puts(puts)
+	{
+	}
+	mutable mlir::LLVM::LLVMFuncOp puts;
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::AbortOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
+		if (not op.getMessage().empty())
+		{
+			auto global = getOrCreateGlobalString(
+					op.getLoc(),
+					rewriter,
+					"",
+					op.getMessage(),
+					op->getParentOfType<mlir::ModuleOp>());
+
+			rewriter.setInsertionPoint(op);
+			rewriter.create<mlir::LLVM::CallOp>(
+					op.getLoc(),
+					mlir::TypeRange(),
+					puts.getSymName(),
+					mlir::ValueRange({ global }));
+		}
 		rewriter.create<mlir::LLVM::Trap>(op.getLoc());
 		rewriter.create<mlir::LLVM::ReturnOp>(op.getLoc(), mlir::ValueRange());
 		rewriter.eraseOp(op);
@@ -1841,6 +1867,13 @@ namespace mlir::rlc
 							mlir::LLVM::LLVMPointerType::get(&getContext()),
 							{ rewriter.getI64Type() }));
 
+			auto puts = rewriter.create<mlir::LLVM::LLVMFuncOp>(
+					getOperation().getLoc(),
+					"puts",
+					mlir::LLVM::LLVMFunctionType::get(
+							mlir::LLVM::LLVMVoidType::get(&getContext()),
+							{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
+
 			auto free = rewriter.create<mlir::LLVM::LLVMFuncOp>(
 					getOperation().getLoc(),
 					"free",
@@ -1917,7 +1950,7 @@ namespace mlir::rlc
 					.add<ReferenceRewriter>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
-					.add<AbortRewriter>(converter, &getContext());
+					.add<AbortRewriter>(converter, &getContext(), puts);
 
 			if (failed(
 							applyFullConversion(getOperation(), target, std::move(patterns))))

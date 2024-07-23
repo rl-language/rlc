@@ -107,7 +107,7 @@ act play() -> Game:
         
         ## not sure how to implement give_information 
         actions:
-            act give_information(HandCardIndex index) {info_token != 0}
+            act give_information(HandCardIndex index) {info_token != 0, index < player_hands[other_player(current_player.value)].value.size()}
                 ref card = player_hands[other_player(current_player.value)].value.get(index.value)
                 let info : CardInfo
                 info.suit = card.suit
@@ -117,12 +117,12 @@ act play() -> Game:
                     player_infos[current_player.value].erase(0)
                 player_infos[current_player.value].append(info)
                 info_token = info_token - 1
-            act discard_card(HandCardIndex index)
+            act discard_card(HandCardIndex index) {index < player_hands[current_player.value].value.size()}
                 player_hands[current_player.value].value.erase(index.value)
                 act draw_random_card(CardIndex index) {index < deck.value.size()}
                 player_hands[current_player.value].value.append(deck.value.get(index.value))
                 info_token.value = info_token.value + 1
-            act play_card(HandCardIndex index)
+            act play_card(HandCardIndex index) {index < player_hands[current_player.value].value.size()}
                 let card = player_hands[current_player.value].value.get(index.value)
                 ref suit_pile = highest_card_played[card.suit.value]
                 if suit_pile.value == card.value.value - 1:

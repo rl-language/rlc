@@ -56,6 +56,7 @@ namespace rlc
 		void setComment(mlir::Operation* op, llvm::StringRef comment);
 		llvm::Expected<mlir::Value> primaryExpression();
 		llvm::Expected<mlir::Value> postFixExpression();
+		llvm::Expected<mlir::rlc::AssertOp> assertStatement();
 		llvm::Expected<mlir::Value> canCallExpression();
 		llvm::Expected<mlir::Value> builtinMalloc();
 		llvm::Expected<mlir::Value> builtinFromArray();

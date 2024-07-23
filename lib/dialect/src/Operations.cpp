@@ -694,6 +694,17 @@ mlir::LogicalResult mlir::rlc::UncheckedCanOp::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::AssertOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	if (!getAssertion().getType().isa<mlir::rlc::BoolType>())
+	{
+		return logError(
+				getOperation(), "assert must have a expression of type bool");
+	}
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::UnderTypeCheckMarker::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {

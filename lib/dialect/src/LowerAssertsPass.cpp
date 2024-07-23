@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -63,7 +63,14 @@ namespace mlir::rlc
 
 			// construct the false branch that aborts
 			auto *falseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
-			rewriter.create<mlir::rlc::AbortOp>(ifStatement.getLoc());
+			std::string message;
+			llvm::raw_string_ostream OS(message);
+			auto casted = op.getLoc().cast<mlir::FileLineColLoc>();
+			OS << casted.getFilename().str() << ":" << casted.getLine() << ":"
+				 << casted.getColumn() << " ";
+			OS << "error: " << op.getMessage() << "\n";
+			OS.flush();
+			rewriter.create<mlir::rlc::AbortOp>(ifStatement.getLoc(), message);
 			rewriter.eraseOp(op);
 		}
 	};

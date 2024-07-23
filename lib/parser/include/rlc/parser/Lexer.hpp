@@ -37,6 +37,7 @@ namespace rlc
 		KeywordRule,
 		KeywordEnum,
 		KeywordMalloc,
+		KeywordAssert,
 		KeywordDestroy,
 		KeywordContstruct,
 		KeywordCan,

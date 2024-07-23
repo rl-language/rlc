@@ -318,7 +318,7 @@ ext fun parse_string(Byte result, String buffer, Int index) -> Bool
 ext fun parse_string(Float result, String buffer, Int index) -> Bool
 
 fun _consume_space(String buffer, Int index):
-    while is_space(buffer.get(index)):
+    while is_space(buffer.get(index)) and index < buffer.size():
         index = index + 1 
 
 # returns the length of a string literal

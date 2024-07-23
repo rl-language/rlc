@@ -96,17 +96,22 @@ cls<T> Vector:
     # returns a reference to the
     # last element of the vector
     fun back() -> ref T:
+        assert(self._size > 0, "out of bound vector access")
         return self._data[self._size - 1]
 
     # returns a reference to the element
     # with the provided index
     fun get(Int index) -> ref T:
+        assert(index >= 0, "out of bound vector access")
+        assert(index < self._size, "out of bound vector access")
         return self._data[index]
 
     # assigns `value` to the element
     # of the vector at the provided
     # index
     fun set(Int index, T value):
+        assert(index >= 0, "out of bound vector access")
+        assert(index < self._size, "out of bound vector access")
         self._data[index] = value
 
     # appends `value` to the 
@@ -132,6 +137,7 @@ cls<T> Vector:
     # of the vector and returns
     # it by copy
     fun pop() -> T:
+        assert(self._size > 0, "out of bound vector access")
         let to_return = self._data[self._size - 1]
         self._size = self._size - 1
         __builtin_destroy_do_not_use(self._data[self._size])
@@ -151,6 +157,8 @@ cls<T> Vector:
     # erase the element with the provided
     # `index`
     fun erase(Int index):
+        assert(index >= 0, "out of bound vector access")
+        assert(index < self._size, "out of bound vector access")
         let counter = index
         while counter < self._size - 1: 
             self._data[counter] = self._data[counter + 1]
