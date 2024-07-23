@@ -36,6 +36,10 @@ cls<T> Vector:
         counter = 0
         while counter < self._size:
             new_data[counter] = self._data[counter] 
+            counter = counter + 1
+
+        counter = 0
+        while counter < self._capacity:
             __builtin_destroy_do_not_use(self._data[counter])
             counter = counter + 1
 

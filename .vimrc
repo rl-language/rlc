@@ -197,6 +197,8 @@ nnoremap <leader><leader>dts :DTSUIT<cr>
 nnoremap <leader><leader>to :TONE<cr>
 nnoremap <leader><leader>dto :DTONE<cr>
 nnoremap <leader><leader>tc :BENCHMARK<cr>
+map <leader><leader>L i<
+map <leader><leader>G i>
 
 command! -nargs=1 Rename call s:clangRename(<f-args>)
 exe "hi clangOutError ctermfg="g:ColorStatement

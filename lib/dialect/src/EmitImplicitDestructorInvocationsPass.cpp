@@ -472,7 +472,8 @@ namespace mlir::rlc
 			llvm::DenseMap<mlir::Type, bool> requireDestructor;
 
 			fun->walk([&](mlir::Operation* op) {
-				if (not mlir::isa<mlir::rlc::DeclarationStatement>(op))
+				auto casted = mlir::dyn_cast<mlir::rlc::DeclarationStatement>(op);
+				if (not casted or casted.isReference())
 					return;
 				for (mlir::Value result : op->getResults())
 					if (typeRequiresDestructor(

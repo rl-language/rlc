@@ -291,6 +291,9 @@ fun get_current_player(Game g) -> Int:
     roll.value = 6
     if can g.roll_dice(roll):
       return -1
+    let b : BInt<0, 6>
+    if can g.place_blip(b):
+      return -1
     if g.board.marine_must_act():
       return 0
     if g.board.gsc_must_act():
