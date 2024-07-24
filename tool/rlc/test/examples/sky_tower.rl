@@ -119,11 +119,11 @@ enum BonusCard:
         return self.value == card.value
 
 using PlayerHand = BoundedVector<TowerCard, 82>
-using PlayerIndex = BInt<0, 4>
+using PlayerIndex = BInt<0, 2>
 using TurnsBeforeGameEnd = BInt<0, 5>
-using TowerPile = BoundedVector<TowerCard, 10>
-using Towers = BoundedVector<TowerPile, 10>
-using TowerIndex = BInt<0, 11>
+using TowerPile = BoundedVector<TowerCard, 8>
+using Towers = BoundedVector<TowerPile, 6>
+using TowerIndex = BInt<0, 7>
 
 # 0 for no controller, player index + 1 otherwise
 using BonusController = BInt<0, 5>
@@ -169,7 +169,7 @@ cls Player:
             i = i + 1
         return flags
 
-act initialize_game(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, frm Int players_count) -> InitSequence:
+act initialize_game(ctx TowerDeck deck, ctx BoundedVector<Player, 2> players, frm Int players_count) -> InitSequence:
     frm current_player = 0
     while current_player != players_count:
         frm player : Player
@@ -198,7 +198,7 @@ fun tower_sum(Player p, TowerIndex tower_index, TowerCard to_play) -> Int:
     ref tower = p.incomplete_towers[tower_index.value]
     return tower_sum(tower) + to_play.value.value
 
-fun card_is_blocked(BoundedVector<Player, 4> players, Int current_player, TowerCard to_play) -> Bool:
+fun card_is_blocked(BoundedVector<Player, 2> players, Int current_player, TowerCard to_play) -> Bool:
     let right_player_index = current_player - 1
     if right_player_index == -1:
         right_player_index = players.size() - 1
@@ -288,7 +288,7 @@ fun descending_6_to_1(TowerPile tower) -> Bool:
 
     return true
 
-fun check_bonuses_controller(TowerDeck deck, BoundedVector<Player, 4> players, PlayerIndex current_player, BonusesController bonuses):
+fun check_bonuses_controller(TowerDeck deck, BoundedVector<Player, 2> players, PlayerIndex current_player, BonusesController bonuses):
     ref player = players[current_player.value]
     if player.complete_towers.empty():
         return
@@ -319,7 +319,7 @@ fun check_top(Player player, TowerIndex tower_index, TowerCard card) -> Bool:
         return card.value == 1
     return true
 
-fun is_there_another_player_with_two_cards(BoundedVector<Player, 4> players, PlayerIndex current_player) -> Bool:
+fun is_there_another_player_with_two_cards(BoundedVector<Player, 2> players, PlayerIndex current_player) -> Bool:
     let i = 0
     while i != players.size():
         if players[i].hand.value.size() >= 2 and current_player != i:
@@ -334,14 +334,14 @@ fun check_mayhem(PlayerIndex current_player, PlayerIndex target_player, TowerCar
         return true
     return false
 
-fun tower_index_valid(BoundedVector<Player, 4> players, Int current_player, Int target_player, Int tower_index) -> Bool:
+fun tower_index_valid(BoundedVector<Player, 2> players, Int current_player, Int target_player, Int tower_index) -> Bool:
     ref towers = players[target_player].incomplete_towers
     if current_player == target_player:
         return towers.size() >= tower_index
     else:
         return towers.size() > tower_index
 
-fun card_is_selectable(CardIndex index, Bool from_extra_cards, PlayerHand extra_revealed_cards, BoundedVector<Player, 4> players, Int current_player, Bool is_building_4s) -> Bool:
+fun card_is_selectable(CardIndex index, Bool from_extra_cards, PlayerHand extra_revealed_cards, BoundedVector<Player, 2> players, Int current_player, Bool is_building_4s) -> Bool:
     let card : TowerCard
 
     if from_extra_cards:
@@ -361,7 +361,7 @@ fun card_is_selectable(CardIndex index, Bool from_extra_cards, PlayerHand extra_
 
     return true
 
-act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx BonusesController bonuses, ctx PlayerHand extra_revealed_cards, frm PlayerIndex current_player) -> ActionSequence:
+act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 2> players, ctx BonusesController bonuses, ctx PlayerHand extra_revealed_cards, frm PlayerIndex current_player) -> ActionSequence:
     frm compleated_towers = 0
     frm extra_rounds = 0
     frm run_out_of_cards = false
@@ -418,7 +418,7 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx
             ref player = players[target_player.value]
             ref hand_player = players[current_player.value]
             if player.incomplete_towers.size() == tower_index.value:
-                if player.incomplete_towers.size() == 10:
+                if player.incomplete_towers.size() == 6:
                     return
                 let new_tower : TowerPile
                 player.incomplete_towers.append(new_tower)
@@ -497,7 +497,7 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 4> players, ctx
 
 act play() -> Game:
     frm tower_deck = make_deck()
-    frm players : BoundedVector<Player, 4> 
+    frm players : BoundedVector<Player, 2> 
     frm bonuses : BonusesController 
     frm extra_revealed_cards : PlayerHand
 
