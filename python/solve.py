@@ -13,7 +13,7 @@ import sys
 from loader import Simulation, compile
 from shutil import which
 from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
-from command_line import load_simulation_from_args, make_rlc_argparse
+from command_line import load_simulation_for_ml, make_rlc_argparse
 
 
 def main():
@@ -36,7 +36,7 @@ def main():
     )
 
     args = parser.parse_args()
-    with load_simulation_from_args(args) as sim:
+    with load_simulation_for_ml(args) as sim:
         if not sim.functions.print_enumeration_errors(sim.module.AnyGameAction()):
             exit(-1);
         exit_on_invalid_env(sim, forced_one_player=True)

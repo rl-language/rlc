@@ -1,4 +1,4 @@
-# RUN: python %pyscript/solve.py %s -i %stdlib --rlc rlc
+# RUN: python %pyscript/solve.py %s --stdlib %stdlib --rlc rlc
 import collections.vector
 import machine_learning 
 import action
@@ -166,11 +166,6 @@ fun get_current_player(Game g) -> Int:
 fun get_num_players() -> Int:
     return 1
 
-# To avoid games that never terminate, we provide 
-# a function that suggest a maximal number of actions
-# 200 is greatly overestimated.
-fun max_game_lenght() -> Int:
-    return 300
 
 # For the machine learning to learn we need 
 # to specify the score of the given player, 
@@ -188,14 +183,6 @@ fun score(Game g, Int player_id) ->  Float:
     if points > 21:
         return 0.0
     return float(points) / 21.0
-
-# This function must be present just as written
-# to make sure that some functions used by 
-# machine learning are available.
-fun gen_printer_parser():
-    let state : Game
-    let any_action :  AnyGameAction
-    gen_python_methods(state, any_action)
 
 # this function is looked for by the machine
 # learning components when they wish to print

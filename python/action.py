@@ -13,7 +13,7 @@ import argparse
 from loader import Simulation, compile, State
 import os
 from shutil import which
-from command_line import load_simulation_from_args, make_rlc_argparse
+from command_line import load_simulation_for_ml, make_rlc_argparse
 
 
 def main():
@@ -46,7 +46,7 @@ def main():
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
     args = parser.parse_args()
-    with load_simulation_from_args(args) as sim:
+    with load_simulation_for_ml(args) as sim:
 
         if args.show_actions:
             sim.dump()

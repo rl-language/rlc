@@ -1,4 +1,4 @@
-# RUN: python %pyscript/solve.py %s -i %stdlib --rlc rlc
+# RUN: python %pyscript/solve.py %s --stdlib %stdlib --rlc rlc
 
 import action
 import collections.vector
@@ -169,11 +169,6 @@ fun get_num_players() -> Int:
 # i think a game lasts less than 1000 turns 
 fun max_game_lenght() -> Int:
     return 1000
-
-fun gen_printer_parser():
-    let state : Game
-    let any_action :  AnyGameAction
-    gen_python_methods(state, any_action)
 
 fun fuzz(Vector<Byte> input):
     if input.size() == 0:

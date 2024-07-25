@@ -21,23 +21,45 @@ def exit_on_invalid_env(sim, forced_one_player=False):
         print(error)
     exit(-1)
 
+def has_score_function(wrapper):
+    return hasattr(wrapper, "rl_score__Game_int64_t_r_double")
+
+def has_score(wrapper):
+    return has_score_function(wrapper) or hasattr(wrapper.Game(), "score")
+
+def has_max_lenght(wrapper):
+    return hasattr(wrapper, "rl_max_game_lenght__r_int64_t")
+
+def has_get_num_players(wrapper):
+    return hasattr(wrapper, "rl_get_num_players__r_int64_t")
+
+def has_get_num_players(wrapper):
+    return hasattr(wrapper, "rl_get_num_players__r_int64_t")
+
+def has_get_current_player(wrapper):
+    return hasattr(wrapper, "rl_get_current_player__Game_r_int64_t")
+
+def get_num_players(wrapper):
+    if has_get_num_players(wrapper):
+        return wrapper.functions.get_num_players()
+    return 1
+
 def validate_env(wrapper, forced_one_player=False):
+    if not has_get_num_players(wrapper.module) and not has_get_current_player(wrapper.module):
+        forced_one_player = True
     errors = []
     if not forced_one_player:
-        if not hasattr(wrapper.module, "rl_get_num_players__r_int64_t"):
+        if not has_get_num_players(wrapper.module):
             errors.append("\"fun get_num_players() -> Int\" is missing, you need to defined it")
 
-        if not hasattr(wrapper.module, "rl_get_current_player__Game_r_int64_t"):
+        if not has_get_current_player(wrapper.module) :
             errors.append("\"fun get_current_player(Game game) -> Int\" is missing, you need to defined it")
 
     if not hasattr(wrapper.module, "rl_play__r_Game"):
         errors.append("\"fun play() -> Game\" is missing, you need to defined it")
 
-    if not hasattr(wrapper.module, "rl_score__Game_int64_t_r_double"):
-        errors.append("\"fun score(Game g, Int player_id) -> Float\" is missing, you need to defined it")
-
-    if not hasattr(wrapper.module, "rl_max_game_lenght__r_int64_t"):
-        errors.append("\"fun max_game_lenght() -> Int\" is missing, you need to defined it")
+    if not has_score(wrapper.module):
+        errors.append("\"fun score(Game g, Int player_id) -> Float\" is missing, you need to defined it, or provide a field score in the action play")
 
     return errors
 
@@ -46,8 +68,10 @@ class RLCEnvironment(MultiAgentEnv):
         self.solve_randomess = solve_randomness
         self.wrapper = wrapper
         self.forced_one_player = forced_one_player
+        self.has_score_function = has_score_function(self.wrapper)
+        self.has_get_current_player_f = has_get_current_player(self.wrapper)
         if not forced_one_player:
-            self.num_agents = self.wrapper.functions.get_num_players()
+            self.num_agents = get_num_players(self.wrapper)
         else:
             self.num_agents = 1
         self.setup()
@@ -75,12 +99,12 @@ class RLCEnvironment(MultiAgentEnv):
             {i: spaces.Discrete(self.num_actions) for i in range(self.num_agents)}
         )
 
-        self.spec = Specs(self.wrapper.functions.max_game_lenght())
+        self.spec = Specs(5000 if not has_max_lenght(self.wrapper) else self.wrapper.functions.max_game_lenght())
 
         self.state = self.wrapper.functions.play()
         self.resolve_randomness()
         self.current_score = [
-            self.wrapper.functions.score(self.state, i) for i in range(self.num_agents)
+            self.score(i) for i in range(self.num_agents)
         ]
         self.last_score = self.current_score
         self._agent_ids = [i for i in range(self.num_agents)]
@@ -89,6 +113,10 @@ class RLCEnvironment(MultiAgentEnv):
         self._obs_space_in_preferred_format = True
         self._action_space_in_preferred_format = True
 
+    def score(self, player_id):
+        if self.has_score_function:
+            return self.wrapper.functions.score(self.state, player_id)
+        return self.state.score
 
     @property
     def legal_actions(self):
@@ -162,7 +190,7 @@ class RLCEnvironment(MultiAgentEnv):
         observation = self._current_state()
         info = self._get_info()
         self.current_score = [
-            self.wrapper.functions.score(self.state, i) for i in range(self.num_agents)
+            self.score(i) for i in range(self.num_agents)
         ]
         self.last_score = self.current_score
 
@@ -200,7 +228,7 @@ class RLCEnvironment(MultiAgentEnv):
 
         self.last_score = self.current_score
         self.current_score = [
-            self.wrapper.functions.score(self.state, i) for i in range(self.num_agents)
+            self.score(i) for i in range(self.num_agents)
         ]
 
         done, reward = self._get_done_winner()
@@ -213,7 +241,11 @@ class RLCEnvironment(MultiAgentEnv):
         return observation, reward, done, truncated, info
 
     def current_player(self):
+        if self.state.resume_index == -1:
+            return -4
         if self.forced_one_player:
+            return 0
+        if not self.has_get_current_player_f:
             return 0
         return self.wrapper.functions.get_current_player(self.state)
 

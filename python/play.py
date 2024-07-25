@@ -11,9 +11,10 @@ from ray.rllib.algorithms.ppo import PPOConfig, PPO
 from ray.rllib.algorithms.ppo import PPOTorchPolicy
 from ray import train
 from ml.raylib.module_config import  get_config
+from ml.raylib.environment import  get_num_players
 
 from loader.simulation import import_file
-from command_line import load_simulation_from_args, make_rlc_argparse
+from command_line import load_simulation_for_ml, make_rlc_argparse
 
 
 def main():
@@ -32,7 +33,7 @@ def main():
     parser.add_argument("--iterations", default=1, type=int)
 
     args = parser.parse_args()
-    with load_simulation_from_args(args, optimize=True) as sim:
+    with load_simulation_for_ml(args, optimize=True) as sim:
         exit_on_invalid_env(sim)
 
         ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
@@ -46,7 +47,7 @@ def main():
         num_players = (
             1
             if not args.no_one_agent_per_player
-            else sim.module.functions.get_num_players()
+            else get_num_players(sim)
         )
 
         model = Algorithm.from_checkpoint(args.checkpoint)

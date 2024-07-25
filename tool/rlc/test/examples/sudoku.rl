@@ -1,4 +1,4 @@
-# RUN: python %pyscript/solve.py %s -i %stdlib --rlc rlc
+# RUN: python %pyscript/solve.py %s --stdlib %stdlib --rlc rlc
 import action
 
 # Entities are just like other languages classes. 
@@ -204,14 +204,6 @@ fun max_game_lenght() -> Int:
 # otherwise
 fun score(Game g, Int player_id) ->  Float:
     return 1.0 - float(g.board.count_empty()) / 81.0
-
-# This function must be present just as written
-# to make sure that some functions used by 
-# machine learning are available.
-fun gen_printer_parser():
-    let state : Game
-    let any_action :  AnyGameAction
-    gen_python_methods(state, any_action)
 
 # this function is looked for by the machine
 # learning components when they wish to print

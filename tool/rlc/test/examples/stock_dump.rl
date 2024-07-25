@@ -1,5 +1,4 @@
-# RUN: python %pyscript/solve.py %s -i %stdlib --rlc rlc
-import action
+# RUN: python %pyscript/solve.py %s --stdlib %stdlib --rlc rlc
 import machine_learning
 
 using ExchangeCardStock = BInt<0, 9>
@@ -339,11 +338,6 @@ fun get_num_players() -> Int:
 
 fun max_game_lenght() -> Int:
     return 1000
-
-fun gen_printer_parser():
-    let state : Game
-    let any_action :  AnyGameAction
-    gen_python_methods(state, any_action)
 
 
 fun fuzz(Vector<Byte> input):

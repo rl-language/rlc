@@ -258,17 +258,17 @@ class Simulation:
         return self.module.functions
 
 
-def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", optimized=True):
+def compile(sources=[], rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", optimized=True):
     include_args = []
     for arg in rlc_includes:
         include_args.append("-i")
         include_args.append(arg)
-    tmp_dir = mkdtemp() 
+    tmp_dir = mkdtemp()
     assert (
         run(
             [
                 rlc_compiler,
-                source,
+                *sources,
                 "--python",
                 "-o",
                 Path(tmp_dir) / Path("wrapper.py"),
@@ -279,7 +279,7 @@ def compile(source, rlc_compiler="rlc", rlc_includes=[], rlc_runtime_lib="", opt
         == 0
     )
     lib_name = "lib.dll" if os.name == "nt" else "lib.so"
-    args = [rlc_compiler, source, "--shared", "-o", Path(tmp_dir) / Path(lib_name), "-O2" if optimized else ""]
+    args = [rlc_compiler, *sources, "--shared", "-o", Path(tmp_dir) / Path(lib_name), "-O2" if optimized else ""]
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
     assert run(args + include_args).returncode == 0

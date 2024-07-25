@@ -1,7 +1,43 @@
 # RLC
 
+### Try it!
+
+At the moment we provide binaries only for linux x64 and windows x64.
+
+```
+# file.rl
+
+act play() -> Game:
+    frm score = 0.0
+    act win(Bool do_it)
+    if do_it:
+        score = 1.0
+```
+
+```
+pip install rl_language
+rlc-fix-ray
+rlc-learn file.rl -o net # ctrl+c to interrupt after a while
+rlc-probs file.rl net
+```
+It will to learn pass true to `win` to maximize `score`, as reported by the second command.
+```
+---------- 0 : p0 ------------
+{resume_index: 1, score: 0.000000}
+--------- probs --------------
+0: win {do_it: true}  98.9385 %
+1: win {do_it: false}  1.0615 %
+------------------------------
+{resume_index: -1, score: 1.000000}
+```
+
+Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
+Language reference and stdlib documentation [here](https://github.com/rl-language/rlc-stdlib-doc/tree/master).
+
+
 ![RLC Logo](./imgs/RLC_logo.png)
 > ReLiC, the rlc dragon
+
 
 ### RL and RLC
 The RuleBook Compiler (`RLC`) is an MLIR-based compiler for a domain-specific language aimed at simplifying the complexity of developing multiagent simulations at all stages of development.
@@ -88,17 +124,6 @@ fun main() -> Int:
 	# had three marks in a line
 	return int(game.board.three_in_a_line())
 ```
-
-### Try it!
-
-At the moment we provide binaries only for linux x64 and windows x64.
-
-```
-pip install rl_language
-```
-
-Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
-Language reference and stdlib documentation [here](https://github.com/rl-language/rlc-stdlib-doc/tree/master).
 
 ### Dependencies
 Base:

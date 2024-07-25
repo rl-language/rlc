@@ -18,8 +18,9 @@ from ray.rllib.algorithms.ppo import PPOTorchPolicy
 from ray import train
 from ml.raylib.module_config import get_config
 
-from command_line import load_simulation_from_args, make_rlc_argparse
+from command_line import load_simulation_for_ml, make_rlc_argparse
 from loader.simulation import import_file
+from ml.raylib.environment import get_num_players
 
 from typing import (
     Any,
@@ -133,10 +134,10 @@ def main():
     parser.add_argument("--league-play", action="store_true", default=False)
     parser.add_argument("--no-tensorboard", action="store_true", default=False)
     parser.add_argument("--total-train-iterations", default=100000000, type=int)
-    parser.add_argument("--sample-space", default=1, type=int)
+    parser.add_argument("--num-sample", default=1, type=int)
 
     args = parser.parse_args()
-    sim = load_simulation_from_args(args, True)
+    sim = load_simulation_for_ml(args, True)
     if not sim.functions.print_enumeration_errors(sim.module.AnyGameAction()):
         exit(-1);
     sim.functions.emit_observation_tensor_warnings(sim.functions.play())
@@ -148,7 +149,7 @@ def main():
     from ray import air, tune
     args.output = os.path.abspath(args.output)
 
-    num_players =  1 if args.true_self_play else sim.module.functions.get_num_players()
+    num_players =  1 if args.true_self_play else get_num_players(sim)
 
     ppo_config, hyperopt_search = get_config(
         sim.module,
@@ -176,14 +177,14 @@ def main():
     tuner = tune.Tuner(
         tune.with_resources(
             (
-                get_multi_train(sim.module.functions.get_num_players(), args.output)
+                get_multi_train(get_num_player(sim), args.output)
                 if args.league_play
                 else get_trainer(args.output, total_train_iterations=args.total_train_iterations, num_players=num_players)
             ),
             resources=resources,
         ),
         param_space=ppo_config.to_dict(),
-        tune_config=ray.tune.TuneConfig(num_samples=args.sample_space, search_alg=hyperopt_search, trial_name_creator=trial_str_creator, trial_dirname_creator=trial_str_creator),
+        tune_config=ray.tune.TuneConfig(num_samples=args.num_sample, search_alg=hyperopt_search, trial_name_creator=trial_str_creator, trial_dirname_creator=trial_str_creator),
         run_config=air.RunConfig(
             stop=stop,
             verbose=2,

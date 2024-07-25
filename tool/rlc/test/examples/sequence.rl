@@ -1,4 +1,4 @@
-# RUN: python %pyscript/solve.py %s -i %stdlib --rlc rlc
+# RUN: python %pyscript/solve.py %s --stdlib %stdlib --rlc rlc
 import action
 import bounded_arg
 
@@ -123,7 +123,3 @@ fun get_num_players() -> Int:
 fun max_game_lenght() -> Int:
     return 5000
 
-fun gen_printer_parser():
-    let state : Game
-    let any_action :  AnyGameAction
-    gen_python_methods(state, any_action)

@@ -5,10 +5,11 @@ import numpy as np
 from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.algorithms.algorithm import Algorithm
 from ml.raylib.module_config import get_config
+from ml.raylib.environment import get_num_players
 from ray.rllib.algorithms.ppo import PPOConfig, PPO
 from loader.simulation import import_file
 
-from command_line import load_simulation_from_args, make_rlc_argparse
+from command_line import load_simulation_for_ml, make_rlc_argparse
 
 
 
@@ -22,7 +23,7 @@ def main():
     parser.add_argument("--iterations",  default=1, type=int)
 
     args = parser.parse_args()
-    with load_simulation_from_args(args, optimize=True) as sim:
+    with load_simulation_for_ml(args, optimize=True) as sim:
         exit_on_invalid_env(sim)
 
         ray.init(num_cpus=12, num_gpus=1, include_dashboard=False, log_to_driver=False, logging_level="ERROR")
@@ -37,7 +38,7 @@ def main():
         num_players = (
             1
             if args.true_self_play
-            else sim.module.functions.get_num_players()
+            else get_num_players(sim)
         )
 
         model = Algorithm.from_checkpoint(args.checkpoint)
@@ -45,6 +46,7 @@ def main():
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/net_p{i}/"
             )
+        os.system("cls||clear")
         for iteration in range(args.iterations):
           env = RLCEnvironment(wrapper=sim.module)
           state_to_load = args.state if args.state != "" else None
@@ -70,7 +72,10 @@ def main():
             if done["__all__"] or truncated["__all__"]:
                 break
 
-          env.wrapper.functions.pretty_print(env.state)
+          if args.pretty_print:
+            env.wrapper.functions.pretty_print(env.state)
+        else:
+            env.wrapper.functions.print(env.state)
 
 
 

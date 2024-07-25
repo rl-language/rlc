@@ -1,6 +1,6 @@
-# RUN: python %pyscript/test.py %s -i %stdlib --rlc rlc
-# RUN: python %pyscript/learn.py %s -i %stdlib --rlc rlc --total-train-iterations=1 -o %t
-# RUN: python %pyscript/play.py %s -i %stdlib --rlc rlc %t
+# RUN: python %pyscript/test.py %s --stdlib %stdlib --rlc rlc
+# RUN: python %pyscript/learn.py %s --stdlib %stdlib --rlc rlc --total-train-iterations=1 -o %t
+# RUN: python %pyscript/play.py %s --stdlib %stdlib --rlc rlc %t
 
 # implementation of https://en.wikipedia.org/wiki/Pebble_game
 import bounded_arg
@@ -215,11 +215,6 @@ fun score(Game g, Int player_id) -> Float:
 
 fun get_num_players() -> Int:
     return 1
-
-fun gen_printer_parser():
-    let state : Game 
-    let any_action : AnyGameAction 
-    gen_python_methods(state, any_action)
 
 fun fuzz(Vector<Byte> input):
     if input.size() == 0:

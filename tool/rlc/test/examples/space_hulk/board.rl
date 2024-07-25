@@ -1,4 +1,4 @@
-# RUN: python %pyscript/test.py %s -i %stdlib --rlc rlc 
+# RUN: python %pyscript/test.py %s --stdlib %stdlib --rlc rlc 
 
 import unit 
 import bounded_arg

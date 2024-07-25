@@ -26,7 +26,6 @@ limitations under the License.
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
@@ -291,11 +290,12 @@ static mlir::rlc::Driver::Request getRequest()
 	return Driver::Request::executable;
 }
 
-static std::string toNative(llvm::StringRef path) {
-  SmallVector<char> converted;
-  llvm::sys::path::native(Twine(path), converted);
-  std::string out(converted.begin(), converted.end()); 
-  return out;
+static std::string toNative(llvm::StringRef path)
+{
+	SmallVector<char> converted;
+	llvm::sys::path::native(Twine(path), converted);
+	std::string out(converted.begin(), converted.end());
+	return out;
 }
 
 static mlir::rlc::Driver configureDriver(
@@ -305,14 +305,27 @@ static mlir::rlc::Driver configureDriver(
 		mlir::rlc::TargetInfo &info)
 {
 	using namespace mlir::rlc;
+	llvm::SmallVector<std::string, 4> inputs = { InputFilePath };
+	std::vector<std::string> objectFiles;
+	for (auto &file : ExtraObjectFiles)
+	{
+		if (llvm::StringRef(file).ends_with(".rl"))
+			inputs.push_back(file);
+		else
+			objectFiles.push_back(file);
+	}
+
 	auto pathToRlc = llvm::sys::fs::getMainExecutable(argv[0], (void *) &main);
 	auto rlcDirectory =
 			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
-    rlcDirectory = toNative(rlcDirectory);
+	rlcDirectory = toNative(rlcDirectory);
 	llvm::SmallVector<std::string, 4> includes(
 			IncludeDirs.begin(), IncludeDirs.end());
-	auto directory = llvm::sys::path::parent_path(InputFilePath);
-	includes.push_back(directory.str());
+	for (auto &file : inputs)
+	{
+		auto directory = llvm::sys::path::parent_path(file);
+		includes.push_back(directory.str());
+	}
 	includes.push_back(rlcDirectory);
 
 	if (emitFuzzer)
@@ -321,9 +334,9 @@ static mlir::rlc::Driver configureDriver(
 															 ? llvm::sys::path::parent_path(pathToRlc).str() +
 																		 "/../lib/" + FUZZER_LIBRARY_FILENAME
 															 : customFuzzerLibPath.getValue();
-        fuzzerLibPath = toNative(fuzzerLibPath);
+		fuzzerLibPath = toNative(fuzzerLibPath);
 
-		ExtraObjectFiles.addValue(fuzzerLibPath);
+		objectFiles.push_back(fuzzerLibPath);
 		RPath.addValue(llvm::sys::path::parent_path(fuzzerLibPath).str());
 	}
 
@@ -334,13 +347,14 @@ static mlir::rlc::Driver configureDriver(
 		if (envVal.has_value())
 			runtimeLibPath = toNative(*envVal);
 		else
-			runtimeLibPath = toNative(llvm::sys::path::parent_path(pathToRlc).str() +
-											 "/../lib/" + RUNTIME_LIBRARY_FILENAME);
+			runtimeLibPath = toNative(
+					llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/" +
+					RUNTIME_LIBRARY_FILENAME);
 	}
 
-	ExtraObjectFiles.addValue(runtimeLibPath);
+	objectFiles.push_back(runtimeLibPath);
 
-	Driver driver(srcManager, { InputFilePath }, outputFile, OS);
+	Driver driver(srcManager, inputs, outputFile, OS);
 	driver.setRequest(getRequest());
 	driver.setDebug(debugInfo);
 	driver.setHidePosition(hidePosition);
@@ -348,7 +362,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setDumpIR(dumpIR);
 	driver.setClangPath(clangPath);
 	driver.setIncludeDirs(includes);
-	driver.setExtraObjectFile(ExtraObjectFiles);
+	driver.setExtraObjectFile(objectFiles);
 	driver.setRPath(RPath);
 	driver.setEmitFuzzer(emitFuzzer);
 	driver.setEmitSanitizer(sanitize);

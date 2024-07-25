@@ -28,9 +28,11 @@ static std::string nonArrayTypeToString(mlir::Type type)
 	std::string O;
 	llvm::raw_string_ostream OS(O);
 	llvm::TypeSwitch<mlir::Type>(type)
-			.Case([&](mlir::rlc::ClassType Class) { OS << Class.mangledName(); })
+			.Case([&](mlir::rlc::ClassType Class) {
+				OS << "union " << Class.mangledName();
+			})
 			.Case([&](mlir::rlc::AlternativeType alternative) {
-				OS << alternative.getMangledName();
+				OS << "struct " << alternative.getMangledName();
 			})
 			.Case<mlir::rlc::FloatType>([&](mlir::rlc::FloatType) { OS << "double"; })
 			.Case<mlir::rlc::StringLiteralType>(
@@ -783,10 +785,10 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	for (auto alias : Module.getOps<mlir::rlc::TypeAliasOp>())
 	{
 		if (alias.getAliased().isa<mlir::rlc::ClassType>())
-			OS << "typedef union " << typeToString(alias.getAliased()) << " "
+			OS << "typedef " << typeToString(alias.getAliased()) << " "
 				 << alias.getName() << ";\n";
 		else if (alias.getAliased().isa<mlir::rlc::AlternativeType>())
-			OS << "typedef struct " << typeToString(alias.getAliased()) << " "
+			OS << "typedef " << typeToString(alias.getAliased()) << " "
 				 << alias.getName() << ";\n";
 		else
 			OS << "typedef " << typeToString(alias.getAliased()) << " "

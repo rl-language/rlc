@@ -1,4 +1,4 @@
-# RUN: python %pyscript/solve.py %s -i %stdlib --rlc rlc
+# RUN: python %pyscript/solve.py %s --stdlib %stdlib --rlc rlc
 import action
 import machine_learning
 
@@ -563,11 +563,6 @@ fun get_num_players() -> Int:
 
 fun max_game_lenght() -> Int:
     return 1000
-
-fun gen_printer_parser():
-    let state : Game
-    let any_action :  AnyGameAction
-    gen_python_methods(state, any_action)
 
 fun log_p1_kites(Game g) -> Int:
     return g.players[0].kites(g.bonuses)

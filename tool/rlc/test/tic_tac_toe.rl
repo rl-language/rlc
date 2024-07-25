@@ -94,14 +94,6 @@ fun score(Game g, Int player_id) -> Float:
 fun get_num_players() -> Int:
     return 2
 
-fun max_game_lenght() -> Int:
-    return 100
-
-fun gen_printer_parser():
-    let state : Game
-    let any_action :  AnyGameAction
-    gen_python_methods(state, any_action)
-
 fun fuzz(Vector<Byte> input):
     if input.size() == 0:
         return

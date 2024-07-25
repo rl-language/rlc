@@ -335,6 +335,11 @@ namespace mlir::rlc
 			destructorsToCreate.push_back(t);
 		};
 
+		op.walk([&](mlir::rlc::TypeAliasOp op) {
+			auto type = op.getAliased();
+			collectToCreate(type);
+			type.walk(collectToCreate);
+		});
 		op.walk([&](mlir::rlc::DestroyOp destroyOp) {
 			auto type = destroyOp.getOperand().getType();
 			collectToCreate(type);

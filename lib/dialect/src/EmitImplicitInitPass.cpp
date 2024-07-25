@@ -105,6 +105,9 @@ namespace mlir::rlc
 			types.push_back(op.getType());
 		});
 
+		op.walk(
+				[&](mlir::rlc::TypeAliasOp op) { types.push_back(op.getAliased()); });
+
 		op.walk([&](mlir::rlc::InplaceInitializeOp op) {
 			inplaceInitialize.push_back(op);
 			types.push_back(op.getValue().getType());

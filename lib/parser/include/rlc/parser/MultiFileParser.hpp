@@ -127,6 +127,7 @@ namespace rlc
 			std::set<std::string> alreadyLoaded;
 			llvm::SmallVector<std::string> fileToLoad(
 					fileNames.begin(), fileNames.end());
+			std::reverse(fileToLoad.begin(), fileToLoad.end());
 			if (auto error = recursiveParseFile(alreadyLoaded, fileToLoad))
 				return std::move(error);
 			return module;
