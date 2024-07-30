@@ -11,6 +11,15 @@ cls TowerCard:
     KitesCount kites
     TowerValue value
 
+
+fun append_to_string(TowerCard to_add, String output):
+    output.append("v: ")
+    output.append(to_string(to_add.value))
+    output.append(" k: ")
+    output.append(to_string(to_add.kites))
+    if to_add.has_flag:
+        output.append(" f") 
+
 using TowerDeck = BoundedVector<TowerCard, 82>
 
 fun make_card(Bool has_flag, Int kites, Int value) -> TowerCard:
@@ -135,7 +144,7 @@ cls Player:
     ActionCard action_card
     Towers incomplete_towers 
     Towers complete_towers 
-
+    
     fun kites(BonusesController bonuses) -> Int:
         let to_return = 0
         let i = 0
@@ -370,7 +379,7 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 2> players, ctx
     while is_first_action or is_building_4s:
       is_first_action = false
       actions:
-        act draw() { !deck.empty() }
+        act draw() { !deck.empty(), !is_building_4s }
             act deal_card(CardIndex index) {index < deck.size()}
             players[current_player.value].hand.value.append(deck[index.value])
             deck.erase(index.value)
@@ -379,7 +388,8 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 2> players, ctx
             return
         act demolish(TowerIndex index) {
             players[current_player.value].action_card.is_demolish_face_up,
-            players[current_player.value].incomplete_towers.size() > index.value
+            players[current_player.value].incomplete_towers.size() > index.value,
+            !is_building_4s
         }
             ref player = players[current_player.value]
             player.action_card.is_demolish_face_up = false
@@ -482,7 +492,8 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 2> players, ctx
                         return
             if to_play.value == 9 or to_play.value == 8:
                 check_bonuses_controller(deck, players, target_player, bonuses)             
-                extra_rounds = extra_rounds + 1
+                if target_player != current_player:
+                    extra_rounds = extra_rounds + 1
                 return 
             if to_play.value == 7 and !deck.empty():
                 act deal_card(CardIndex index) {index < deck.size()}
@@ -504,6 +515,8 @@ act play() -> Game:
     subaction*(tower_deck, players) init_sequence = initialize_game(tower_deck, players, 2)
 
     frm current_player : PlayerIndex
+    act select_starting_player(PlayerIndex starting_player)
+    current_player = starting_player
     frm turns_left : TurnsBeforeGameEnd
 
     while !tower_deck.empty() or turns_left != 0:
@@ -533,6 +546,9 @@ fun get_current_player(Game g) -> Int:
     if g.is_done():
         return -4
     let index : CardIndex
+    let index_player : PlayerIndex 
+    if can g.select_starting_player(index_player):
+        return -1
     index = 0
     if can g.deal_card(index):
         return -1
@@ -563,6 +579,10 @@ fun get_num_players() -> Int:
 
 fun max_game_lenght() -> Int:
     return 1000
+
+fun pretty_print(Game g):
+    print_indented(g.players)
+    print(g.action_count)
 
 fun log_p1_kites(Game g) -> Int:
     return g.players[0].kites(g.bonuses)

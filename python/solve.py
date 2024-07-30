@@ -35,6 +35,14 @@ def main():
         default=-1,
     )
 
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        nargs="?",
+        help="how many games must be played out",
+        default=1,
+    )
+
     args = parser.parse_args()
     with load_simulation_for_ml(args) as sim:
         if not sim.functions.print_enumeration_errors(sim.module.AnyGameAction()):
@@ -43,7 +51,12 @@ def main():
         env = RLCEnvironment(wrapper=sim.module, forced_one_player=True)
 
         out = open(args.output, "w+") if args.output != "" else sys.stdout
-        while True:
+        current = 0
+        while args.iterations != current:
+          out.write(f"# game {current}\n")
+          current = current + 1
+          env.reset()
+          while True:
             if args.max_actions != -1:
                 if args.max_actions == 0:
                     exit()
