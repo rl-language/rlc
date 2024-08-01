@@ -56,226 +56,11 @@ namespace mlir::rlc
 {
 	namespace
 	{
-		// Represents the pair (min, max) of values that can be assigned to a variable 
-		// in a function
+		// Class prototypes
+		// LEAVE THEM OR IT WILL BREAK THE COMPILATION DUE TO A CIRCULAR DEPENDENCE WHICH FOR THE MOMENT CANNOT BE SOLVED (IT JUST WORKS cit.)
+		class ConstraintsLattice;
+		class ConstraintsAnalysis;
 
-		// We need an abstraction to represent the range, because we need to 
-		// define our particular bounds. 
-		// Indeed we require an uninitialized state (we call it BOTTOM) and a TOP
-		// NB: TOP is the maximum practical value the variable can assume -> for the lhs is INT_MIN and rhs is INT_MAX
-		// TODO: what to do when we finish in an invalid range? E.G. (1,-1)
-		
-		// TODO: I could think about implementing disjointed ranges but the algorithms starts to become 
-		// very complicated (think about a multiplication, definitely not trivial)
-		/*
-		class IntegerRange{
-			public:
-			
-			// Useful constants
-			typedef int Integer;
-			constexpr static Integer MAX=INT32_MAX;
-			constexpr static Integer MIN=INT32_MIN;
-
-			// TODO: maybe "default" can work too
-			IntegerRange() : range(std::nullopt,std::nullopt) {};
-			// Constructors for partial ranges
-			IntegerRange(std::nullopt_t nulltype, const Integer max) : range(std::nullopt,max) {};
-			IntegerRange(const Integer min, std::nullopt_t nulltype) : range(min,std::nullopt) {};
-			// Constructor for full range
-			IntegerRange(const Integer min, const Integer max) : range(min,max) {};
-			// Casting operator from std::pair
-			IntegerRange(const std::pair<Integer,Integer>& other) : range(other.first,other.second) {};
-			// Copy operator
-			// TODO: maybe can be removed because we pass from the casting
-			IntegerRange& operator=(const std::pair<Integer,Integer>& other){
-				
-				this->range=other;
-				return *this;
-			}
-
-			//IntegerRange& operator=(IntegerRange&  other)=default;
-			//IntegerRange& operator=(IntegerRange&& other)=default;
-			
-			// Possibly useful setters (maybe avoidable)
-			void setMin(const Integer min){
-				this->range.first = std::optional<Integer>(min);
-			}
-
-			void setMax(const Integer max){
-				this->range.second = std::optional<Integer>(max);
-			}
-			// Overload with optionals
-			void setMin(const std::optional<Integer>& min){
-				// NB: this should call the copy constructor
-				this->range.first=min;
-			}
-			void setMax(const std::optional<Integer>& max){
-				this->range.second=max;
-			}
-
-			void setMinTOP(){
-				this->range.first = MIN;
-			}
-
-			void setMaxTOP(){
-				this->range.second = MAX;
-			}
-
-			void setConstant(const Integer con){
-				this->range.first =con;
-				this->range.second=con;
-			}
-
-			//Useful getters (mainly for debug reasons)
-
-			Integer getMin() const {
-				return this->range.first.has_value() ? this->range.first.value() : MIN;
-			}
-
-			Integer getMax() const {
-				return this->range.second.has_value() ? this->range.second.value() : MAX;
-			}
-
-			bool hasMin() const{
-				return this->range.first.has_value();
-			}
-
-			bool hasMax() const{
-				return this->range.second.has_value();
-			}
-			
-
-			// Operators useful for range operations 
-			// TODO: this needs to do a bound checking
-			
-			// When performing the addition of two integer ranges I have to be careful
-			IntegerRange& operator+=(const IntegerRange& rhs){
-
-				// Operate only if we know the bound on our range and the lhs
-				if(this->range.first.has_value() and rhs.range.first.has_value()){
-					this->range.first.value() += rhs.range.first.value();
-				}
-				if(this->range.second.has_value() and rhs.range.second.has_value()){
-					this->range.second.value() += rhs.range.second.value();
-				}
-				
-				return *this;
-			}
-			// For a std::pair just cast it to an IntegerRange (it is ugly but it does the job)
-			IntegerRange& operator+=(const std::pair<Integer,Integer>& rhs){
-				return this->operator+=(IntegerRange(rhs));
-			}
-			IntegerRange& operator-=(const IntegerRange& rhs){
-
-				// Operate only if we know the bound on our range and the lhs
-				if(this->range.first.has_value() and rhs.range.first.has_value()){
-					this->range.first.value() -= rhs.range.first.value();
-				}
-				if(this->range.second.has_value() and rhs.range.second.has_value()){
-					this->range.second.value() -= rhs.range.second.value();
-				}
-				
-				return *this;
-			}
-			IntegerRange& operator-=(const std::pair<Integer,Integer>& rhs){
-				return this->operator-=(IntegerRange(rhs));
-			}
-
-			friend IntegerRange operator+(IntegerRange& lhs, const std::pair<Integer,Integer>& rhs){
-				lhs+=rhs;
-				return lhs; // <- this uses the implicit move constructor (do not try to redefine it)
-			}
-			friend IntegerRange operator+(IntegerRange& lhs, const IntegerRange& rhs){
-				lhs+=rhs;
-				return lhs; // <- this uses the implicit move constructor (do not try to redefine it)
-			}
-			friend IntegerRange operator-(IntegerRange& lhs, const std::pair<Integer,Integer>& rhs){
-				lhs-=rhs;
-				return lhs; // <- this uses the implicit move constructor (do not try to redefine it)
-			}
-			friend IntegerRange operator-(IntegerRange& lhs, const IntegerRange& rhs){
-				lhs-=rhs;
-				return lhs; // <- this uses the implicit move constructor (do not try to redefine it)
-			}
-
-			// Useful operator for the insertion in a map (maybe not needed but better to leave it)
-			bool operator==(const IntegerRange& other) const{
-				return this->range.first==other.range.first and this->range.second==other.range.second;
-			}
-
-			// Join operation
-			// Defined as: J((a,b),(c,d)):(min(a,c),max(b,d)) for each equal SSA value
-			// NB: we have to ignore the BOTTOM
-			static IntegerRange joinRange(const IntegerRange& r1, const IntegerRange& r2){
-				const auto& r1_m=r1.range.first;
-				const auto& r1_M=r1.range.second;
-				const auto& r2_m=r2.range.first;
-				const auto& r2_M=r2.range.second;
-
-
-				// Funny case: the ranges are disjointed -> take the min of one and the max of the other
-				// This is useful in the case (?,10) and (20, ?) -> result should be (TOP,TOP)
-				
-				if((not r1_m.has_value() and not r2_M.has_value()) or
-					(not r2_m.has_value() and not r1_M.has_value()))
-					return std::make_pair(MIN,MAX);
-
-				// Range initialized to std::nullopt
-				IntegerRange toReturn;
-
-				// TODO: possibly refactor
-				// MIN
-				
-				if(r1_m.has_value())
-					toReturn.setMin(std::min(r1_m.value(),r2_m.value_or(MIN)));
-				else if (r2_m.has_value())
-					toReturn.setMin(r2_m.value());
-				else 
-					toReturn.setMinTOP();
-				
-
-				// MAX
-				
-				if(r1_M.has_value())
-					toReturn.setMax(std::max(r1_M.value(),r2_M.value_or(MAX)));
-				else if (r2_M.has_value())
-					toReturn.setMax(r2_M.value());
-				else
-					toReturn.setMaxTOP();
-				
-
-				return toReturn;
-				
-			}
-
-			// Method to update the value of a range, it is similar to a join but it works only on transfer functions
-			void update(const IntegerRange& other){
-
-				// MIN
-				if(other.range.first.has_value())
-					this->range.first=other.range.first;
-
-				// MAX
-				if(other.range.second.has_value())
-					this->range.second=other.range.second;
-
-			}
-
-			// Method to force an optional to the TOP value (use carefully)
-			void forceTop(){
-				if(not this->range.first.has_value())
-					this->range.first=MIN;
-				if(not this->range.second.has_value())
-					this->range.second=MAX;
-			}
-
-			private:
-
-			std::pair<std::optional<Integer>,std::optional<Integer>> range;
-
-		};
-		*/
-		
 		// I will leave this here
 
 		// AbstractDenseLattice
@@ -360,440 +145,78 @@ namespace mlir::rlc
 			}
 
 			// Method for returning the lattice (useful only at the end) <- maybe can do everything in the class
-			const llvm::DenseMap<std::pair<mlir::Value,bool>,IntegerRange>& getUnderlyingLattice() const{
-				return this->ranges;
-			}
+			const llvm::DenseMap<std::pair<mlir::Value,bool>,IntegerRange>& getUnderlyingLattice() const;
 
 			//TODO: understand what this meet does
 			// In theory it should be the opposite of a join
-			mlir::ChangeResult meet(
-					const mlir::dataflow::AbstractDenseLattice& val) override
-			{
-				llvm::outs()<<"meet\n";
-				//return mlir::ChangeResult::NoChange;
-				// Do a funny thing and let the meet perform the join
-				return this->join(val);
-			}
+			mlir::ChangeResult meet(const mlir::dataflow::AbstractDenseLattice& val) override;
 
-			mlir::ChangeResult join(
-					const mlir::dataflow::AbstractDenseLattice& val) override
-			{
-				//Need to cast it
-				const auto& other = *static_cast<const ConstraintsLattice*>(&val);
-				
-				//Keep it to check if there is no change
-				auto copy = *this;
-
-				llvm::outs()<<"Did i join?\n";
-
-				//Insert the other in this
-				for(const auto& other_range : other.ranges){
-					
-					// We have to insert the other range
-					// If we find it then we have to join, else we have to insert it
-					this->insertOrJoin(other_range.first, other_range.second);
-				}
-
-				//
-				if (*this==copy and other==copy){
-					llvm::outs()<<"no\n";
-					this->print(llvm::outs());
-					return mlir::ChangeResult::NoChange;
-				}
-				this->print(llvm::outs());
-				return mlir::ChangeResult::Change;
-			}
+			mlir::ChangeResult join(const mlir::dataflow::AbstractDenseLattice& val) override;
 
 			// Operation to copy two lattices
 			// NB: this is a deep copy
-			mlir::ChangeResult copy(const ConstraintsLattice& other)
-			{
-				llvm::outs()<<"Did i copy?\n";
-				llvm::outs()<<"mine : ";this->print(llvm::outs());
-				llvm::outs()<<"other: ";other.print(llvm::outs());
+			mlir::ChangeResult copy(const ConstraintsLattice& other);
 
-				if (*this==other){
-					llvm::outs()<<"no\n";
-					return mlir::ChangeResult::NoChange;
-				}
-				this->ranges=other.ranges;
-				return mlir::ChangeResult::Change;
-			}
+			mlir::ChangeResult copy(const mlir::dataflow::AbstractDenseLattice& val);
 
-			mlir::ChangeResult copy(const mlir::dataflow::AbstractDenseLattice& val){
-				return this->copy(*static_cast<const ConstraintsLattice*>(&val));
-			}
+			void print(raw_ostream& os) const override;
 
-			void print(raw_ostream& os) const override
-			{
-				os<<"Ranges:\n";
-				if(not this->ranges.empty()){
-					for(auto range: this->ranges){
-						os << "SSA: "<< range.first.first <<" Branch: "<< range.first.second << 
-						" RANGE: (" <<range.second.getLower().getSExtValue() << ", " << range.second.getUpper().getSExtValue() << ")\n";
-					}
-				}
-				else {
-					os<<"Empty\n";
-				}
-			}
+			bool operator==(const ConstraintsLattice& other) const;
 
-			bool operator==(const ConstraintsLattice& other) const
-			{
-				return this->ranges == other.ranges;
-			}
+			mlir::ChangeResult setCurrentBranch(mlir::RegionBranchOpInterface* branchOp);
+			
+			const std::pair<bool,bool> branchesContainedInLattice() const;
 
-			mlir::ChangeResult setCurrentBranch(mlir::RegionBranchOpInterface* branchOp){
-				// The yield has this format
-				// %12 = rlc.constant true !rlc.bool
-    			// rlc.yield %12 : !rlc.bool
-				// So I need to retrieve "true" in this case
+			const std::pair<bool,bool> isValuePresentInLattice(const mlir::Value& value) const;
 
-				// So here we need to be very careful 
-				// We could also directly return something that is not a constant
-				// For instant we could do 'return a>10' but in this case we can just call the function that handles it
-				// Here we get the rlc.constant true
-				const auto& value= mlir::cast<mlir::rlc::Yield>(branchOp->getOperation()).getArguments()[0];
+			const std::pair<bool,bool> isConstPresentInLattice()const ;
 
-				value.getDefiningOp()->print(llvm::outs());
+			void removeConstFromLattice(const bool type);
 
-				// TODO: wrap in some static method or put a trait
-				if( mlir::isa<mlir::rlc::GreaterOp>(value.getDefiningOp()) or	
-					mlir::isa<mlir::rlc::GreaterEqualOp>(value.getDefiningOp()) or
-					mlir::isa<mlir::rlc::LessOp>(value.getDefiningOp()) or
-					mlir::isa<mlir::rlc::LessEqualOp>(value.getDefiningOp()))
-					return this->visitBranchOperation(branchOp->getOperation(),true,false,false,true);
+			// When I visit a builtin assign operation I need to check if it is in the lattice
+			mlir::ChangeResult visitBuiltinAssign(mlir::Operation* statement);
 
-				auto bool_branch= mlir::dyn_cast<BoolAttr>(value.getDefiningOp()->getAttr("value"));
-				if (not bool_branch)
-					return mlir::ChangeResult::NoChange;
-
-				this->ranges.insert(std::make_pair(
-					std::make_pair(
-						value,bool_branch.getValue()),
-						this->getBottom() ));
-					
-				return mlir::ChangeResult::Change;
-			}
-
-			const std::pair<bool,bool> branchesContainedInLattice(){
-				bool can_true=false;
-				bool can_false=false;
-
-				// Since here we have a lattice that is copied we can just look at it
-				for(auto pair : this->ranges){
-					if(pair.first.second)
-						can_true=true;
-					else can_false=true;
-				}
-
-				return std::make_pair(can_true,can_false);
-			}
+			// When I visit an uninitialized construct I need to insert the ssa value 
+			// in the set
+			mlir::ChangeResult visitUninitializedConstruct(mlir::Operation* statement);
 
 			// TODO: divide this operation in (at least) two parts
 			// Here we should write the transfer function based on the operation 
-			mlir::ChangeResult visitArithmeticOperation(mlir::Operation* statement, bool can_true, bool can_false)
-			{
+			mlir::ChangeResult visitArithmetic(mlir::Operation* statement, bool can_true, bool can_false);
 
-				// Modify my ranges only when i am sure that i am passing through a initialized (true/false) branch
-				if (not can_true and not can_false)
-					return mlir::ChangeResult::NoChange;
+			mlir::ChangeResult visitYield(mlir::Operation* statement);
 
-				// Here the operation has passed the sanity check so we can switch
-				auto copy = *this;
-
-				// So this becomes extremely tricky now, we have the information about the branch we are passing from
-				// The idea is, i am visiting one branch => update one, I am visiting both => update both
-
-				// TODO: this should be a casting to a CommutativeOp <- TODO: add
-				// For the moment it should work so let's leave it like this
-				if (auto casted=mlir::dyn_cast<mlir::rlc::AddOp>(statement)){
-					llvm::outs()<<"addop\n";
-					this->print(llvm::outs());
-					// Do some name changing so that hopefully is more clear
-					// NB : these are values
-					const auto& a = casted.getResult();
-					const auto& b = casted.getLhs();
-					const auto& c = casted.getRhs();
-					// This can be nullptr if for example it is a function argument
-					// TODO: are there any other cases ?
-					const auto& b_op = b.getDefiningOp();
-					const auto& c_op = c.getDefiningOp();
-					// TODO: understand what happens if both have ranges -> should I update both ? (because if yes, in which order ?)
-					// NB: there iConstraintsLattices the case in which both are non constantv-> if we know nothing about
-					//     both we do nothing
-					// Then first find which variable we need to operate on
-					mlir::Value      state=nullptr;
-					mlir::Value      stato=nullptr;
-					// First get our candidates
-					if(b_op == nullptr or not mlir::isa<mlir::rlc::Constant>(b_op)){
-						state=b;
-						stato=c;
-					}
-					else if(c_op == nullptr or not mlir::isa<mlir::rlc::Constant>(c_op)){
-						state=c;
-						stato=b;
-					}
-					// Then update the corresponding branch
-					// NB: they are not exclusive so I have to update both
-					if(can_true)
-						this->updateArithmeticCommutativeRange(statement, a, state, stato, true);
-					if(can_false)
-						this->updateArithmeticCommutativeRange(statement, a, state, stato, false);
-
-				}
-
-				if(*this!=copy){
-					llvm::outs()<<"something should have changed\n";
-					this->print(llvm::outs());
-					return mlir::ChangeResult::Change;
-				}
-				else{
-					return mlir::ChangeResult::NoChange;
-				}
-			}
-
-			mlir::ChangeResult visitBranchOperation(mlir::Operation* statement, bool branch_true_yield_true, bool branch_true_yield_false,
-													bool branch_false_yield_true, bool branch_false_yield_false ){
-				
-				// Modify my ranges only when i am sure that i am passing through a initialized (true/false) branch
-				if (not branch_true_yield_true and not branch_true_yield_false and
-					not branch_false_yield_true and not branch_false_yield_false)
-					return mlir::ChangeResult::NoChange;
-
-				auto copy=*this;
-
-				// TODO: Think about a typeswitch here too
-				mlir::Operation* conditional_op=nullptr;
-				if(auto casted=mlir::dyn_cast<mlir::rlc::CondBranch>(statement))
-					conditional_op=casted.getCond().getDefiningOp();
-				else if(auto casted=mlir::dyn_cast<mlir::rlc::Yield>(statement))
-					conditional_op=casted.getOperand(0).getDefiningOp();
-				else return mlir::ChangeResult::NoChange;
-
-				// We can assume that a control operation is always the last in its basic block
-				// NB: always true but it can be either a conditional or a simple jump
-				// NB: the documentation says that a mlir::Block at the end has a "Terminator Operation" -> specifies the successors
-				
-				// Now we have to be careful, we have a conditional 
-				// Whic%5 !rlc.bool ^bb2 ^bb1h can be either value operation const or const operation value
-				// So what we can do actually is undersand where is the constant and if it is on the left just flip the condition ;)
-
-				if(auto casted=mlir::dyn_cast<rlc::UninitializedConstruct>(conditional_op)){
-					llvm::outs()<<"See something about this:\n";
-					// I am guessing what I have to do is just go back in the graph until I reach a builtin assign op
-					for(auto oper:statement->getBlock()->getPrevNode()->getOps<mlir::rlc::BuiltinAssignOp>()){
-						conditional_op = oper.getRhs().getDefiningOp();
-						conditional_op->print(llvm::outs());
-						llvm::outs()<<"\n";
-					}
-				}
-
-
-				// Do the checking only if the operation is a conditional (relational)
-				if(	not mlir::isa<mlir::rlc::LessOp>(conditional_op) and 
-					not mlir::isa<mlir::rlc::GreaterOp>(conditional_op) and
-					not mlir::isa<mlir::rlc::LessEqualOp>(conditional_op) and 
-					not mlir::isa<mlir::rlc::GreaterEqualOp>(conditional_op))
-					return mlir::ChangeResult::NoChange;
-
-				const auto& lhs = conditional_op->getOperand(0);
-				const auto& rhs = conditional_op->getOperand(1);
-				const auto& lhs_op = lhs.getDefiningOp();
-				const auto& rhs_op = rhs.getDefiningOp();
-
-				// The algorithm will work mostly as the one for the arithmetic operations, but it will be simpler (no commutativity problem)
-				// NB: note that they are not exclusive so they have to be executed always
-				
-				// If the rhs is a constant
-				if(auto rhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(rhs_op)){
-					
-					// If both branches yield true then there is no need to update since no more information can be retrieved
-					if(not branch_true_yield_true==branch_false_yield_true){
-
-						if(branch_true_yield_true)
-							this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, true);	
-						
-						if(branch_false_yield_true)
-							this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, true);
-					
-					}
-
-					if(not branch_true_yield_false==branch_false_yield_false){
-
-						if(branch_true_yield_false)
-							this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, false);
-						
-						if(branch_false_yield_false)
-							this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, false);	
-					
-					}
-
-				}
-				// If the lhs is a constant then do the same but with inverted branches
-				else if(auto lhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(lhs_op)){
-
-					if(not branch_true_yield_true==branch_false_yield_true){
-
-						if(branch_true_yield_true)
-							this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, true);	
-						
-						if(branch_true_yield_false)
-							this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, false);	
-					
-					}
-
-					if(not branch_true_yield_false==branch_false_yield_false){
-
-						if(branch_false_yield_true)
-							this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, true);	
-						
-						if(branch_false_yield_false)
-							this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, false);	
-						
-					}
-
-				}
-				// else do nothing
-
-				if(*this!=copy){
-					llvm::outs()<<"something should have changed\n";
-					this->print(llvm::outs());
-					return mlir::ChangeResult::Change;
-				}
-				else{
-					return mlir::ChangeResult::NoChange;
-				}
-			}
+			mlir::ChangeResult visitBranch(mlir::Operation* statement, mlir::rlc::ConstraintsAnalysis* analysis );
 
 			private:
 
-			IntegerRange getBottom() const{
-				return createRange(MIN,MAX);
-			}
+			IntegerRange getTOP() const;
 			
-			IntegerRange getRangeOrBottom(const std::pair<mlir::Value,bool>& key) const{
-				auto found = this->ranges.find(key);
-				if(found!=this->ranges.end())
-					return found->second;
-				else
-					return this->getBottom();
-				 
-			}
+			IntegerRange getRangeOrTOP(const std::pair<mlir::Value,bool>& key) const;
 
-			void insertOrJoin(const std::pair<mlir::Value,bool>& key, const IntegerRange& other){
-				auto found=this->ranges.find(key);
-				if(found!=this->ranges.end()){
-					found->second= 
-						ConstraintsLattice::joinRange(found->second, other);
-				}
-				else{
-					this->ranges.insert(std::make_pair(key, other));
-				}
-			}
+			void insertOrJoin(const std::pair<mlir::Value,bool>& key, const IntegerRange& other);
 
-			void insertOrUpdate(const std::pair<mlir::Value,bool>& key, const IntegerRange& other){
-				auto found=this->ranges.find(key);
-				if(found!=this->ranges.end()){
-					found->second=other;
-				}
-				else{
-					this->ranges.insert(
-						std::make_pair(key, other));
-				}
-			}
+			void insertOrUpdate(const std::pair<mlir::Value,bool>& key, const IntegerRange& other);
 
-			void insertOrUpdate(const std::pair<mlir::Value,bool>& keyToInsert, const std::optional<Integer>& min, const std::optional<Integer>& max){
-				auto found=this->ranges.find(keyToInsert);
-				if(found!=this->ranges.end()){
-					found->second=ConstraintsLattice::updateRange(found->second, min, max);
-				}
-				else{
-					this->ranges.insert(
-						std::make_pair(keyToInsert,
-							createRange(
-								min.value_or(MIN),
-								max.value_or(MAX))));
-				}
-			}
+			void insertOrUpdate(const std::pair<mlir::Value,bool>& keyToInsert, const std::optional<Integer>& min, const std::optional<Integer>& max);
 
 			// This method takes the operation, the range
 			// statement is the original operation
 			// other is the other operand so that we can do to_update=result operation other
-			void updateArithmeticCommutativeRange(const mlir::Operation* statement, const mlir::Value& result, const mlir::Value& to_update, const mlir::Value& other, const bool branch_to_update){
-				IntegerRange new_range(APInteger(1),APInteger(0));
-				// If the other is a constant take its constant value
-				if(auto other_casted=mlir::dyn_cast<mlir::rlc::Constant>(other.getDefiningOp())){
-					auto other_const=other_casted->getAttr("value").dyn_cast<IntegerAttr>().getInt();
-					// Kinda ugly but this is what we have to do with constant ranges
-					new_range=createRange(other_const);
-				}
-				// Else check if the value carried by the operation is 
-				else {
-					//If I have altready a range then i can modify it
-					auto other_range=this->ranges.find(std::make_pair(other,branch_to_update));
-					if(other_range!=this->ranges.end()){
-						// This should call the copy constructor
-						new_range=other_range->second;
-					}
-				}
-				// Update only if I found the new range
-				if(new_range.getLower().sle(new_range.getUpper())){
-
-					auto a_range=this->getRangeOrBottom(std::make_pair(result,branch_to_update));
-					// This operation has to be done indipendently from the branch
-					// TODO: add more cases of course
-					// TODO: with the llvm class this by default wraps around, do not do that thx
-					if(mlir::isa<mlir::rlc::AddOp>(statement))
-						new_range=a_range.sub(new_range);
-					llvm::outs()<<"should have changed\n";
-					// Insert the range where is needed
-					this->insertOrUpdate(std::make_pair(to_update,branch_to_update),new_range);
-				}
-			}
+			void updateArithmeticCommutativeRange(const mlir::Operation* statement, const mlir::Value& result, const mlir::Value& to_update, const mlir::Value& other, const bool branch_to_update);
 
 			// This function is actually quite simpler since we always know 
 			// the lhs is not a constant and the rhs is a constant
 			// Result is useful to understand which check do to the operation
-			void updateRelationalRange(const mlir::Operation* statement, bool result, const mlir::Value& to_update, const mlir::rlc::Constant& other, const bool branch_to_update){
-
-				auto rhs_const=other->getAttr("value").dyn_cast<IntegerAttr>().getInt();
-
-				std::optional<Integer> min;
-				std::optional<Integer> max;
-
-				// TODO: this with a typeswitch would be cute
-				if (mlir::isa<mlir::rlc::GreaterOp>(statement)){
-					 if(result)
-						min=rhs_const+1;
-					 else
-						max=rhs_const;
-				}
-				else if (mlir::isa<mlir::rlc::LessOp>(statement)){
-					if(result)
-						max=rhs_const-1;
-					else
-						min=rhs_const;
-				}
-				else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
-					if(result)
-						min=rhs_const;
-					else
-						max=rhs_const-1;
-				}
-				else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
-					if(result)
-						max=rhs_const;
-					else
-						min=rhs_const+1;
-				}
-				
-				llvm::outs()<<"should have changed\n";
-				// Insert the range where is needed
-				this->insertOrUpdate(std::make_pair(to_update,branch_to_update),min,max);
-			}
+			void updateRelationalRange(const mlir::Operation* statement, bool result, const mlir::Value& to_update, const mlir::rlc::Constant& other, const bool branch_to_update);
 
 			llvm::DenseMap<std::pair<mlir::Value,bool>,IntegerRange> ranges;
+
+			// Here I store the information about those constructs
+			// which cannot be checked immediately but need a specific operation
+			// Indeed an rlc.uninitialized_construct cannot be evaluated until
+			// a rlc.builtin_assign is called
+			llvm::DenseSet<mlir::Value> to_check;
 		};
 
 		class ConstraintsAnalysis
@@ -805,7 +228,6 @@ namespace mlir::rlc
 					ConstraintsLattice>::DenseBackwardDataFlowAnalysis;
 
 			// Utility
-			// TODO: understand if i can collapse
 			static bool isArithmetic(mlir::Operation* op){
 				if (mlir::isa<mlir::rlc::AddOp>(op))
 					return true;
@@ -823,16 +245,19 @@ namespace mlir::rlc
 			static bool isConditional(mlir::Operation* op){
 				if(mlir::isa<mlir::rlc::CondBranch>(op))
 					return true;
-				/*
-				if (mlir::isa<mlir::rlc::GreaterOp>(op))
+
+				return false;
+			}
+			static bool isYield(mlir::Operation* op){
+				if(mlir::isa<mlir::rlc::Yield>(op))
 					return true;
-				else if (mlir::isa<mlir::rlc::LessOp>(op))
+				
+				return false;
+			}
+			static bool isBuiltinAssign(mlir::Operation* op){
+				if(mlir::isa<mlir::rlc::BuiltinAssignOp>(op))
 					return true;
-				else if (mlir::isa<mlir::rlc::GreaterEqualOp>(op))
-					return true;
-				else if (mlir::isa<mlir::rlc::LessEqualOp>(op))
-					return true;
-				*/
+				
 				return false;
 			}
 
@@ -846,55 +271,7 @@ namespace mlir::rlc
 			void visitOperation(
 				mlir::Operation *op, 
 				const ConstraintsLattice &after,
-                ConstraintsLattice *before) override
-			{
-				llvm::outs()<<"visiting operation: ";
-				op->print(llvm::outs());
-				llvm::outs()<<"\n";
-				// For the moment implement the basic operations
-				auto res=before->join(after);
-				
-				// We have to decide which return values to update (true or false)
-				// In order to do so we need to :
-				// - peek at the successors of this block 
-				// - look at their lattice
-				// - find in their lattice if there is some value with key true/false
-				// - keep in mind that information
-
-				if (mlir::rlc::ConstraintsAnalysis::isArithmetic(op)){
-
-					//NB: here the operation can be done also implicitly -> actually should be done implicitly maybe
-					auto can = before->branchesContainedInLattice();
-
-					res = before->visitArithmeticOperation(op,can.first,can.second) == mlir::ChangeResult::Change ?
-						 mlir::ChangeResult::Change : res;
-					propagateIfChanged(before,res);
-				}
-				else if(mlir::rlc::ConstraintsAnalysis::isConditional(op)){
-
-					// If it is a conditional then I need to peek in the next block from each branch
-
-					// Look at the next lattice in the true branch
-					auto casted = mlir::dyn_cast_or_null<mlir::rlc::CondBranch>(op);
-                	auto trueLattice=getLattice(mlir::ProgramPoint(&casted.getTrueBranch()->front()));
-
-					auto branch_true=trueLattice->branchesContainedInLattice();
-
-					// And do the same in the false
-					auto falseLattice=getLattice(mlir::ProgramPoint(&casted.getFalseBranch()->front()));
-
-					auto branch_false=falseLattice->branchesContainedInLattice();
-
-					// TODO: maybe these functions could accept pairs
-					res = before->visitBranchOperation(op,branch_true.first, branch_true.second, branch_false.first, branch_false.second) == mlir::ChangeResult::Change ?
-						 mlir::ChangeResult::Change : res;
-					propagateIfChanged(before, res);
-
-				}
-				// This is for the instructions which do not modify the lattice
-				else
-					propagateIfChanged(before, res);
-			}
+                ConstraintsLattice *before) override;
 
 			/// Hook for customizing the behavior of lattice propagation along the call
    			/// control flow edges. Two types of (back) propagation are possible here:
@@ -916,12 +293,7 @@ namespace mlir::rlc
 					CallOpInterface call,
 					mlir::dataflow::CallControlFlowAction action,
 					const ConstraintsLattice& before,
-					ConstraintsLattice* after) final
-			{
-				llvm::outs()<<"visited call control flow transfer of operation: ";
-				call.print(llvm::outs());
-				propagateIfChanged(after, after->copy(before));
-			}
+					ConstraintsLattice* after) final;
 
 			/// Hook for customizing the behavior of lattice propagation along the control
 			/// flow edges between regions and their parent op. The control flows from
@@ -952,60 +324,814 @@ namespace mlir::rlc
 					mlir::RegionBranchPoint regionFrom,
 					mlir::RegionBranchPoint regionTo,
 					const ConstraintsLattice& before,
-					ConstraintsLattice* after) override
-			{
-				//auto casted = mlir::dyn_cast_or_null<mlir::rlc::CondBranch>(op);
-                //getLattice(mlir::ProgramPoint(&casted.getTrueBranch()->front()));
-
-				// TODO: this should be called also in rlc.crb
-				// For the moment execute only the join
-				llvm::outs()<<"visited region branch control flow transfer of operation: ";
-				branch.getOperation()->print(llvm::outs());
-				llvm::outs()<<"\nregion from: ";
-				if(auto regionf=regionFrom.getRegionOrNull()){
-					regionf->front().print(llvm::outs());
-				}
-				else
-					llvm::outs()<<"null\n";
-				llvm::outs()<<"region to: ";
-				if(auto regiont=regionTo.getRegionOrNull()){
-					regiont->front().print(llvm::outs());
-				}
-				else
-					llvm::outs()<<"null\n";
-				auto res1=after->setCurrentBranch(&branch);
-				//auto res1=mlir::ChangeResult::Change;
-				auto res2=after->join(before);
-				auto res= res1==mlir::ChangeResult::Change ? res1 : (res2==mlir::ChangeResult::Change ? res2 : mlir::ChangeResult::NoChange);
-				
-				// Let's try this to have a bit of fun -> ChangeResult is an enum (this should not work
-				propagateIfChanged(after,res);
-			}
+					ConstraintsLattice* after) override;
 
 			// At the end we can take the information about the arguments in our lattice and attach it
 			// to the function arguments
 			// TODO: understand when this is called and where to append the information obtained when finishing
 			// For the moment this function is just observing the IR, so we can leave it as it is
-			void setToExitState(ConstraintsLattice* lattice) override
-			{
-				
-				llvm::outs()<<"something was set to exit state\n";
-				
-			}
+			void setToExitState(ConstraintsLattice* lattice) override;
 
 			public:
 
-			void printRanges(mlir::Operation* op){
-				auto* lattice = op != nullptr ? getLattice(mlir::ProgramPoint(op))
-																			: getLattice(op->getBlock());
-				llvm::outs()<<"KEK ";
-				lattice->print(llvm::outs());
+			void printRanges(mlir::Operation* op);
+
+			const llvm::DenseMap<std::pair<mlir::Value,bool>,mlir::rlc::ConstraintsLattice::IntegerRange>& getUnderlyingLattice(mlir::Operation* op);
+
+			const mlir::rlc::ConstraintsLattice* getObjLattice(mlir::Operation* op);
+
+		};
+
+		//////////////////////////////////////////////////////////////////////////////
+		// ConstraintsLattice METHODS
+		//////////////////////////////////////////////////////////////////////////////
+
+		// Method for returning the lattice (useful only at the end) <- maybe can do everything in the class
+		const llvm::DenseMap<std::pair<mlir::Value,bool>,ConstraintsLattice::IntegerRange>& ConstraintsLattice::getUnderlyingLattice() const{
+			return this->ranges;
+		}
+
+		//TODO: understand what this meet does
+		// In theory it should be the opposite of a join
+		mlir::ChangeResult ConstraintsLattice::meet(const mlir::dataflow::AbstractDenseLattice& val)
+		{
+			llvm::outs()<<"meet\n";
+			//return mlir::ChangeResult::NoChange;
+			// Do a funny thing and let the meet perform the join
+			return this->join(val);
+		}
+
+		mlir::ChangeResult ConstraintsLattice::join(const mlir::dataflow::AbstractDenseLattice& val)
+		{
+			//Need to cast it
+			const auto& other = *static_cast<const ConstraintsLattice*>(&val);
+			
+			//Keep it to check if there is no change
+			auto copy = *this;
+
+			llvm::outs()<<"Did i join?\n";
+			this->print(llvm::outs());
+			other.print(llvm::outs());
+
+			//Insert the other in this
+			for(const auto& other_range : other.ranges){
+				
+				// We have to insert the other range
+				// If we find it then we have to join, else we have to insert it
+				this->insertOrJoin(other_range.first, other_range.second);
+			}
+			
+			for(const auto& other_to_check: other.to_check){
+				this->to_check.insert(other_to_check);
 			}
 
-			const llvm::DenseMap<std::pair<mlir::Value,bool>,mlir::rlc::ConstraintsLattice::IntegerRange>& getUnderlyingLattice(mlir::Operation* op){
-				return this->getLattice(mlir::ProgramPoint(op))->getUnderlyingLattice();
+			//
+			if (*this==copy and other==copy){
+				llvm::outs()<<"no\n";
+				this->print(llvm::outs());
+				return mlir::ChangeResult::NoChange;
 			}
-		};
+			this->print(llvm::outs());
+			return mlir::ChangeResult::Change;
+		}
+
+		// Operation to copy two lattices
+		// NB: this is a deep copy
+		mlir::ChangeResult ConstraintsLattice::copy(const ConstraintsLattice& other){
+			
+			llvm::outs()<<"Did i copy?\n";
+			llvm::outs()<<"mine : ";this->print(llvm::outs());
+			llvm::outs()<<"other: ";other.print(llvm::outs());
+
+			if (*this==other){
+				llvm::outs()<<"no\n";
+				return mlir::ChangeResult::NoChange;
+			}
+			this->ranges=other.ranges;
+			this->to_check=other.to_check;
+			return mlir::ChangeResult::Change;
+		}
+
+		mlir::ChangeResult ConstraintsLattice::copy(const mlir::dataflow::AbstractDenseLattice& val){
+			return this->copy(*static_cast<const ConstraintsLattice*>(&val));
+		}
+
+		void ConstraintsLattice::print(raw_ostream& os) const{
+
+			os<<"Ranges:\n";
+			if(not this->ranges.empty()){
+				for(auto range: this->ranges){
+					os << "SSA: "<< range.first.first <<" Branch: "<< range.first.second << 
+					" RANGE: (" <<range.second.getLower().getSExtValue() << ", " << range.second.getUpper().getSExtValue() << ")\n";
+				}
+			}
+			else {
+				os<<"Empty\n";
+			}
+			os<<"To check:\n";
+			if(not this->to_check.empty()){
+				for(auto check: this->to_check){
+					os << "SSA: "<< check << "\n";
+				}
+			}
+			else {
+				os<<"Empty\n";
+			}
+		}
+
+		bool ConstraintsLattice::operator==(const ConstraintsLattice& other) const{
+			return this->ranges == other.ranges
+				and this->to_check == other.to_check;
+		}
+
+		mlir::ChangeResult ConstraintsLattice::setCurrentBranch(mlir::RegionBranchOpInterface* branchOp){
+			// The yield has this format
+			// %12 = rlc.constant true !rlc.bool
+			// rlc.yield %12 : !rlc.bool
+			// So I need to retrieve "true" in this case
+
+			// So here we need to be very careful 
+			// We could also directly return something that is not a constant
+			// For instant we could do 'return a>10' but in this case we can just call the function that handles it
+			// Here we get the rlc.constant true
+			const auto& value= mlir::cast<mlir::rlc::Yield>(branchOp->getOperation()).getArguments()[0];
+
+			value.getDefiningOp()->print(llvm::outs());
+
+			// TODO: wrap in some static method or put a trait
+			if( mlir::isa<mlir::rlc::GreaterOp>(value.getDefiningOp()) or	
+				mlir::isa<mlir::rlc::GreaterEqualOp>(value.getDefiningOp()) or
+				mlir::isa<mlir::rlc::LessOp>(value.getDefiningOp()) or
+				mlir::isa<mlir::rlc::LessEqualOp>(value.getDefiningOp()) or
+				mlir::isa<mlir::rlc::UninitializedConstruct>(value.getDefiningOp())
+				)
+				return this->visitYield(branchOp->getOperation());
+
+			auto bool_branch= mlir::dyn_cast<BoolAttr>(value.getDefiningOp()->getAttr("value"));
+			if (not bool_branch)
+				return mlir::ChangeResult::NoChange;
+
+			this->ranges.insert(std::make_pair(
+				std::make_pair(
+					value,bool_branch.getValue()),
+					this->getTOP() ));
+				
+			return mlir::ChangeResult::Change;
+		}
+		
+		const std::pair<bool,bool> ConstraintsLattice::branchesContainedInLattice() const{
+			bool can_true=false;
+			bool can_false=false;
+
+			for(auto pair : this->ranges){
+				if(pair.first.second)
+					can_true=true;
+				else can_false=true;
+			}
+
+			return std::make_pair(can_true,can_false);
+		}
+
+		const std::pair<bool,bool> ConstraintsLattice::isValuePresentInLattice(const mlir::Value& value) const{
+			bool can_true=false;
+			bool can_false=false;
+
+			for(auto pair : this->ranges){
+				if(pair.first.first==value){
+					if(pair.first.second)
+						can_true=true;
+					else can_false=true;
+				}
+			}
+
+			return std::make_pair(can_true,can_false);
+		}
+
+		const std::pair<bool,bool> ConstraintsLattice::isConstPresentInLattice() const{
+			bool can_true=false;
+			bool can_false=false;
+
+			for(auto pair : this->ranges){
+				if(not (pair.first.first.getDefiningOp()==nullptr) and
+					mlir::isa<mlir::rlc::Constant>(pair.first.first.getDefiningOp())){
+					if(pair.first.second)
+						can_true=true;
+					else can_false=true;
+				}
+			}
+
+			return std::make_pair(can_true,can_false);
+		}
+
+		void ConstraintsLattice::removeConstFromLattice(const bool type){
+			for(auto pair: this->ranges){
+				if(not (pair.first.first.getDefiningOp()==nullptr) and
+					mlir::isa<mlir::rlc::Constant>(pair.first.first.getDefiningOp()))
+					if(pair.first.second==type)
+						this->ranges.erase(pair.first);
+			}
+		}
+
+		// When I visit a builtin assign operation I need to check if it is in the lattice
+		mlir::ChangeResult ConstraintsLattice::visitBuiltinAssign(mlir::Operation* statement){
+		
+			llvm::outs()<<"Visiting builtin assign operation\n";
+		
+			if(this->to_check.empty())
+				return mlir::ChangeResult::NoChange;
+
+			auto casted=mlir::dyn_cast<mlir::rlc::BuiltinAssignOp>(statement);
+
+			// Check lhs
+			auto found=this->to_check.find(casted->getOperand(0));
+			
+			if(found==this->to_check.end())
+				return mlir::ChangeResult::NoChange;
+				
+
+			// We also need to check the peculiar case when we assign to the construct
+			// another uninitialized construct.
+			// In this way we need to remove the one we already know and add the other one
+			if(mlir::isa<mlir::rlc::UninitializedConstruct>(casted->getOperand(1).getDefiningOp())){
+				this->to_check.erase(casted->getOperand(0));
+				this->to_check.insert(casted->getOperand(1));
+				return mlir::ChangeResult::Change;
+			}
+
+			// If there is a valid operation then we need to call the funciton which
+			// evaluates the range we are interested in
+			return this->visitYield(statement);
+
+		}
+
+		// When I visit an uninitialized construct I need to insert the ssa value 
+		// in the set
+		mlir::ChangeResult ConstraintsLattice::visitUninitializedConstruct(mlir::Operation* statement){
+			
+			bool res=false;
+
+			// The operation can be either a crb or a yield
+			if(auto casted=mlir::dyn_cast<mlir::rlc::CondBranch>(statement)){
+				res = this->to_check.insert(casted.getCond()).second;
+			}
+			else if(auto casted=mlir::dyn_cast<mlir::rlc::Yield>(statement)){
+				res = this->to_check.insert(casted.getOperand(0)).second;
+			}
+
+			// NB: if the ssa value is already present then we can just leave it there
+
+			if(res)
+				return mlir::ChangeResult::Change;
+			else
+				return mlir::ChangeResult::NoChange;
+
+		}
+
+		// TODO: divide this operation in (at least) two parts
+		// Here we should write the transfer function based on the operation 
+		mlir::ChangeResult ConstraintsLattice::visitArithmetic(mlir::Operation* statement, bool can_true, bool can_false)
+		{
+
+			// Modify my ranges only when i am sure that i am passing through a initialized (true/false) branch
+			if (not can_true and not can_false)
+				return mlir::ChangeResult::NoChange;
+
+			// Here the operation has passed the sanity check so we can switch
+			auto copy = *this;
+
+			// So this becomes extremely tricky now, we have tstatehe information about the branch we are passing from
+			// The idea is, i am visiting one branch => update one, I am visiting both => update both
+
+			// TODO: this should be a casting to a CommutativeOp <- TODO: add
+			// For the moment it should work so let's leave it like this
+			if (auto casted=mlir::dyn_cast<mlir::rlc::AddOp>(statement)){
+				llvm::outs()<<"addop\n";
+				this->print(llvm::outs());
+				// Do some name changing so that hopefully is more clear
+				// NB : these are values
+				const auto& a = casted.getResult();
+				const auto& b = casted.getLhs();
+				const auto& c = casted.getRhs();
+				// This can be nullptr if for example it is a function argument
+				// TODO: are there any other cases ?
+				const auto& b_op = b.getDefiningOp();
+				const auto& c_op = c.getDefiningOp();
+				// TODO: understand what happens if both have ranges -> should I update both ? (because if yes, in which order ?)
+				// NB: there iConstraintsLattices the case in which both are non constantv-> if we know nothing about
+				//     both we do nothing
+				// Then first find which variable we need to operate on
+				mlir::Value      state=nullptr;
+				mlir::Value      stato=nullptr;
+				// First get our candidates
+				if(b_op == nullptr or not mlir::isa<mlir::rlc::Constant>(b_op)){
+					state=b;
+					stato=c;
+				}
+				else if(c_op == nullptr or not mlir::isa<mlir::rlc::Constant>(c_op)){
+					state=c;
+					stato=b;
+				}
+				// Then update the corresponding branch
+				// NB: they are not exclusive so I have to update both
+				if(can_true)
+					this->updateArithmeticCommutativeRange(statement, a, state, stato, true);
+				if(can_false)
+					this->updateArithmeticCommutativeRange(statement, a, state, stato, false);
+
+			}
+
+			if(*this!=copy){
+				llvm::outs()<<"something should have changed\n";
+				this->print(llvm::outs());
+				return mlir::ChangeResult::Change;
+			}
+			else{
+				return mlir::ChangeResult::NoChange;
+			}
+		}
+
+		mlir::ChangeResult ConstraintsLattice::visitYield(mlir::Operation* statement){
+
+			auto copy=*this;
+
+			// TODO: Think about a typeswitch here too
+			mlir::Operation* conditional_op=nullptr;
+			if(auto casted=mlir::dyn_cast<mlir::rlc::Yield>(statement)){
+				conditional_op=casted.getOperand(0).getDefiningOp();
+			}
+			else if(auto casted=mlir::dyn_cast<mlir::rlc::BuiltinAssignOp>(statement)){
+				conditional_op=casted.getOperand(1).getDefiningOp();
+			}
+
+			if(auto casted=mlir::dyn_cast<rlc::UninitializedConstruct>(conditional_op)){
+				llvm::outs()<<"\nAdded uninitialized construct:\n";
+				return this->visitUninitializedConstruct(statement);
+			}
+
+			// Do the checking only if the operation is a conditional (relational)
+			if(	not mlir::isa<mlir::rlc::LessOp>(conditional_op) and 
+				not mlir::isa<mlir::rlc::GreaterOp>(conditional_op) and
+				not mlir::isa<mlir::rlc::LessEqualOp>(conditional_op) and 
+				not mlir::isa<mlir::rlc::GreaterEqualOp>(conditional_op))
+				return mlir::ChangeResult::NoChange;
+
+				
+
+			const auto& lhs = conditional_op->getOperand(0);
+			const auto& rhs = conditional_op->getOperand(1);
+			const auto& lhs_op = lhs.getDefiningOp();
+			const auto& rhs_op = rhs.getDefiningOp();
+
+			// The algorithm will work mostly as the one for the arithmetic operations, but it will be simpler (no commutativity problem)
+			// NB: note that they are not exclusive so they have to be executed always
+			
+			/*
+			// Look at the next lattice in the true branch
+			auto trueLattice=analysis->getObjLattice(&casted.getTrueBranch()->front());
+
+			auto branch_true=trueLattice->branchesContainedInLattice();
+
+			// And do the same in the false
+			auto falseLattice=getLattice(mlir::ProgramPoint(&casted.getFalseBranch()->front()));
+
+			auto branch_false=falseLattice->branchesContainedInLattice();
+			*/
+
+			// If the rhs is a constant
+			if(auto rhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(rhs_op)){
+
+				this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, true);
+			
+				this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, false);
+
+			}
+			// If the lhs is a constant then do the same but with inverted branches
+			else if(auto lhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(lhs_op)){
+
+				this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, true);	
+			
+				this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, false);	
+					
+			}
+			// else do nothing
+
+			if(*this!=copy){
+				llvm::outs()<<"something should have changed\n";
+				this->print(llvm::outs());
+				return mlir::ChangeResult::Change;
+			}
+			else{
+				return mlir::ChangeResult::NoChange;
+			}
+		}
+
+		mlir::ChangeResult ConstraintsLattice::visitBranch(mlir::Operation* statement, mlir::rlc::ConstraintsAnalysis* analysis ){
+
+			if (not this->to_check.empty())
+				return mlir::ChangeResult::NoChange;
+
+			auto copy=*this;
+
+			auto casted=mlir::dyn_cast<mlir::rlc::CondBranch>(statement);
+
+			mlir::Operation* conditional_op=casted.getCond().getDefiningOp();
+
+			// if(auto casted=mlir::dyn_cast<rlc::UninitializedConstruct>(conditional_op)){
+			// 	llvm::outs()<<"\nAdded uninitialized construct:\n";
+			// 	return this->visitUninitializedConstruct(statement);
+			// }
+
+			// Do the checking only if the operation is a conditional (relational)
+			if(	not mlir::isa<mlir::rlc::LessOp>(conditional_op) and 
+				not mlir::isa<mlir::rlc::GreaterOp>(conditional_op) and
+				not mlir::isa<mlir::rlc::LessEqualOp>(conditional_op) and 
+				not mlir::isa<mlir::rlc::GreaterEqualOp>(conditional_op))
+				return mlir::ChangeResult::NoChange;
+
+			const auto& lhs = conditional_op->getOperand(0);
+			const auto& rhs = conditional_op->getOperand(1);
+			const auto& lhs_op = lhs.getDefiningOp();
+			const auto& rhs_op = rhs.getDefiningOp();
+
+			// The algorithm will work mostly as the one for the arithmetic operations, but it will be simpler (no commutativity problem)
+			// NB: note that they are not exclusive so they have to be executed always
+
+			// If the rhs is a constant
+			if(auto rhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(rhs_op)){
+				
+				// Look at the next lattice in the true branch
+				auto trueLattice=analysis->getObjLattice(&casted.getTrueBranch()->front());
+
+				// Understand if there is a value or a constant
+				auto branch_true_has_value=trueLattice->isValuePresentInLattice(lhs);
+				auto branch_true_has_const=trueLattice->isConstPresentInLattice();
+
+				// The result is just the logical or
+				auto branch_true_yield_true =branch_true_has_value.first or branch_true_has_const.first;
+				auto branch_true_yield_false=branch_true_has_value.second or branch_true_has_const.second;
+
+				// And do the same in the false
+				auto falseLattice=analysis->getObjLattice(&casted.getFalseBranch()->front());
+
+				auto branch_false_has_value=falseLattice->isValuePresentInLattice(lhs);
+				auto branch_false_has_const=falseLattice->isConstPresentInLattice();
+
+				auto branch_false_yield_true =branch_false_has_value.first or branch_false_has_const.first;
+				auto branch_false_yield_false=branch_false_has_value.second or branch_false_has_const.second;
+
+				// Here we need to be extremely careful because there is one tricky case:
+				// if we have a const in one branch but not in the other it means we are in a case of
+				// if ... :
+				//   return ...
+				// else:
+				//   return false
+				// 
+				// Since we need to be conservative we need to set the false value to TOP
+
+				// We need to be even a bit more careful because this operation is only valid if
+				// the else branch lattice does not contain another lattice used in ...
+
+				if(branch_false_has_const.first and branch_true_has_value.first and not branch_false_has_value.first){
+					this->insertOrJoin(std::make_pair(lhs,true),this->getTOP());
+				}
+
+				if(branch_false_has_const.second and branch_true_has_value.second and not branch_false_has_value.second){
+					this->insertOrJoin(std::make_pair(lhs,false),this->getTOP());
+				}
+
+				// And at the end we can delete the constant from the lattice
+				//this->removeConstFromLattice(true);
+				//this->removeConstFromLattice(false);
+
+				// Modify my ranges only when i am sure that i am passing through a initialized (true/false) branch
+				if (not branch_true_yield_true and not branch_true_yield_false and
+					not branch_false_yield_true and not branch_false_yield_false)
+					return mlir::ChangeResult::NoChange;
+				
+
+				// If both branches yield true then there is no need to update since no more information can be retrieved
+				if(not branch_true_yield_true==branch_false_yield_true){
+
+					if(branch_true_yield_true)
+						this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, true);	
+
+					if(branch_false_yield_true)
+						this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, true);
+				
+				}
+
+				if(not branch_true_yield_false==branch_false_yield_false){
+
+					if(branch_true_yield_false)
+						this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, false);
+					
+					if(branch_false_yield_false)
+						this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, false);	
+				
+				}
+
+			}
+			// If the lhs is a constant then do the same but with inverted branches
+			/*else if(auto lhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(lhs_op)){
+
+				if(not branch_true_yield_true==branch_false_yield_true){
+
+					if(branch_true_yield_true)
+						this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, true);	
+					
+					if(branch_true_yield_false)
+						this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, false);	
+				
+				}
+				else{
+					this->insertOrJoin(std::make_pair(rhs,true),this->getTOP());
+				}
+
+				if(not branch_true_yield_false==branch_false_yield_false){
+
+					if(branch_false_yield_true)
+						this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, true);	
+					
+					if(branch_false_yield_false)
+						this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, false);	
+					
+				}
+				else{
+					this->insertOrJoin(std::make_pair(rhs,false),this->getTOP());
+				}
+
+			}
+			*/
+			// else do nothing
+
+			if(*this!=copy){
+				llvm::outs()<<"something should have changed\n";
+				this->print(llvm::outs());
+				return mlir::ChangeResult::Change;
+			}
+			else{
+				return mlir::ChangeResult::NoChange;
+			}
+		}
+
+		ConstraintsLattice::IntegerRange ConstraintsLattice::getTOP() const{
+			return createRange(MIN,MAX);
+		}
+		
+		ConstraintsLattice::IntegerRange ConstraintsLattice::getRangeOrTOP(const std::pair<mlir::Value,bool>& key) const{
+			auto found = this->ranges.find(key);
+			if(found!=this->ranges.end())
+				return found->second;
+			else
+				return this->getTOP();
+				
+		}
+
+		void ConstraintsLattice::insertOrJoin(const std::pair<mlir::Value,bool>& key, const ConstraintsLattice::IntegerRange& other){
+			auto found=this->ranges.find(key);
+			if(found!=this->ranges.end()){
+				found->second= 
+					ConstraintsLattice::joinRange(found->second, other);
+			}
+			else{
+				this->ranges.insert(std::make_pair(key, other));
+			}
+		}
+
+		void ConstraintsLattice::insertOrUpdate(const std::pair<mlir::Value,bool>& key, const ConstraintsLattice::IntegerRange& other){
+			auto found=this->ranges.find(key);
+			if(found!=this->ranges.end()){
+				found->second=other;
+			}
+			else{
+				this->ranges.insert(
+					std::make_pair(key, other));
+			}
+		}
+
+		void ConstraintsLattice::insertOrUpdate(const std::pair<mlir::Value,bool>& keyToInsert, const std::optional<Integer>& min, const std::optional<Integer>& max){
+			auto found=this->ranges.find(keyToInsert);
+			if(found!=this->ranges.end()){
+				found->second=ConstraintsLattice::updateRange(found->second, min, max);
+			}
+			else{
+				this->ranges.insert(
+					std::make_pair(keyToInsert,
+						createRange(
+							min.value_or(MIN),
+							max.value_or(MAX))));
+			}
+		}
+
+		// This method takes the operation, the range
+		// statement is the original operation
+		// other is the other operand so that we can do to_update=result operation other
+		void ConstraintsLattice::updateArithmeticCommutativeRange(const mlir::Operation* statement, const mlir::Value& result, const mlir::Value& to_update, const mlir::Value& other, const bool branch_to_update){
+			ConstraintsLattice::IntegerRange new_range(APInteger(1),APInteger(0));
+			// If the other is a constant take its constant value
+			if(auto other_casted=mlir::dyn_cast<mlir::rlc::Constant>(other.getDefiningOp())){
+				auto other_const=other_casted->getAttr("value").dyn_cast<IntegerAttr>().getInt();
+				// Kinda ugly but this is what we have to do with constant ranges
+				new_range=createRange(other_const);
+			}
+			// Else check if the value carried by the operation is 
+			else {
+				//If I have altready a range then i can modify it
+				auto other_range=this->ranges.find(std::make_pair(other,branch_to_update));
+				if(other_range!=this->ranges.end()){
+					// This should call the copy constructor
+					new_range=other_range->second;
+				}
+			}
+			// Update only if I found the new range
+			if(new_range.getLower().sle(new_range.getUpper())){
+
+				auto a_range=this->getRangeOrTOP(std::make_pair(result,branch_to_update));
+				// This operation has to be done indipendently from the branch
+				// TODO: add more cases of course
+				// TODO: with the llvm class this by default wraps around, do not do that thx
+				if(mlir::isa<mlir::rlc::AddOp>(statement))
+					new_range=a_range.sub(new_range);
+				llvm::outs()<<"should have changed\n";
+				// Insert the range where is needed
+				this->insertOrUpdate(std::make_pair(to_update,branch_to_update),new_range);
+			}
+		}
+
+		// This function is actually quite simpler since we always know 
+		// the lhs is not a constant and the rhs is a constant
+		// Result is useful to understand which check do to the operation
+		void ConstraintsLattice::updateRelationalRange(const mlir::Operation* statement, bool result, const mlir::Value& to_update, const mlir::rlc::Constant& other, const bool branch_to_update){
+
+			auto rhs_const=other->getAttr("value").dyn_cast<IntegerAttr>().getInt();
+
+			std::optional<Integer> min;
+			std::optional<Integer> max;
+
+			// TODO: this with a typeswitch would be cute
+			if (mlir::isa<mlir::rlc::GreaterOp>(statement)){
+					if(result)
+					min=rhs_const+1;
+					else
+					max=rhs_const;
+			}
+			else if (mlir::isa<mlir::rlc::LessOp>(statement)){
+				if(result)
+					max=rhs_const-1;
+				else
+					min=rhs_const;
+			}
+			else if (mlir::isa<mlir::rlc::GreaterEqualOp>(statement)){
+				if(result)
+					min=rhs_const;
+				else
+					max=rhs_const-1;
+			}
+			else if (mlir::isa<mlir::rlc::LessEqualOp>(statement)){
+				if(result)
+					max=rhs_const;
+				else
+					min=rhs_const+1;
+			}
+			
+			llvm::outs()<<"should have changed\n";
+			// Insert the range where is needed
+			this->insertOrUpdate(std::make_pair(to_update,branch_to_update),min,max);
+		}
+
+		//////////////////////////////////////////////////////////////////////////////
+		// ConstraintsAnalysis METHODS
+		//////////////////////////////////////////////////////////////////////////////
+
+		// Definitions taken from https://mlir.llvm.org/doxygen/DenseAnalysis_8h_source.html#l00423
+
+		void ConstraintsAnalysis::visitOperation(
+			mlir::Operation *op, 
+			const ConstraintsLattice &after,
+			ConstraintsLattice *before){
+
+			llvm::outs()<<"visiting operation: ";
+			op->print(llvm::outs());
+			llvm::outs()<<"\n";
+			// For the moment implement the basic operations
+			auto res=before->join(after);
+			
+			// We have to decide which return values to update (true or false)
+			// In order to do so we need to :
+			// - peek at the successors of this block 
+			// - look at their lattice
+			// - find in their lattice if there is some value with key true/false
+			// - keep in mind that information
+
+			if (mlir::rlc::ConstraintsAnalysis::isArithmetic(op)){
+
+				//NB: here the operation can be done also implicitly -> actually should be done implicitly maybe
+				auto can = before->branchesContainedInLattice();
+
+				res = before->visitArithmetic(op,can.first,can.second) == mlir::ChangeResult::Change ?
+						mlir::ChangeResult::Change : res;
+				propagateIfChanged(before,res);
+			}
+			else if(mlir::rlc::ConstraintsAnalysis::isConditional(op)){
+
+				// If it is a conditional then I need to peek in the next block from each branch
+
+				res = before->visitBranch(op,this) == mlir::ChangeResult::Change ?
+					mlir::ChangeResult::Change : res;
+				propagateIfChanged(before, res);
+
+			}
+			else if(mlir::rlc::ConstraintsAnalysis::isYield(op)){
+
+				// If it is a yield then it means that the function already inherently contains
+				// the information that the function returns something
+
+				res = before->visitYield(op) == mlir::ChangeResult::Change ?
+					mlir::ChangeResult::Change : res;
+				propagateIfChanged(before, res);
+
+			}
+			else if(mlir::rlc::ConstraintsAnalysis::isBuiltinAssign(op)){
+			
+				// Call the function which will call the yield
+				res = before->visitBuiltinAssign(op) == mlir::ChangeResult::Change ?
+					mlir::ChangeResult::Change : res;
+				propagateIfChanged(before, res);
+			}
+			// This is for the instructions which do not modify the lattice
+			else
+				propagateIfChanged(before, res);
+		}
+
+		void ConstraintsAnalysis::visitCallControlFlowTransfer(
+				CallOpInterface call,
+				mlir::dataflow::CallControlFlowAction action,
+				const ConstraintsLattice& before,
+				ConstraintsLattice* after){
+			
+			llvm::outs()<<"visited call control flow transfer of operation: ";
+			call.print(llvm::outs());
+			propagateIfChanged(after, after->copy(before));
+		}
+
+		void ConstraintsAnalysis::visitRegionBranchControlFlowTransfer(
+				mlir::RegionBranchOpInterface branch,
+				mlir::RegionBranchPoint regionFrom,
+				mlir::RegionBranchPoint regionTo,
+				const ConstraintsLattice& before,
+				ConstraintsLattice* after){
+
+			//auto casted = mlir::dyn_cast_or_null<mlir::rlc::CondBranch>(op);
+			//getLattice(mlir::ProgramPoint(&casted.getTrueBranch()->front()));
+
+			// TODO: this should be called also in rlc.crb
+			// For the moment execute only the join
+			llvm::outs()<<"visited region branch control flow transfer of operation: ";
+			branch.getOperation()->print(llvm::outs());
+			llvm::outs()<<"\nregion from: ";
+			if(auto regionf=regionFrom.getRegionOrNull()){
+				regionf->front().print(llvm::outs());
+			}
+			else
+				llvm::outs()<<"null\n";
+			llvm::outs()<<"region to: ";
+			if(auto regiont=regionTo.getRegionOrNull()){
+				regiont->front().print(llvm::outs());
+			}
+			else
+				llvm::outs()<<"null\n";
+			auto res1=after->setCurrentBranch(&branch);
+			//auto res1=mlir::ChangeResult::Change;
+			auto res2=after->join(before);
+			auto res= res1==mlir::ChangeResult::Change ? res1 : (res2==mlir::ChangeResult::Change ? res2 : mlir::ChangeResult::NoChange);
+			
+			// Let's try this to have a bit of fun -> ChangeResult is an enum (this should not work
+			propagateIfChanged(after,res);
+		}
+
+		// At the end we can take the information about the arguments in our lattice and attach it
+		// to the function arguments
+		// TODO: understand when this is called and where to append the information obtained when finishing
+		// For the moment this function is just observing the IR, so we can leave it as it is
+		void ConstraintsAnalysis::setToExitState(ConstraintsLattice* lattice){
+		
+			llvm::outs()<<"something was set to exit state\n";
+		}
+
+		void ConstraintsAnalysis::printRanges(mlir::Operation* op){
+			auto* lattice = op != nullptr ? getLattice(mlir::ProgramPoint(op))
+																		: getLattice(op->getBlock());
+			llvm::outs()<<"KEK ";
+			lattice->print(llvm::outs());
+		}
+
+		const llvm::DenseMap<std::pair<mlir::Value,bool>,mlir::rlc::ConstraintsLattice::IntegerRange>& ConstraintsAnalysis::getUnderlyingLattice(mlir::Operation* op){
+			return this->getLattice(mlir::ProgramPoint(op))->getUnderlyingLattice();
+		}
+
+		const mlir::rlc::ConstraintsLattice* ConstraintsAnalysis::getObjLattice(mlir::Operation* op){
+			return this->getLattice(mlir::ProgramPoint(op));
+		}
 
 		// TODO: should I put it in another namespace ? (as in "ActionLiveness.cpp")
 		// This is the class that starts the analysis (I guess)

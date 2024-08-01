@@ -8,7 +8,7 @@ fun main() -> Int:
 	else:
 		return -1
 
-# a_true  : the range will be a join of (11,19) and (MIN_INT, -11) -> (MIN_INT, 19)
+# a_true  : the range will be a join of (11,19) and (MIN_INT, -11) -> (MIN_INT, 20)
 # a_false : the range will be a join of (10, MAX_INT) and (-10, MAX_INT) -> (-10, MAX_INT)
 
 fun foo(Int a) -> Bool:
