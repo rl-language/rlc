@@ -254,6 +254,8 @@ fun<T, Int dim> append_to_string(BoundedVector<T, dim> to_add, String output):
 
     output.append(']')
 
+fun<Enum T> append_to_string(T to_add, String output):
+    output.append(as_string_literal(to_add))
 
 fun<T> _print_type(T to_add, StringLiteral default_type_name, String output):
     if to_add is CustomGetTypeName:
@@ -442,6 +444,32 @@ fun<T, Int x> parse_string(BoundedVector<T, x> result, String buffer, Int index)
         return false
     index = index + 1
     return true
+
+fun<Enum T> parse_string(T result, String buffer, Int index) -> Bool:
+    # Check if there is any alphanumeric characters in the bufer
+    _consume_space(buffer, index)
+    if buffer.size() == index: 
+        return false
+
+    # Iterate over all fields in the Enum
+    let i = 0
+    let b : T
+    let found_match = false
+    while i != b.max() + 1:
+        # Create an enum obj corresponding to each field
+        b.from_int(i)
+        let b_field_name = as_string_literal(b)
+
+        # Check if buffer has same name as enum field
+        if buffer.substring_matches(b_field_name, index):
+            # If it does, update result, index, and return true
+            result = b
+            index = index + length(b_field_name)
+            found_match = true
+            break
+
+        i = i + 1
+    return found_match
 
 fun<T> _parse_type(T to_parse, String buffer, StringLiteral type_name, Int index) -> Bool:
     if to_parse is CustomGetTypeName:

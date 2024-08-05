@@ -19,4 +19,13 @@ trait<T> Enum:
     fun is_enum(T obj) -> Bool 
     fun as_int(T obj) -> Int
     fun from_int(T obj, Int new_value)
+    fun as_string_literal(T obj) -> StringLiteral
+
+fun<Enum T> enumerate(T b, Vector<T> output):
+    let i = 0
+    while i != b.max() + 1:
+        let b : T 
+        b.from_int(i)
+        output.append(b)
+        i = i + 1
 
