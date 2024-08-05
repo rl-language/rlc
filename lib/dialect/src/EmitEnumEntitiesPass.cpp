@@ -160,7 +160,7 @@ namespace mlir::rlc
 				enumOp.getLoc(), mlir::ValueRange({ trueOp }));
 	}
 
-	static void emitAsStringFunction(
+	static void emitAsStringLiteralFunction(
 		IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		// Set initial insertion point
@@ -194,7 +194,7 @@ namespace mlir::rlc
 			auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(field.getLoc());
 
 			// Generate If confition
-        	rewriter.createBlock(&ifStatement.getCondition());
+			rewriter.createBlock(&ifStatement.getCondition());
 			auto selfOp = rewriter.create<mlir::rlc::UnresolvedReference>(
 				field.getLoc(),
 				mlir::rlc::UnknownType::get(enumOp.getContext()),
@@ -216,20 +216,20 @@ namespace mlir::rlc
 
 			// Generate True branch to be filled with return command
 			auto trueBB = rewriter.createBlock(&ifStatement.getTrueBranch());
-        	rewriter.setInsertionPointToStart(trueBB);
+			rewriter.setInsertionPointToStart(trueBB);
 
-        	// Generate return statement with constant string as value
+			// Generate return statement with constant string as value
 			auto retStm = rewriter.create<mlir::rlc::ReturnStatement>(
-            	ifStatement.getLoc(),
-            	returnType
+				ifStatement.getLoc(),
+				returnType
 			);
 			auto* bbReturn = rewriter.createBlock(&retStm.getBody(), retStm.getBody().begin());
 			rewriter.setInsertionPointToStart(bbReturn);
 
 			// Generate constant return value
 			auto stringConstant = rewriter.create<mlir::rlc::StringLiteralOp>(
-    			field.getLoc(),
-    			field.getName().str()
+				field.getLoc(),
+				field.getName().str()
 			);
 			rewriter.create<mlir::rlc::Yield>(
 				enumOp.getLoc(), mlir::ValueRange({ stringConstant })
@@ -237,7 +237,7 @@ namespace mlir::rlc
 
 			// Generate empty Else branch
 			rewriter.createBlock(&ifStatement.getElseBranch());
-        	rewriter.create<mlir::rlc::Yield>(field.getLoc());
+			rewriter.create<mlir::rlc::Yield>(field.getLoc());
 
 			rewriter.setInsertionPointToEnd(bb);
 			currentFieldIndex++;
@@ -251,10 +251,10 @@ namespace mlir::rlc
 		auto* bbFinalReturn = rewriter.createBlock(&finalRetStm.getBody(), finalRetStm.getBody().begin());
 		rewriter.setInsertionPointToStart(bbFinalReturn);
 
-		// Generate constant return value
+		// Generate default constant return value: the empty string
 		auto defautStringLiteral = rewriter.create<mlir::rlc::StringLiteralOp>(
-    		enumOp.getLoc(),
-    		""
+			enumOp.getLoc(),
+			""
 		);
 		// Yield that value
 		rewriter.create<mlir::rlc::Yield>(
@@ -269,7 +269,7 @@ namespace mlir::rlc
 		emitMaxMemberFunction(rewriter, enumOp);
 		emitAsIntFunction(rewriter, enumOp);
 		emitFromIntFunction(rewriter, enumOp);
-		emitAsStringFunction(rewriter, enumOp);
+		emitAsStringLiteralFunction(rewriter, enumOp);
 	}
 
 	static void moveAllFunctionDeclsToNewClass(
