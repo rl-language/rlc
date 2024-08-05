@@ -15,52 +15,30 @@ cls ExchangeCard:
 enum TraderCard:
     buy3:
         Int cost = 10
-        StringLiteral name = "buy3"
     stock_option:
         Int cost = 5
-        StringLiteral name = "stock_option"
     sell2:
         Int cost = -5
-        StringLiteral name = "sell2"
     market_manipulation:
         Int cost = 3
-        StringLiteral name = "market_manipulation"
     insider_info:
         Int cost = 4
-        StringLiteral name = "insider_info"
     cash_in:
         Int cost = 4
-        StringLiteral name = "cash_in"
     partner:
         Int cost = -2
-        StringLiteral name = "partner"
     external_investment:
         Int cost = 1
-        StringLiteral name = "external_investment"
     stock_dump:
         Int cost = 4
-        StringLiteral name = "stock_dump"
     ipo:
         Int cost = 2
-        StringLiteral name = "ipo"
 
     fun equal(TraderCard other) -> Bool:
         return self.value == other.value
 
     fun not_equal(TraderCard other) -> Bool:
         return self.value != other.value
-
-fun append_to_string(TraderCard card, String output):
-    output.append(card.name())
-
-fun parse_string(TraderCard card, String buffer, Int index) -> Bool:
-    let i = 0
-    while i != max(card) + 1:
-        card.value = i
-        if buffer.substring_matches(card.name(), index):
-            return true
-        i = i + 1
-    return false
 
 cls Player:
     HiddenInformation<Bool[10]> available_cards

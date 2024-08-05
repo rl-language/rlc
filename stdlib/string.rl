@@ -447,29 +447,23 @@ fun<T, Int x> parse_string(BoundedVector<T, x> result, String buffer, Int index)
 
 fun<Enum T> parse_string(T result, String buffer, Int index) -> Bool:
     # Check if there is any alphanumeric characters in the bufer
-    _consume_space(buffer, index)
     if buffer.size() == index: 
         return false
 
     # Iterate over all fields in the Enum
     let i = 0
     let b : T
-    let found_match = false
     while i != b.max() + 1:
         # Create an enum obj corresponding to each field
         b.from_int(i)
-        let b_field_name = as_string_literal(b)
 
         # Check if buffer has same name as enum field
-        if buffer.substring_matches(b_field_name, index):
-            # If it does, update result, index, and return true
-            result = b
-            index = index + length(b_field_name)
-            found_match = true
-            break
+        if _consume_literal_token(buffer, as_string_literal(b), index):
+            result.from_int(i)
+            return true
 
         i = i + 1
-    return found_match
+    return false
 
 fun<T> _parse_type(T to_parse, String buffer, StringLiteral type_name, Int index) -> Bool:
     if to_parse is CustomGetTypeName:

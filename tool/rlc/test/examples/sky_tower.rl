@@ -97,31 +97,22 @@ cls ActionCard:
 
 enum BonusCard:
     sky:
-        StringLiteral name = "sky"
         Int kites = 3
     romance:
-        StringLiteral name = "romance"
         Int kites = 3
     lucky:
-        StringLiteral name = "lucky"
         Int kites = 5
     big_ben:
-        StringLiteral name = "big_ben"
         Int kites = 3
     star:
-        StringLiteral name = "star"
         Int kites = 3
     perfect:
-        StringLiteral name = "perfect"
         Int kites = 3
     triples:
-        StringLiteral name = "triples"
         Int kites = 3
     demolition:
-        StringLiteral name = "demolition"
         Int kites = 3
     tycoon:
-        StringLiteral name = "tycoon"
         Int kites = 3
 
     fun equal(BonusCard card) -> Bool:

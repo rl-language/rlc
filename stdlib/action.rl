@@ -241,6 +241,15 @@ fun<T> print_enumeration_errors(T obj) -> Bool:
     return false 
 
 
+fun<Enum T> enumerate(T b, Vector<T> output):
+    let i = 0
+    while i != b.max() + 1:
+        let b : T 
+        b.from_int(i)
+        output.append(b)
+        i = i + 1
+
+
 fun<T> enumerate(T obj) -> Vector<T>:
     let to_return : Vector<T>
     if obj is Enumerable:
