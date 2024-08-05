@@ -7,7 +7,7 @@ import os
 import tempfile
 import random
 
-from tensorboard import program
+from tensorboard.program import TensorBoard
 from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
 from ray.rllib.env.multi_agent_env import make_multi_agent
 from importlib import import_module, machinery, util
@@ -18,8 +18,8 @@ from ray.rllib.algorithms.ppo import PPOTorchPolicy
 from ray import train
 from ml.raylib.module_config import get_config
 
-from command_line import load_simulation_for_ml, make_rlc_argparse
-from loader.simulation import import_file
+from command_line import load_program_from_args, make_rlc_argparse
+from rlc import Program
 from ml.raylib.environment import get_num_players
 
 from typing import (
@@ -35,11 +35,14 @@ from typing import (
     Union,
 )
 
+
 def trial_str_creator(trial):
     return str(trial.trial_id)
 
+
 def check_ray_bug():
     import ray.rllib.algorithms.ppo.ppo as ppo
+
     file_path = os.path.join(os.path.dirname(ppo.__file__), "ppo.py")
     found = False
     with open(file_path, "r") as file:
@@ -48,22 +51,27 @@ def check_ray_bug():
             if "default=0," in line:
                 found = True
     if not found:
-        print("The installed version of Ray, a library RLC depends upon, is known to be bugged.\nRun rlc-fix-ray to patch it. This will modify the installed file.")
+        print(
+            "The installed version of Ray, a library RLC depends upon, is known to be bugged.\nRun rlc-fix-ray to patch it. This will modify the installed file."
+        )
         exit(-1)
 
 
 def save(model, output_path, num_players):
     if output_path != "":
-      model.save(output_path)
-      for player_id in range(num_players):
-          if not os.path.exists(os.path.join(output_path, "learner", f"net_p{player_id}")):
-              os.makedirs(os.path.join(output_path, "learner", f"net_p{player_id}"))
-          model.workers.local_worker().module[f"p{player_id}"].save_state(
-              os.path.join(output_path, "learner", f"net_p{player_id}")
-          )
-          model.workers.local_worker().module[f"p{player_id}"].load_state(
-              os.path.join(output_path, "learner", f"net_p{player_id}")
-          )
+        model.save(output_path)
+        for player_id in range(num_players):
+            if not os.path.exists(
+                os.path.join(output_path, "learner", f"net_p{player_id}")
+            ):
+                os.makedirs(os.path.join(output_path, "learner", f"net_p{player_id}"))
+            model.workers.local_worker().module[f"p{player_id}"].save_state(
+                os.path.join(output_path, "learner", f"net_p{player_id}")
+            )
+            model.workers.local_worker().module[f"p{player_id}"].load_state(
+                os.path.join(output_path, "learner", f"net_p{player_id}")
+            )
+
 
 def get_multi_train(num_players, output):
     def train_impl(config, fixed_nets=0):
@@ -116,8 +124,18 @@ def get_trainer(output_path, total_train_iterations, num_players):
 
     return single_agent_train
 
+
 def ray_count_alive_nodes():
-    return len([node for node in ray.nodes() if node['Alive'] and node['NodeManagerAddress'] != ray._private.services.get_node_ip_address()])
+    return len(
+        [
+            node
+            for node in ray.nodes()
+            if node["Alive"]
+            and node["NodeManagerAddress"]
+            != ray._private.services.get_node_ip_address()
+        ]
+    )
+
 
 def main():
     check_ray_bug()
@@ -137,27 +155,26 @@ def main():
     parser.add_argument("--num-sample", default=1, type=int)
 
     args = parser.parse_args()
-    sim = load_simulation_for_ml(args, True)
-    if not sim.functions.print_enumeration_errors(sim.module.AnyGameAction()):
-        exit(-1);
-    sim.functions.emit_observation_tensor_warnings(sim.functions.play())
-    exit_on_invalid_env(sim)
-    wrapper_path = os.path.abspath(sim.wrapper_path)
+    program = load_program_from_args(args, True)
+    if not program.functions.print_enumeration_errors(program.module.AnyGameAction()):
+        exit(-1)
+    program.functions.emit_observation_tensor_warnings(program.functions.play())
+    exit_on_invalid_env(program)
+    module_path = os.path.abspath(program.module_path)
 
     ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
     session_dir = ray.worker._global_node.get_session_dir_path()
     from ray import air, tune
+
     args.output = os.path.abspath(args.output)
 
-    num_players =  1 if args.true_self_play else get_num_players(sim)
+    num_players = 1 if args.true_self_play else get_num_players(program.module)
 
     ppo_config, hyperopt_search = get_config(
-        sim.module,
-        num_players,
-        league_play=args.league_play
+        program, num_players, league_play=args.league_play
     )
     tune.register_env(
-        "rlc_env", lambda config: RLCEnvironment(wrapper=import_file("dc", wrapper_path))
+        "rlc_env", lambda config: RLCEnvironment(program=Program(module_path))
     )
 
     stop = {
@@ -169,22 +186,31 @@ def main():
     resources = PPO.default_resource_request(ppo_config)
 
     air_config = air.RunConfig(
-            stop=stop,
-            verbose=2,
-            # storage_path=resumption_dir
-        )
+        stop=stop,
+        verbose=2,
+        # storage_path=resumption_dir
+    )
 
     tuner = tune.Tuner(
         tune.with_resources(
             (
-                get_multi_train(get_num_player(sim), args.output)
+                get_multi_train(get_num_player(program), args.output)
                 if args.league_play
-                else get_trainer(args.output, total_train_iterations=args.total_train_iterations, num_players=num_players)
+                else get_trainer(
+                    args.output,
+                    total_train_iterations=args.total_train_iterations,
+                    num_players=num_players,
+                )
             ),
             resources=resources,
         ),
         param_space=ppo_config.to_dict(),
-        tune_config=ray.tune.TuneConfig(num_samples=args.num_sample, search_alg=hyperopt_search, trial_name_creator=trial_str_creator, trial_dirname_creator=trial_str_creator),
+        tune_config=ray.tune.TuneConfig(
+            num_samples=args.num_sample,
+            search_alg=hyperopt_search,
+            trial_name_creator=trial_str_creator,
+            trial_dirname_creator=trial_str_creator,
+        ),
         run_config=air.RunConfig(
             stop=stop,
             verbose=2,
@@ -193,7 +219,7 @@ def main():
     )
 
     if not args.no_tensorboard:
-        tb = program.TensorBoard()
+        tb = TensorBoard()
         tb.configure(argv=[None, "--logdir", session_dir])
         url = tb.launch()
 
@@ -203,7 +229,7 @@ def main():
         time.sleep(1)
     ray.shutdown()
     time.sleep(3)
-    sim.cleanup()
+    program.cleanup()
 
 
 if __name__ == "__main__":

@@ -38,7 +38,6 @@ class ActionMaskRLMBase(RLModule):
         super().__init__(config)
 
 
-
 def _check_batch(batch):
     """Check whether the batch contains the required keys."""
     if "action_mask" not in batch[SampleBatch.OBS]:

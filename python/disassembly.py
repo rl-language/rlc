@@ -7,7 +7,7 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 import argparse
-from loader import Simulation, compile, State
+from rlc import Simulation, compile, State
 import sys
 from shutil import which
 from command_line import load_simulation_from_args, make_rlc_argparse, load_network
@@ -39,7 +39,7 @@ def main():
         default="-",
     )
     args = parser.parse_args()
-    sim = load_simulation_from_args(args)
+    program = load_simulation_from_args(args)
 
     lines = (
         sys.stdin.read()
@@ -47,10 +47,9 @@ def main():
         else open(args.action_file, "rb").read()
     )
     output = sys.stdout if args.output == "" else open(args.output, "w")
-    actions = sim.parse_actions_from_binary_buffer(lines)
+    actions = program.parse_actions_from_binary_buffer(lines)
     for action in actions:
-        string = sim.to_python_string(sim.module.functions.to_string(action))
-        output.write(string)
+        output.write(program.to_string(action))
         output.write("\n")
 
 

@@ -7,10 +7,4 @@
 #
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
-import torch
-from torch import nn, Tensor
-from typing import Tuple
-from torch.utils.data import dataset
-from torchtext.vocab import build_vocab_from_iterator, Vocab
-import time
-import math
+from .program import Program, compile, State

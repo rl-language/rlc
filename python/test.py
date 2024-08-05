@@ -9,9 +9,9 @@
 #
 import argparse
 import time
-from loader import Simulation, compile
+from rlc import Program, compile
 from shutil import which
-from command_line import load_simulation_from_args, make_rlc_argparse
+from command_line import load_program_from_args, make_rlc_argparse
 
 
 def main():
@@ -19,17 +19,17 @@ def main():
         "test", description="run all functions which their name starts with test"
     )
     args = parser.parse_args()
-    with load_simulation_from_args(args) as sim:
+    with load_program_from_args(args, gen_python_methods=False) as program:
 
         failed = []
-        for name, overloads in sim.module.wrappers.items():
+        for name, overloads in program.module.wrappers.items():
             if not name.startswith("test_"):
                 continue
 
             for overload in overloads:
                 if (
-                    len(sim.module.signatures[overload]) == 1
-                    and sim.module.signatures[overload][0] == bool
+                    len(program.module.signatures[overload]) == 1
+                    and program.module.signatures[overload][0] == bool
                 ):
                     print(f"  RUN: {name}")
                     start_time = time.perf_counter()

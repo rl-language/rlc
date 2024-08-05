@@ -18,12 +18,18 @@ def package_files(directories, prefix):
                 paths.append((path, [os.path.join(path, filename)]))
     return paths
 
+
 def get_commit_hash():
     try:
-        commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('utf-8')
+        commit_hash = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"])
+            .strip()
+            .decode("utf-8")
+        )
     except subprocess.CalledProcessError:
-        commit_hash = 'unknown'
+        commit_hash = "unknown"
     return commit_hash
+
 
 def copy_binaries(source_directory, destination_directory):
     if not os.path.exists(destination_directory):
@@ -47,15 +53,36 @@ target_bin_dir = "bin" if os.name != "nt" else "Scripts"
 exec_ext = "" if os.name != "nt" else ".exe"
 lib_ext = ".a" if os.name != "nt" else ".lib"
 lib_prefix = "lib" if os.name != "nt" else ""
-copy_binaries(os.path.join("..", "..", "rlc-release", "install", "bin", "rlc" + exec_ext), target_bin_dir)
-copy_binaries(os.path.join("..", "..", "rlc-release", "install", "bin", "rlc-lsp" + exec_ext), target_bin_dir)
-copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", lib_prefix + "runtime" + lib_ext), "lib")
-copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", lib_prefix + "fuzzer" + lib_ext), "lib")
-copy_binaries(os.path.join("..", "..", "rlc-release", "install", "lib", "rlc"), os.path.join("lib", "rlc"))
+copy_binaries(
+    os.path.join("..", "..", "rlc-release", "install", "bin", "rlc" + exec_ext),
+    target_bin_dir,
+)
+copy_binaries(
+    os.path.join("..", "..", "rlc-release", "install", "bin", "rlc-lsp" + exec_ext),
+    target_bin_dir,
+)
+copy_binaries(
+    os.path.join(
+        "..", "..", "rlc-release", "install", "lib", lib_prefix + "runtime" + lib_ext
+    ),
+    "lib",
+)
+copy_binaries(
+    os.path.join(
+        "..", "..", "rlc-release", "install", "lib", lib_prefix + "fuzzer" + lib_ext
+    ),
+    "lib",
+)
+copy_binaries(
+    os.path.join("..", "..", "rlc-release", "install", "lib", "rlc"),
+    os.path.join("lib", "rlc"),
+)
 extra_files_bin = package_files([target_bin_dir], target_bin_dir)
 extra_files_lib = package_files(["lib"], "lib")
 
-site_packages_path = target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
+site_packages_path = (
+    target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
+)
 
 setup(
     name="rl_language",
@@ -66,7 +93,20 @@ setup(
     include_package_data=True,
     data_files=extra_files_bin
     + extra_files_lib
-    + [(os.path.join(site_packages_path, "impl"), ["test.py", "action.py", "learn.py", "play.py", "solve.py", "probs.py", "fix_ray.py"])],
+    + [
+        (
+            os.path.join(site_packages_path, "impl"),
+            [
+                "test.py",
+                "action.py",
+                "learn.py",
+                "play.py",
+                "solve.py",
+                "probs.py",
+                "fix_ray.py",
+            ],
+        )
+    ],
     install_requires=read_requirements(os.path.join("..", "run-requirements.txt")),
     entry_points={
         "console_scripts": [
@@ -97,7 +137,7 @@ setup(
         "Topic :: Utilities",
     ],
     python_requires=">=3.8",
-    commit_hash=get_commit_hash()
+    commit_hash=get_commit_hash(),
 )
 
 shutil.rmtree(target_bin_dir)

@@ -945,6 +945,12 @@ bool mlir::rlc::DeclarationStatement::isReference()
 	if (initializer.getDefiningOp<mlir::rlc::ArrayAccess>())
 		return true;
 
+	if (initializer.getDefiningOp<mlir::rlc::DeclarationStatement>())
+		return true;
+
+	if (initializer.getDefiningOp<mlir::rlc::ActionStatement>())
+		return true;
+
 	// true if it is a function argument
 	if (initializer.getDefiningOp() == nullptr)
 		return true;

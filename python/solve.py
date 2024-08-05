@@ -10,10 +10,10 @@
 import argparse
 import random
 import sys
-from loader import Simulation, compile
+from rlc import Program, compile, State
 from shutil import which
-from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
-from command_line import load_simulation_for_ml, make_rlc_argparse
+from ml.raylib.environment import exit_on_invalid_env
+from command_line import load_program_from_args, make_rlc_argparse
 
 
 def main():
@@ -44,38 +44,35 @@ def main():
     )
 
     args = parser.parse_args()
-    with load_simulation_for_ml(args) as sim:
-        if not sim.functions.print_enumeration_errors(sim.module.AnyGameAction()):
-            exit(-1);
-        exit_on_invalid_env(sim, forced_one_player=True)
-        env = RLCEnvironment(wrapper=sim.module, forced_one_player=True)
+    with load_program_from_args(args) as program:
+        if not program.functions.print_enumeration_errors(
+            program.module.AnyGameAction()
+        ):
+            exit(-1)
+        exit_on_invalid_env(program, forced_one_player=True, needs_score=False)
+        state = program.start()
 
         out = open(args.output, "w+") if args.output != "" else sys.stdout
         current = 0
         while args.iterations != current:
-          out.write(f"# game {current}\n")
-          current = current + 1
-          env.reset()
-          while True:
-            if args.max_actions != -1:
-                if args.max_actions == 0:
-                    exit()
-                args.max_actions = args.max_actions - 1
-            actions = env.legal_actions_indicies()
-            if len(actions) == 0:
-                print("found state with no valid action")
-                sim.functions.print(env.state)
-                exit(-1)
-            action = random.choice(actions)
-            actions = [action for i in range(env.num_agents)]
-            obs, reward, done, truncated, info = env.step(
-               actions
-            )
-            out.write(env.action_to_string(env.actions[actions[0]]))
-            out.write("\n")
-            out.flush()
-            if done["__all__"] or truncated["__all__"]:
-                break
+            out.write(f"# game {current}\n")
+            current = current + 1
+            state.reset()
+            while not state.is_done():
+                if args.max_actions != -1:
+                    if args.max_actions == 0:
+                        exit()
+                    args.max_actions = args.max_actions - 1
+                actions = state.legal_actions
+                if len(actions) == 0:
+                    print("found state with no valid action")
+                    state.print()
+                    exit(-1)
+                action = random.choice(actions)
+                state.step(action)
+                out.write(program.to_string(action))
+                out.write("\n")
+                out.flush()
 
 
 if __name__ == "__main__":

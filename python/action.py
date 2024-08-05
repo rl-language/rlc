@@ -10,10 +10,10 @@
 
 import sys
 import argparse
-from loader import Simulation, compile, State
+from rlc import compile, Program, State
 import os
 from shutil import which
-from command_line import load_simulation_for_ml, make_rlc_argparse
+from command_line import load_program_from_args, make_rlc_argparse
 
 
 def main():
@@ -46,13 +46,13 @@ def main():
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
     args = parser.parse_args()
-    with load_simulation_for_ml(args) as sim:
+    with load_program_from_args(args) as program:
 
         if args.show_actions:
-            sim.dump()
+            program.dump()
             return
 
-        state = sim.start("play")
+        state = program.start()
         if args.load != "":
             state.load(args.load)
 
@@ -73,7 +73,7 @@ def main():
             if args.print_all:
                 print(i, line)
 
-            action = sim.parse_action(line)
+            action = program.parse_action(line)
             if action is None:
                 if args.ignore_invalid:
                     continue
@@ -82,13 +82,13 @@ def main():
                     print(i, line)
                     break
 
-            if not action.can_run(state):
+            if not state.can_apply(action):
                 if args.ignore_invalid:
                     continue
                 else:
                     print("Cannot apply the following action:")
                     failed = True
-                    print(i, action, line)
+                    print(i, program.to_string(action), line)
                     break
 
             if args.pretty_print:
@@ -96,8 +96,8 @@ def main():
                 os.system("cls||clear")
                 state.simulation.module.functions.pretty_print(state.state)
             if not args.print_all:
-                print(i, action)
-            action.run(state)
+                print(i, program.to_string(action))
+            state.step(action)
 
         if args.pretty_print:
             input()
@@ -107,7 +107,7 @@ def main():
         if args.output != "":
             state.write_binary(args.output)
         elif not args.pretty_print:
-            print(state)
+            print(state.to_string())
 
         if failed:
             exit(-1)

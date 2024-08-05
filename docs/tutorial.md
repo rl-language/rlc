@@ -184,29 +184,29 @@ Until now, we have seen how to write, train, run, and visualize a game. Of cours
 
 Create a file called `example.py`, and write the following content:
 ```python
-from loader import compile
+from rlc import compile
 import random
 
 # load the rl file
-rl_module = compile("black_jack.rl")
-state = rl_module.functions.play()
+program = compile("black_jack.rl")
+state = program.functions.play()
 
-while rl_module.functions.get_current_player(state) == -1:
-    action = random.choice(rl_module.valid_actions(state))
-    rl_module.functions.apply(action, state)
+while program.functions.get_current_player(state) == -1:
+    action = random.choice(program.valid_actions(state))
+    program.functions.apply(action, state)
 
-rl_module.functions.pretty_print(state)
+program.functions.pretty_print(state)
 while state.resume_index != -1:
     print("hit? (y/n)")
     decision = input()
     if decision == "y":
-        rl_module.functions.hit(state)
+        program.functions.hit(state)
     else:
-        rl_module.functions.stand(state)
+        program.functions.stand(state)
 
-    rl_module.functions.pretty_print(state)
+    program.functions.pretty_print(state)
 
-print(f"Your final score is: {rl_module.functions.score(state, 0)}")
+print(f"Your final score is: {program.functions.score(state, 0)}")
 ```
 
 You can run this program with the following command, using a shell with the activated environment:

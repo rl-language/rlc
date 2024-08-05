@@ -31,6 +31,7 @@ def configure_mapping(num_players, league_play):
 def agent_to_module_mapping_fn_single(agent_id, episode, **kwargs):
     return "p0"
 
+
 class CallBack(ray.rllib.algorithms.callbacks.DefaultCallbacks):
     def on_episode_end(
         self,
@@ -45,9 +46,10 @@ class CallBack(ray.rllib.algorithms.callbacks.DefaultCallbacks):
     ):
         env.log_extra_metrics(metrics_logger)
 
-def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
-    state_size = RLCEnvironment(wrapper=wrapper).state_size
-    actions_count = RLCEnvironment(wrapper=wrapper).num_actions
+
+def get_config(program, num_agents=1, exploration=True, league_play=False):
+    state_size = RLCEnvironment(program=program).state_size
+    actions_count = RLCEnvironment(program=program).num_actions
     print("state size", state_size)
     print("actions count", actions_count)
     # Step 1: Configure PPO to run 64 parallel workers to collect samples from the env.
@@ -65,7 +67,9 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
             policies_to_train=[f"p{x}" for x in range(num_agents)],
         )
         .experimental(_disable_preprocessor_api=True)
-        .api_stack(enable_rl_module_and_learner=True,  enable_env_runner_and_connector_v2=True)
+        .api_stack(
+            enable_rl_module_and_learner=True, enable_env_runner_and_connector_v2=True
+        )
         .callbacks(CallBack)
         .rl_module(
             rl_module_spec=MultiAgentRLModuleSpec(
@@ -74,7 +78,7 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
                         f"p{x}": SingleAgentRLModuleSpec(
                             TorchActionMaskRLM,
                             observation_space=RLCEnvironment(
-                                wrapper=wrapper
+                                program=program
                             ).observation_space[0],
                         )
                         for x in range(num_agents * 2)
@@ -84,7 +88,7 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
                         f"p{0}": SingleAgentRLModuleSpec(
                             TorchActionMaskRLM,
                             observation_space=RLCEnvironment(
-                                wrapper=wrapper
+                                program=program
                             ).observation_space[0],
                         )
                     }
@@ -101,7 +105,7 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
                 )
             ),
             evaluation_duration=1,
-            evaluation_duration_unit='episodes',
+            evaluation_duration_unit="episodes",
             # disabled evaluation due to crash of ray in 2.30
             # ToDo: enable me back
             evaluation_parallel_to_training=False,
@@ -117,12 +121,8 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
         .environment(
             env="rlc_env",
             env_config={
-                "observation_space": RLCEnvironment(
-                    wrapper=wrapper
-                ).observation_space,
-                "action_space": RLCEnvironment(
-                    wrapper=wrapper
-                ).action_space,
+                "observation_space": RLCEnvironment(program=program).observation_space,
+                "action_space": RLCEnvironment(program=program).action_space,
             },
         )
         .rollouts(
@@ -200,6 +200,9 @@ def get_config(wrapper, num_agents=1, exploration=True, league_play=False):
     }
 
     hyperopt_search = HyperOptSearch(
-        space, "env_runners/episode_return_mean", mode="max", points_to_evaluate=[initial3]
+        space,
+        "env_runners/episode_return_mean",
+        mode="max",
+        points_to_evaluate=[initial3],
     )
     return ppo_config, hyperopt_search

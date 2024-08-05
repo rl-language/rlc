@@ -9,30 +9,10 @@
 #
 from shutil import which
 import argparse
-from loader import Simulation, compile
+from rlc import Program, State, compile
 import pickle
-from ml import RLCTransformer
 import torch
 import pathlib
-
-
-def load_network(path, ntokens, device):
-    if path == "":
-        return RLCTransformer(ntokens=ntokens, device=device)
-    return torch.load(path)
-
-
-def load_dataset(path):
-    to_return = []
-    with open(path, "rb") as f:
-        while True:
-            try:
-                loaded = pickle.load(f)
-                for state, actions_and_scores in loaded:
-                    to_return.append((state, actions_and_scores))
-            except Exception as e:
-                break
-    return to_return
 
 
 def make_rlc_argparse(name, description):
@@ -75,21 +55,10 @@ def make_rlc_argparse(name, description):
     )
     return parser
 
-def stdlib_location(rlc):
-    rlc_path = which(rlc)
-    assert (
-        rlc_path is not None
-    ), "could not find executable {}, use --rlc <path_to_rlc> to configure it".format(
-        rlc
-    )
-    return pathlib.Path(rlc_path).parent.parent.absolute() / "lib" / "rlc" / "stdlib"
 
-def stdlib_file(rlc, file, stdlib=None):
-    if stdlib != None:
-        return pathlib.Path(stdlib) / file
-    return stdlib_location(rlc) / file
-
-def load_simulation_from_args(args, optimize=False, extra_source_files=[]):
+def load_program_from_args(
+    args, optimize=False, extra_source_files=[], gen_python_methods=True
+):
     assert (
         which(args.rlc) is not None
     ), "could not find executable {}, use --rlc <path_to_rlc> to configure it".format(
@@ -97,13 +66,15 @@ def load_simulation_from_args(args, optimize=False, extra_source_files=[]):
     )
 
     if args.source_file.endswith(".py"):
-      return Simulation(args.source_file)
+        return Simulation(args.source_file)
     else:
-      includes = [include for include in args.include]
-      if args.stdlib is not None:
-        includes.append(args.stdlib)
-      return compile([args.source_file] + extra_source_files, args.rlc, includes, args.runtime, optimized=optimize)
-
-def load_simulation_for_ml(args, optimize=False, extra_source_files=[]):
-    learn_file = stdlib_file(args.rlc, "learn.rl", stdlib=args.stdlib)
-    return load_simulation_from_args(args, optimize=optimize, extra_source_files=extra_source_files + [learn_file])
+        includes = [include for include in args.include]
+        return compile(
+            [args.source_file] + extra_source_files,
+            args.rlc,
+            includes,
+            args.runtime,
+            optimized=optimize,
+            stdlib=args.stdlib,
+            gen_python_methods=gen_python_methods,
+        )
