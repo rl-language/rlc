@@ -152,14 +152,6 @@ fun enumerate(Bool b, Vector<Bool> output):
     output.append(true)
     output.append(false)
 
-fun<Enum T> enumerate(T b, Vector<T> output):
-    let i = 0
-    while i != b.max() + 1:
-        let b : T 
-        b.from_int(i)
-        output.append(b)
-        i = i + 1
-
 fun<T> _enumerate_impl(T obj, Int current_argument, Vector<T> out, Int num_args):
     let counter = 0
     for field of obj:
