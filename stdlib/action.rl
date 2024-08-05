@@ -20,6 +20,7 @@ import serialization.print
 import bounded_arg
 import math.numeric
 import algorithms.equal
+import enum_utils
 
 trait<FrameType, ActionType> ApplicableTo:
     fun apply(ActionType action, FrameType frame)
@@ -280,12 +281,6 @@ fun<T> enumerate(T obj) -> Vector<T>:
 trait<T> Tensorable:
     fun write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter) 
     fun size_as_observation_tensor(T obj) -> Int
-
-trait<T> Enum:
-    fun max(T obj) -> Int
-    fun is_enum(T obj) -> Bool 
-    fun as_int(T obj) -> Int
-    fun from_int(T obj, Int new_value)
 
 fun write_in_observation_tensor(Int value, Int min, Int max, Vector<Float> output, Int index):
     let counter = min

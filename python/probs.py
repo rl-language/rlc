@@ -16,7 +16,7 @@ from command_line import load_simulation_for_ml, make_rlc_argparse
 
 def main():
     parser = make_rlc_argparse("probs", description="print the probability of executing each action")
-    parser.add_argument("checkpoint", type=str)
+    parser.add_argument("checkpoint", type=str, nargs='?', default=None)
     parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--pretty-print", "-pp", action="store_true", default=False)
     parser.add_argument("--state", "-s", default="")
@@ -41,11 +41,13 @@ def main():
             else get_num_players(sim)
         )
 
-        model = Algorithm.from_checkpoint(args.checkpoint)
-        for i in range(num_players):
-            model.workers.local_worker().module[f"p{i}"].load_state(
-                f"{args.checkpoint}/learner/net_p{i}/"
-            )
+        (config, _) = get_config(sim.module, num_players)
+        model = Algorithm.from_checkpoint(args.checkpoint) if args.checkpoint is not None else config.build()
+        if args.checkpoint is not None:
+            for i in range(num_players):
+                model.workers.local_worker().module[f"p{i}"].load_state(
+                    f"{args.checkpoint}/learner/net_p{i}/"
+                )
         os.system("cls||clear")
         for iteration in range(args.iterations):
           env = RLCEnvironment(wrapper=sim.module)
@@ -74,7 +76,7 @@ def main():
 
           if args.pretty_print:
             env.wrapper.functions.pretty_print(env.state)
-        else:
+          else:
             env.wrapper.functions.print(env.state)
 
 

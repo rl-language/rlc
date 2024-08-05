@@ -268,6 +268,7 @@ static void registerConversions(
 		return mlir::rlc::ContextType::get(t.getContext(), converted);
 	});
 	converter.addConversion([](mlir::rlc::IntegerType t) { return t; });
+	converter.addConversion([](mlir::rlc::StringLiteralType t) { return t; });
 	converter.addConversion([](mlir::rlc::VoidType t) { return t; });
 	converter.addConversion([](mlir::rlc::BoolType t) { return t; });
 	converter.addConversion([](mlir::rlc::FloatType t) { return t; });

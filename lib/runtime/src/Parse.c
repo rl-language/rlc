@@ -15,6 +15,7 @@ limitations under the License.
 */
 #include <ctype.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -102,6 +103,12 @@ void rl_parse_string__int64_t_String_int64_t_r_bool(
 	int scanned = sscanf((char*) to_read, "%" SCNd64 "%n", result, &c);
 	*return_value = scanned == 1;
 	*current += (int64_t) (c);
+}
+
+// fun sqrt(Float result, Float to_root)
+void rl_sqrt__double_r_double(double* out, double* to_root)
+{
+	*out = sqrt(*to_root);
 }
 
 // fun parse_string(Float result, String buffer, Int index)

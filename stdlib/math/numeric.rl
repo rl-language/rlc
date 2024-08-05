@@ -23,3 +23,5 @@ fun min(Int a, Int b) -> Int:
   if b > a:
     return a
   return b
+
+ext fun sqrt(Float f) -> Float

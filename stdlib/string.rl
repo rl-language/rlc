@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import collections.vector
+import enum_utils
 
 # a c style string, composed of a series of ascii characters
 # terminated by a null terminator. If the string changes, it 

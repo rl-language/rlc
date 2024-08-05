@@ -199,7 +199,7 @@ namespace mlir::rlc
 	//    b
 	//    d
 	//
-	//  fun c() -> Int:
+	//  fun c(A self) -> Int:
 	//    if self == A::b:
 	//       return 0
 	//    if self == A::d:
