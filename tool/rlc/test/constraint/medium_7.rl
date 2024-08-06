@@ -8,12 +8,18 @@ fun main() -> Int:
 	else:
 		return -1
 
-# a_true  : (11,20)
-# a_false : (MIN_INT,MAX_INT)
+# NOW IT WORKS
 
-# This case now becomes analogous to medium_6.rl
+# We could note that doing this it would work fine
+	#if a < 11:
+	#	if a > 5:
+	#		if b < 10: 
+	#			if b > 6:
+	#				if c < 9:
+	#					if c > 7:
+	#						return true
+	#return false
 
 fun foo(Int a) -> Bool:
-	if a > 10:
-		return a < 20
-	return false
+	
+	return a<11 and a>5

@@ -169,12 +169,20 @@ namespace mlir::rlc
 
 			const std::pair<bool,bool> isValuePresentInLattice(const mlir::Value& value) const;
 
-			const std::pair<bool,bool> isConstPresentInLattice()const ;
+			const std::pair<bool,bool> isConstPresentInLattice() const;
+
+			bool isOnlyElementInToCheckLattice(const mlir::Value& value) const;
+
+			bool isOnlyToCheckPresentInLattice(const mlir::Value& value) const;
+
+			bool isValueOfTypePresentInLattice(bool type) const;
+
+			bool rangesEmptyAndToCheckOneElement() const;
 
 			void removeConstFromLattice(const bool type);
 
 			// When I visit a builtin assign operation I need to check if it is in the lattice
-			mlir::ChangeResult visitBuiltinAssign(mlir::Operation* statement);
+			mlir::ChangeResult visitBuiltinAssign(mlir::Operation* statement, mlir::rlc::ConstraintsAnalysis* analysis);
 
 			// When I visit an uninitialized construct I need to insert the ssa value 
 			// in the set
@@ -186,7 +194,7 @@ namespace mlir::rlc
 
 			mlir::ChangeResult visitYield(mlir::Operation* statement);
 
-			mlir::ChangeResult visitBranch(mlir::Operation* statement, mlir::rlc::ConstraintsAnalysis* analysis );
+			mlir::ChangeResult visitBranch(mlir::Operation* statement, ConstraintsAnalysis* analysis);
 
 			private:
 
@@ -369,9 +377,9 @@ namespace mlir::rlc
 			//Keep it to check if there is no change
 			auto copy = *this;
 
-			llvm::outs()<<"Did i join?\n";
-			this->print(llvm::outs());
-			other.print(llvm::outs());
+			llvm::outs()<<"join\n";
+			// this->print(llvm::outs());
+			// other.print(llvm::outs());
 
 			//Insert the other in this
 			for(const auto& other_range : other.ranges){
@@ -387,11 +395,10 @@ namespace mlir::rlc
 
 			//
 			if (*this==copy and other==copy){
-				llvm::outs()<<"no\n";
-				this->print(llvm::outs());
+				//this->print(llvm::outs());
 				return mlir::ChangeResult::NoChange;
 			}
-			this->print(llvm::outs());
+			//this->print(llvm::outs());
 			return mlir::ChangeResult::Change;
 		}
 
@@ -523,6 +530,33 @@ namespace mlir::rlc
 			return std::make_pair(can_true,can_false);
 		}
 
+		bool ConstraintsLattice::isOnlyElementInToCheckLattice(const mlir::Value& value) const{
+			//return this->to_check.size()==1 and to_check.contains(value) and this->ranges.empty();
+			return to_check.contains(value) and this->ranges.empty();
+		}
+
+		bool ConstraintsLattice::isOnlyToCheckPresentInLattice(const mlir::Value& value) const{
+			
+			for(auto pair : this->ranges){
+				if(pair.first.first==value)
+					return false;
+			}
+			return not this->to_check.empty();
+		}
+
+		bool ConstraintsLattice::isValueOfTypePresentInLattice(bool type) const{
+
+			for(auto pair : this->ranges){
+				if(pair.first.second==type)
+					return true;
+			}
+			return false;
+		}
+
+		bool ConstraintsLattice::rangesEmptyAndToCheckOneElement() const{
+			return this->ranges.empty() and this->to_check.size()==1;
+		}
+
 		void ConstraintsLattice::removeConstFromLattice(const bool type){
 			for(auto pair: this->ranges){
 				if(not (pair.first.first.getDefiningOp()==nullptr) and
@@ -533,7 +567,7 @@ namespace mlir::rlc
 		}
 
 		// When I visit a builtin assign operation I need to check if it is in the lattice
-		mlir::ChangeResult ConstraintsLattice::visitBuiltinAssign(mlir::Operation* statement){
+		mlir::ChangeResult ConstraintsLattice::visitBuiltinAssign(mlir::Operation* statement, mlir::rlc::ConstraintsAnalysis* analysis){
 		
 			llvm::outs()<<"Visiting builtin assign operation\n";
 		
@@ -553,14 +587,166 @@ namespace mlir::rlc
 			// another uninitialized construct.
 			// In this way we need to remove the one we already know and add the other one
 			if(mlir::isa<mlir::rlc::UninitializedConstruct>(casted->getOperand(1).getDefiningOp())){
-				this->to_check.erase(casted->getOperand(0));
+				//this->to_check.erase(casted->getOperand(0));
 				this->to_check.insert(casted->getOperand(1));
 				return mlir::ChangeResult::Change;
 			}
+		
+			// If there is a valid operation then we have to treat it similarly to a rlc.crb
+			// But here we need to consider an important assumption (or else everything will be more complicated):
+			// When doing a rlc.builtin_assign of a relational operator we will check it immediately later in a rlc.crb
 
-			// If there is a valid operation then we need to call the funciton which
-			// evaluates the range we are interested in
-			return this->visitYield(statement);
+			// This helps avoiding doing the same check in the visitBranch method
+
+			// What we need to do here is something very important: 
+			// check the operation in mostly the same way 
+			// but now I do not need to look for the constant but for the presence of the rlc.uninit_construct
+
+			auto copy=*this;
+			
+			// Before this there could be a case in which I have only one successor, 
+			// in that case I just call the visitYield
+			if(statement->getBlock()->getNumSuccessors()==1)
+				return this->visitYield(statement);
+
+
+			mlir::Operation* conditional_op=casted->getOperand(1).getDefiningOp();
+
+			// if(auto casted=mlir::dyn_cast<rlc::UninitializedConstruct>(conditional_op)){
+			// 	llvm::outs()<<"\nAdded uninitialized construct:\n";
+			// 	return this->visitUninitializedConstruct(statement);
+			// }
+
+			// Do the checking only if the operation is a conditional (relational)
+			if(	not mlir::isa<mlir::rlc::LessOp>(conditional_op) and 
+				not mlir::isa<mlir::rlc::GreaterOp>(conditional_op) and
+				not mlir::isa<mlir::rlc::LessEqualOp>(conditional_op) and 
+				not mlir::isa<mlir::rlc::GreaterEqualOp>(conditional_op))
+				return mlir::ChangeResult::NoChange;
+
+			const auto& lhs = conditional_op->getOperand(0);
+			const auto& rhs = conditional_op->getOperand(1);
+			const auto& lhs_op = lhs.getDefiningOp();
+			const auto& rhs_op = rhs.getDefiningOp();
+
+			// The algorithm will work mostly as the one for the arithmetic operations, but it will be simpler (no commutativity problem)
+			// NB: note that they are not exclusive so they have to be executed always
+
+			// If the rhs is a constant
+			if(auto rhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(rhs_op)){
+
+				// Here we use the assumption that a relational operator has always two successors
+
+				// Look at the next lattice in the true branch
+				auto trueLattice=analysis->getObjLattice(&statement->getBlock()->getSuccessor(0)->front());
+
+				// This is equivalent to haveing a return constant (in this case is return true)
+				auto branch_true_is_only_tocheck=trueLattice->isOnlyElementInToCheckLattice(casted.getOperand(0));
+				auto branch_true_is_value_present=trueLattice->isValuePresentInLattice(lhs);
+				auto branch_true_has_true=this->isValueOfTypePresentInLattice(true);
+
+				// After we called the two functions we need to understand if it is a valid update.
+				// Then the result is a valid update if one of the two values is true 
+				auto branch_true_yield_true=branch_true_is_only_tocheck or branch_true_is_value_present.first or branch_true_has_true;
+				auto branch_true_yield_false=not branch_true_is_only_tocheck and branch_true_is_value_present.second;
+
+				// And do the same in the false
+				auto falseLattice=analysis->getObjLattice(&statement->getBlock()->getSuccessor(1)->front());
+
+				auto branch_false_is_only_tocheck=falseLattice->isOnlyElementInToCheckLattice(casted.getOperand(0));
+				auto branch_false_is_value_present=falseLattice->isValuePresentInLattice(lhs);
+				auto branch_false_has_false=this->isValueOfTypePresentInLattice(false);
+
+				auto branch_false_yield_true=not branch_false_is_only_tocheck and branch_false_is_value_present.first;
+				auto branch_false_yield_false=branch_false_is_only_tocheck or branch_false_is_value_present.second or branch_false_has_false;
+
+				// We need to perform a similar operation 
+
+				// llvm::outs()<<"\nLUIS "<<
+				// branch_true_is_only_tocheck<<
+				// branch_true_is_value_present.first<<
+				// branch_true_is_value_present.second<<
+				// branch_false_is_only_tocheck<<
+				// branch_false_is_value_present.first<<
+				// branch_false_is_value_present.second<<"\n"<<
+				// branch_true_yield_true<<
+				// branch_true_yield_false<<
+				// branch_false_yield_true<<
+				// branch_false_yield_false<<"\n";
+				// this->print(llvm::outs());
+				// trueLattice->print(llvm::outs());
+				// falseLattice->print(llvm::outs());
+
+				// Modify my ranges only when i am sure that i am passing through a initialized (true/false) branch
+				if (not branch_true_yield_true and not branch_true_yield_false and
+					not branch_false_yield_true and not branch_false_yield_false)
+					return mlir::ChangeResult::NoChange;
+				
+
+				// If both branches yield true then there is no need to update since no more information can be retrieved
+				if(not branch_true_yield_true==branch_false_yield_true){
+
+					if(branch_true_yield_true)
+						this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, true);	
+
+					if(branch_false_yield_true)
+						this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, true);
+				
+				}
+
+				if(not branch_true_yield_false==branch_false_yield_false){
+
+					if(branch_true_yield_false)
+						this->updateRelationalRange(conditional_op, true, lhs, rhs_casted, false);
+					
+					if(branch_false_yield_false)
+						this->updateRelationalRange(conditional_op, false, lhs, rhs_casted, false);	
+				
+				}
+			}
+			// If the lhs is a constant then do the same but with inverted branches
+			/*else if(auto lhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(lhs_op)){
+
+				if(not branch_true_yield_true==branch_false_yield_true){
+
+					if(branch_true_yield_true)
+						this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, true);	
+					
+					if(branch_true_yield_false)
+						this->updateRelationalRange(conditional_op, false, rhs, lhs_casted, false);	
+				
+				}
+				else{
+					this->insertOrJoin(std::make_pair(rhs,true),this->getTOP());
+				}
+
+				if(not branch_true_yield_false==branch_false_yield_false){
+
+					if(branch_false_yield_true)
+						this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, true);	
+					
+					if(branch_false_yield_false)
+						this->updateRelationalRange(conditional_op, true, rhs, lhs_casted, false);	
+					
+				}
+				else{
+					this->insertOrJoin(std::make_pair(rhs,false),this->getTOP());
+				}
+
+			}
+			*/
+			// else do nothing
+
+			if(*this!=copy){
+				llvm::outs()<<"something should have changed\n";
+				this->print(llvm::outs());
+				return mlir::ChangeResult::Change;
+			}
+			else{
+				return mlir::ChangeResult::NoChange;
+			}
+
+			return mlir::ChangeResult::NoChange;
 
 		}
 
@@ -576,6 +762,7 @@ namespace mlir::rlc
 			}
 			else if(auto casted=mlir::dyn_cast<mlir::rlc::Yield>(statement)){
 				res = this->to_check.insert(casted.getOperand(0)).second;
+				llvm::outs()<<"BIG "<<res<<"\n";
 			}
 
 			// NB: if the ssa value is already present then we can just leave it there
@@ -725,7 +912,7 @@ namespace mlir::rlc
 			}
 		}
 
-		mlir::ChangeResult ConstraintsLattice::visitBranch(mlir::Operation* statement, mlir::rlc::ConstraintsAnalysis* analysis ){
+		mlir::ChangeResult ConstraintsLattice::visitBranch(mlir::Operation* statement, mlir::rlc::ConstraintsAnalysis* analysis){
 
 			if (not this->to_check.empty())
 				return mlir::ChangeResult::NoChange;
@@ -758,7 +945,7 @@ namespace mlir::rlc
 
 			// If the rhs is a constant
 			if(auto rhs_casted=mlir::dyn_cast<mlir::rlc::Constant>(rhs_op)){
-				
+
 				// Look at the next lattice in the true branch
 				auto trueLattice=analysis->getObjLattice(&casted.getTrueBranch()->front());
 
@@ -799,9 +986,41 @@ namespace mlir::rlc
 					this->insertOrJoin(std::make_pair(lhs,false),this->getTOP());
 				}
 
-				// And at the end we can delete the constant from the lattice
-				//this->removeConstFromLattice(true);
-				//this->removeConstFromLattice(false);
+				// There is also an interesting case which can be analyzed:
+				// When we perform a 
+				// return a > 5 and a < 10 and b < 5
+				// Here we will need to be sure to evaluate that a < 10.
+				// To do it we can check the lattices, and discover that when evaluating
+				// the rlc.crb related to a < 10 the false lattice will consist only of an uninitialized construct.
+				// So the false branch has to be set to TOP and the true branch will be regularly evaluated
+
+				// if(falseLattice->rangesEmptyAndToCheckOneElement()){
+				// 	branch_true_yield_true=true;
+				// 	branch_true_yield_false=false;
+				// 	branch_false_yield_true=false;
+				// 	branch_false_yield_false=false;
+				// 	llvm::outs()<<"SOUMM\n";
+				// 	this->insertOrJoin(std::make_pair(lhs,false),this->getTOP());
+				// }
+				// // Then we need to check for uninitialized constructs derived from the flattening of logical operations
+				// // And we perform a similar operation as with constants
+				// else{
+				// 	if(trueLattice->isOnlyToCheckPresentInLattice(lhs)){
+				// 		this->insertOrJoin(std::make_pair(lhs,true),this->getTOP());
+				// 		// Dirty trick to force to not update
+				// 		branch_true_yield_true=branch_false_yield_true;
+				// 	}
+
+				// 	if(falseLattice->isOnlyToCheckPresentInLattice(lhs)){
+				// 		this->insertOrJoin(std::make_pair(lhs,false),this->getTOP());
+				// 		branch_true_yield_false=branch_false_yield_false;
+				// 	}
+				// }
+
+
+				llvm::outs()<<"\nMUIS\n\n";
+				trueLattice->print(llvm::outs());
+				falseLattice->print(llvm::outs());
 
 				// Modify my ranges only when i am sure that i am passing through a initialized (true/false) branch
 				if (not branch_true_yield_true and not branch_true_yield_false and
@@ -1054,7 +1273,7 @@ namespace mlir::rlc
 			else if(mlir::rlc::ConstraintsAnalysis::isBuiltinAssign(op)){
 			
 				// Call the function which will call the yield
-				res = before->visitBuiltinAssign(op) == mlir::ChangeResult::Change ?
+				res = before->visitBuiltinAssign(op,this) == mlir::ChangeResult::Change ?
 					mlir::ChangeResult::Change : res;
 				propagateIfChanged(before, res);
 			}
@@ -1203,9 +1422,9 @@ namespace mlir::rlc
 				// https://mlir.llvm.org/doxygen/DenseAnalysis_8cpp_source.html#l00387 <- I am just stupid, here it goes through the predecessors
 				// Blocks have a getPredecessors() method
 				auto block=fun.getRegion(0).front().getNextNode()->getNextNode();
-				con.printRangesFound(&block->back());
+				con.printRangesFound(&block->front());
 
-				auto lattice = con.getOperationLattice(&block->back());
+				auto lattice = con.getOperationLattice(&block->front());
 
 				// Iterate through the arguments -> are the arguments of the first block
 				for(auto arg: fun.getRegion(0).front().getArguments()){
