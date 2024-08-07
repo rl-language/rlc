@@ -28,9 +28,10 @@ def main():
         default="",
     )
     parser.add_argument("checkpoint", type=str)
-    parser.add_argument("--no-one-agent-per-player", action="store_false", default=True)
+    parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--print-scores", action="store_true", default=False)
     parser.add_argument("--iterations", default=1, type=int)
+    parser.add_argument("--progress", action="store_true", default=False)
 
     args = parser.parse_args()
     with load_program_from_args(args, optimize=True) as program:
@@ -46,7 +47,7 @@ def main():
         )
 
         num_players = (
-            1 if not args.no_one_agent_per_player else get_num_players(program.module)
+            1 if args.true_self_play else get_num_players(program.module)
         )
 
         model = Algorithm.from_checkpoint(args.checkpoint)
@@ -56,10 +57,12 @@ def main():
             )
         out = open(args.output, "w+") if args.output != "" else sys.stdout
         for i in range(args.iterations):
+            if args.progress:
+                print(f"iteration {i}/{args.iterations}")
             out.write(f"# game: {i}\n")
             env = RLCEnvironment(program=program, solve_randomness=False)
             while env.current_player != -4:
-                action = env.one_action_according_to_model(model)
+                action = env.one_action_according_to_model(model, args.true_self_play)
                 out.write(program.to_string(action) + "\n")
             if args.print_scores:
                 out.write("# score: ")

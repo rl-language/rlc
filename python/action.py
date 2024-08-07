@@ -64,7 +64,7 @@ def main():
             else open(args.action_file, "r").readlines()
         )
         if args.pretty_print:
-            state.simulation.module.functions.pretty_print(state.state)
+            state.pretty_print()
             input()
         for i, line in enumerate(lines):
             if line.strip() == "" or line.strip().startswith("#"):
@@ -94,7 +94,7 @@ def main():
             if args.pretty_print:
                 input()
                 os.system("cls||clear")
-                state.simulation.module.functions.pretty_print(state.state)
+                state.pretty_print()
             if not args.print_all:
                 print(i, program.to_string(action))
             state.step(action)
@@ -102,7 +102,7 @@ def main():
         if args.pretty_print:
             input()
             os.system("cls||clear")
-            state.simulation.module.functions.pretty_print(state.state)
+            state.pretty_print()
 
         if args.output != "":
             state.write_binary(args.output)

@@ -283,18 +283,20 @@ class RLCEnvironment(MultiAgentEnv):
         info["current_player"] = self.current_player
         return observation, reward, done, truncated, info
 
-    def _get_next_action_index(self, model):
+    def _get_next_action_index(self, model, true_self_play):
         if self.current_player == -1:
             return random.choice(self.legal_actions_indicies)
+        current_player = self.current_player
         obs = self._current_state()
-        policy_id = f"p{self.current_player}"
+        policy_id_number = current_player if not true_self_play else 0
+        policy_id = f"p{policy_id_number}"
         module = model.get_module(policy_id)
-        obs[self.current_player]["observations"] = torch.tensor(
-            np.expand_dims(obs[self.current_player]["observations"], 0),
+        obs[current_player]["observations"] = torch.tensor(
+            np.expand_dims(obs[current_player]["observations"], 0),
             dtype=torch.float32,
         )
-        obs[self.current_player]["action_mask"] = torch.tensor(
-            np.expand_dims(obs[self.current_player]["action_mask"], 0),
+        obs[current_player]["action_mask"] = torch.tensor(
+            np.expand_dims(obs[current_player]["action_mask"], 0),
             dtype=torch.float32,
         )
         data = {"obs": obs[self.current_player]}
@@ -303,8 +305,8 @@ class RLCEnvironment(MultiAgentEnv):
             action_probs = torch.softmax(logits["action_dist_inputs"], dim=-1)
             return torch.multinomial(action_probs, num_samples=1)[0, 0].item()
 
-    def one_action_according_to_model(self, model):
-        sampled = self._get_next_action_index(model)
+    def one_action_according_to_model(self, model, true_self_play):
+        sampled = self._get_next_action_index(model, true_self_play)
         assert self.program.functions.can_apply(
             self.actions[sampled], self.state.state
         ).value

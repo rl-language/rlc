@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 from types import ModuleType
+from shutil import which
 from importlib import import_module, machinery, util
 import os
 import inspect
