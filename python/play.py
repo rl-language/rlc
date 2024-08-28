@@ -46,12 +46,10 @@ def main():
             "rlc_env", lambda config: RLCEnvironment(program=Program(module_path))
         )
 
-        num_players = (
-            1 if args.true_self_play else get_num_players(program.module)
-        )
+        num_agents = 1 if args.true_self_play else get_num_players(program.module)
 
         model = Algorithm.from_checkpoint(args.checkpoint)
-        for i in range(num_players):
+        for i in range(num_agents):
             model.workers.local_worker().module[f"p{i}"].load_state(
                 f"{args.checkpoint}/learner/net_p{i}/"
             )

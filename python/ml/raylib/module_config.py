@@ -14,8 +14,11 @@ from ml.raylib.environment import RLCEnvironment
 from ray.rllib.env.multi_agent_env_runner import MultiAgentEnvRunner
 
 
-def configure_mapping(num_players, league_play):
+def configure_mapping(num_players, league_play, true_self_play):
     def agent_to_module_mapping_fn(agent_id, episode, **kwargs):
+        if true_self_play:
+            return "p0"
+        assert agent_id in range(num_players)
         modulo_id = hash(episode.id_) % (num_players * 5)
         for i in range(num_players):
             if agent_id == i:
@@ -23,13 +26,10 @@ def configure_mapping(num_players, league_play):
                     return f"p{i + num_players}"
                 else:
                     return f"p{i}"
+        print(num_players, league_play, true_self_play, agent_id)
         assert False
 
     return agent_to_module_mapping_fn
-
-
-def agent_to_module_mapping_fn_single(agent_id, episode, **kwargs):
-    return "p0"
 
 
 class CallBack(ray.rllib.algorithms.callbacks.DefaultCallbacks):
@@ -47,24 +47,30 @@ class CallBack(ray.rllib.algorithms.callbacks.DefaultCallbacks):
         env.log_extra_metrics(metrics_logger)
 
 
-def get_config(program, num_agents=1, exploration=True, league_play=False):
+def get_config(
+    program, num_agents=1, exploration=True, league_play=False, true_self_play=False
+):
     state_size = RLCEnvironment(program=program).state_size
     actions_count = RLCEnvironment(program=program).num_actions
     print("state size", state_size)
     print("actions count", actions_count)
     # Step 1: Configure PPO to run 64 parallel workers to collect samples from the env.
+    total_policies_count = num_agents if not true_self_play else 1
+    total_policies_count = (
+        (total_policies_count * 2) if league_play else total_policies_count
+    )
     ppo_config = (
         PPOConfig()
         .multi_agent(
-            policies=(
-                {f"p{x}" for x in range(num_agents * 2)} if num_agents != 1 else {"p0"}
-            ),
+            policies=({f"p{x}" for x in range(total_policies_count)}),
             policy_mapping_fn=(
-                configure_mapping(num_agents, league_play=league_play)
-                if num_agents != 1
-                else agent_to_module_mapping_fn_single
+                configure_mapping(
+                    num_agents, league_play=league_play, true_self_play=true_self_play
+                )
             ),
-            policies_to_train=[f"p{x}" for x in range(num_agents)],
+            policies_to_train=[
+                f"p{x}" for x in range(num_agents if not true_self_play else 1)
+            ],
         )
         .experimental(_disable_preprocessor_api=True)
         .api_stack(
@@ -81,16 +87,7 @@ def get_config(program, num_agents=1, exploration=True, league_play=False):
                                 program=program
                             ).observation_space[0],
                         )
-                        for x in range(num_agents * 2)
-                    }
-                    if num_agents != 1
-                    else {
-                        f"p{0}": SingleAgentRLModuleSpec(
-                            TorchActionMaskRLM,
-                            observation_space=RLCEnvironment(
-                                program=program
-                            ).observation_space[0],
-                        )
+                        for x in range(total_policies_count)
                     }
                 ),
             ),
@@ -99,9 +96,11 @@ def get_config(program, num_agents=1, exploration=True, league_play=False):
         .evaluation(
             evaluation_config=PPOConfig.overrides(
                 policy_mapping_fn=(
-                    configure_mapping(num_agents, league_play=league_play)
-                    if num_agents != 1
-                    else agent_to_module_mapping_fn_single
+                    configure_mapping(
+                        num_agents,
+                        league_play=league_play,
+                        true_self_play=true_self_play,
+                    )
                 )
             ),
             evaluation_duration=1,

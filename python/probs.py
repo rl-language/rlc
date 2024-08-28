@@ -42,16 +42,19 @@ def main():
             "rlc_env", lambda config: RLCEnvironment(program=Program(module_path))
         )
 
-        num_players = 1 if args.true_self_play else get_num_players(program.module)
+        num_players = get_num_players(program.module)
+        num_agents = 1 if args.true_self_play else get_num_players(program.module)
 
-        (config, _) = get_config(program, num_players)
+        (config, _) = get_config(
+            program, num_players, true_self_play=args.true_self_play
+        )
         model = (
             Algorithm.from_checkpoint(args.checkpoint)
             if args.checkpoint is not None
             else config.build()
         )
         if args.checkpoint is not None:
-            for i in range(num_players):
+            for i in range(num_agents):
                 model.workers.local_worker().module[f"p{i}"].load_state(
                     f"{args.checkpoint}/learner/net_p{i}/"
                 )

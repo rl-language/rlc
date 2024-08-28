@@ -168,10 +168,14 @@ def main():
 
     args.output = os.path.abspath(args.output)
 
-    num_players = 1 if args.true_self_play else get_num_players(program.module)
+    num_players = get_num_players(program.module)
+    num_agents = 1 if args.true_self_play else get_num_players(program.module)
 
     ppo_config, hyperopt_search = get_config(
-        program, num_players, league_play=args.league_play
+        program,
+        num_players,
+        league_play=args.league_play,
+        true_self_play=args.true_self_play,
     )
     tune.register_env(
         "rlc_env", lambda config: RLCEnvironment(program=Program(module_path))
@@ -194,12 +198,12 @@ def main():
     tuner = tune.Tuner(
         tune.with_resources(
             (
-                get_multi_train(get_num_player(program), args.output)
+                get_multi_train(num_agents, args.output)
                 if args.league_play
                 else get_trainer(
                     args.output,
                     total_train_iterations=args.total_train_iterations,
-                    num_players=num_players,
+                    num_players=num_agents,
                 )
             ),
             resources=resources,
