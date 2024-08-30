@@ -164,6 +164,7 @@ def main():
 
     ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
     session_dir = ray.worker._global_node.get_session_dir_path()
+    print(f"SESSION_DIR: {session_dir}")
     from ray import air, tune
 
     args.output = os.path.abspath(args.output)

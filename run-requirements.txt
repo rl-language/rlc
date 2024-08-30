@@ -9,3 +9,4 @@ typer
 scikit-image
 lz4
 tensorboard
+fpdf

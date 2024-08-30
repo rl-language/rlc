@@ -93,6 +93,7 @@ class RLCEnvironment(MultiAgentEnv):
         self.forced_one_player = forced_one_player
         self.has_score_function = has_score_function(self.module)
         self.has_get_current_player_f = has_get_current_player(self.module)
+        self.num_players = get_num_players(self.module)
         if not forced_one_player:
             self.num_agents = get_num_players(self.module)
         else:
