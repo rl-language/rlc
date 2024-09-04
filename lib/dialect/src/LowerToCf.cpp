@@ -259,7 +259,7 @@ static mlir::LogicalResult flatten(
 		rewriter.create<mlir::rlc::BuiltinAssignOp>(
 				op.getLoc(), boolToReturn, yield.getArguments()[0]);
 		auto newTerminator = rewriter.create<mlir::rlc::CondBranch>(
-				yield.getLoc(), yield.getArguments().front(), afterBlock, &rhsBlock);
+				yield.getLoc(), boolToReturn, afterBlock, &rhsBlock);
 		eraseYield(rewriter, yield, newTerminator);
 	}
 
@@ -313,7 +313,7 @@ static mlir::LogicalResult flatten(
 		rewriter.create<mlir::rlc::BuiltinAssignOp>(
 				op.getLoc(), boolToReturn, yield.getArguments()[0]);
 		auto newTerminator = rewriter.create<mlir::rlc::CondBranch>(
-				yield.getLoc(), yield.getArguments().front(), &rhsBlock, afterBlock);
+				yield.getLoc(), boolToReturn, &rhsBlock, afterBlock);
 		eraseYield(rewriter, yield, newTerminator);
 	}
 

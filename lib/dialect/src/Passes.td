@@ -46,6 +46,11 @@ def TypeCheckPass : Pass<"rlc-type-check", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def RemoveUninitConstructsPass : Pass<"rlc-remove-uninit-constructs", "mlir::ModuleOp"> {
+  let summary = "Remove unitialized constructs from functions that returned the results of shortcircuiting ands and ors";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def EmitMainPass: Pass<"rlc-emit-main", "mlir::ModuleOp"> {
   let summary = "emit rlc main pass";
   let dependentDialects = ["rlc::RLCDialect"];

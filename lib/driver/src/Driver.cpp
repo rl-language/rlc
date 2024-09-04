@@ -126,6 +126,7 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 		manager.addPass(mlir::rlc::createStripFunctionMetadataPass());
 		manager.addPass(mlir::rlc::createRewriteCallSignaturesPass());
+		manager.addPass(mlir::rlc::createRemoveUninitConstructsPass());
 		if (request == Request::dumpFlatIR)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
