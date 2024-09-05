@@ -151,7 +151,6 @@ namespace mlir::rlc
 
 				if (removeUninitConstructs(*block))
 				{
-					block->dump();
 					changed = true;
 				}
 			}
