@@ -148,7 +148,12 @@ def main():
             file_name = f"{dir.name}/{name}.png"
             plot_histogram(metric, 1, name, file_name)
             if args.tensorboard != "":
-                steps, time_series_data = extract_metric_from_logs(args.tensorboard, name)
+                name2 = name
+                if name.startswith("score_p"):
+                    name2 = "agent_episode_returns_mean/" + name[7:]
+                if args.progress:
+                    print(f"extracting {name2} from tensorboard logs")
+                steps, time_series_data = extract_metric_from_logs(args.tensorboard, name2)
                 file_name2 = f"{dir.name}/tensorboard_{name}.png"
                 plot_time_series(steps, time_series_data, name, file_name2)
                 images.append([file_name, file_name2])
