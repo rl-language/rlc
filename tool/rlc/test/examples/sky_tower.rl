@@ -135,6 +135,7 @@ cls Player:
     ActionCard action_card
     Towers incomplete_towers 
     Towers complete_towers 
+    Int cards_played
     
     fun kites(BonusesController bonuses) -> Int:
         let to_return = 0
@@ -277,13 +278,13 @@ fun three_7(TowerPile tower) -> Bool:
 
 fun descending_6_to_1(TowerPile tower) -> Bool:
     let i = 0
-    let current_value = 1
+    let current_value = 6
     if tower.size() != 6:
         return false
     while tower.size() != i:
         if tower[i].value.value != current_value:
             return false
-        current_value = current_value + 1
+        current_value = current_value - 1
         i = i + 1
 
     return true
@@ -407,6 +408,7 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 2> players, ctx
             else:
                 to_play = players[current_player.value].hand.value[index.value]
                 players[current_player.value].hand.value.erase(index.value)
+            players[current_player.value].cards_played = players[current_player.value].cards_played + 1
 
             act basics(frm TowerIndex tower_index, frm PlayerIndex target_player) {
               players.size() > target_player.value,
@@ -502,6 +504,7 @@ act play() -> Game:
     frm players : BoundedVector<Player, 2> 
     frm bonuses : BonusesController 
     frm extra_revealed_cards : PlayerHand
+    frm turn_count : Int
 
     subaction*(tower_deck, players) init_sequence = initialize_game(tower_deck, players, 2)
 
@@ -528,6 +531,7 @@ act play() -> Game:
         
         current_player = (current_player.value + 1) % players.size()
         turns_left = turns_left - 1
+        turn_count = turn_count + 1
 
         if run_out_of_cards: 
            turns_left = players.size() 
@@ -575,14 +579,105 @@ fun pretty_print(Game g):
     print_indented(g.players)
     print(g.action_count)
 
+fun log_bonus0(Game g) -> Int:
+    return g.bonuses[0].value
+
+fun log_bonus1(Game g) -> Int:
+    return g.bonuses[1].value
+
+fun log_bonus2(Game g) -> Int:
+    return g.bonuses[2].value
+
+fun log_bonus3(Game g) -> Int:
+    return g.bonuses[3].value
+
+fun log_bonus4(Game g) -> Int:
+    return g.bonuses[4].value
+
+fun log_bonus5(Game g) -> Int:
+    return g.bonuses[5].value
+
+fun log_bonus6(Game g) -> Int:
+    return g.bonuses[6].value
+
+fun log_bonus7(Game g) -> Int:
+    return g.bonuses[7].value
+
+fun log_bonus8(Game g) -> Int:
+    return g.bonuses[8].value
+
+fun log_game_length(Game g) -> Int:
+    return g.turn_count
+
+fun description_game_length() -> String:
+    return "The number of times players passed their turn."s
+
+fun log_p1_tower_played(Game g) -> Int:
+    return g.players[0].cards_played
+
+fun description_p1_towers_played() -> String:
+    return "Number of cards played by p1"s
+
+fun log_p2_tower_played(Game g) -> Int:
+    return g.players[1].cards_played
+
+fun description_p2_towers_played() -> String:
+    return "Number of cards played by p2"s
+
+fun description_score_p0() -> String:
+    return "Number of games lost (first bar) and won (second bar). Very close to 50%. Working as designed."s
+
 fun log_p1_kites(Game g) -> Int:
     return g.players[0].kites(g.bonuses)
+
+fun description_p1_kites() -> String:
+    return "quantity of kites accumulated by player 1 at the end of the game"s
+
+
+fun description_bonus0() -> String:
+    return "Bonus 0, SKY. requires to have 3 towers with a 10 card. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. 2 that it was taken by player 2.  SKY has been used by the machine learning agent for the entire training, and its usage has been trending upward for most of it. Only 30% of games have SKY being claimed, but it is seems to be working as intended, and with more time to train would have been used even more"s
+
+fun description_bonus1() -> String:
+    return "Bonus 1, ROMANCE. requires to have a 10. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. 2 that it was taken by player 2. Romance has been consistently used more than 95% of the games for most training, and it is still even trending upward. Working as designed."s
+
+fun description_bonus2() -> String:
+    return "Bonus 2, LUCKY. requires two sents of three cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been mostly stable. The initial surge shows that the network understand what the bonus is, but does not seems to value it much. When it can occasionaly get it, it will do so, but does not build strategies aroud it."s
+
+fun description_bonus3() -> String:
+    return "Bonus 3, BIG BEN. requires four 5 value cards, or five 4 value cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been stable. The initial surge shows that the network understand what the bonus is, but does not seems to value it at all. It seems that the network really does not wish to invest 4 identical cards in the same tower, or that the opponent can easily counter the strategy when it notices the opponent doing so."s
+
+fun description_bonus4() -> String:
+    return "Bonus 4, DEMOLITION. demolish a tower with 5 or more cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been mostly stable. The initial surge shows that the network understand what the bonus is, and uses it in 60% of games. Seems to be working as designed."s
+
+fun description_bonus5() -> String:
+    return "Bonus 5, PERFECT. requires a tower in descending order from 6 to 1. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The time graph never moves consistently away from 0. The training has compleatly failed. The network never managed to learn what to do with it in the training time allocated to it. The graphs should be ignored and no insight can be gained from them."s
+
+fun description_bonus6() -> String:
+    return "Bonus 6, TYCOON. requires to build two towers in one turn. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The graph has been trending upward for the whole training. At end of the training only 20% of game have used this bonus, but if the more time was allowed to train, more games would have done so."s
+
+
+fun description_bonus7() -> String:
+    return "Bonus 7, TRIPLES. requires to have a tower with 3 sevens. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training graph has been stable. At end of the training only 15% of game have used this bonus. It seems the network does not value the commitment of using 3 high value cards in the same tower."s
+
+fun description_bonus8() -> String:
+    return "Bonus 8, STAR. requires to have 0 cards in hand. Stable training with high play rate."s
+
+
 
 fun log_p2_kites(Game g) -> Int:
     return g.players[1].kites(g.bonuses)
 
+fun description_p2_kites() -> String:
+    return "quantity of kites accumulated by player 2 at the end of the game"s
+
 fun log_p1_flags(Game g) -> Int:
     return g.players[0].flags()
+
+fun description_p1_flags() -> String:
+    return "quantity of flags accumulated by player 1 at the end of the game"s
+
+fun description_p2_flags() -> String:
+    return "quantity of flags accumulated by player 2 at the end of the game"s
 
 fun log_p2_flags(Game g) -> Int:
     return g.players[1].flags()
