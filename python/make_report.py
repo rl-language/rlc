@@ -53,10 +53,32 @@ def plot_time_series(steps, values, title, filename):
     plt.savefig(filename, format='png')
     plt.close()
 
+def plot_histogram_integer(observations, bin_width, title, filename):
+    # Determine the bins based on the given bin width
+
+    min_value = min(observations)
+    max_value = max(observations)
+
+    # Create bins with half-integer spacing to place ticks at integer values
+    bins = np.arange(min_value - 0.5, max_value + 1.5, 1)
+
+    # Plot the histogram
+    plt.figure(figsize=(10, 5))
+    plt.hist(observations, bins=bins, color='green', edgecolor='black')
+    plt.title(title.replace("_", " "))
+    plt.xticks(np.arange(min_value, max_value + 1))
+    plt.xlabel('End game value')
+    plt.ylabel('Numer of playouts')
+    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.savefig(filename, format='png')
+    plt.close()
+
 
 
 def plot_histogram(observations, bin_width, title, filename):
     # Determine the bins based on the given bin width
+
     bins = np.arange(min(observations), max(observations) + bin_width, bin_width)
 
     # Plot the histogram
@@ -83,8 +105,8 @@ def create_pdf_with_histograms(plot_files, output_pdf, annotations=None):
         # Add annotations
         if annotations is not None:
             pdf.set_xy(10, 200)
-            pdf.set_font('Arial', 'b', 12)
-            pdf.multi_cell(0, 10, annotations[i])
+            pdf.set_font('Arial', '', 12)
+            pdf.multi_cell(0, 8, annotations[i])
 
     pdf.output(output_pdf)
 
@@ -146,7 +168,10 @@ def main():
         descriptions = []
         for name, metric in metrics.items():
             file_name = f"{dir.name}/{name}.png"
-            plot_histogram(metric, 1, name, file_name)
+            if isinstance(metric[0], int):
+                plot_histogram_integer(metric, 1, name, file_name)
+            else:
+                plot_histogram(metric, 1, name, file_name)
             if args.tensorboard != "":
                 name2 = name
                 if name.startswith("score_p"):
