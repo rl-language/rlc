@@ -3,6 +3,7 @@ import ray
 import os
 import sys
 import time
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from statistics import mean
 from tempfile import TemporaryDirectory
 from collections import defaultdict
@@ -21,6 +22,38 @@ from fpdf import FPDF
 
 from rlc import Program
 from command_line import load_program_from_args, make_rlc_argparse
+
+def extract_metric_from_logs(log_dir, metric_name):
+    """Extracts time series data for a given metric from TensorBoard logs."""
+    time_series_data = []
+    steps = []
+
+    # Load event data using EventAccumulator
+    event_accumulator = EventAccumulator(log_dir)
+    event_accumulator.Reload()
+
+    # Check if the metric exists
+    fullname = f"ray/tune/env_runners/{metric_name}"
+    if fullname in event_accumulator.Tags()['scalars']:
+        # Retrieve all scalar events for the metric
+        for event in event_accumulator.Scalars(fullname):
+            steps.append(event.step)
+            time_series_data.append(event.value)
+
+    return steps, time_series_data
+
+def plot_time_series(steps, values, title, filename):
+    plt.figure(figsize=(10, 5))
+    plt.plot(steps, values, label=title, color='blue')
+    plt.title(title.replace("_", " "))
+    plt.xlabel('Steps')
+    plt.ylabel('Value')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(filename, format='png')
+    plt.close()
+
+
 
 def plot_histogram(observations, bin_width, title, filename):
     # Determine the bins based on the given bin width
@@ -44,15 +77,17 @@ def create_pdf_with_histograms(plot_files, output_pdf, annotations=None):
         pdf.add_page()
 
         # Add the plot image
-        pdf.image(plot_file, x=10, y=10, w=190)
+        for j, file in enumerate(plot_file):
+            pdf.image(file, x=10, y=j*100 + 10, w=190)
 
         # Add annotations
         if annotations is not None:
-            pdf.set_xy(10, 100)
+            pdf.set_xy(10, 200)
             pdf.set_font('Arial', 'b', 12)
             pdf.multi_cell(0, 10, annotations[i])
 
     pdf.output(output_pdf)
+
 
 
 def main():
@@ -69,6 +104,7 @@ def main():
     parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--iterations", default=1, type=int)
     parser.add_argument("--progress", action="store_true", default=False)
+    parser.add_argument("--tensorboard", type=str, default="")
 
     args = parser.parse_args()
     with load_program_from_args(args, optimize=True) as program:
@@ -111,7 +147,13 @@ def main():
         for name, metric in metrics.items():
             file_name = f"{dir.name}/{name}.png"
             plot_histogram(metric, 1, name, file_name)
-            images.append(file_name)
+            if args.tensorboard != "":
+                steps, time_series_data = extract_metric_from_logs(args.tensorboard, name)
+                file_name2 = f"{dir.name}/tensorboard_{name}.png"
+                plot_time_series(steps, time_series_data, name, file_name2)
+                images.append([file_name, file_name2])
+            else:
+                images.append([file_name])
             descriptions.append(f"average: {mean(metric)}\n")
             attr_name = f"description_{name}"
             if hasattr(program.functions, attr_name):

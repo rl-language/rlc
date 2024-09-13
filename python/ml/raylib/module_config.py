@@ -48,7 +48,7 @@ class CallBack(ray.rllib.algorithms.callbacks.DefaultCallbacks):
 
 
 def get_config(
-    program, num_agents=1, exploration=True, league_play=False, true_self_play=False
+    program, num_agents=1, exploration=True, league_play=False, true_self_play=False, num_rollout_workers=8
 ):
     state_size = RLCEnvironment(program=program).state_size
     actions_count = RLCEnvironment(program=program).num_actions
@@ -125,7 +125,7 @@ def get_config(
             },
         )
         .rollouts(
-            num_rollout_workers=8,
+            num_rollout_workers=num_rollout_workers,
             num_envs_per_worker=1,
             env_runner_cls=MultiAgentEnvRunner,
         )

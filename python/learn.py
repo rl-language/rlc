@@ -153,6 +153,7 @@ def main():
     parser.add_argument("--no-tensorboard", action="store_true", default=False)
     parser.add_argument("--total-train-iterations", default=100000000, type=int)
     parser.add_argument("--num-sample", default=1, type=int)
+    parser.add_argument("--num-rollout-cpus", default=8, type=int, help="num of cpus taskes with playing the game while training, reduce this number to reduce ram usage, but increase trying time.")
 
     args = parser.parse_args()
     program = load_program_from_args(args, True)
@@ -162,7 +163,7 @@ def main():
     exit_on_invalid_env(program)
     module_path = os.path.abspath(program.module_path)
 
-    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
+    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False, log_to_driver=False)
     session_dir = ray.worker._global_node.get_session_dir_path()
     print(f"SESSION_DIR: {session_dir}")
     from ray import air, tune
@@ -177,6 +178,7 @@ def main():
         num_players,
         league_play=args.league_play,
         true_self_play=args.true_self_play,
+        num_rollout_workers=args.num_rollout_cpus
     )
     tune.register_env(
         "rlc_env", lambda config: RLCEnvironment(program=Program(module_path))

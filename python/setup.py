@@ -104,6 +104,7 @@ setup(
                 "solve.py",
                 "probs.py",
                 "fix_ray.py",
+                "make_report.py",
             ],
         )
     ],
@@ -117,6 +118,7 @@ setup(
             "rlc-random=impl.solve:main",
             "rlc-probs=impl.probs:main",
             "rlc-fix-ray=impl.fix_ray:main",
+            "rlc-make-report=impl.make_report:main",
         ],
     },
     classifiers=[
