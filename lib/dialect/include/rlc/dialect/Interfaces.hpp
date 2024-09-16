@@ -24,9 +24,11 @@ namespace mlir
 {
 	class IRRewriter;
 }
-#include "rlc/dialect/Interfaces.inc"
 
 namespace mlir::rlc
 {
-
+   class ConstraintsLattice;
+	class ConstraintsAnalysis;
 }	 // namespace mlir::rlc
+
+#include "rlc/dialect/Interfaces.inc"
