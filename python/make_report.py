@@ -92,8 +92,19 @@ def plot_histogram(observations, bin_width, title, filename):
     plt.savefig(filename, format='png')
     plt.close()
 
-def create_pdf_with_histograms(plot_files, output_pdf, annotations=None):
+def create_pdf_with_histograms(plot_files, output_pdf, annotations=None, image="", title=""):
     pdf = FPDF()
+
+    if image != "":
+        pdf.add_page()
+        pdf.set_xy(10, 20)
+        pdf.set_font('Arial', 'b', 30)
+        pdf.multi_cell(0, 6, title[:-3].replace("_", " ").replace("-", " ") + " report", align="C")
+        pdf.image(image, x=20, y=40, w=180)
+        pdf.set_xy(5, 275)
+        pdf.set_font('Arial', '', 10)
+        pdf.multi_cell(0, 1, "massimo.fioravanti@polimi.it")
+
 
     for i, plot_file in enumerate(plot_files):
         pdf.add_page()
@@ -106,7 +117,7 @@ def create_pdf_with_histograms(plot_files, output_pdf, annotations=None):
         if annotations is not None:
             pdf.set_xy(10, 200)
             pdf.set_font('Arial', '', 12)
-            pdf.multi_cell(0, 8, annotations[i])
+            pdf.multi_cell(0, 6, annotations[i])
 
     pdf.output(output_pdf)
 
@@ -127,6 +138,7 @@ def main():
     parser.add_argument("--iterations", default=1, type=int)
     parser.add_argument("--progress", action="store_true", default=False)
     parser.add_argument("--tensorboard", type=str, default="")
+    parser.add_argument("--first-page-image", type=str, default="")
 
     args = parser.parse_args()
     with load_program_from_args(args, optimize=True) as program:
@@ -189,7 +201,7 @@ def main():
             if hasattr(program.functions, attr_name):
                 descriptions[-1] = descriptions[-1] + program.to_python_string(getattr(program.functions, attr_name)())
 
-        create_pdf_with_histograms(images, args.output, annotations=descriptions)
+        create_pdf_with_histograms(images, args.output, annotations=descriptions, image=args.first_page_image, title=os.path.basename(args.source_file))
 
 
 

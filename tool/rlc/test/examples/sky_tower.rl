@@ -295,7 +295,7 @@ fun check_bonuses_controller(TowerDeck deck, BoundedVector<Player, 2> players, P
         return
     if bonuses[0] == 0 and has_3_towers_with_a_10(player):
         bonuses[0] = current_player.value + 1
-    if has_a_10(player.complete_towers.back()):
+    if has_only_1_2_3(player.complete_towers.back()):
         bonuses[1] = current_player.value + 1
     if two_sets_of_tree(player.complete_towers.back()):
         bonuses[2] = current_player.value + 1
@@ -579,31 +579,31 @@ fun pretty_print(Game g):
     print_indented(g.players)
     print(g.action_count)
 
-fun log_bonus0(Game g) -> Int:
+fun log_bonus0_big_ben(Game g) -> Int:
     return g.bonuses[0].value
 
-fun log_bonus1(Game g) -> Int:
+fun log_bonus1_sky(Game g) -> Int:
     return g.bonuses[1].value
 
-fun log_bonus2(Game g) -> Int:
+fun log_bonus2_triples(Game g) -> Int:
     return g.bonuses[2].value
 
-fun log_bonus3(Game g) -> Int:
+fun log_bonus3_romance(Game g) -> Int:
     return g.bonuses[3].value
 
-fun log_bonus4(Game g) -> Int:
+fun log_bonus4_demolition(Game g) -> Int:
     return g.bonuses[4].value
 
-fun log_bonus5(Game g) -> Int:
+fun log_bonus5_star(Game g) -> Int:
     return g.bonuses[5].value
 
-fun log_bonus6(Game g) -> Int:
+fun log_bonus6_tycoon(Game g) -> Int:
     return g.bonuses[6].value
 
-fun log_bonus7(Game g) -> Int:
+fun log_bonus7_lucky(Game g) -> Int:
     return g.bonuses[7].value
 
-fun log_bonus8(Game g) -> Int:
+fun log_bonus8_perfect(Game g) -> Int:
     return g.bonuses[8].value
 
 fun log_game_length(Game g) -> Int:
@@ -634,33 +634,33 @@ fun description_p1_kites() -> String:
     return "quantity of kites accumulated by player 1 at the end of the game"s
 
 
-fun description_bonus0() -> String:
-    return "Bonus 0, SKY. requires to have 3 towers with a 10 card. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. 2 that it was taken by player 2.  SKY has been used by the machine learning agent for the entire training, and its usage has been trending upward for most of it. Only 30% of games have SKY being claimed, but it is seems to be working as intended, and with more time to train would have been used even more"s
+fun description_bonus0_big_ben() -> String:
+    return "Bonus 0, BIG BEN. requires to have 3 towers with a 10 card. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. 2 that it was taken by player 2.  SKY has been used by the machine learning agent for the entire training, and its usage has been trending upward for most of it. Only 30% of games have SKY being claimed, but it is seems to be working as intended, and with more time to train would have been used even more"s
 
-fun description_bonus1() -> String:
-    return "Bonus 1, ROMANCE. requires to have a 10. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. 2 that it was taken by player 2. Romance has been consistently used more than 95% of the games for most training, and it is still even trending upward. Working as designed."s
+fun description_bonus1_sky() -> String:
+    return "Bonus 1, SKY. requires to only have 1s 2s or 3s in the tower. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. 2 that it was taken by player 2. Romance has been consistently used more than 95% of the games for most training, and it is still even trending upward. Working as designed."s
 
-fun description_bonus2() -> String:
-    return "Bonus 2, LUCKY. requires two sents of three cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been mostly stable. The initial surge shows that the network understand what the bonus is, but does not seems to value it much. When it can occasionaly get it, it will do so, but does not build strategies aroud it."s
+fun description_bonus2_triples() -> String:
+    return "Bonus 2, TRIPLES. requires two sents of three cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been mostly stable. The initial surge shows that the network understand what the bonus is, but does not seems to value it much. When it can occasionaly get it, it will do so, but does not build strategies aroud it."s
 
-fun description_bonus3() -> String:
-    return "Bonus 3, BIG BEN. requires four 5 value cards, or five 4 value cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been stable. The initial surge shows that the network understand what the bonus is, but does not seems to value it at all. It seems that the network really does not wish to invest 4 identical cards in the same tower, or that the opponent can easily counter the strategy when it notices the opponent doing so."s
+fun description_bonus3_romance() -> String:
+    return "Bonus 3, ROMANCE. requires four 5 value cards, or four 4 value cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been stable. The initial surge shows that the network understand what the bonus is, but does not seems to value it at all. It seems that the network really does not wish to invest 4 identical cards in the same tower, or that the opponent can easily counter the strategy when it notices the opponent doing so."s
 
-fun description_bonus4() -> String:
+fun description_bonus4_demolition() -> String:
     return "Bonus 4, DEMOLITION. demolish a tower with 5 or more cards. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training has been mostly stable. The initial surge shows that the network understand what the bonus is, and uses it in 60% of games. Seems to be working as designed."s
 
-fun description_bonus5() -> String:
-    return "Bonus 5, PERFECT. requires a tower in descending order from 6 to 1. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The time graph never moves consistently away from 0. The training has compleatly failed. The network never managed to learn what to do with it in the training time allocated to it. The graphs should be ignored and no insight can be gained from them."s
+fun description_bonus5_star() -> String:
+    return "Bonus 5, STAR. requires a tower in descending order from 6 to 1. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The time graph never moves consistently away from 0. The training has compleatly failed. The network never managed to learn what to do with it in the training time allocated to it. The graphs should be ignored and no insight can be gained from them."s
 
-fun description_bonus6() -> String:
+fun description_bonus6_tycoon() -> String:
     return "Bonus 6, TYCOON. requires to build two towers in one turn. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The graph has been trending upward for the whole training. At end of the training only 20% of game have used this bonus, but if the more time was allowed to train, more games would have done so."s
 
 
-fun description_bonus7() -> String:
-    return "Bonus 7, TRIPLES. requires to have a tower with 3 sevens. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training graph has been stable. At end of the training only 15% of game have used this bonus. It seems the network does not value the commitment of using 3 high value cards in the same tower."s
+fun description_bonus7_lucky() -> String:
+    return "Bonus 7, LUCKY. requires to have a tower with 3 sevens. 0 means that the bonus was not taken at the end of the game. 1 that it was taken by player 1. The training graph has been stable. At end of the training only 15% of game have used this bonus. It seems the network does not value the commitment of using 3 high value cards in the same tower."s
 
-fun description_bonus8() -> String:
-    return "Bonus 8, STAR. requires to have 0 cards in hand. Stable training with high play rate."s
+fun description_bonus8_perfect() -> String:
+    return "Bonus 8, PERFECT. requires to have 0 cards in hand. Stable training with high play rate."s
 
 
 
