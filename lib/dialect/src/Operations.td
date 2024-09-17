@@ -269,7 +269,7 @@ def RLC_YieldReference : RLC_Dialect<"yield_reference", [ReturnLike, Terminator,
   }];
 }
 
-def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface, ["getMutableSuccessorOperands", "getSuccessorRegions"]>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
+def RLC_Yield : RLC_Dialect<"yield", [Terminator, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchTerminatorOpInterface, ["getMutableSuccessorOperands", "getSuccessorRegions"]>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>, DeclareOpInterfaceMethods<ConstraintsAnalyzable>]> {
   let summary = "ends statements";
 
   let arguments = (ins Variadic<AnyType>:$arguments);
@@ -1251,7 +1251,7 @@ def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCh
 
 }
 
-class RLC_InternalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
+class RLC_InternalOp<string mnemonic, list<OpInterface> CA_Interface=[]> : RLC_Dialect<mnemonic, [TypeCheckable]#CA_Interface> {
 
     let extraClassDeclaration = [{
 	
@@ -1306,7 +1306,7 @@ class RLC_BoolExp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
 	}];
 }
 
-def RLC_AddOp : RLC_InternalOp<"add"> {
+def RLC_AddOp : RLC_InternalOp<"add", [DeclareOpInterfaceMethods<ConstraintsAnalyzable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -1492,7 +1492,7 @@ def RLC_ImplicitAssignOp : RLC_Dialect<"implicit_assign", [DeclareOpInterfaceMet
   }];
 }
 
-def RLC_BuiltinAssignOp : RLC_Dialect<"builtin_assign", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_BuiltinAssignOp : RLC_Dialect<"builtin_assign", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<ConstraintsAnalyzable>]> {
   let summary = "constant.";
 
   let description = [{
@@ -1752,7 +1752,7 @@ def RLC_Branch : RLC_Dialect<"br", [Terminator, DeclareOpInterfaceMethods<Branch
   }];
 }
 
-def RLC_CondBranch : RLC_Dialect<"crb", [Terminator, DeclareOpInterfaceMethods<BranchOpInterface>]> {
+def RLC_CondBranch : RLC_Dialect<"crb", [Terminator, DeclareOpInterfaceMethods<BranchOpInterface>, DeclareOpInterfaceMethods<ConstraintsAnalyzable>]> {
   let summary = "constant.";
 
   let description = [{

@@ -67,6 +67,7 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createEmitImplicitAssignPass());
 		manager.addPass(mlir::rlc::createEmitImplicitInitPass());
 		manager.addPass(mlir::rlc::createLowerArrayCallsPass());
+
 		if (emitBoundChecks)
 			manager.addPass(mlir::rlc::createAddOutOfBoundsCheckPass());
 
@@ -121,7 +122,7 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createLowerAssertsPass());
 
 		manager.addPass(mlir::rlc::createConstantArrayToGlobalPass());
-
+		
 		manager.addPass(mlir::rlc::createLowerToCfPass());
 		manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 		manager.addPass(mlir::rlc::createStripFunctionMetadataPass());
