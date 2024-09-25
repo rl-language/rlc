@@ -143,7 +143,7 @@ TEST(ParserTest, declarationTest)
 	if (!s)
 		FAIL();
 
-	EXPECT_EQ(s->getName(), "a");
+	EXPECT_EQ(s->getSymName(), "a");
 }
 
 TEST(ParserTest, ifElseTest)

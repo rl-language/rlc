@@ -283,7 +283,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 
 		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
-			registerArgument(statement.getName(), statement.getType(), nullptr);
+			registerArgument(statement.getSymName(), statement.getType(), nullptr);
 		});
 
 		for (auto op : module.getOps<mlir::rlc::ActionFunction>())
@@ -786,7 +786,8 @@ static std::string hoverText(mlir::Operation *op)
 {
 	if (auto casted = llvm::dyn_cast<mlir::rlc::DeclarationStatement>(op))
 	{
-		return (casted.getName() + ": " + mlir::rlc::prettyType(casted.getType()))
+		return (casted.getSymName() + ": " +
+						mlir::rlc::prettyType(casted.getType()))
 				.str();
 	}
 

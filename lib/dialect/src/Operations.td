@@ -707,7 +707,7 @@ def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods
 	}];
 }
 
-def RLC_DeclarationStatement : RLC_Dialect<"decl", [Symbol, DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
+def RLC_DeclarationStatement : RLC_Dialect<"decl", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
   let arguments = (ins StrAttr:$sym_name);

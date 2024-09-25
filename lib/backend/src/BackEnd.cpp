@@ -84,7 +84,7 @@ namespace mlir::rlc
 		// For codegen passes, only passes that do IR to IR transformation are
 		// supported.
 		initializeExpandMemCmpLegacyPassPass(Registry);
-		initializeAtomicExpandPass(Registry);
+		initializeAtomicExpandLegacyPass(Registry);
 		initializeWinEHPreparePass(Registry);
 		initializeSafeStackLegacyPassPass(Registry);
 		initializeSjLjEHPreparePass(Registry);
@@ -317,7 +317,7 @@ static mlir::LogicalResult getLinkerInvocation(
 	auto binDir = llvm::sys::path::parent_path(clangPath);
 	auto installDir = llvm::sys::path::parent_path(binDir);
 	llvm::SmallVector<char, 4> clangResourceDir;
-	llvm::sys::path::append(clangResourceDir, installDir, "lib", "clang", "18");
+	llvm::sys::path::append(clangResourceDir, installDir, "lib", "clang", "19");
 	driver.ResourceDir =
 			llvm::StringRef(clangResourceDir.data(), clangResourceDir.size());
 
@@ -394,12 +394,11 @@ static int linkLibraries(
 
 	if (!maybeRealPath and (emitSanitizerInstrumentation or linkAgainstFuzzer))
 	{
-
-		if (info.isWindows()) {
+		if (info.isWindows())
+		{
 			llvm::consumeError(maybeRealPath.takeError());
-			llvm::errs()
-				<< "sanitizers and fuzzer are not supported on windows\n";
-			return  -1;
+			llvm::errs() << "sanitizers and fuzzer are not supported on windows\n";
+			return -1;
 		}
 		llvm::consumeError(maybeRealPath.takeError());
 		llvm::errs()

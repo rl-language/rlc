@@ -1528,8 +1528,10 @@ class FunctionRewriter
 		rewriter.setInsertionPoint(op);
 		auto newF = rewriter.create<mlir::LLVM::LLVMFuncOp>(
 				op.getLoc(), op.getMangledName(), fType, linkage);
-		rewriter.cloneRegionBefore(
-				op.getBody(), newF.getBody(), newF.getBody().begin());
+
+		if (not op.isDeclaration())
+			rewriter.cloneRegionBefore(
+					op.getBody(), newF.getBody(), newF.getBody().begin());
 
 		if (not op.isDeclaration() and op.getType().getResults().size() == 1 and
 				not op.getType().getResults().front().isa<mlir::rlc::VoidType>())

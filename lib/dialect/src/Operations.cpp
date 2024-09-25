@@ -140,7 +140,7 @@ mlir::rlc::ActionFunction::getFrameLists()
 		if (auto casted = llvm::dyn_cast<mlir::rlc::DeclarationStatement>(op))
 		{
 			if (auto castedType = casted.getType().dyn_cast<mlir::rlc::FrameType>())
-				explicitFrame.append(casted, casted.getName());
+				explicitFrame.append(casted, casted.getSymName());
 		}
 		else if (auto casted = llvm::dyn_cast<mlir::rlc::ActionStatement>(op))
 		{
@@ -1018,7 +1018,7 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 	}
 
 	auto newOne = rewriter.create<mlir::rlc::DeclarationStatement>(
-			getLoc(), deducedType, getName());
+			getLoc(), deducedType, getSymName());
 	newOne.getBody().takeBody(getBody());
 	rewriter.replaceOp(*this, newOne);
 
