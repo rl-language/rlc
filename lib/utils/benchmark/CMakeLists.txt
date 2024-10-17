@@ -1,1 +1,1 @@
-rlcAddBenchmark(utils)
+rlcAddBenchmark(utils src/utilsBenchmark.cpp)
