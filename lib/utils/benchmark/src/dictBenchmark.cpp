@@ -225,79 +225,31 @@ static void BM_EraseRandom(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
+template <typename Func>
+void RegisterBenchmark(Func func, const std::string& benchmark_name) {
+    benchmark::RegisterBenchmark(benchmark_name.c_str(), func)
+        ->RangeMultiplier(2)
+        ->Range(minRange, maxRange)
+        ->Complexity();
+}
+
+
+
 
 // Register template with a specific class based on a string input
-template <typename PassedType, typename KeyType>
+template <typename DictType, typename KeyType>
 void RegisterBenchmarkSuite(const std::string& name) {
-    std::string benchmark_name = "BM_SubscriptOperatorInsert_" + name;
-    BENCHMARK_TEMPLATE(BM_SubsciptorOperatorInsert, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-
-    benchmark_name = "BM_SubscriptOperatorInsert_Random_" + name;
-    BENCHMARK_TEMPLATE(BM_SubsciptorOperatorInsertRandom, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-
-	benchmark_name = "BM_Insert_" + name;
-    BENCHMARK_TEMPLATE(BM_Insert, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
+    RegisterBenchmark(BM_SubsciptorOperatorInsert<DictType, KeyType>,"BM_SubscriptOperatorInsert_" + name);
+    RegisterBenchmark(BM_SubsciptorOperatorInsertRandom<DictType, KeyType>, "BM_SubsciptorOperatorInsert_Random_" + name);
+    RegisterBenchmark(BM_Insert<DictType, KeyType>, "BM_Insert_" + name);
+    RegisterBenchmark(BM_InsertRandom<DictType, KeyType>, "BM_Insert_Random_" + name);
+    RegisterBenchmark(BM_SubscriptorOperatorFind<DictType, KeyType>, "BM_SubscriptorOperatorFind_" + name);
+    RegisterBenchmark(BM_SubscriptorOperatorFindRandom<DictType, KeyType>, "BM_SubscriptorOperatorFind_Random_" + name);
+    RegisterBenchmark(BM_Find<DictType, KeyType>, "BM_Find_" + name);
+    RegisterBenchmark(BM_FindRandom<DictType, KeyType>, "BM_Find_Random_" + name);
+    RegisterBenchmark(BM_Erase<DictType, KeyType>, "BM_Erase_" + name);
+    RegisterBenchmark(BM_EraseRandom<DictType, KeyType>, "BM_Erase_Random_" + name);
     
-    benchmark_name = "BM_Insert_Random_" + name;
-    BENCHMARK_TEMPLATE(BM_InsertRandom, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-
-	benchmark_name = "BM_SubscriptorOperatorFind_" + name;
-    BENCHMARK_TEMPLATE(BM_SubscriptorOperatorFind, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-    
-    benchmark_name = "BM_SubscriptorOperatorFind_Random_" + name;
-    BENCHMARK_TEMPLATE(BM_SubscriptorOperatorFindRandom, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-	
-	benchmark_name = "BM_Find_" + name;
-    BENCHMARK_TEMPLATE(BM_Find, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-    
-    benchmark_name = "BM_Find_Random_" + name;
-    BENCHMARK_TEMPLATE(BM_FindRandom, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-	
-	benchmark_name = "BM_Erase_" + name;
-    BENCHMARK_TEMPLATE(BM_Erase, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
-    
-    benchmark_name = "BM_Erase_Random_" + name;
-    BENCHMARK_TEMPLATE(BM_EraseRandom, PassedType, KeyType)
-        ->Name(benchmark_name.c_str())
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
-        ->Complexity();
 }
 
 int main(int argc, char** argv) {
