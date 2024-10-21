@@ -17,6 +17,7 @@ from types import ModuleType
 from shutil import which
 from importlib import import_module, machinery, util
 import os
+import sys
 import inspect
 from math import log2, ceil, floor
 import pathlib
@@ -278,7 +279,7 @@ def compile(
         ).returncode
         == 0
     )
-    lib_name = "lib.dll" if os.name == "nt" else "lib.so"
+    lib_name = "lib.dll" if os.name == "nt" else ("lib.dylib" if sys.platform == "darwin" else "lib.so")
     args = [
         rlc_compiler,
         *s,

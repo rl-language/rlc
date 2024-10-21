@@ -5,7 +5,9 @@ def RLCToPythonPass: Pass<"rlc-to-python", "mlir::ModuleOp"> {
   let summary = "convert rlc to python";
   let options = [
     Option<"target_is_windows", "target is windows", "bool", /*default=*/"false",
-           "true if the target is windows">
+           "true if the target is windows">,
+    Option<"target_is_mac", "target is mac", "bool", /*default=*/"false",
+           "true if the target is mac">
   ];
 }
 

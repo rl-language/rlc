@@ -311,6 +311,7 @@ static mlir::LogicalResult getLinkerInvocation(
 	llvm::IntrusiveRefCntPtr diagIds(new clang::DiagnosticIDs());
 	llvm::IntrusiveRefCntPtr opts(new clang::DiagnosticOptions());
 	clang::DiagnosticsEngine engine(diagIds, opts);
+	engine.setClient(new clang::DiagnosticConsumer(), true);
 	clang::driver::Driver driver(
 			clangInvocation[0], triple, engine, "clang LLVM Compiler", VFS);
 	driver.setCheckInputsExist(false);

@@ -88,8 +88,8 @@ namespace mlir::rlc
 		{
 			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
 			manager.addPass(mlir::python::createRLCTypesToPythonTypesPass());
-			manager.addPass(
-					mlir::python::createRLCToPythonPass({ targetInfo->isWindows() }));
+			manager.addPass(mlir::python::createRLCToPythonPass(
+					{ targetInfo->isWindows(), targetInfo->isMacOS() }));
 			if (request == Request::dumpPythonAST)
 				manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			else
@@ -122,7 +122,7 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createLowerAssertsPass());
 
 		manager.addPass(mlir::rlc::createConstantArrayToGlobalPass());
-		
+
 		manager.addPass(mlir::rlc::createLowerToCfPass());
 		manager.addPass(mlir::rlc::createActionStatementsToCoroPass());
 		manager.addPass(mlir::rlc::createStripFunctionMetadataPass());

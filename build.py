@@ -50,6 +50,7 @@ def build_rlc(
     clang_path: str,
     python_path: str,
     is_windows: bool,
+    is_mac: bool,
 ):
     assert_run_program(
         execution_dir,
@@ -72,7 +73,7 @@ def build_rlc(
         "-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument",
         "-DRUN_HAVE_STD_REGEX=1",
         "-DPython_EXECUTABLE:FILEPATH={}".format(python_path),
-        "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" and not is_windows else "",
+        "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" and not is_windows and is not is_mac else "",
     )
 
 
@@ -193,6 +194,7 @@ def main():
     rlc_infrastructure = path.abspath("./")
 
     is_windows = os.name == "nt"
+    is_mac = sys.platform == "darwin"
 
     # create dirs
     rlc_dir = path.abspath("rlc")
@@ -277,6 +279,7 @@ def main():
         clang_path=f"{llvm_install_release_dir}/bin/clang",
         python_path=python,
         is_windows=is_windows,
+        is_mac=is_mac,
       )
       install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
 
@@ -291,6 +294,7 @@ def main():
         clang_path=f"{llvm_install_release_dir}/bin/clang",
         python_path=python,
         is_windows=is_windows,
+        is_mac=is_mac,
     )
     install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=True)
 

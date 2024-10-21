@@ -646,7 +646,8 @@ namespace mlir::python
 			auto lib = builder.create<mlir::rlc::python::CTypesLoad>(
 					getOperation().getLoc(),
 					mlir::rlc::python::CDLLType::get(&getContext()),
-					target_is_windows ? "lib.dll" : "lib.so");
+					target_is_windows ? "lib.dll"
+														: (target_is_mac ? "lib.dylib" : "lib.so"));
 			mlir::ConversionTarget target(getContext());
 
 			mlir::TypeConverter ctypesConverter;

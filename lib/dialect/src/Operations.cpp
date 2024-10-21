@@ -1035,6 +1035,8 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 	{
 		auto newCall =
 				builder.emitCall(*this, true, "get", { getValue(), getMemberIndex() });
+		if (!newCall)
+			return mlir::failure();
 		replaceAllUsesWith(newCall);
 		erase();
 		return mlir::success();

@@ -1,5 +1,5 @@
 # RUN: rlc %s -o %t -i %stdlib --fuzzer --fuzzer-lib=%fuzzer_lib
-# UNSUPPORTED: system-windows
+# UNSUPPORTED: system-windows system-darwin
 
 import action
 
