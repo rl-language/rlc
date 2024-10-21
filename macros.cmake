@@ -139,7 +139,7 @@ macro(rlcAddBenchmark target)
 	ADD_EXECUTABLE(${target}Benchmark src/${target}Benchmark.cpp ${ARGN}) 
 	ADD_EXECUTABLE(rlc::${target}Benchmark ALIAS ${target}Benchmark)
 
-	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE benchmark::benchmark rlc::${target})
+	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE benchmark::benchmark)
 	TARGET_INCLUDE_DIRECTORIES(${target}Benchmark PUBLIC include PRIVATE src)
 	TARGET_COMPILE_FEATURES(${target}Benchmark PUBLIC cxx_std_20)
 
