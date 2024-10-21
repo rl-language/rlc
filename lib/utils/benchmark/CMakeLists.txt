@@ -1,1 +1,2 @@
-rlcAddBenchmark(dict src/dictBenchmark.cpp)
+rlcAddBenchmark(utils)
+rlcAddBenchmark(dict)
