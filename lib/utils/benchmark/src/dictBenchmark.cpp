@@ -37,9 +37,14 @@ public:
   int content;
   int dont_care[10];
   LargeKey(int key) : content(key) {}
-// Define equality operator
+// Define operator ==
 bool operator==(const LargeKey& other) const {
     return content == other.content;
+}
+
+// Define operator <
+bool operator<(const LargeKey& other) const {
+    return content < other.content;
 }
 };
 
@@ -70,7 +75,7 @@ std::vector<int> GenerateNRandomIntegers(int n){
 
 
 template <typename DictType, typename KeyType>
-static void BM_SubsciptorOperatorInsert(benchmark::State& state) {
+static void BM_SubsciptOperatorInsert(benchmark::State& state) {
     DictType dictionary;
 
     for (auto _ : state) {
@@ -81,7 +86,7 @@ static void BM_SubsciptorOperatorInsert(benchmark::State& state) {
 }
 
 template <typename DictType, typename KeyType>
-static void BM_SubsciptorOperatorInsertRandom(benchmark::State& state) {
+static void BM_SubsciptOperatorInsertRandom(benchmark::State& state) {
     DictType dictionary;
     std::vector<int> unique_numbers = GenerateNRandomIntegers(state.range());
 
@@ -92,7 +97,6 @@ static void BM_SubsciptorOperatorInsertRandom(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
 static void BM_Insert(benchmark::State& state) {
     PassedType dictionary;
@@ -104,7 +108,6 @@ static void BM_Insert(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
 static void BM_InsertRandom(benchmark::State& state) {
     PassedType dictionary;
@@ -117,9 +120,8 @@ static void BM_InsertRandom(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
-static void BM_SubscriptorOperatorFind(benchmark::State& state) {
+static void BM_SubscriptOperatorFind(benchmark::State& state) {
     PassedType dictionary;
     // Setup the dictionary
     for (int i = 0; i < state.range(0); ++i) {
@@ -133,9 +135,8 @@ static void BM_SubscriptorOperatorFind(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
-static void BM_SubscriptorOperatorFindRandom(benchmark::State& state) {
+static void BM_SubscriptOperatorFindRandom(benchmark::State& state) {
     PassedType dictionary;
     std::vector<int> unique_numbers = GenerateNRandomIntegers(state.range());
 
@@ -153,7 +154,6 @@ static void BM_SubscriptorOperatorFindRandom(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
 static void BM_Find(benchmark::State& state) {
     PassedType dictionary;
@@ -169,7 +169,6 @@ static void BM_Find(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
 static void BM_FindRandom(benchmark::State& state) {
     PassedType dictionary;
@@ -189,7 +188,6 @@ static void BM_FindRandom(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
 static void BM_Erase(benchmark::State& state) {
     PassedType dictionary;
@@ -205,7 +203,6 @@ static void BM_Erase(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-// Template function for benchmarking
 template <typename PassedType, typename KeyType>
 static void BM_EraseRandom(benchmark::State& state) {
     PassedType dictionary;
@@ -225,77 +222,35 @@ static void BM_EraseRandom(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-template <typename Func>
-void RegisterBenchmark(Func func, const std::string& benchmark_name) {
-    benchmark::RegisterBenchmark(benchmark_name.c_str(), func)
-        ->RangeMultiplier(2)
-        ->Range(minRange, maxRange)
+// Macros to register benchmarks
+#define REGISTER_BENCHMARK(BenchmarkFunction, DictType, KeyType, NameSuffix) \
+    BENCHMARK_TEMPLATE(BenchmarkFunction, DictType, KeyType)                \
+        ->Name(#BenchmarkFunction "_" NameSuffix)                           \
+        ->RangeMultiplier(2)                                                \
+        ->Range(minRange, maxRange)                                         \
         ->Complexity();
-}
 
+#define REGISTER_BENCHMARK_SUITE(DictType, KeyType, NameSuffix)        \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsert, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsertRandom, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_Insert, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_InsertRandom, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_SubscriptOperatorFind, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_SubscriptOperatorFindRandom, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_Find, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_FindRandom, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_Erase, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_EraseRandom, DictType, KeyType, NameSuffix) \
 
+using UnorderedMapIntInt = std::unordered_map<int, int>;
+using UnorderedMapLargeKeyInt = std::unordered_map<LargeKey, int>;
+using MapIntInt = std::map<int, int>;
+using MapLargeKeyInt = std::map<LargeKey, int>;
 
+// Register benchmark suites
+REGISTER_BENCHMARK_SUITE(UnorderedMapIntInt, int, "UnorderedMap_Small")
+REGISTER_BENCHMARK_SUITE(UnorderedMapLargeKeyInt, LargeKey, "UnorderedMap_Large")
+REGISTER_BENCHMARK_SUITE(MapIntInt, int, "Map_Small")
+REGISTER_BENCHMARK_SUITE(MapLargeKeyInt, LargeKey, "Map_Large")
 
-// Register template with a specific class based on a string input
-template <typename DictType, typename KeyType>
-void RegisterBenchmarkSuite(const std::string& name) {
-    RegisterBenchmark(BM_SubsciptorOperatorInsert<DictType, KeyType>,"BM_SubscriptOperatorInsert_" + name);
-    RegisterBenchmark(BM_SubsciptorOperatorInsertRandom<DictType, KeyType>, "BM_SubsciptorOperatorInsert_Random_" + name);
-    RegisterBenchmark(BM_Insert<DictType, KeyType>, "BM_Insert_" + name);
-    RegisterBenchmark(BM_InsertRandom<DictType, KeyType>, "BM_Insert_Random_" + name);
-    RegisterBenchmark(BM_SubscriptorOperatorFind<DictType, KeyType>, "BM_SubscriptorOperatorFind_" + name);
-    RegisterBenchmark(BM_SubscriptorOperatorFindRandom<DictType, KeyType>, "BM_SubscriptorOperatorFind_Random_" + name);
-    RegisterBenchmark(BM_Find<DictType, KeyType>, "BM_Find_" + name);
-    RegisterBenchmark(BM_FindRandom<DictType, KeyType>, "BM_Find_Random_" + name);
-    RegisterBenchmark(BM_Erase<DictType, KeyType>, "BM_Erase_" + name);
-    RegisterBenchmark(BM_EraseRandom<DictType, KeyType>, "BM_Erase_Random_" + name);
-    
-}
-
-int main(int argc, char** argv) {
-    std::string typeChoice = "unordered_map";
-    std::string keyChoice = "small";
-
-    if (argc > 1){
-        for(int i = 1; i < argc - 1; i++){
-            std::string flag = argv[i];
-            if(flag == "--type"){
-                typeChoice = argv[i+1];
-                i++;
-            } else if(flag == "--key"){
-                keyChoice = argv[i+1];
-                i++;
-            }
-        }
-    }
-
-
-    // Register the benchmark based on user input
-    if (typeChoice == "unordered_map") {
-        if(keyChoice == "large"){
-            RegisterBenchmarkSuite<std::unordered_map<LargeKey, int>, LargeKey>("UnorderedMap_Large");
-        } else if (keyChoice == "small"){
-            RegisterBenchmarkSuite<std::unordered_map<int, int>, int>("UnorderedMap_Small");
-        } else {
-            std::cerr << "Invalid key choice. Use --key (small|large).\n";
-            return 1;
-        }
-    } else if (typeChoice == "map") {
-        if(keyChoice == "large"){
-            RegisterBenchmarkSuite<std::unordered_map<LargeKey, int>, LargeKey>("Map_Large");
-        } else if (keyChoice == "small"){
-            RegisterBenchmarkSuite<std::unordered_map<int, int>, int>("Map_Small");
-        } else {
-            std::cerr << "Invalid key choice. Use --key (small|large).\n";
-            return 1;
-        }
-    } else {
-        std::cerr << "Invalid type choice. Use --type (unordered_map|map).\n";
-        return 1;
-    }
-
-    // Initialize and run benchmarks
-    ::benchmark::Initialize(&argc, argv);
-    ::benchmark::RunSpecifiedBenchmarks();
-	::benchmark::Shutdown();  
-}
+BENCHMARK_MAIN();
