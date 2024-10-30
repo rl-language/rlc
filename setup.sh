@@ -27,8 +27,9 @@ python3 -m virtualenv .venv
 source .venv/bin/activate 
 pip install -r rlc/requirements.txt
 deactivate
-source ./rlc/environment.sh
 
+cd rlc
+source ./rlc/environment.sh
 cd rlc
 git submodule init 
 git submodule update --recursive  

@@ -2,6 +2,7 @@ from shutil import which
 from os.path import exists, isdir
 from os import mkdir, path, chdir, scandir
 from subprocess import run
+import sys
 import argparse
 import os
 
@@ -73,7 +74,7 @@ def build_rlc(
         "-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument",
         "-DRUN_HAVE_STD_REGEX=1",
         "-DPython_EXECUTABLE:FILEPATH={}".format(python_path),
-        "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" and not is_windows and is not is_mac else "",
+        "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" and not is_windows and not is_mac else "",
     )
 
 

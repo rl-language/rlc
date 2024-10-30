@@ -44,7 +44,7 @@ class CallBack(ray.rllib.algorithms.callbacks.DefaultCallbacks):
         rl_module,
         **kwargs,
     ):
-        env.log_extra_metrics(metrics_logger)
+        env.env.log_extra_metrics(metrics_logger)
 
 
 def get_config(
