@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import collections.vector
+import enum_utils
 
 # Trait that must be implemented by a type 
 # to override the standad way it is added to
@@ -40,6 +41,14 @@ fun append_to_vector(Bool to_add, Vector<Byte> output):
 
 fun append_to_vector(Byte to_add, Vector<Byte> output):
     output.append(to_add)
+
+fun<Enum T> append_to_vector(T to_add, Vector<Byte> output):
+    let value = to_add.as_int()
+    let array = __builtin_to_array(value)  
+    let counter = 0
+    while counter < 8:
+        output.append(array[counter])
+        counter = counter + 1 
 
 fun<T> append_to_vector(Vector<T> to_add, Vector<Byte> output):
     append_to_vector(to_add.size(), output)
@@ -138,6 +147,15 @@ fun<T> parse_from_vector(Vector<T> output, Vector<Byte> input, Int index) -> Boo
         output.append(raw)
         counter = counter + 1 
     return true
+
+fun<Enum X> parse_from_vector(X to_add, Vector<Byte> input, Int index) -> Bool:
+    let value = 0
+    let success = _from_vector_impl(value, input, index)
+    if success:
+        value = value % (to_add.max() + 1)
+    to_add.from_int(value)
+    
+    return success
 
 fun<T, Int X> parse_from_vector(T[X] to_add, Vector<Byte> input, Int index) -> Bool:
     let counter = 0

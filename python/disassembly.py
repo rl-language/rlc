@@ -7,10 +7,10 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 import argparse
-from rlc import Simulation, compile, State
+from rlc import Program, compile, State
 import sys
 from shutil import which
-from command_line import load_simulation_from_args, make_rlc_argparse, load_network
+from command_line import load_program_from_args, make_rlc_argparse
 
 
 def main():
@@ -39,7 +39,7 @@ def main():
         default="-",
     )
     args = parser.parse_args()
-    program = load_simulation_from_args(args)
+    program = load_program_from_args(args)
 
     lines = (
         sys.stdin.read()

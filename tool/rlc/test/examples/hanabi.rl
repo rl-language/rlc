@@ -122,6 +122,7 @@ act play() -> Game:
                 act draw_random_card(CardIndex index) {index < deck.value.size()}
                 player_hands[current_player.value].value.append(deck.value.get(index.value))
                 info_token.value = info_token.value + 1
+                deck.value.erase(index.value)
             act play_card(HandCardIndex index) {index < player_hands[current_player.value].value.size()}
                 let card = player_hands[current_player.value].value.get(index.value)
                 ref suit_pile = highest_card_played[card.suit.value]
@@ -134,6 +135,7 @@ act play() -> Game:
                 player_hands[current_player.value].value.erase(index.value)
                 act draw_random_card(CardIndex index) {index < deck.value.size()}
                 player_hands[current_player.value].value.append(deck.value.get(index.value))
+                deck.value.erase(index.value)
        
         if current_player == 0:
             current_player = 1 

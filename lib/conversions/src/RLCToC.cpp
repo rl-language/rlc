@@ -23,16 +23,18 @@ limitations under the License.
 
 using namespace rlc;
 
-static std::string nonArrayTypeToString(mlir::Type type)
+static std::string nonArrayTypeToString(
+		mlir::Type type, bool unionClassQualified = true)
 {
 	std::string O;
 	llvm::raw_string_ostream OS(O);
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case([&](mlir::rlc::ClassType Class) {
-				OS << "union " << Class.mangledName();
+				OS << (unionClassQualified ? "union " : "") << Class.mangledName();
 			})
 			.Case([&](mlir::rlc::AlternativeType alternative) {
-				OS << "struct " << alternative.getMangledName();
+				OS << (unionClassQualified ? "struct " : "")
+					 << alternative.getMangledName();
 			})
 			.Case<mlir::rlc::FloatType>([&](mlir::rlc::FloatType) { OS << "double"; })
 			.Case<mlir::rlc::StringLiteralType>(
@@ -53,7 +55,8 @@ static std::string nonArrayTypeToString(mlir::Type type)
 	return O;
 }
 
-static std::string typeToString(mlir::Type type)
+static std::string typeToString(
+		mlir::Type type, bool unionClassQualified = true)
 {
 	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 		type = casted.getUnderlying();
@@ -64,20 +67,22 @@ static std::string typeToString(mlir::Type type)
 	llvm::raw_string_ostream OS(O);
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case<mlir::rlc::ArrayType>([&](mlir::rlc::ArrayType array) {
-				OS << typeToString(array.getUnderlying());
+				OS << typeToString(array.getUnderlying(), unionClassQualified);
 				OS << "["
 					 << array.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()
 					 << "]";
 			})
 			.Case<mlir::rlc::OwningPtrType>([&](mlir::rlc::OwningPtrType ptr) {
-				OS << typeToString(ptr.getUnderlying());
+				OS << typeToString(ptr.getUnderlying(), unionClassQualified);
 				OS << "*";
 			})
 			.Case<mlir::rlc::ReferenceType>([&](mlir::rlc::ReferenceType ptr) {
 				OS << typeToString(ptr.getUnderlying());
 				OS << "*";
 			})
-			.Default([&](auto type) { OS << nonArrayTypeToString(type); });
+			.Default([&](auto type) {
+				OS << nonArrayTypeToString(type, unionClassQualified);
+			});
 	OS.flush();
 	return O;
 }
@@ -206,7 +211,7 @@ static void printMethodOfType(
 		OS << "union ToReturn { " << typeToString(type.getResult(0))
 			 << " payload; ToReturn() {}; ~ToReturn() {";
 		if (needsToInvokeDestructor)
-			OS << " payload.~" << typeToString(type.getResult(0)) << "();";
+			OS << " payload.~" << typeToString(type.getResult(0), false) << "();";
 		OS << " } }	_rl__result;\n";
 	}
 	OS.indent(1);
@@ -346,7 +351,7 @@ static void printCPPOverload(
 		OS << "union ToReturn { " << typeToString(type.getResult(0))
 			 << " payload; ToReturn() {}; ~ToReturn() {";
 		if (needsToInvokeDestructor)
-			OS << " payload.~" << typeToString(type.getResult(0)) << "();";
+			OS << " payload.~" << typeToString(type.getResult(0), false) << "();";
 		OS << " } }	_rl__result;\n";
 	}
 	OS.indent(1);
