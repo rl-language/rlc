@@ -1,1 +1,2 @@
 rlcAddBenchmark(utils)
+rlcAddBenchmark(dict)
