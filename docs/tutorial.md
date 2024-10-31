@@ -188,25 +188,34 @@ from rlc import compile
 import random
 
 # load the rl file
-program = compile("black_jack.rl")
-state = program.functions.play()
+program = compile(["black_jack.rl"])
+# starts a rlc program invoking the user defined play
+# function and wraps it in object for with some usefull methods
+state = program.start()
 
-while program.functions.get_current_player(state) == -1:
-    action = random.choice(program.valid_actions(state))
-    program.functions.apply(action, state)
+# invokes directly the user defined function on the real state object
+while program.functions.get_current_player(state.state) == -1:
+    # enumerate legal actions using the methods defined on the
+    # wrapper
+    action = random.choice(state.legal_actions)
+    state.step(action)
 
-program.functions.pretty_print(state)
-while state.resume_index != -1:
+# prints the state
+state.pretty_print()
+
+# checks for termination by using the helper functions
+while not state.is_done():
     print("hit? (y/n)")
     decision = input()
+    # invokes user defined actions directly
     if decision == "y":
-        program.functions.hit(state)
+        program.functions.hit(state.state)
     else:
-        program.functions.stand(state)
+        program.functions.stand(state.state)
 
-    program.functions.pretty_print(state)
+    state.pretty_print()
 
-print(f"Your final score is: {program.functions.score(state, 0)}")
+print(f"Your final score is: {program.functions.score(state.state, 0)}")
 ```
 
 You can run this program with the following command, using a shell with the activated environment:
