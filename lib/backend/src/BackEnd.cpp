@@ -41,6 +41,7 @@ limitations under the License.
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -301,7 +302,8 @@ static mlir::LogicalResult getLinkerInvocation(
 		llvm::StringRef clangPath,
 		llvm::ArrayRef<string> clangInvocation,
 		llvm::StringRef triple,
-		bool targetWindows)
+		bool targetWindows,
+		bool targetMac)
 {
 	llvm::SmallVector<const char *, 4> args;
 	for (auto &arg : clangInvocation)
@@ -321,6 +323,9 @@ static mlir::LogicalResult getLinkerInvocation(
 	llvm::sys::path::append(clangResourceDir, installDir, "lib", "clang", "19");
 	driver.ResourceDir =
 			llvm::StringRef(clangResourceDir.data(), clangResourceDir.size());
+	if (targetMac and not llvm::sys::Process::GetEnv("SDKROOT"))
+		driver.SysRoot = "/Applications/Xcode.app/Contents/Developer/Platforms/"
+										 "MacOSX.platform/Developer/SDKs/MacOSX.sdk";
 
 	std::unique_ptr<clang::driver::Compilation> C(driver.BuildCompilation(args));
 	if (!C)
@@ -445,7 +450,8 @@ static int linkLibraries(
 		else
 		{
 			argSource.push_back(outputFile.str());
-			argSource.push_back("-fPIE");
+			if (not info.isMacOS())
+				argSource.push_back("-fPIE");
 		}
 		argSource.push_back("--shared");
 	}
@@ -478,7 +484,11 @@ static int linkLibraries(
 		argSource.push_back(extraObject);
 
 	if (getLinkerInvocation(
-					*maybeRealPath, argSource, info.pimpl->triple.str(), info.isWindows())
+					*maybeRealPath,
+					argSource,
+					info.pimpl->triple.str(),
+					info.isWindows(),
+					info.isMacOS())
 					.failed())
 		return -1;
 
