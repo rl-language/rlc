@@ -211,8 +211,7 @@ struct mlir::rlc::TargetInfoImpl
 				"",
 				options,
 				reloc,
-				this->triple.isOSWindows() ? llvm::CodeModel::Medium
-																	 : llvm::CodeModel::Large,
+				llvm::CodeModel::Large,
 				this->optimize);
 		targetMachine = unique_ptr<TargetMachine>(Ptr);
 

@@ -18,6 +18,8 @@ limitations under the License.
 #define RLC_GET_TYPE_DECLS
 #define RLC_GET_TYPE_DEFS
 #include <cstdint>
+#include <random>
+#include <utility>
 
 #include "TicTacToe.h"
 //

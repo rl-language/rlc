@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#include <random>
+#include <utility>
 #include <cstdint>
 #define RLC_GET_FUNCTION_DECLS
 #define RLC_GET_TYPE_DECLS

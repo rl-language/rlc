@@ -1,5 +1,5 @@
 # checkers implementation using the same rules as openspiel implementation (8x8 board, 40 moves without capturs mean draw)
-# RUN: rlc %s -o %t -i %stdlib
+# RUN: rlc %s -o %t -i %stdlib --shared
 
 import action
 import enum_utils

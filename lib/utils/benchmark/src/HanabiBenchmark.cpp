@@ -17,6 +17,8 @@ limitations under the License.
 #define RLC_GET_FUNCTION_DECLS
 #define RLC_GET_TYPE_DECLS
 #define RLC_GET_TYPE_DEFS
+#include <random>
+#include <utility>
 #include <cstdint>
 
 #include "Hanabi.h"
