@@ -246,11 +246,15 @@ using UnorderedMapIntInt = std::unordered_map<int, int>;
 using UnorderedMapLargeKeyInt = std::unordered_map<LargeKey, int>;
 using MapIntInt = std::map<int, int>;
 using MapLargeKeyInt = std::map<LargeKey, int>;
+using FlatHashMapIntInt = absl::flat_hash_map<int, int>;
+using FlatHashMapLargeKeyInt = absl::flat_hash_map<LargeKey, int>;
 
 // Register benchmark suites
 REGISTER_BENCHMARK_SUITE(UnorderedMapIntInt, int, "UnorderedMap_Small")
 REGISTER_BENCHMARK_SUITE(UnorderedMapLargeKeyInt, LargeKey, "UnorderedMap_Large")
 REGISTER_BENCHMARK_SUITE(MapIntInt, int, "Map_Small")
 REGISTER_BENCHMARK_SUITE(MapLargeKeyInt, LargeKey, "Map_Large")
+REGISTER_BENCHMARK_SUITE(FlatHashMapIntInt, int, "FlatHashMap_Small")
+REGISTER_BENCHMARK_SUITE(FlatHashMapLargeKeyInt, LargeKey, "FlatHashMap_Large")
 
 BENCHMARK_MAIN();
