@@ -58,6 +58,10 @@ copy_binaries(
     target_bin_dir,
 )
 copy_binaries(
+    os.path.join("..", "..", "rlc-release", "install", "bin", "rlc-doc" + exec_ext),
+    target_bin_dir,
+)
+copy_binaries(
     os.path.join("..", "..", "rlc-release", "install", "bin", "rlc-lsp" + exec_ext),
     target_bin_dir,
 )

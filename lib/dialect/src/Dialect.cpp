@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -74,6 +74,12 @@ static mlir::Type attrToRLCType(mlir::Attribute attr)
 {
 	if (auto casted = attr.dyn_cast<mlir::IntegerAttr>())
 	{
+		if (casted.getType() ==
+				mlir::IntegerType::get(
+						attr.getContext(),
+						1,
+						mlir::IntegerType::SignednessSemantics::Signless))
+			return mlir::rlc::BoolType::get(attr.getContext());
 		return mlir::rlc::IntegerType::get(
 				attr.getContext(),
 				casted.getType().dyn_cast<mlir::IntegerType>().getWidth());

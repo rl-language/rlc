@@ -383,6 +383,7 @@ fun<T, Int X> parse_string(T[X] result, String buffer, Int index) -> Bool:
         if !_parse_string_impl(result[counter], buffer, index):
             return false
         _consume_space(buffer, index)
+        counter = counter + 1
         if counter != X:
             if buffer.get(index) != ',':
                 return false

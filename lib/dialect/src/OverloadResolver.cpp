@@ -184,6 +184,26 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 			mlir::TypeRange(resultType));
 }
 
+static mlir::Value findBestMatch(
+		mlir::ValueRange candidates, mlir::TypeRange arguments)
+{
+	llvm::SmallVector<mlir::Value> nonTemplates;
+	llvm::SmallVector<mlir::Value> templates;
+
+	for (auto candidate : candidates)
+	{
+		if (mlir::rlc::isTemplateType(candidate.getType()).succeeded())
+			templates.push_back(candidate);
+		else
+			nonTemplates.push_back(candidate);
+	}
+
+	if (nonTemplates.size() == 1)
+		return nonTemplates[0];
+
+	return templates[0];
+}
+
 mlir::Value mlir::rlc::OverloadResolver::findOverload(
 		mlir::Location callPoint,
 		bool isMemberCall,
@@ -194,7 +214,7 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 			findOverloads(callPoint, isMemberCall, name, arguments);
 
 	if (not matching.empty())
-		return matching.front();
+		return findBestMatch(matching, arguments);
 
 	if (errorEmitter)
 	{
