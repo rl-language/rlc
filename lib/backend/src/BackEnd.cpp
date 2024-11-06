@@ -302,8 +302,15 @@ static mlir::LogicalResult getLinkerInvocation(
 		llvm::ArrayRef<string> clangInvocation,
 		llvm::StringRef triple,
 		bool targetWindows,
-		bool targetMac)
+		bool targetMac,
+		bool verbose)
 {
+	if (verbose)
+	{
+		for (const auto &Arg : clangInvocation)
+			llvm::errs() << Arg << " ";
+		llvm::errs() << "\n";
+	}
 	llvm::SmallVector<const char *, 4> args;
 	for (auto &arg : clangInvocation)
 		args.push_back(arg.data());
@@ -353,6 +360,14 @@ static mlir::LogicalResult getLinkerInvocation(
 		return mlir::failure();
 	}
 
+	if (verbose)
+	{
+		llvm::errs() << LinkCommand->getExecutable() << " ";
+		for (const auto &Arg : LinkCommand->getArguments())
+			llvm::errs() << Arg << " ";
+		llvm::errs() << "\n";
+	}
+
 	// on windows invoke lld in process, because we can't assume lld is
 	// installed
 	if (targetWindows)
@@ -391,7 +406,8 @@ static int linkLibraries(
 		bool linkAgainstFuzzer,
 		const std::vector<std::string> &extraObjectFiles,
 		const std::vector<std::string> &rpaths,
-		const mlir::rlc::TargetInfo &info)
+		const mlir::rlc::TargetInfo &info,
+		bool verbose)
 {
 	auto failedToFindClang = false;
 	auto maybeRealPath =
@@ -487,7 +503,8 @@ static int linkLibraries(
 					argSource,
 					info.pimpl->triple.str(),
 					info.isWindows(),
-					info.isMacOS())
+					info.isMacOS(),
+					verbose)
 					.failed())
 		return -1;
 
@@ -561,7 +578,8 @@ namespace mlir::rlc
 							emitFuzzer,
 							*extraObjectFiles,
 							*rpaths,
-							*targetInfo) != 0)
+							*targetInfo,
+							verbose) != 0)
 				signalPassFailure();
 		}
 	};

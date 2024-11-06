@@ -5,7 +5,7 @@ macro(makeProgramBenchmark name file)
     set(INS ${file} ${CMAKE_SOURCE_DIR}/stdlib/learn.rl)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}${CMAKE_STATIC_LIBRARY_SUFFIX}
-    COMMAND rlc::rlc ${INS} -o ${CMAKE_CURRENT_BINARY_DIR}/${name}${CMAKE_STATIC_LIBRARY_SUFFIX} --compile -O2 -i ${CMAKE_SOURCE_DIR}/stdlib --shared
+    COMMAND rlc::rlc ${INS} -o ${CMAKE_CURRENT_BINARY_DIR}/${name}${CMAKE_STATIC_LIBRARY_SUFFIX} --compile -O2 -i ${CMAKE_SOURCE_DIR}/stdlib
     DEPENDS rlc::rlc ${INS})
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.h
@@ -16,7 +16,6 @@ add_custom_target(${name}_lib ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${name}${C
 rlcAddBenchmark(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}${CMAKE_STATIC_LIBRARY_SUFFIX} rlc::runtime)
 target_include_directories(${name}Benchmark PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_dependencies(${name}Benchmark ${name}_lib)
-target_compile_options(${name}Benchmark PUBLIC -Wl,-read_only_relocs,suppress -fPIE)
 endMacro(makeProgramBenchmark)
 
 

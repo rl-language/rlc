@@ -192,6 +192,14 @@ static cl::opt<bool> shared(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> verbose(
+		"verbose",
+		cl::desc("compile as shared lib"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::alias v1("v", cl::aliasopt(verbose));
+
 static cl::opt<bool> dumpIR(
 		"ir",
 		cl::desc("dumps the llvm-ir and exits"),
@@ -368,6 +376,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setEmitSanitizer(sanitize);
 	driver.setTargetInfo(&info);
 	driver.setEmitBoundChecks(emitBoundChecks);
+	driver.setVerbose(verbose);
 
 	return driver;
 }

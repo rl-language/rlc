@@ -217,6 +217,8 @@ def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
           "rpath entries">,
     Option<"targetInfo", "info about the target", "const mlir::rlc::TargetInfo*", /*default=*/"nullptr",
            "info about the target">,
+    Option<"verbose", "print sub commands invoked", "bool", /*default=*/"false",
+           "prints sub commands invoked">,
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

@@ -62,6 +62,7 @@ namespace mlir::rlc
 
 		void setSkipParsing(bool doIt = true) { skipParsing = doIt; }
 		void setDebug(bool doIt = true) { debug = doIt; }
+		void setVerbose(bool doIt = true) { verbose = doIt; }
 
 		Driver(
 				llvm::SourceMgr &srcManager,
@@ -96,6 +97,7 @@ namespace mlir::rlc
 		llvm::SmallVector<std::string, 4> includeDirs = {};
 		llvm::raw_ostream *OS;
 		bool dumpIR = false;
+		bool verbose = false;
 
 		const mlir::rlc::TargetInfo *targetInfo = nullptr;
 	};

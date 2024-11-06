@@ -157,7 +157,8 @@ namespace mlir::rlc
 																					emitSanitizer,
 																					emitFuzzer,
 																					&rPath,
-																					targetInfo }));
+																					targetInfo,
+																					verbose }));
 	}
 
 }	 // namespace mlir::rlc
