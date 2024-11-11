@@ -23,6 +23,14 @@ def RLC_PythonNone : RLC_PythonType<"None", "none"> {
 
 }
 
+def RLC_CTypesPyObj : RLC_PythonType<"CTypesPyObj", "ctypes_pyobj"> {
+  let summary = "ctypes py_object";
+  let description = [{
+    Implementation agnostic integer type.
+  }];
+
+}
+
 def RLC_CTypesBool : RLC_PythonType<"CTypesBool", "ctypes_bool"> {
   let summary = "RLC builtin integer type";
   let description = [{

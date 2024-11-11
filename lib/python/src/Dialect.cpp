@@ -74,14 +74,26 @@ namespace mlir::rlc::python
 			{
 				OS.indent(4 * 2);
 				OS << "if len(args) == " << candidate.getArgumentTypes().size();
-				if (not candidate.getArgumentTypes().empty())
-					OS << " and ";
-				for (const auto& pair : llvm::enumerate(candidate.getArgumentTypes()))
-				{
-					OS << "isinstance(args[" << pair.index() << "], "
-						 << typeToString(pair.value()) << ")";
 
-					if (pair.index() != candidate.getArgumentTypes().size() - 1)
+				llvm::SmallVector<std::pair<mlir::Type, size_t>, 4> types;
+
+				for (const auto& pair : llvm::enumerate(candidate.getArgumentTypes()))
+					types.push_back({ pair.value(), pair.index() });
+
+				llvm::erase_if(types, [](const auto& t) {
+					auto casted =
+							mlir::dyn_cast<mlir::rlc::python::CTypeStructType>(t.first);
+					return (casted and casted.getName() == "PyObject");
+				});
+
+				if (not types.empty())
+					OS << " and ";
+				for (const auto& pair : types)
+				{
+					OS << "isinstance(args[" << pair.second << "], "
+						 << typeToString(pair.first) << ")";
+
+					if (pair != types.back())
 						OS << " and ";
 				}
 

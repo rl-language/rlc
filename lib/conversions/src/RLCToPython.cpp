@@ -259,6 +259,16 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 					value);
 			values.push_back(res);
 		}
+		else if (auto casted =
+								 value.getType().dyn_cast<mlir::rlc::python::CTypeStructType>();
+						 casted and casted.getName() == "PyObject")
+		{
+			auto res = rewriter.create<mlir::rlc::python::PythonCast>(
+					value.getLoc(),
+					mlir::rlc::python::CTypesPyObjType::get(value.getContext()),
+					value);
+			values.push_back(res);
+		}
 		else
 		{
 			values.push_back(value);

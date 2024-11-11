@@ -1,5 +1,6 @@
 file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/fuzzer_lib_location.txt CONTENT "$<TARGET_FILE:rlc::fuzzer>")
 file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/runtime_lib_location.txt CONTENT "$<TARGET_FILE:rlc::runtime>")
+file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pyrlc_lib_location.txt CONTENT "$<TARGET_FILE:rlc::pyrlc>")
 
 rlcAddLitTest(rlc)
 

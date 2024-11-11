@@ -119,6 +119,12 @@ namespace mlir::rlc
 			return;
 		}
 
+		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypesPyObjType>())
+		{
+			OS << "py_object";
+			return;
+		}
+
 		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypeUnionType>())
 		{
 			for (auto type : llvm::enumerate(maybeType.getSubTypes()))

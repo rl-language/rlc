@@ -20,10 +20,10 @@ if (WIN32)
     file(TO_NATIVE_PATH ${CMAKE_CURRENT_BINARY_DIR}/unpatched.lib UNPATCHED)
     file(TO_NATIVE_PATH ${CMAKE_CURRENT_BINARY_DIR}/runtime.lib ORIGINAL)
     add_custom_command(
-      TARGET runtime POST_BUILD 
+      TARGET runtime POST_BUILD
       COMMAND xcopy /y ${ORIGINAL} ${UNPATCHED}*
 
-      COMMAND lib /OUT:$<TARGET_FILE:rlc::runtime>  ${UNPATCHED} ${CMAKE_BINARY_DIR}/${RLC_MSVCRT} ${CMAKE_BINARY_DIR}/${RLC_KERNEL32} ${CMAKE_BINARY_DIR}/${RLC_VCRUNTIME} ${CMAKE_BINARY_DIR}/${RLC_UCRT} 
+      COMMAND lib /OUT:$<TARGET_FILE:rlc::runtime>  ${UNPATCHED} ${CMAKE_BINARY_DIR}/${RLC_MSVCRT} ${CMAKE_BINARY_DIR}/${RLC_KERNEL32} ${CMAKE_BINARY_DIR}/${RLC_VCRUNTIME} ${CMAKE_BINARY_DIR}/${RLC_UCRT}
       DEPENDS $<TARGET_FILE:rlc::runtime>
     )
 
@@ -31,3 +31,10 @@ else()
     rlcAddLibrary(runtime STATIC src/Parse.c)
     set_property(TARGET runtime PROPERTY C_STANDARD 11)
 endif()
+
+find_package (Python COMPONENTS Interpreter Development)
+add_library(pyrlc STATIC ${CMAKE_SOURCE_DIR}/python/native/call_python.c)
+target_include_directories(pyrlc PUBLIC ${Python_INCLUDE_DIRS})
+target_link_libraries(pyrlc ${PYTHON_LIBRARIES})
+add_library(rlc::pyrlc ALIAS pyrlc)
+INSTALL(TARGETS pyrlc DESTINATION ${CMAKE_INSTALL_LIBDIR})

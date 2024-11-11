@@ -1122,6 +1122,67 @@ static mlir::Value lowerLess(
 	return makeICMP(
 			rewriter, mlir::LLVM::ICmpPredicate::slt, lhs, rhs, op.getLoc());
 }
+static void replaceOpWithStringLiteral(
+		mlir::Operation* op,
+		mlir::ConversionPatternRewriter& rewriter,
+		llvm::StringRef content)
+{
+	llvm::SmallVector<char, 4> out;
+	auto str = getOrCreateGlobalString(
+			op->getLoc(),
+			rewriter,
+			"",
+			(content + llvm::Twine('\0')).toNullTerminatedStringRef(out),
+			op->getParentOfType<mlir::ModuleOp>());
+
+	auto alloca = makeAlloca(
+			rewriter,
+			mlir::LLVM::LLVMPointerType::get(op->getContext()),
+			op->getLoc());
+
+	makeAlignedStore(rewriter, str, alloca, op->getLoc());
+
+	rewriter.replaceOp(op, alloca);
+}
+
+class BuiltinMangledNameRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::BuiltinMangledNameOp>
+{
+	using mlir::OpConversionPattern<
+			mlir::rlc::BuiltinMangledNameOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BuiltinMangledNameOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto name = mlir::rlc::typeToMangled(op.getValue().getType());
+		replaceOpWithStringLiteral(op, rewriter, name);
+		return mlir::LogicalResult::success();
+	}
+};
+
+class BuiltinAsPtrRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::BuiltinAsPtr>
+{
+	using mlir::OpConversionPattern<mlir::rlc::BuiltinAsPtr>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BuiltinAsPtr op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto alloca = makeAlloca(
+				rewriter,
+				mlir::LLVM::LLVMPointerType::get(op.getContext()),
+				op.getLoc());
+		auto casted = rewriter.create<mlir::LLVM::PtrToIntOp>(
+				op.getLoc(), rewriter.getI64Type(), adaptor.getValue());
+		makeAlignedStore(rewriter, casted, alloca, alloca.getLoc());
+		rewriter.replaceOp(op, alloca);
+		return mlir::LogicalResult::success();
+	}
+};
 
 class UninitializedConstructRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::UninitializedConstruct>
@@ -1568,22 +1629,7 @@ class LowerStringLiteral
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		llvm::SmallVector<char, 4> out;
-		auto str = getOrCreateGlobalString(
-				op.getLoc(),
-				rewriter,
-				"",
-				(op.getValue() + llvm::Twine('\0')).toNullTerminatedStringRef(out),
-				op->getParentOfType<mlir::ModuleOp>());
-
-		auto alloca = makeAlloca(
-				rewriter,
-				mlir::LLVM::LLVMPointerType::get(op.getContext()),
-				op.getLoc());
-
-		makeAlignedStore(rewriter, str, alloca, op.getLoc());
-
-		rewriter.replaceOp(op, alloca);
+		replaceOpWithStringLiteral(op, rewriter, op.getValue());
 		return mlir::LogicalResult::success();
 	}
 };
@@ -2157,10 +2203,12 @@ namespace mlir::rlc
 					.add<CopyRewriter>(converter, &getContext())
 					.add<ArrayAccessRewriter>(converter, &getContext())
 					.add<UninitializedConstructRewriter>(converter, &getContext())
+					.add<BuiltinMangledNameRewriter>(converter, &getContext())
 					.add<MemberAccessRewriter>(converter, &getContext())
 					.add<VarNameLowerer>(
 							converter, &getContext(), diGenerator, debug_info)
 					.add<ReferenceRewriter>(converter, &getContext())
+					.add<BuiltinAsPtrRewriter>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
 					.add<AbortRewriter>(converter, &getContext(), puts);

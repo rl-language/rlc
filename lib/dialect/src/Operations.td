@@ -1632,6 +1632,48 @@ def RLC_ImplicitAssignOp : RLC_Dialect<"implicit_assign", [DeclareOpInterfaceMet
   }];
 }
 
+def RLC_BuiltinAsPtr : RLC_Dialect<"builtin_as_ptr", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value);
+
+  let results = (outs RLC_IntegerType:$result);
+
+  let assemblyFormat = [{
+	 $value`:` type($value) `->` type($result) attr-dict
+  }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$value), [{
+            build($_builder, $_state, mlir::rlc::IntegerType::getInt64($_builder.getContext()), value);
+    }]>];
+}
+
+def RLC_BuiltinMangledNameOp : RLC_Dialect<"builtin_mangled_name", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value);
+
+  let results = (outs RLC_StringLiteralType:$result);
+
+  let assemblyFormat = [{
+	 $value`:` type($value) `->` type($result) attr-dict
+  }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$value), [{
+            build($_builder, $_state, mlir::rlc::StringLiteralType::get($_builder.getContext()), value);
+    }]>];
+}
+
 def RLC_BuiltinAssignOp : RLC_Dialect<"builtin_assign", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<ConstraintsAnalyzable>]> {
   let summary = "constant.";
 

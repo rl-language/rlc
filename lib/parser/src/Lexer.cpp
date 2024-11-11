@@ -83,6 +83,10 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordSystem";
 		case Token::KeywordAssert:
 			return "KeywordAssert";
+		case Token::KeywordMangledName:
+			return "KeywordMangledName";
+		case Token::KeywordAsPtr:
+			return "KeywordAsPtr";
 		case Token::KeywordTrait:
 			return "KeywordTrait";
 		case Token::KeywordIs:
@@ -556,6 +560,12 @@ Token Lexer::eatIdent()
 
 	if (name == "OwningPtr")
 		return Token::KeywordOwningPtr;
+
+	if (name == "__builtin_mangled_name")
+		return Token::KeywordMangledName;
+
+	if (name == "__builtin_as_ptr_do_not_use")
+		return Token::KeywordAsPtr;
 
 	lIdent = name;
 	return Token::Identifier;

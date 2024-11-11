@@ -2055,13 +2055,7 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 		return mlir::failure();
 	}
 
-	builder.getRewriter().setInsertionPoint(*this);
-	auto newVal = builder.getRewriter().create<mlir::rlc::InitializerListOp>(
-			getLoc(), type);
-
-	newVal.getBody().takeBody(getBody());
-
-	builder.getRewriter().replaceOp(*this, newVal);
+	getResult().setType(type);
 
 	return mlir::success();
 }
@@ -2108,6 +2102,18 @@ mlir::LogicalResult mlir::rlc::DestroyOp::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::FreeOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::BuiltinMangledNameOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::BuiltinAsPtr::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	return mlir::success();

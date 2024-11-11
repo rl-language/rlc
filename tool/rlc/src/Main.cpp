@@ -267,6 +267,21 @@ static cl::opt<bool> sanitize(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> pylib(
+		"pylib",
+		cl::desc("link against python interpreter"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<std::string> customPythonLibPath(
+		"pyrlc-lib",
+		cl::desc("path to the pyrlc library."),
+		cl::init(""),
+		cl::cat(astDumperCategory),
+		cl::callback([](const std::string &value) {
+			pylib.setInitialValue(true);
+		}));
+
 static cl::opt<bool> emitFuzzer(
 		"fuzzer",
 		cl::desc("emit a fuzzer."),	 // TODO consider passing the action name here.
@@ -349,6 +364,18 @@ static mlir::rlc::Driver configureDriver(
 		includes.push_back(directory.str());
 	}
 	includes.push_back(rlcDirectory);
+
+	if (pylib)
+	{
+		string pyrlcLibPath = customPythonLibPath.empty()
+															? llvm::sys::path::parent_path(pathToRlc).str() +
+																		"/../lib/" + PYRLC_LIBRARY_FILENAME
+															: customPythonLibPath.getValue();
+		pyrlcLibPath = toNative(pyrlcLibPath);
+
+		objectFiles.push_back(pyrlcLibPath);
+		RPath.addValue(llvm::sys::path::parent_path(pyrlcLibPath).str());
+	}
 
 	if (emitFuzzer)
 	{

@@ -48,6 +48,8 @@ namespace rlc
 		KeywordContinue,
 		KeywordFree,
 		KeywordRef,
+		KeywordMangledName,
+		KeywordAsPtr,
 		KeywordToArray,
 		KeywordFromArray,
 		KeywordEvent,

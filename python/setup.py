@@ -67,6 +67,12 @@ copy_binaries(
 )
 copy_binaries(
     os.path.join(
+        "..", "..", "rlc-release", "install", "lib", lib_prefix + "pyrlc" + lib_ext
+    ),
+    "lib",
+)
+copy_binaries(
+    os.path.join(
         "..", "..", "rlc-release", "install", "lib", lib_prefix + "runtime" + lib_ext
     ),
     "lib",

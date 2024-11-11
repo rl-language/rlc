@@ -179,6 +179,30 @@ llvm::Expected<mlir::Value> Parser::builtinToArray()
 			location, mlir::rlc::UnknownType::get(builder.getContext()), *size);
 }
 
+// builtinMangedName : "__builtin_mangled_name(" expression ")"
+Expected<mlir::Value> Parser::builtinMangledName()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordMangledName);
+	EXPECT(Token::LPar);
+	TRY(arg, expression());
+	EXPECT(Token::RPar);
+
+	return builder.create<mlir::rlc::BuiltinMangledNameOp>(location, *arg);
+}
+
+// builtinMangedName : "__builtin_as_ptr_do_no_use(" expression ")"
+Expected<mlir::Value> Parser::builtinAsPtr()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordAsPtr);
+	EXPECT(Token::LPar);
+	TRY(arg, expression());
+	EXPECT(Token::RPar);
+
+	return builder.create<mlir::rlc::BuiltinAsPtr>(location, *arg);
+}
+
 // builtinMalloc : "__builtin_destroy_do_not_use(" expression ")"
 Expected<mlir::Operation*> Parser::builtinDestroy()
 {
@@ -281,6 +305,12 @@ Expected<mlir::Value> Parser::primaryExpression()
 
 	if (current == Token::KeywordFromArray)
 		return builtinFromArray();
+
+	if (current == Token::KeywordMangledName)
+		return builtinMangledName();
+
+	if (current == Token::KeywordAsPtr)
+		return builtinAsPtr();
 
 	if (current == Token::String)
 		return stringExpression();
