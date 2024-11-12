@@ -26,6 +26,8 @@ limitations under the License.
 #include <utility>
 #include <random>
 
+#include "absl/container/flat_hash_map.h"
+
 std::random_device rd;
 std::mt19937 gen(rd());
 
@@ -231,10 +233,10 @@ static void BM_EraseRandom(benchmark::State& state) {
         ->Complexity();
 
 #define REGISTER_BENCHMARK_SUITE(DictType, KeyType, NameSuffix)        \
-    REGISTER_BENCHMARK(BM_SubsciptOperatorInsert, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_SubsciptOperatorInsertRandom, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_Insert, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_InsertRandom, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsert, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsertRandom, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_SubscriptOperatorFind, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_SubscriptOperatorFindRandom, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_Find, DictType, KeyType, NameSuffix) \
