@@ -813,6 +813,106 @@ class YieldReferenceRewriter
 	}
 };
 
+class BitAndRewriter: public mlir::OpConversionPattern<mlir::rlc::BitAndOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::BitAndOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BitAndOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type =
+				typeConverter->convertType(mlir::rlc::ProxyType::get(op.getType()));
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+		auto operand1 =
+				makeAlignedLoad(rewriter, type, adaptor.getLhs(), op.getLoc());
+		auto operand2 =
+				makeAlignedLoad(rewriter, type, adaptor.getRhs(), op.getLoc());
+		auto result =
+				rewriter.create<mlir::LLVM::AndOp>(op.getLoc(), operand1, operand2);
+		makeAlignedStore(rewriter, result, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
+class BitOrRewriter: public mlir::OpConversionPattern<mlir::rlc::BitOrOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::BitOrOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BitOrOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type =
+				typeConverter->convertType(mlir::rlc::ProxyType::get(op.getType()));
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+		auto operand1 =
+				makeAlignedLoad(rewriter, type, adaptor.getLhs(), op.getLoc());
+		auto operand2 =
+				makeAlignedLoad(rewriter, type, adaptor.getRhs(), op.getLoc());
+		auto result =
+				rewriter.create<mlir::LLVM::OrOp>(op.getLoc(), operand1, operand2);
+		makeAlignedStore(rewriter, result, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
+class BitXorRewriter: public mlir::OpConversionPattern<mlir::rlc::BitXorOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::BitXorOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BitXorOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type =
+				typeConverter->convertType(mlir::rlc::ProxyType::get(op.getType()));
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+		auto operand1 =
+				makeAlignedLoad(rewriter, type, adaptor.getLhs(), op.getLoc());
+		auto operand2 =
+				makeAlignedLoad(rewriter, type, adaptor.getRhs(), op.getLoc());
+		auto result =
+				rewriter.create<mlir::LLVM::XOrOp>(op.getLoc(), operand1, operand2);
+		makeAlignedStore(rewriter, result, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
+class BitNotRewriter: public mlir::OpConversionPattern<mlir::rlc::BitNotOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::BitNotOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BitNotOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type =
+				typeConverter->convertType(mlir::rlc::ProxyType::get(op.getType()));
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+		auto mask = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), type, rewriter.getI64IntegerAttr(-1));
+		auto operand =
+				makeAlignedLoad(rewriter, type, adaptor.getUnderlying(), op.getLoc());
+		auto result =
+				rewriter.create<mlir::LLVM::XOrOp>(op.getLoc(), operand, mask);
+		makeAlignedStore(rewriter, result, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
 class YieldRewriter: public mlir::OpConversionPattern<mlir::rlc::Yield>
 {
 	using mlir::OpConversionPattern<mlir::rlc::Yield>::OpConversionPattern;
@@ -1942,6 +2042,10 @@ namespace mlir::rlc
 					.add(makeArith(lowerOr, converter, &getContext()))
 					.add(makeArith(lowerAdd, converter, &getContext()))
 					.add(makeArith(lowerMult, converter, &getContext()))
+					.add<BitNotRewriter>(converter, &getContext())
+					.add<BitOrRewriter>(converter, &getContext())
+					.add<BitAndRewriter>(converter, &getContext())
+					.add<BitXorRewriter>(converter, &getContext())
 					.add<YieldRewriter>(converter, &getContext())
 					.add<YieldReferenceRewriter>(converter, &getContext())
 					.add<AliasTypeEraser>(converter, &getContext())

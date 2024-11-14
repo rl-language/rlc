@@ -474,6 +474,12 @@ Expected<mlir::Value> Parser::unaryExpression()
 		return builder.create<mlir::rlc::MinusOp>(location, unkType(), *exp);
 	}
 
+	if (accept<Token::Tilde>())
+	{
+		TRY(exp, unaryExpression());
+		return builder.create<mlir::rlc::BitNotOp>(location, unkType(), *exp);
+	}
+
 	if (accept<Token::ExMark>())
 	{
 		TRY(exp, unaryExpression());
@@ -704,7 +710,46 @@ Expected<mlir::Value> Parser::orExpression()
 	return orOp;
 }
 
-Expected<mlir::Value> Parser::expression() { return orExpression(); }
+Expected<mlir::Value> Parser::bitWiseAndExpression()
+{
+	auto location = getCurrentSourcePos();
+	TRY(lhs, orExpression());
+
+	while (accept<Token::KeywordBitAnd>())
+	{
+		TRY(rhs, orExpression());
+		*lhs = builder.create<mlir::rlc::BitAndOp>(location, *lhs, *rhs);
+	}
+	return *lhs;
+}
+
+Expected<mlir::Value> Parser::bitWiseXorExpression()
+{
+	auto location = getCurrentSourcePos();
+	TRY(lhs, bitWiseAndExpression());
+
+	while (accept<Token::KeywordBitXor>())
+	{
+		TRY(rhs, bitWiseAndExpression());
+		*lhs = builder.create<mlir::rlc::BitXorOp>(location, *lhs, *rhs);
+	}
+	return *lhs;
+}
+
+Expected<mlir::Value> Parser::bitWiseOrExpression()
+{
+	auto location = getCurrentSourcePos();
+	TRY(lhs, bitWiseXorExpression());
+
+	while (accept<Token::VerticalPipe>())
+	{
+		TRY(rhs, bitWiseXorExpression());
+		*lhs = builder.create<mlir::rlc::BitOrOp>(location, *lhs, *rhs);
+	}
+	return *lhs;
+}
+
+Expected<mlir::Value> Parser::expression() { return bitWiseOrExpression(); }
 
 /**
  * ClassField : TypeUse Identifier

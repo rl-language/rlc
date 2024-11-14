@@ -32,7 +32,9 @@ namespace rlc
 		KeywordSystem,
 		KeywordTrait,
 		KeywordIs,
+		KeywordBitAnd,
 		KeywordAnd,
+		KeywordBitXor,
 		KeywordOr,
 		KeywordRule,
 		KeywordEnum,
@@ -106,6 +108,7 @@ namespace rlc
 		Int64,
 		Bool,
 		Dot,
+		Tilde,
 		Error,
 		VerticalPipe
 	};

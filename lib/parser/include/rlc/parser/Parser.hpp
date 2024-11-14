@@ -76,6 +76,9 @@ namespace rlc
 		llvm::Expected<mlir::Value> equalityExpression();
 		llvm::Expected<mlir::Value> andExpression();
 		llvm::Expected<mlir::Value> orExpression();
+		llvm::Expected<mlir::Value> bitWiseAndExpression();
+		llvm::Expected<mlir::Value> bitWiseXorExpression();
+		llvm::Expected<mlir::Value> bitWiseOrExpression();
 		llvm::Expected<mlir::Value> stringExpression();
 		llvm::Expected<mlir::Operation*> usingTypeStatement();
 		llvm::Expected<mlir::rlc::ClassDeclaration> classDeclaration();

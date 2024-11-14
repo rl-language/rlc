@@ -80,6 +80,10 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordTrait";
 		case Token::KeywordIs:
 			return "KeywordIs";
+		case Token::KeywordBitXor:
+			return "KeywordBitXor";
+		case Token::KeywordBitAnd:
+			return "KeywordBitAnd";
 		case Token::KeywordAnd:
 			return "KeywordAnd";
 		case Token::KeywordOr:
@@ -188,6 +192,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Colons";
 		case Token::ColonsColons:
 			return "ColonsColons";
+		case Token::Tilde:
+			return "Tilde";
 		case Token::Equal:
 			return "Equal";
 		case Token::Identifier:
@@ -345,6 +351,12 @@ optional<Token> Lexer::eatSymbol()
 			return Token::Comma;
 		case '.':
 			return Token::Dot;
+		case '~':
+			return Token::Tilde;
+		case '&':
+			return Token::KeywordBitAnd;
+		case '^':
+			return Token::KeywordBitXor;
 		case '\n':
 			return Token::Newline;
 		case '|':

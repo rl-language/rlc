@@ -1251,6 +1251,82 @@ def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCh
 
 }
 
+class RLC_BinaryBitwiseOp<string mnemonic, list<OpInterface> CA_Interface=[]> : RLC_Dialect<mnemonic, [TypeCheckable]#CA_Interface> {
+
+    let extraClassDeclaration = [{
+	
+	  mlir::LogicalResult typeCheck(
+              mlir::rlc::ModuleBuilder& builder) {
+	      auto deducedTypeLHS = builder.getConverter().convertType(getLhs().getType());
+	      auto deducedTypeRHS = builder.getConverter().convertType(getRhs().getType());
+          if (not deducedTypeLHS.isa<mlir::rlc::IntegerType>()) {
+            
+		    return logError(
+				getOperation(),
+				"Bitwise operation requires integer left operand");
+          }
+
+          if (not deducedTypeRHS.isa<mlir::rlc::IntegerType>()) {
+            
+		    return logError(
+				getOperation(),
+				"Bitwis operation requires integer right operand");
+          }
+
+        getResult().setType(deducedTypeLHS);
+        return mlir::success();
+      }
+	}];
+
+    let arguments = (ins RLCIntegerOrUnkownType:$lhs, RLCIntegerOrUnkownType:$rhs);
+    let results = (outs RLCIntegerOrUnkownType:$result);
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
+            build($_builder, $_state, lhs.getType(), lhs, rhs);
+      }]>];
+
+    let assemblyFormat = [{
+	  $rhs `:` type($rhs) `,` $lhs `:` type($lhs) `->` type($result) attr-dict
+    }];
+}
+
+def RLC_BitOrOp : RLC_BinaryBitwiseOp<"bit_or"> {}
+def RLC_BitAndOp : RLC_BinaryBitwiseOp<"bit_and"> {}
+def RLC_BitXorOp : RLC_BinaryBitwiseOp<"bit_xor"> {}
+
+def RLC_BitNotOp : RLC_Dialect<"bit_not", [TypeCheckable]> {
+
+    let extraClassDeclaration = [{
+	
+	  mlir::LogicalResult typeCheck(
+              mlir::rlc::ModuleBuilder& builder) {
+	      auto deducedType = builder.getConverter().convertType(getUnderlying().getType());
+          if (not deducedType.isa<mlir::rlc::IntegerType>()) {
+            
+		    return logError(
+				getOperation(),
+				"Bitwise not requires integer operand");
+          }
+
+        getResult().setType(deducedType);
+        return mlir::success();
+      }
+	}];
+
+    let arguments = (ins RLCIntegerOrUnkownType:$underlying);
+    let results = (outs RLCIntegerOrUnkownType:$result);
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$underlying), [{
+            build($_builder, $_state, underlying.getType(), underlying);
+      }]>];
+
+    let assemblyFormat = [{
+	  $underlying`:` type($underlying) type($result) attr-dict
+    }];
+}
+
 class RLC_InternalOp<string mnemonic, list<OpInterface> CA_Interface=[]> : RLC_Dialect<mnemonic, [TypeCheckable]#CA_Interface> {
 
     let extraClassDeclaration = [{
