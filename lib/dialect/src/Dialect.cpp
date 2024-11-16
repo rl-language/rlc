@@ -65,6 +65,7 @@ struct RLCDialectFoldInterface: public mlir::DialectFoldInterface
 void mlir::rlc::RLCDialect::initialize()
 {
 	registerTypes();
+	registerAttrs();
 	registerOperations();
 	addInterfaces<TypeAliasASMInterface>();
 	addInterfaces<RLCDialectFoldInterface>();

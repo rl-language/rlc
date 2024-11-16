@@ -250,7 +250,7 @@ namespace mlir::rlc
 	{
 		auto& rewriter = builder.getRewriter();
 
-		for (auto field : llvm::enumerate(type.getBody()))
+		for (auto field : llvm::enumerate(type.getMembers()))
 		{
 			auto lhs = rewriter.create<mlir::rlc::MemberAccess>(
 					fun.getLoc(), fun.getBody().front().getArgument(0), field.index());

@@ -97,10 +97,9 @@ namespace mlir::rlc
 			}
 		}
 
-		if (auto casted =
-						expressions[0].getType().dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = expressions[0].getType().dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (auto field : llvm::enumerate(casted.getBody()))
+			for (auto field : llvm::enumerate(casted.getMembers()))
 			{
 				llvm::SmallVector<mlir::Value, 2> members;
 				for (auto expression : expressions)
@@ -113,9 +112,9 @@ namespace mlir::rlc
 						builder,
 						rewriter,
 						op.getLoc(),
-						casted.getFieldNames()[field.index()],
+						field.value().getName(),
 						members,
-						field.value(),
+						field.value().getType(),
 						op);
 			}
 		}

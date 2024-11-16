@@ -116,17 +116,15 @@ static void printClassDecl(
 	OS << "## cls " << op.getName() << "\n";
 	writeComment(op, OS);
 
-	OS << (op.getMemberNames().size() != 0 ? "\n### Fields\n\n" : "");
-	for (size_t i = 0; i != op.getMemberNames().size(); i++)
+	OS << (op.getMembers().size() != 0 ? "\n### Fields\n\n" : "");
+	for (size_t i = 0; i != op.getMembers().size(); i++)
 	{
-		auto name = op.getMemberNames()[i].cast<mlir::StringAttr>();
-		if (name.strref().starts_with("_"))
+		auto name = op.getMemberField(i).getName();
+		if (name.starts_with("_"))
 			continue;
 
-		OS << "* "
-			 << mlir::rlc::prettyType(
-							op.getMemberTypes()[i].cast<mlir::TypeAttr>().getValue())
-			 << " " << name.str() << "\n";
+		OS << "* " << mlir::rlc::prettyType(op.getMemberField(i).getType()) << " "
+			 << name.str() << "\n";
 	}
 
 	OS

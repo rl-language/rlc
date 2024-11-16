@@ -783,8 +783,7 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	EXPECT(Token::Indent);
-	SmallVector<mlir::Type, 3> fieldTypes;
-	SmallVector<mlir::Attribute, 3> fieldNames;
+	SmallVector<mlir::Attribute, 3> fields;
 
 	mlir::Region region;
 	auto* bb = builder.createBlock(&region);
@@ -796,8 +795,7 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 				location,
 				unkType(),
 				builder.getStringAttr(name),
-				builder.getTypeArrayAttr(fieldTypes),
-				builder.getArrayAttr(fieldNames),
+				builder.getArrayAttr(fields),
 				builder.getTypeArrayAttr(templateParameters));
 
 		toReturn.getBody().takeBody(region);
@@ -824,8 +822,9 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 		else
 		{
 			TRY(field, classField(), on_exit());
-			fieldTypes.emplace_back(field->second);
-			fieldNames.emplace_back(builder.getStringAttr(field->first));
+			auto attr = mlir::rlc::ClassFieldAttr::get(
+					builder.getContext(), field->first, field->second);
+			fields.push_back(attr);
 			EXPECT(Token::Newline, on_exit());
 		}
 		while (accept<Token::Newline>())

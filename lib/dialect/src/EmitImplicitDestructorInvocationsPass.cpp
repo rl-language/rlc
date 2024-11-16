@@ -139,9 +139,10 @@ namespace mlir::rlc
 				return mlir::success();
 			}
 
-			for (auto field : type.getBody())
+			for (auto field : type.getMembers())
 			{
-				if (typeRequiresDestructor(builder, requireDestructor, field).failed())
+				if (typeRequiresDestructor(builder, requireDestructor, field.getType())
+								.failed())
 					continue;
 
 				requireDestructor[toConsider] = true;
@@ -282,16 +283,16 @@ namespace mlir::rlc
 			rewriter.setInsertionPointToStart(body);
 			if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 			{
-				for (auto num : ::rlc::irange(casted.getBody().size()))
+				for (auto num : ::rlc::irange(casted.getMembers().size()))
 				{
-					auto fieldType = casted.getBody()[num];
-					if (typeRequiresDestructor(builder, map, fieldType).failed())
+					auto field = casted.getMembers()[num];
+					if (typeRequiresDestructor(builder, map, field.getType()).failed())
 						continue;
 
 					auto access = rewriter.create<mlir::rlc::MemberAccess>(
 							op.getLoc(), body->getArgument(0), num);
 					auto subFunction = resolver.instantiateOverload(
-							rewriter, true, op.getLoc(), "drop", { fieldType });
+							rewriter, true, op.getLoc(), "drop", { field.getType() });
 					rewriter.create<mlir::rlc::CallOp>(
 							op.getLoc(), subFunction, true, mlir::ValueRange({ access }));
 				}

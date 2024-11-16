@@ -1,4 +1,5 @@
 include "Types.td"
+include "Attrs.td"
 include "Enums.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -1147,7 +1148,7 @@ def RLC_MemberAccess : RLC_Dialect<"member_access", [DeclareOpInterfaceMethods<T
         OpBuilder<(ins "mlir::Value":$value, "std::int64_t":$fieldIndex), [{
 			auto index = $_builder.getI64IntegerAttr(fieldIndex);
 			auto real_type = value.getType().cast<ClassType>();
-			auto resType = real_type.getBody()[fieldIndex];
+			auto resType = real_type.getMembers()[fieldIndex].getType();
             build($_builder, $_state, resType, value, index);
     }]>];
 
@@ -1949,15 +1950,30 @@ def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [NoTerminator, NoRegionArgu
 	expression.
   }];
 
-  let arguments = (ins StrAttr:$name, TypeArrayAttr:$memberTypes, StrArrayAttr:$memberNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$name,  ClassFieldsArrayAttr:$members, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let results = (outs AnyType:$result);
 
   let regions = (region
   AnyRegion:$body
   );
 
+  let extraClassDeclaration = [{
+      mlir::rlc::ClassFieldAttr getMemberField(size_t i) {
+        return getMembers()[i].cast<mlir::rlc::ClassFieldAttr>();
+      }
+
+      llvm::SmallVector <mlir::rlc::ClassFieldAttr, 4> getMemberFields() {
+        llvm::SmallVector <mlir::rlc::ClassFieldAttr, 4> outs;
+        for (size_t i = 0; i != getMembers().size(); i++ )
+            outs.push_back(getMemberField(i));
+
+        return outs;
+      }
+
+  }];
+
   let assemblyFormat = [{
-	$name ( `template_parameters` $template_parameters^ )? $memberTypes $memberNames type($result) $body attr-dict 
+	$name ( `template_parameters` $template_parameters^ )? $members type($result) $body attr-dict 
   }];
 }
 

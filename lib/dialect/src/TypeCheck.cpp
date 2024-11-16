@@ -99,9 +99,8 @@ static mlir::LogicalResult getClassDeclarationSortedByDependencies(
 	for (auto classDecl : op.getOps<mlir::rlc::ClassDeclaration>())
 	{
 		llvm::SmallVector<mlir::StringRef, 2> names;
-		for (auto subtypes : classDecl.getMemberTypes())
-			collectClassUsedTyepNames(
-					subtypes.cast<mlir::TypeAttr>().getValue(), names);
+		for (auto field : classDecl.getMemberFields())
+			collectClassUsedTyepNames(field.getType(), names);
 
 		// remove the use of names that refer to the template parameters
 		for (auto parameter : classDecl.getTemplateParameters())
@@ -195,8 +194,7 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 				mlir::rlc::ClassType::getIdentified(
 						casted.getContext(), casted.getName(), templates),
 				casted.getName(),
-				casted.getMemberTypes(),
-				casted.getMemberNames(),
+				casted.getMembers(),
 				casted.getTemplateParameters());
 		rewriter.eraseOp(casted);
 	}
@@ -224,8 +222,7 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 				action.getLoc(),
 				type,
 				rewriter.getStringAttr(type.getName()),
-				rewriter.getTypeArrayAttr({}),
-				rewriter.getStrArrayAttr({}),
+				rewriter.getArrayAttr({}),
 				rewriter.getArrayAttr({}));
 
 		if (decls.count(type.getName()) != 0)
@@ -261,8 +258,8 @@ static mlir::LogicalResult deduceClassBody(
 	if (builder.isClassOfAction(decl.getType()))
 		return mlir::success();
 
-	llvm::SmallVector<std::string> names;
-	llvm::SmallVector<mlir::Type, 2> types;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr> newFields;
+	llvm::SmallVector<mlir::Attribute> newFieldsAttr;
 
 	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
 
@@ -285,23 +282,22 @@ static mlir::LogicalResult deduceClassBody(
 		scopedConverter.registerType(actualType.getName(), actualType);
 	}
 
-	for (const auto& [field, name] :
-			 llvm::zip(decl.getMemberTypes(), decl.getMemberNames()))
+	for (auto field : decl.getMemberFields())
 	{
-		auto fieldType = field.cast<mlir::TypeAttr>().getValue();
-		auto converted = scopedConverter.convertType(fieldType);
+		auto converted = scopedConverter.convertType(field.getType());
 		if (!converted)
 		{
 			return mlir::failure();
 		}
 
-		types.push_back(converted);
-		names.push_back(name.cast<mlir::StringAttr>().str());
+		newFields.push_back(mlir::rlc::ClassFieldAttr::get(
+				converted.getContext(), field.getName(), converted));
+		newFieldsAttr.push_back(newFields.back());
 	}
 	auto finalType = mlir::rlc::ClassType::getIdentified(
 			decl.getContext(), decl.getName(), checkedTemplateParameters);
 
-	if (finalType.setBody(types, names).failed())
+	if (finalType.setBody(newFields).failed())
 	{
 		assert(false && "unrechable");
 		return mlir::failure();
@@ -311,8 +307,7 @@ static mlir::LogicalResult deduceClassBody(
 			decl,
 			finalType,
 			decl.getName(),
-			rewriter.getTypeArrayAttr(types),
-			decl.getMemberNames(),
+			rewriter.getArrayAttr(newFieldsAttr),
 			rewriter.getTypeArrayAttr(checkedTemplateParameters));
 
 	return mlir::success();

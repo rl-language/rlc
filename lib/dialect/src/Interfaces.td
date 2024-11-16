@@ -1,3 +1,5 @@
+#ifndef __RLC_INTERFACES__
+#define __RLC_INTERFACES__
 include "mlir/IR/OpBase.td"
 
 def RLC_RLCSerializable
@@ -54,3 +56,4 @@ def ConstraintsAnalyzable : RLC_Interface<"ConstraintsAnalyzable"> {
     ];
 }
 
+#endif

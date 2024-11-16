@@ -498,11 +498,10 @@ static void printTypeDefinition(
 				OS << "typedef union " << Class.mangledName() << " {\n";
 
 				OS << "struct _Content" << Class.mangledName() << " {\n";
-				for (const auto& [name, fieldType] :
-						 llvm::zip(Class.getFieldNames(), Class.getBody()))
+				for (auto field : Class.getMembers())
 				{
 					OS.indent(4);
-					printTypeField(name, fieldType, OS);
+					printTypeField(field.getName(), field.getType(), OS);
 					OS << ";\n";
 				}
 				OS.indent(2);
@@ -1091,9 +1090,9 @@ public:
 
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (auto [name, type] :
-					 llvm::zip(casted.getFieldNames(), casted.getBody()))
+			for (auto field : casted.getMembers())
 			{
+				auto name = field.getName();
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
 
@@ -1139,9 +1138,9 @@ public:
 
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (auto [name, type] :
-					 llvm::zip(casted.getFieldNames(), casted.getBody()))
+			for (auto field : casted.getMembers())
 			{
+				auto name = field.getName();
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
 

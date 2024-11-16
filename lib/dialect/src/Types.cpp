@@ -57,8 +57,7 @@ ClassType ClassType::getIdentified(
 ClassType ClassType::getNewIdentified(
 		MLIRContext *context,
 		StringRef name,
-		ArrayRef<Type> elements,
-		ArrayRef<std::string> fieldNames,
+		ArrayRef<mlir::rlc::ClassFieldAttr> fields,
 		ArrayRef<Type> explicitTemplateParameters)
 {
 	std::string stringName = name.str();
@@ -67,7 +66,7 @@ ClassType ClassType::getNewIdentified(
 	{
 		auto type = ClassType::getIdentified(
 				context, stringName, explicitTemplateParameters);
-		if (type.isInitialized() || failed(type.setBody(elements, fieldNames)))
+		if (type.isInitialized() || failed(type.setBody(fields)))
 		{
 			counter += 1;
 			stringName = (Twine(name) + "." + std::to_string(counter)).str();
@@ -78,9 +77,9 @@ ClassType ClassType::getNewIdentified(
 }
 
 mlir::LogicalResult ClassType::setBody(
-		ArrayRef<Type> types, ArrayRef<std::string> fieldNames)
+		ArrayRef<mlir::rlc::ClassFieldAttr> fields)
 {
-	return Base::mutate(types, fieldNames);
+	return Base::mutate(fields);
 }
 
 bool ClassType::isInitialized() const { return getImpl()->isInitialized(); }
@@ -88,9 +87,9 @@ llvm::StringRef ClassType::getName() const
 {
 	return getImpl()->getIdentifier();
 }
-llvm::ArrayRef<mlir::Type> ClassType::getBody() const
+llvm::ArrayRef<mlir::rlc::ClassFieldAttr> ClassType::getMembers() const
 {
-	return getImpl()->getBody();
+	return getImpl()->getFields();
 }
 
 llvm::ArrayRef<mlir::Type> ClassType::getExplicitTemplateParameters() const
@@ -114,8 +113,8 @@ void ClassType::walkImmediateSubElements(
 		function_ref<void(Attribute)> walkAttrsFn,
 		function_ref<void(Type)> walkTypesFn) const
 {
-	for (Type type : getBody())
-		walkTypesFn(type);
+	for (auto attr : getMembers())
+		walkAttrsFn(attr);
 
 	for (Type type : getExplicitTemplateParameters())
 		walkTypesFn(type);
@@ -125,16 +124,15 @@ mlir::Type ClassType::replaceImmediateSubElements(
 		ArrayRef<Attribute> replAttrs, ArrayRef<Type> replTypes) const
 {
 	auto type = ClassType::getIdentified(
-			getContext(), getName(), replTypes.drop_front(getBody().size()));
-	auto result =
-			type.setBody(replTypes.take_front(getBody().size()), getFieldNames());
+			getContext(), getName(), replTypes.drop_front(getMembers().size()));
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr> fields;
+	for (auto attr : replAttrs.take_front(getMembers().size()))
+	{
+		fields.push_back(attr.cast<mlir::rlc::ClassFieldAttr>());
+	}
+	auto result = type.setBody(fields);
 	assert(result.succeeded());
 	return type;
-}
-
-llvm::ArrayRef<std::string> ClassType::getFieldNames() const
-{
-	return getImpl()->getFieldNames();
 }
 
 mlir::Type ClassType::parse(mlir::AsmParser &parser)
@@ -173,28 +171,17 @@ mlir::Type ClassType::parse(mlir::AsmParser &parser)
 	auto toReturn =
 			ClassType::getIdentified(parser.getContext(), name, templateParameters);
 
-	llvm::SmallVector<std::string, 2> names;
-	llvm::SmallVector<mlir::Type, 2> inners;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 2> inners;
 
 	if (parser.parseLBrace().succeeded())
 	{
 		while (parser.parseOptionalRBrace().failed())
 		{
-			names.emplace_back();
-			if (parser.parseKeywordOrString(&names.back()).failed() or
-					parser.parseColon().failed())
+			mlir::Attribute field;
+			if (parser.parseAttribute(field).failed())
 			{
 				parser.emitError(
-						parser.getCurrentLocation(), "failed to parse Class sub type ");
-				return {};
-			}
-
-			mlir::Type elem = {};
-			auto res = parser.parseType(elem);
-			if (res.failed())
-			{
-				parser.emitError(
-						parser.getCurrentLocation(), "failed to parse Class sub type ");
+						parser.getCurrentLocation(), "failed to parse class member");
 				return {};
 			}
 
@@ -207,11 +194,11 @@ mlir::Type ClassType::parse(mlir::AsmParser &parser)
 				return {};
 			}
 
-			inners.push_back(elem);
+			inners.push_back(field.cast<mlir::rlc::ClassFieldAttr>());
 		}
 	}
 
-	if (toReturn.setBody(inners, names).failed())
+	if (toReturn.setBody(inners).failed())
 	{
 		parser.emitError(
 				parser.getCurrentLocation(),
@@ -248,11 +235,9 @@ mlir::Type ClassType::print(mlir::AsmPrinter &p) const
 		return *this;
 	}
 	p << " {";
-	for (const auto &[type, name] : llvm::zip(getBody(), getFieldNames()))
+	for (auto member : getMembers())
 	{
-		p << name;
-		p << ": ";
-		p.printType(type);
+		p.printAttribute(member);
 		p << ", ";
 	}
 
@@ -779,8 +764,8 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 		if (not casted.isInitialized())
 			return mlir::failure();
 
-		for (auto child : casted.getBody())
-			if (isTemplateType(child).succeeded())
+		for (auto child : casted.getMembers())
+			if (isTemplateType(child.getType()).succeeded())
 				return mlir::success();
 		return mlir::failure();
 	}

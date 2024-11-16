@@ -161,58 +161,56 @@ namespace mlir::rlc
 	}
 
 	static void emitAsStringLiteralFunction(
-		IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		// Set initial insertion point
 		rewriter.setInsertionPoint(enumOp);
 
-		auto argType = mlir::rlc::ScalarUseType::get(rewriter.getContext(), enumOp.getName());
+		auto argType =
+				mlir::rlc::ScalarUseType::get(rewriter.getContext(), enumOp.getName());
 		auto returnType = mlir::rlc::StringLiteralType::get(rewriter.getContext());
 		auto argName = "self";
 
 		// Create function signature
 		auto f = rewriter.create<mlir::rlc::FunctionOp>(
-			enumOp.getLoc(),
-			"as_string_literal",
-			mlir::FunctionType::get(rewriter.getContext(), {argType}, {returnType}),
-			rewriter.getStrArrayAttr({argName}),
-			false
-		);
+				enumOp.getLoc(),
+				"as_string_literal",
+				mlir::FunctionType::get(
+						rewriter.getContext(), { argType }, { returnType }),
+				rewriter.getStrArrayAttr({ argName }),
+				false);
 
 		// Create function block and set insertion point
 		auto* bb = rewriter.createBlock(
-			&f.getBody(), f.getBody().begin(), {argType}, {enumOp.getLoc()}
-		);
+				&f.getBody(), f.getBody().begin(), { argType }, { enumOp.getLoc() });
 		rewriter.setInsertionPointToStart(bb);
 
-		
 		// Iterate over the fields of the enum
 		int64_t currentFieldIndex = 0;
-		for (auto field : enumOp.getRegion().front().getOps<mlir::rlc::EnumFieldDeclarationOp>())
-		{		
+		for (auto field :
+				 enumOp.getRegion().front().getOps<mlir::rlc::EnumFieldDeclarationOp>())
+		{
 			// Generate If statement. Is it field.getLoc() or enumOp.getLoc()?
-			auto ifStatement = rewriter.create<mlir::rlc::IfStatement>(field.getLoc());
+			auto ifStatement =
+					rewriter.create<mlir::rlc::IfStatement>(field.getLoc());
 
 			// Generate If confition
 			rewriter.createBlock(&ifStatement.getCondition());
 			auto selfOp = rewriter.create<mlir::rlc::UnresolvedReference>(
-				field.getLoc(),
-				mlir::rlc::UnknownType::get(enumOp.getContext()),
-				"self"
-			);
+					field.getLoc(),
+					mlir::rlc::UnknownType::get(enumOp.getContext()),
+					"self");
 			auto accessSelf = rewriter.create<mlir::rlc::UnresolvedMemberAccess>(
-				field.getLoc(),
-				mlir::rlc::UnknownType::get(field.getContext()),
-				selfOp,
-				"value"
-			);
+					field.getLoc(),
+					mlir::rlc::UnknownType::get(field.getContext()),
+					selfOp,
+					"value");
 			auto value = rewriter.create<mlir::rlc::Constant>(
-				field.getLoc(), currentFieldIndex
-			);
+					field.getLoc(), currentFieldIndex);
 			auto areEqual = rewriter.create<mlir::rlc::EqualOp>(
-				field.getLoc(), value, accessSelf
-			);
-			rewriter.create<mlir::rlc::Yield>(field.getLoc(), mlir::ValueRange({ areEqual }));
+					field.getLoc(), value, accessSelf);
+			rewriter.create<mlir::rlc::Yield>(
+					field.getLoc(), mlir::ValueRange({ areEqual }));
 
 			// Generate True branch to be filled with return command
 			auto trueBB = rewriter.createBlock(&ifStatement.getTrueBranch());
@@ -220,20 +218,16 @@ namespace mlir::rlc
 
 			// Generate return statement with constant string as value
 			auto retStm = rewriter.create<mlir::rlc::ReturnStatement>(
-				ifStatement.getLoc(),
-				returnType
-			);
-			auto* bbReturn = rewriter.createBlock(&retStm.getBody(), retStm.getBody().begin());
+					ifStatement.getLoc(), returnType);
+			auto* bbReturn =
+					rewriter.createBlock(&retStm.getBody(), retStm.getBody().begin());
 			rewriter.setInsertionPointToStart(bbReturn);
 
 			// Generate constant return value
 			auto stringConstant = rewriter.create<mlir::rlc::StringLiteralOp>(
-				field.getLoc(),
-				field.getName().str()
-			);
+					field.getLoc(), field.getName().str());
 			rewriter.create<mlir::rlc::Yield>(
-				enumOp.getLoc(), mlir::ValueRange({ stringConstant })
-			);
+					enumOp.getLoc(), mlir::ValueRange({ stringConstant }));
 
 			// Generate empty Else branch
 			rewriter.createBlock(&ifStatement.getElseBranch());
@@ -245,21 +239,17 @@ namespace mlir::rlc
 
 		// Generate return statement with constant string as value
 		auto finalRetStm = rewriter.create<mlir::rlc::ReturnStatement>(
-			enumOp.getLoc(),
-			returnType
-		);
-		auto* bbFinalReturn = rewriter.createBlock(&finalRetStm.getBody(), finalRetStm.getBody().begin());
+				enumOp.getLoc(), returnType);
+		auto* bbFinalReturn = rewriter.createBlock(
+				&finalRetStm.getBody(), finalRetStm.getBody().begin());
 		rewriter.setInsertionPointToStart(bbFinalReturn);
 
 		// Generate default constant return value: the empty string
-		auto defautStringLiteral = rewriter.create<mlir::rlc::StringLiteralOp>(
-			enumOp.getLoc(),
-			""
-		);
+		auto defautStringLiteral =
+				rewriter.create<mlir::rlc::StringLiteralOp>(enumOp.getLoc(), "");
 		// Yield that value
 		rewriter.create<mlir::rlc::Yield>(
-			enumOp.getLoc(), mlir::ValueRange({ defautStringLiteral })
-		);
+				enumOp.getLoc(), mlir::ValueRange({ defautStringLiteral }));
 	}
 
 	static void emitImplicitEnumFunctions(
@@ -447,13 +437,17 @@ namespace mlir::rlc
 			for (auto declaration : ops)
 			{
 				rewriter.setInsertionPoint(declaration);
+				llvm::SmallVector<mlir::Attribute, 1> fields{
+					mlir::rlc::ClassFieldAttr::get(
+							declaration.getContext(),
+							"value",
+							mlir::rlc::ScalarUseType::get(getOperation().getContext(), "Int"))
+				};
 				auto op = rewriter.create<mlir::rlc::ClassDeclaration>(
 						declaration.getLoc(),
 						mlir::rlc::UnknownType::get(getOperation().getContext()),
 						declaration.getName(),
-						rewriter.getTypeArrayAttr({ mlir::rlc::ScalarUseType::get(
-								getOperation().getContext(), "Int") }),
-						rewriter.getStrArrayAttr({ "value" }),
+						rewriter.getArrayAttr(fields),
 						rewriter.getTypeArrayAttr({}));
 				moveAllFunctionDeclsToNewClass(declaration, op, rewriter);
 				if (moveAllMethodExpressionToNewClassFunctions(

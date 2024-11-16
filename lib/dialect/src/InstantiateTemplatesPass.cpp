@@ -75,8 +75,7 @@ namespace mlir::rlc
 				originalDecl.getLoc(),
 				type,
 				originalDecl.getNameAttr(),
-				rewriter.getTypeArrayAttr(type.getBody()),
-				originalDecl.getMemberNames(),
+				originalDecl.getMembers(),
 				rewriter.getArrayAttr({}));
 	}
 

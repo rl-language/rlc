@@ -491,14 +491,13 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		auto type = memberAccess->getOperand(0).getType();
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (const auto &field :
-					 llvm::zip(casted.getFieldNames(), casted.getBody()))
+			for (auto field : casted.getMembers())
 			{
 				mlir::lsp::CompletionItem item;
-				item.label = std::get<0>(field);
+				item.label = field.getName();
 				item.kind = mlir::lsp::CompletionItemKind::Field;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-				item.detail = prettyType(std::get<1>(field));
+				item.detail = prettyType(field.getType());
 				list.items.push_back(item);
 			}
 		}

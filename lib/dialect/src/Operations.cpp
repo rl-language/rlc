@@ -159,39 +159,42 @@ mlir::rlc::ActionFunction::getFrameLists()
 
 static void setFramesBody(mlir::rlc::ActionFunction fun)
 {
-	llvm::SmallVector<mlir::Type, 4> memberTypes;
-	llvm::SmallVector<std::string, 4> memberNames;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> fields;
 
-	llvm::SmallVector<mlir::Type, 4> hiddenMemberTypes;
-	llvm::SmallVector<std::string, 4> hiddenMemberNames;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> hiddenMembers;
 
 	// add the implicit local variable "resume_index" to members
-	memberTypes.push_back(mlir::rlc::IntegerType::getInt64(fun.getContext()));
-	memberNames.push_back("resume_index");
+	fields.push_back(mlir::rlc::ClassFieldAttr::get(
+			fun.getContext(),
+			"resume_index",
+			mlir::rlc::IntegerType::getInt64(fun.getContext())));
 
 	auto frames = fun.getFrameLists();
 	for (auto &entry : frames.first.valueNamePairs)
 	{
-		memberNames.push_back(entry.second.str());
-		memberTypes.push_back(
-				entry.first.getType().cast<mlir::rlc::FrameType>().getUnderlying());
+		fields.push_back(mlir::rlc::ClassFieldAttr::get(
+				fun.getContext(),
+				entry.second.str(),
+				entry.first.getType().cast<mlir::rlc::FrameType>().getUnderlying()));
 	}
 
 	for (auto &entry : frames.second.valueNamePairs)
 	{
-		hiddenMemberNames.push_back(entry.second.str());
 		auto t = entry.first.getType();
 		if (auto casted = t.dyn_cast<mlir::rlc::ContextType>())
 			t = casted.getUnderlying();
-		hiddenMemberTypes.push_back(mlir::rlc::ReferenceType::get(t));
+		hiddenMembers.push_back(mlir::rlc::ClassFieldAttr::get(
+				fun.getContext(),
+				entry.second.str(),
+				mlir::rlc::ReferenceType::get(t)));
 	}
 
-	auto res = fun.getClassType().setBody(memberTypes, memberNames);
+	auto res = fun.getClassType().setBody(fields);
 	assert(res.succeeded());
 
 	auto res2 = mlir::rlc::ClassType::getIdentified(
 			fun.getContext(), (fun.getClassType().getName() + "_shadow").str(), {});
-	auto isOk = res2.setBody(hiddenMemberTypes, hiddenMemberNames).succeeded();
+	auto isOk = res2.setBody(hiddenMembers).succeeded();
 	assert(isOk);
 }
 
@@ -346,7 +349,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 
 		llvm::SmallVector<mlir::Value, 4> args(
 				std::next(preconditionBB->args_begin()), preconditionBB->args_end());
-		for (auto [index, actionType] : llvm::enumerate(actionType.getBody()))
+		for (auto [index, field] : llvm::enumerate(actionType.getMembers()))
 		{
 			auto member = builder.getRewriter().create<mlir::rlc::MemberAccess>(
 					statement.getLoc(), preconditionBB->getArguments()[0], index);
@@ -368,7 +371,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 
 		llvm::SmallVector<mlir::Value, 4> args(
 				std::next(bodyBB->args_begin()), bodyBB->args_end());
-		for (auto [index, actionType] : llvm::enumerate(actionType.getBody()))
+		for (auto [index, field] : llvm::enumerate(actionType.getMembers()))
 		{
 			auto member = builder.getRewriter().create<mlir::rlc::MemberAccess>(
 					statement.getLoc(), bodyBB->getArguments()[0], index);
@@ -412,9 +415,8 @@ static mlir::Type declareActionStatementType(
 	std::string name = function.getClassType().getName().str();
 	name += snakeCaseToCamelCase(statement.getName());
 
-	llvm::SmallVector<mlir::Type, 4> fieldTypes;
-	llvm::SmallVector<std::string, 4> fieldNames;
-	llvm::SmallVector<llvm::StringRef, 4> fieldNamesRef;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> fields;
+	llvm::SmallVector<mlir::Attribute, 4> fieldsAttrs;
 
 	for (auto [name, result] :
 			 llvm::zip(statement.getDeclaredNames(), statement.getResults()))
@@ -424,20 +426,20 @@ static mlir::Type declareActionStatementType(
 		auto type = result.getType();
 		if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 			type = casted.getUnderlying();
-		fieldNames.push_back(name.cast<mlir::StringAttr>().str());
-		fieldNamesRef.push_back(name.cast<mlir::StringAttr>());
-		fieldTypes.push_back(type);
+		auto field = mlir::rlc::ClassFieldAttr::get(
+				type.getContext(), name.cast<mlir::StringAttr>().str(), type);
+		fields.push_back(field);
+		fieldsAttrs.push_back(field);
 	}
 
 	auto type = mlir::rlc::ClassType::getNewIdentified(
-			function.getContext(), name, fieldTypes, fieldNames, {});
+			function.getContext(), name, fields, {});
 
 	auto built = builder.getRewriter().create<mlir::rlc::ClassDeclaration>(
 			statement.getLoc(),
 			type,
 			name,
-			builder.getRewriter().getTypeArrayAttr(fieldTypes),
-			builder.getRewriter().getStrArrayAttr(fieldNamesRef),
+			builder.getRewriter().getArrayAttr(fieldsAttrs),
 			builder.getRewriter().getTypeArrayAttr({}));
 	auto applyFunction =
 			defineApplyFunction(function, builder, action, statement, type);
@@ -2022,9 +2024,9 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		return logError(*this, "Member accesses cannot refer to a empty name");
 	}
 
-	for (const auto &index : llvm::enumerate(structType.getFieldNames()))
+	for (const auto &index : llvm::enumerate(structType.getMembers()))
 	{
-		if (index.value() != getMemberName())
+		if (index.value().getName() != getMemberName())
 			continue;
 
 		auto *maybeDecl = builder.getDeclarationOfType(getValue().getType());

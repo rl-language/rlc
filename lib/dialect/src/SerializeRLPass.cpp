@@ -52,15 +52,14 @@ namespace mlir::rlc
 				}
 
 				*OS << " " << type.getName() << ":\n";
-				for (auto [name, type] :
-						 llvm::zip(type.getFieldNames(), type.getBody()))
+				for (auto field : type.getMembers())
 				{
 					(*OS).indent(2);
 					type.cast<mlir::rlc::RLCSerializable>().rlc_serialize(
 							*OS, SerializationContext());
-					*OS << " " << name << "\n";
+					*OS << " " << field.getName() << "\n";
 				}
-				if (type.getFieldNames().empty())
+				if (type.getMembers().empty())
 				{
 					(*OS).indent(2);
 					*OS << "pass\n";

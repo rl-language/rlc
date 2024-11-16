@@ -24,6 +24,7 @@ limitations under the License.
 #include "mlir/IR/TypeRange.h"
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "rlc/dialect/Attrs.hpp"
 #include "rlc/dialect/Enums.hpp"
 #include "rlc/dialect/Interfaces.hpp"
 #include "rlc/dialect/OverloadResolver.hpp"

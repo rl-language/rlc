@@ -353,7 +353,7 @@ namespace mlir::rlc
 
 		auto* block = &fun.getBody().front();
 		rewriter.setInsertionPointToEnd(block);
-		for (auto field : llvm::enumerate(type.getBody()))
+		for (auto field : llvm::enumerate(type.getMembers()))
 		{
 			auto lhs = rewriter.create<mlir::rlc::MemberAccess>(
 					fun.getLoc(), block->getArgument(0), field.index());

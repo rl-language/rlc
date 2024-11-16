@@ -80,11 +80,8 @@ namespace mlir::rlc
 		static ClassType getNewIdentified(
 				MLIRContext *context,
 				StringRef name,
-				ArrayRef<Type> elements,
-				ArrayRef<std::string> fieldNames,
+				ArrayRef<mlir::rlc::ClassFieldAttr> fields,
 				ArrayRef<Type> explicitTemplateParameters);
-
-		llvm::ArrayRef<std::string> getFieldNames() const;
 
 		/// Set the body of an identified struct. Returns failure if the body could
 		/// not be set, e.g. if the struct already has a body or if it was marked as
@@ -92,8 +89,7 @@ namespace mlir::rlc
 		/// a different thread modified the struct after it was created. Most
 		/// callers are likely to assert this always succeeds, but it is possible to
 		/// implement a local renaming scheme based on the result of this call.
-		LogicalResult setBody(
-				ArrayRef<Type> types, ArrayRef<std::string> fieldNames);
+		LogicalResult setBody(ArrayRef<mlir::rlc::ClassFieldAttr> fields);
 
 		/// Checks if a struct is initialized.
 		bool isInitialized() const;
@@ -102,7 +98,7 @@ namespace mlir::rlc
 		StringRef getName() const;
 
 		/// Returns the list of element types contained in a non-opaque struct.
-		ArrayRef<Type> getBody() const;
+		ArrayRef<mlir::rlc::ClassFieldAttr> getMembers() const;
 		ArrayRef<Type> getExplicitTemplateParameters() const;
 
 		/// Verifies that the type about to be constructed is well-formed.

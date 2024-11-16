@@ -250,7 +250,7 @@ class ClassDeclarationRewriter
 		auto pointerType = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
 		auto i64Type = rewriter.getI64Type();
 		auto arrayType =
-				mlir::LLVM::LLVMArrayType::get(pointerType, op.getMemberTypes().size());
+				mlir::LLVM::LLVMArrayType::get(pointerType, op.getMembers().size());
 		auto structTest = ::mlir::LLVM::LLVMStructType::getNewIdentified(
 				op->getContext(),
 				"globalVariableType",
@@ -279,7 +279,7 @@ class ClassDeclarationRewriter
 		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
 				op.getLoc(), structValue, variableName, mlir::ArrayRef<int64_t>({ 0 }));
 
-		auto numberOfFields = op.getMemberNames().size();
+		auto numberOfFields = op.getMembers().size();
 		auto numberOfFieldsValue = rewriter.create<mlir::LLVM::ConstantOp>(
 				op.getLoc(), rewriter.getI64Type(), numberOfFields);
 		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
@@ -288,13 +288,13 @@ class ClassDeclarationRewriter
 				numberOfFieldsValue,
 				mlir::ArrayRef<int64_t>({ 1 }));
 
-		for (unsigned i = 0, e = op.getMemberNames().size(); i < e; ++i)
+		for (unsigned i = 0, e = op.getMembers().size(); i < e; ++i)
 		{
 			auto variableName = getOrCreateGlobalString(
 					op.getLoc(),
 					rewriter,
-					op.getMemberNames()[i].cast<mlir::StringAttr>(),
-					op.getMemberNames()[i].cast<mlir::StringAttr>(),
+					op.getMemberField(i).getName(),
+					op.getMemberField(i).getName(),
 					newOp->getParentOfType<mlir::ModuleOp>());
 			structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
 					op.getLoc(),

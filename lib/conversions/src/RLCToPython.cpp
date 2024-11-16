@@ -88,9 +88,9 @@ static void registerBuiltinConversions(
 
 	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getBody())
+		for (auto sub : t.getMembers())
 		{
-			auto converted = ctypesConverter.convertType(sub);
+			auto converted = ctypesConverter.convertType(sub.getType());
 			assert(converted);
 			types.push_back(converted);
 		}
@@ -172,9 +172,9 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 
 	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getBody())
+		for (auto sub : t.getMembers())
 		{
-			auto converted = converter.convertType(sub);
+			auto converted = converter.convertType(sub.getType());
 			assert(converted);
 			types.push_back(converted);
 		}
@@ -688,8 +688,8 @@ namespace mlir::python
 
 		if (auto classDecl = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (const auto& name : classDecl.getFieldNames())
-				names.push_back(name);
+			for (auto field : classDecl.getMembers())
+				names.push_back(field.getName().str());
 		}
 		else if (auto alternative = type.dyn_cast<mlir::rlc::AlternativeType>())
 		{

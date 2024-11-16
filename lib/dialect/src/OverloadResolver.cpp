@@ -71,9 +71,10 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		}
 
 		for (auto [callee, callsite] :
-				 llvm::zip(pair.first.getBody(), pair.second.getBody()))
+				 llvm::zip(pair.first.getMembers(), pair.second.getMembers()))
 		{
-			if (deduceSubstitutions(callPoint, substitutions, callee, callsite)
+			if (deduceSubstitutions(
+							callPoint, substitutions, callee.getType(), callsite.getType())
 							.failed())
 				return mlir::failure();
 		}
