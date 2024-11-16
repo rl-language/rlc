@@ -1,5 +1,4 @@
 include "Types.td"
-include "Interfaces.td"
 include "Enums.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"

@@ -818,6 +818,9 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 			TRY(f, functionDefinition(true), on_exit());
 			setComment(*f, currentFunctionComments);
 		}
+		else if (accept<Token::KeywordPass>())
+		{
+		}
 		else
 		{
 			TRY(field, classField(), on_exit());

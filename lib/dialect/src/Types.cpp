@@ -894,3 +894,115 @@ int64_t mlir::rlc::ArrayType::getArraySize()
 {
 	return getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();
 }
+
+void mlir::rlc::IntegerType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "Int";
+}
+
+void mlir::rlc::StringLiteralType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "StringLiteral";
+}
+
+void mlir::rlc::FloatType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "Float";
+}
+
+void mlir::rlc::BoolType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "Bool";
+}
+
+void mlir::rlc::ReferenceType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "ref ";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+}
+
+void mlir::rlc::OwningPtrType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "OwningPtr<";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	OS << ">";
+}
+
+void mlir::rlc::AlternativeType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	for (size_t i = 0; i != getUnderlying().size(); i++)
+	{
+		getUnderlying()[i].cast<mlir::rlc::RLCSerializable>().rlc_serialize(
+				OS, ctx);
+		if (i + 1 != getUnderlying().size())
+			OS << " | ";
+	}
+}
+
+void mlir::rlc::ArrayType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	OS << "[";
+	getSize().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	OS << "]";
+}
+
+void mlir::rlc::TemplateParameterType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	if (getTrait() != nullptr)
+	{
+		getTrait().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	}
+	OS << getName();
+}
+
+void mlir::rlc::ContextType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "ctx ";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+}
+
+void mlir::rlc::FrameType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "frm ";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+}
+
+void mlir::rlc::IntegerLiteralType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << getValue();
+}
+
+void mlir::rlc::ClassType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << getName();
+	if (getExplicitTemplateParameters().size() != 0)
+	{
+		OS << "<";
+		for (auto templateParameter :
+				 llvm::drop_end(getExplicitTemplateParameters()))
+		{
+			templateParameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(
+					OS, ctx);
+			OS << ", ";
+		}
+		getExplicitTemplateParameters()
+				.back()
+				.cast<mlir::rlc::RLCSerializable>()
+				.rlc_serialize(OS, ctx);
+		OS << ">";
+	}
+}

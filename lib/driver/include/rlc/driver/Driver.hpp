@@ -24,7 +24,8 @@ namespace mlir::rlc
 			dumpFlatIR,
 			dumpMLIR,
 			compile,
-			executable
+			executable,
+			format
 		};
 
 		public:

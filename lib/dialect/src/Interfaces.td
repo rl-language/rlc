@@ -1,5 +1,25 @@
 include "mlir/IR/OpBase.td"
 
+def RLC_RLCSerializable
+    : TypeInterface<"RLCSerializable"> {
+  let cppNamespace = "::mlir::rlc";
+
+  let description = [{
+    An interface for types that are allowed as elements of LLVM pointer type.
+    Such types must have a size.
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*description=*/"Serializes a type to string as it would be written in a rlc file.",
+      /*retTy=*/"void",
+      /*methodName=*/"rlc_serialize",
+      /*args=*/(ins "llvm::raw_ostream&":$OS, "const mlir::rlc::SerializationContext &":$context),
+      /*methodBody=*/""
+    >
+  ];
+}
+
 class RLC_Interface<string name, list<OpInterface> baseinterface = []> : OpInterface<name, baseinterface> {
     let cppNamespace = "::mlir::rlc";
 }

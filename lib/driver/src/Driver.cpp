@@ -36,6 +36,12 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 
+		if (request == Request::format)
+		{
+			manager.addPass(mlir::rlc::createSerializeRLPass({ OS }));
+			return;
+		}
+
 		if (request == Request::dumpCheckedAST)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));

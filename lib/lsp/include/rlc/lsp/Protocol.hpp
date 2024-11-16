@@ -14,20 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 #pragma once
+#include "mlir/Tools/lsp-server-support/Protocol.h"
 
-#include "mlir/Transforms/DialectConversion.h"
-#include "rlc/dialect/Dialect.h"
-#include "rlc/dialect/SymbolTable.h"
-
-namespace mlir
+namespace mlir::rlc::lsp
 {
-	class IRRewriter;
-}
 
-namespace mlir::rlc
-{
-	class ConstraintsLattice;
-	class ConstraintsAnalysis;
-}	 // namespace mlir::rlc
+	struct RenameParams
+	{
+		/// The text document.
+		mlir::lsp::TextDocumentIdentifier textDocument;
 
-#include "rlc/dialect/Interfaces.inc"
+		/// The position inside the text document.
+		mlir::lsp::Position position;
+
+		std::string newName;
+	};
+
+	/// Add support for JSON serialization.
+	bool fromJSON(
+			const llvm::json::Value &value,
+			RenameParams &result,
+			llvm::json::Path path);
+
+}	 // namespace mlir::rlc::lsp

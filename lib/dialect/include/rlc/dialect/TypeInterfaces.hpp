@@ -17,17 +17,7 @@ limitations under the License.
 
 #include "mlir/Transforms/DialectConversion.h"
 #include "rlc/dialect/Dialect.h"
-#include "rlc/dialect/SymbolTable.h"
+#include "rlc/dialect/SerializationContext.hpp"
+//
 
-namespace mlir
-{
-	class IRRewriter;
-}
-
-namespace mlir::rlc
-{
-	class ConstraintsLattice;
-	class ConstraintsAnalysis;
-}	 // namespace mlir::rlc
-
-#include "rlc/dialect/Interfaces.inc"
+#include "rlc/dialect/TypeInterfaces.inc"

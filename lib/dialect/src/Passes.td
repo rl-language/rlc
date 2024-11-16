@@ -162,6 +162,15 @@ def PrintIRPass : Pass<"rlc-print-ir-pass", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def SerializeRLPass : Pass<"rlc-serialize-ir-pass", "mlir::ModuleOp"> {
+  let summary = "prints the ir on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"&llvm::outs()",
+           "stream on which to print the module">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def PrintCHeaderPass : Pass<"rlc-print-c-header-pass", "mlir::ModuleOp"> {
   let summary = "prints the c header on the provided stream";
   let options = [

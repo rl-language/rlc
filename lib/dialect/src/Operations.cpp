@@ -23,6 +23,7 @@ limitations under the License.
 #include "mlir/IR/OpDefinition.h"
 #include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Dialect.h"
+#include "rlc/dialect/Interfaces.hpp"
 #include "rlc/utils/IRange.hpp"
 #define GET_OP_CLASSES
 #include "./Operations.inc"

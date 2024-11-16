@@ -13,21 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-#pragma once
-
-#include "mlir/Transforms/DialectConversion.h"
-#include "rlc/dialect/Dialect.h"
-#include "rlc/dialect/SymbolTable.h"
-
-namespace mlir
-{
-	class IRRewriter;
-}
-
-namespace mlir::rlc
-{
-	class ConstraintsLattice;
-	class ConstraintsAnalysis;
-}	 // namespace mlir::rlc
-
-#include "rlc/dialect/Interfaces.inc"
+#include "rlc/dialect/TypeInterfaces.hpp"
+//
+#include "TypeInterfaces.inc"

@@ -20,6 +20,7 @@ limitations under the License.
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/TypeSupport.h"
 #include "mlir/IR/Types.h"
+#include "rlc/dialect/TypeInterfaces.hpp"
 
 namespace mlir::rlc
 {
@@ -48,9 +49,12 @@ namespace mlir::rlc
 	std::string prettyPrintFunctionTypeWithNameArgs(
 			mlir::FunctionType fType, mlir::ArrayAttr attr);
 
-	class ClassType
-			: public Type::
-						TypeBase<ClassType, Type, StructTypeStorage, TypeTrait::IsMutable>
+	class ClassType: public Type::TypeBase<
+											 ClassType,
+											 Type,
+											 StructTypeStorage,
+											 TypeTrait::IsMutable,
+											 mlir::rlc::RLCSerializable::Trait>
 	{
 		public:
 		/// Inherit base constructors.
@@ -117,6 +121,10 @@ namespace mlir::rlc
 		static Type parse(AsmParser &parser);
 
 		Type print(AsmPrinter &p) const;
+
+		void rlc_serialize(
+				llvm::raw_ostream &OS,
+				const mlir::rlc::SerializationContext &ctx) const;
 	};
 
 	mlir::LogicalResult isTemplateType(mlir::Type type);
@@ -127,5 +135,6 @@ namespace mlir::rlc
 			mlir::FunctionType original,
 			mlir::rlc::TemplateParameterType toReplace,
 			mlir::Type replacement);
+
 }	 // namespace mlir::rlc
 	 //

@@ -54,6 +54,7 @@ namespace rlc
 		KeywordAlternative,
 		KeywordAction,
 		KeywordSubAction,
+		KeywordPass,
 		KeywordFrame,
 		KeywordCtx,
 		KeywordClass,

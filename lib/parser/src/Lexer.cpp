@@ -108,6 +108,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordLet";
 		case Token::KeywordClass:
 			return "KeywordClass";
+		case Token::KeywordPass:
+			return "KeywordPass";
 		case Token::KeywordDestroy:
 			return "KeywordDestroy";
 		case Token::KeywordContstruct:
@@ -425,6 +427,9 @@ Token Lexer::eatIdent()
 
 	if (name == "rul")
 		return Token::KeywordRule;
+
+	if (name == "pass")
+		return Token::KeywordPass;
 
 	if (name == "using")
 		return Token::KeywordUsing;

@@ -243,6 +243,12 @@ static cl::opt<std::string> customFuzzerLibPath(
 		cl::init(""),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> formatFile(
+		"format",
+		cl::desc("print the file formatted"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<std::string> customRuntime(
 		"runtime-lib",
 		cl::desc("path to runtime"),
@@ -295,6 +301,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::compile;
 	if (dumpBeforeTemplate)
 		return Driver::Request::dumpBeforeTemplate;
+	if (formatFile)
+		return Driver::Request::format;
 	return Driver::Request::executable;
 }
 
