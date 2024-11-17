@@ -193,9 +193,11 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 				casted.getLoc(),
 				mlir::rlc::ClassType::getIdentified(
 						casted.getContext(), casted.getName(), templates),
-				casted.getName(),
+				casted.getNameAttr(),
 				casted.getMembers(),
-				casted.getTemplateParameters());
+				casted.getTemplateParameters(),
+				casted.getTypeLocation().has_value() ? *casted.getTypeLocation()
+																						 : nullptr);
 		rewriter.eraseOp(casted);
 	}
 	return mlir::success();
@@ -223,7 +225,8 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 				type,
 				rewriter.getStringAttr(type.getName()),
 				rewriter.getArrayAttr({}),
-				rewriter.getArrayAttr({}));
+				rewriter.getArrayAttr({}),
+				nullptr);
 
 		if (decls.count(type.getName()) != 0)
 		{
@@ -291,7 +294,7 @@ static mlir::LogicalResult deduceClassBody(
 		}
 
 		newFields.push_back(mlir::rlc::ClassFieldAttr::get(
-				converted.getContext(), field.getName(), converted));
+				field.getName(), converted, field.getTypeLocation()));
 		newFieldsAttr.push_back(newFields.back());
 	}
 	auto finalType = mlir::rlc::ClassType::getIdentified(
@@ -308,7 +311,8 @@ static mlir::LogicalResult deduceClassBody(
 			finalType,
 			decl.getName(),
 			rewriter.getArrayAttr(newFieldsAttr),
-			rewriter.getTypeArrayAttr(checkedTemplateParameters));
+			rewriter.getTypeArrayAttr(checkedTemplateParameters),
+			decl.getTypeLocation().has_value() ? *decl.getTypeLocation() : nullptr);
 
 	return mlir::success();
 }

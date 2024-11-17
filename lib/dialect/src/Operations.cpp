@@ -165,15 +165,12 @@ static void setFramesBody(mlir::rlc::ActionFunction fun)
 
 	// add the implicit local variable "resume_index" to members
 	fields.push_back(mlir::rlc::ClassFieldAttr::get(
-			fun.getContext(),
-			"resume_index",
-			mlir::rlc::IntegerType::getInt64(fun.getContext())));
+			"resume_index", mlir::rlc::IntegerType::getInt64(fun.getContext())));
 
 	auto frames = fun.getFrameLists();
 	for (auto &entry : frames.first.valueNamePairs)
 	{
 		fields.push_back(mlir::rlc::ClassFieldAttr::get(
-				fun.getContext(),
 				entry.second.str(),
 				entry.first.getType().cast<mlir::rlc::FrameType>().getUnderlying()));
 	}
@@ -184,9 +181,7 @@ static void setFramesBody(mlir::rlc::ActionFunction fun)
 		if (auto casted = t.dyn_cast<mlir::rlc::ContextType>())
 			t = casted.getUnderlying();
 		hiddenMembers.push_back(mlir::rlc::ClassFieldAttr::get(
-				fun.getContext(),
-				entry.second.str(),
-				mlir::rlc::ReferenceType::get(t)));
+				entry.second.str(), mlir::rlc::ReferenceType::get(t)));
 	}
 
 	auto res = fun.getClassType().setBody(fields);
@@ -427,7 +422,7 @@ static mlir::Type declareActionStatementType(
 		if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 			type = casted.getUnderlying();
 		auto field = mlir::rlc::ClassFieldAttr::get(
-				type.getContext(), name.cast<mlir::StringAttr>().str(), type);
+				name.cast<mlir::StringAttr>().str(), type);
 		fields.push_back(field);
 		fieldsAttrs.push_back(field);
 	}
@@ -440,7 +435,8 @@ static mlir::Type declareActionStatementType(
 			type,
 			name,
 			builder.getRewriter().getArrayAttr(fieldsAttrs),
-			builder.getRewriter().getTypeArrayAttr({}));
+			builder.getRewriter().getTypeArrayAttr({}),
+			nullptr);
 	auto applyFunction =
 			defineApplyFunction(function, builder, action, statement, type);
 	defineGetNameFunction(function, builder, action, statement, type);
@@ -1813,45 +1809,81 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 			"are supported");
 }
 
-mlir::rlc::SourceRangeAttr mlir::rlc::IsOp::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::IsOp::getTypeSourceRange()
 {
 	if (getTypeLocation().has_value())
-		return *getTypeLocation();
-	return nullptr;
+		return { *getTypeLocation() };
+	return {};
 }
 
-mlir::Type mlir::rlc::IsOp::getExplicitType() { return getTypeOrTrait(); }
-
-mlir::rlc::SourceRangeAttr mlir::rlc::UncheckedIsOp::getTypeSourceRange()
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::ClassDeclaration::getExplicitType()
 {
-	return getTypeLocation();
+	llvm::SmallVector<mlir::Type, 2> toReturn;
+
+	if (getTypeLocation().has_value())
+		toReturn.push_back(getType());
+
+	for (auto parameter : getMemberFields())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(parameter.getType());
+	return toReturn;
 }
 
-mlir::Type mlir::rlc::UncheckedIsOp::getExplicitType()
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::ClassDeclaration::getTypeSourceRange()
 {
-	return getTypeOrTrait();
+	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
+
+	if (getTypeLocation().has_value())
+		toReturn.push_back(*getTypeLocation());
+
+	for (auto parameter : getMemberFields())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(parameter.getTypeLocation());
+	return toReturn;
 }
 
-mlir::rlc::SourceRangeAttr mlir::rlc::FromByteArrayOp::getTypeSourceRange()
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::IsOp::getExplicitType()
 {
-	return getTypeLocation();
+	return { getTypeOrTrait() };
 }
 
-mlir::Type mlir::rlc::FromByteArrayOp::getExplicitType()
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::UncheckedIsOp::getTypeSourceRange()
 {
-	return getResult().getType();
+	return { getTypeLocation() };
 }
 
-mlir::Type mlir::rlc::ConstructOp::getExplicitType()
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::UncheckedIsOp::getExplicitType()
 {
-	return getResult().getType();
+	return { getTypeOrTrait() };
 }
 
-mlir::rlc::SourceRangeAttr mlir::rlc::ConstructOp::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::FromByteArrayOp::getTypeSourceRange()
+{
+	return { getTypeLocation() };
+}
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::FromByteArrayOp::getExplicitType()
+{
+	return { getResult().getType() };
+}
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::ConstructOp::getExplicitType()
 {
 	if (getTypeLocation().has_value())
-		return *getTypeLocation();
-	return nullptr;
+		return { getResult().getType() };
+	return {};
+}
+
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::ConstructOp::getTypeSourceRange()
+{
+	if (getTypeLocation().has_value())
+		return { *getTypeLocation() };
+	return {};
 }
 
 mlir::LogicalResult mlir::rlc::StringLiteralOp::typeCheck(
@@ -1974,14 +2006,15 @@ mlir::LogicalResult mlir::rlc::MallocOp::typeCheck(
 	return mlir::success();
 }
 
-mlir::rlc::SourceRangeAttr mlir::rlc::MallocOp::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::MallocOp::getTypeSourceRange()
 {
-	return getTypeLocation();
+	return { getTypeLocation() };
 }
 
-mlir::Type mlir::rlc::MallocOp::getExplicitType()
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::MallocOp::getExplicitType()
 {
-	return getResult().getType();
+	return { getResult().getType() };
 }
 
 mlir::LogicalResult mlir::rlc::InplaceInitializeOp::typeCheck(

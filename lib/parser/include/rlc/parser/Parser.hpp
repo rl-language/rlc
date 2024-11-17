@@ -42,6 +42,7 @@ namespace rlc
 				: ctx(ctx),
 					builder(ctx),
 					pos(mlir::FileLineColLoc::get(ctx, sourceName, 1, 1)),
+					lastTokenEndpos(mlir::FileLineColLoc::get(ctx, sourceName, 1, 1)),
 					toParse(std::move(source)),
 					fileName(sourceName),
 					lexer(toParse.data()),
@@ -52,6 +53,7 @@ namespace rlc
 		}
 
 		[[nodiscard]] mlir::Location getCurrentSourcePos() const;
+		[[nodiscard]] mlir::Location getLastTokenEndPos() const;
 
 		void setComment(mlir::Operation* op, llvm::StringRef comment);
 		llvm::Expected<mlir::Value> primaryExpression();
@@ -147,6 +149,7 @@ namespace rlc
 
 		Token current;
 		mlir::Location pos;
+		mlir::Location lastTokenEndpos;
 		std::string toParse;
 		std::string fileName;
 		Lexer lexer;

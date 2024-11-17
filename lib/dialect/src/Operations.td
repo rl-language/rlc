@@ -503,7 +503,7 @@ def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op", [NoTerminator, No
 	implements malloc.
   }];
 
-  let arguments = (ins StrAttr:$name);
+  let arguments = (ins StrAttr:$name, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
 
   let regions = (region
     AnyRegion:$body
@@ -514,7 +514,7 @@ def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op", [NoTerminator, No
   }];
 
   let assemblyFormat = [{
-	$name $body attr-dict 
+	$name $body attr-dict ( `type_location` `=` $type_location^ )?
   }];
 }
 
@@ -1954,15 +1954,24 @@ def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInte
   }];
 }
 
-def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
+def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<TypeUser>, NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
   let summary = "constant.";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins StrAttr:$name,  ClassFieldsArrayAttr:$members, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$name,  ClassFieldsArrayAttr:$members, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
   let results = (outs AnyType:$result);
+
+  let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::ArrayAttr":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), members, $_builder.getTypeArrayAttr(template_parameters), type_location);
+    }]>,
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::ArrayAttr":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters), [{
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), members, $_builder.getTypeArrayAttr(template_parameters), nullptr);
+    }]>,
+];
 
   let regions = (region
   AnyRegion:$body
@@ -1984,7 +1993,7 @@ def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [NoTerminator, NoRegionArgu
   }];
 
   let assemblyFormat = [{
-	$name ( `template_parameters` $template_parameters^ )? $members type($result) $body attr-dict 
+	$name ( `template_parameters` $template_parameters^ )? $members type($result) $body (`location` `=` $type_location^ )? attr-dict 
   }];
 }
 

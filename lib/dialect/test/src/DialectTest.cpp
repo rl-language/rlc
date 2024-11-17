@@ -40,8 +40,8 @@ TEST(DialectTest, structTest)
 	auto classDecl = mlir::rlc::ClassType::getNewIdentified(
 			&ctx,
 			"peppino",
-			{ mlir::rlc::ClassFieldAttr::get(&ctx, "asdint", integer),
-				mlir::rlc::ClassFieldAttr::get(&ctx, "asdfloat", floattype) },
+			{ mlir::rlc::ClassFieldAttr::get("asdint", integer),
+				mlir::rlc::ClassFieldAttr::get("asdfloat", floattype) },
 			{});
 	EXPECT_EQ(classDecl.getMnemonic(), "class");
 	EXPECT_EQ(classDecl.getName(), "peppino");

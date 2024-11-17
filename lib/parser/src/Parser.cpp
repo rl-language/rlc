@@ -27,13 +27,18 @@ using namespace std;
 
 [[nodiscard]] mlir::Location Parser::getCurrentSourcePos() const { return pos; }
 
+[[nodiscard]] mlir::Location Parser::getLastTokenEndPos() const
+{
+	return lastTokenEndpos;
+}
+
 void Parser::next()
 {
-	pos = mlir::FileLineColLoc::get(
+	lastTokenEndpos = mlir::FileLineColLoc::get(
 			ctx,
 			fileName,
 			lexer.getCurrentLine(),
-			std::max<int64_t>(1, lexer.getCurrentColumn()));
+			std::max<int64_t>(1, lexer.getLastNonWhiteSpaceColumn()));
 	if (current == Token::Identifier)
 		lIdent = lexer.lastIndent();
 	if (current == Token::Int64 or current == Token::Character)
@@ -45,6 +50,11 @@ void Parser::next()
 	if (attachComments)
 		accumulatedComments += lexer.getLastComment();
 	current = lexer.next();
+	pos = mlir::FileLineColLoc::get(
+			ctx,
+			fileName,
+			lexer.getStartOfTokenLine(),
+			std::max<int64_t>(1, lexer.getStartOfTokenCol()));
 }
 
 bool Parser::accept(Token t)
@@ -764,7 +774,7 @@ llvm::Expected<mlir::rlc::ClassFieldAttr> Parser::classField()
 	TRY(type, singleTypeUse());
 	EXPECT(Token::Identifier);
 
-	return mlir::rlc::ClassFieldAttr::get(lIdent, (*type).first);
+	return mlir::rlc::ClassFieldAttr::get(lIdent, (*type).first, (*type).second);
 }
 
 /**
@@ -784,8 +794,12 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 			templateParameters.push_back(type);
 	}
 
+	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
 	EXPECT(Token::Identifier);
 	string name = lIdent;
+	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto tokenLocation =
+			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation);
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
 	EXPECT(Token::Indent);
@@ -802,7 +816,8 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 				unkType(),
 				builder.getStringAttr(name),
 				builder.getArrayAttr(fields),
-				builder.getTypeArrayAttr(templateParameters));
+				builder.getTypeArrayAttr(templateParameters),
+				tokenLocation);
 
 		toReturn.getBody().takeBody(region);
 
@@ -1593,7 +1608,7 @@ Parser::singleTypeUse()
 
 		seenTypes.push_back(*typeUse);
 	} while (accept<Token::VerticalPipe>());
-	auto typeEnd = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+	auto typeEnd = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
 
 	if (seenTypes.size() == 1)
 		return std::pair{ seenTypes.front(),
@@ -1933,7 +1948,11 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
 	EXPECT(Token::KeywordEnum);
+	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
 	EXPECT(Token::Identifier);
+	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto tokenLocation =
+			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation);
 	auto enumName = lIdent;
 	EXPECT(Token::Colons);
 	EXPECT(Token::Newline);
@@ -1945,8 +1964,8 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 
 	const auto onExit = [&]() {
 		builder.restoreInsertionPoint(pos);
-		auto toReturn =
-				builder.create<mlir::rlc::EnumDeclarationOp>(location, enumName);
+		auto toReturn = builder.create<mlir::rlc::EnumDeclarationOp>(
+				location, enumName, tokenLocation);
 
 		toReturn.getBody().takeBody(region);
 

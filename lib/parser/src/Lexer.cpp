@@ -33,7 +33,10 @@ char Lexer::eatChar()
 	{
 		currentLine++;
 		currentColumn = 1;
+		lastNonWitheSpaceColumn = 1;
 	}
+	if (not isspace(c))
+		lastNonWitheSpaceColumn = currentColumn;
 	if ((c == '(' or c == '{' or c == '[') and not parsingString)
 	{
 		nestedParentesys++;
@@ -57,6 +60,8 @@ void Lexer::print(llvm::raw_ostream& OS)
 	while (token != Token::End)
 	{
 		OS << tokenToString(token);
+		OS << " start[" << tokenStartLine << ":" << tokenStartCol << "]";
+		OS << " end[" << currentLine << ":" << currentColumn << "]";
 		OS << "\n";
 		token = next();
 	}
@@ -683,6 +688,7 @@ Token Lexer::nextWithoutTrailingConsume()
 		consumeLine = eatComment();
 	}
 
+	startToken();
 	if (isdigit(*in) != 0)
 		return eatNumber();
 

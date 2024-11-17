@@ -439,16 +439,16 @@ namespace mlir::rlc
 				rewriter.setInsertionPoint(declaration);
 				llvm::SmallVector<mlir::Attribute, 1> fields{
 					mlir::rlc::ClassFieldAttr::get(
-							declaration.getContext(),
 							"value",
 							mlir::rlc::ScalarUseType::get(getOperation().getContext(), "Int"))
 				};
 				auto op = rewriter.create<mlir::rlc::ClassDeclaration>(
 						declaration.getLoc(),
 						mlir::rlc::UnknownType::get(getOperation().getContext()),
-						declaration.getName(),
+						declaration.getNameAttr(),
 						rewriter.getArrayAttr(fields),
-						rewriter.getTypeArrayAttr({}));
+						rewriter.getTypeArrayAttr({}),
+						*declaration.getTypeLocation());
 				moveAllFunctionDeclsToNewClass(declaration, op, rewriter);
 				if (moveAllMethodExpressionToNewClassFunctions(
 								declaration, op, rewriter)

@@ -28,7 +28,7 @@ class RLC_Interface<string name, list<OpInterface> baseinterface = []> : OpInter
 
 def TypeUser : RLC_Interface<"TypeUser"> {
     let description = [{
-        A element of the AST where the user has written a type.
+        A element of the AST where the user has written a type, or more than one for example in class declarations.
         example
         let i : Int
     }];
@@ -36,12 +36,12 @@ def TypeUser : RLC_Interface<"TypeUser"> {
     let methods = [
         InterfaceMethod<
             "range in the source file where the type was used. Null if there was no range",
-            "mlir::rlc::SourceRangeAttr", "getTypeSourceRange",
+            "llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>", "getTypeSourceRange",
             (ins)
         >,
         InterfaceMethod<
-            "type written by the user in the source code",
-            "mlir::Type", "getExplicitType",
+            "type written by the user in the source code. Empty if there are none. There may be more than one in places such as function declarations, since they include the return type and the argument type too.",
+            "llvm::SmallVector<mlir::Type, 2>", "getExplicitType",
             (ins)
         >,
 ];

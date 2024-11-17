@@ -77,6 +77,21 @@ static mlir::lsp::Diagnostic rlcDiagToLSPDiag(
 	return toReturn;
 }
 
+static mlir::rlc::ClassDeclaration getClassDefinition(
+		mlir::ModuleOp module, mlir::lsp::Position pos)
+{
+	for (auto decl : module.getOps<mlir::rlc::ClassDeclaration>())
+	{
+		if (not decl.getTypeLocation().has_value())
+
+			continue;
+		auto loc = *decl.getTypeLocation();
+		if (locsToRange(loc.getStart(), loc.getEnd()).contains(pos))
+			return decl;
+	}
+	return nullptr;
+}
+
 class mlir::rlc::lsp::LSPModuleInfoImpl
 {
 	public:
@@ -103,18 +118,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		context.appendDialectRegistry(Registry);
 		context.loadAllAvailableDialects();
 		loadFile(path, contents, lspContext);
-		module.walk([this](mlir::rlc::ClassDeclaration decl) {
-			auto yieldLoc = decl.getBody()
-													.back()
-													.getTerminator()
-													->getLoc()
-													.cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
-			declarations.emplace_back(locsToRange(loc, loc), decl.getOperation());
-			// fixup the range to go from the start of the line to the end of the
-			// name. (4 characters because of "cls ")
-			declarations.back().first.end.character += decl.getName().size() + 4;
-		});
 		module.walk([this](mlir::rlc::DeclarationStatement decl) {
 			auto yieldLoc = decl.getBody()
 													.back()
@@ -964,21 +967,22 @@ mlir::lsp::WorkspaceEdit RLCServer::rename(
 	if (maybeInfo == nullptr)
 		return action;
 
-	auto *nearestDecl = maybeInfo->getOperation(position);
-	if (auto casted = mlir::dyn_cast<mlir::rlc::ClassDeclaration>(nearestDecl))
+	auto decl = getClassDefinition(maybeInfo->getModule(), position);
+	if (decl != nullptr)
 	{
 		maybeInfo->getModule().walk([&](mlir::rlc::TypeUser user) {
-			auto srcRange = user.getTypeSourceRange();
-			if (srcRange == nullptr)
-				return;
-			auto file = srcRange.getStart().getFilename().str();
+			for (auto [range, type] :
+					 llvm::zip(user.getTypeSourceRange(), user.getExplicitType()))
+			{
+				auto file = range.getStart().getFilename().str();
+				if (type != decl.getType())
+					continue;
 
-			action.changes[file].emplace_back();
-			action.changes[file].back().newText = newName;
-			action.changes[file].back().range.start =
-					locToPos(user.getTypeSourceRange().getStart());
-			action.changes[file].back().range.end =
-					locToPos(user.getTypeSourceRange().getEnd());
+				action.changes[file].emplace_back();
+				action.changes[file].back().newText = newName;
+				action.changes[file].back().range.start = locToPos(range.getStart());
+				action.changes[file].back().range.end = locToPos(range.getEnd());
+			}
 		});
 	}
 

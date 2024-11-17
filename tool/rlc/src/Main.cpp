@@ -174,6 +174,12 @@ static cl::opt<bool> hidePosition(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> hideDataLayout(
+		"hide-dl",
+		cl::desc("does not the datalayout of the file"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> debugInfo(
 		"g",
 		cl::desc("Add debug info to the output"),
@@ -404,8 +410,11 @@ static int run(
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, inputFile, 0, 0), inputFile);
 
-	auto mlirDl = mlir::translateDataLayout(info.getDataLayout(), &context);
-	ast->setAttr("rlc.target_datalayout", mlirDl);
+	if (not hideDataLayout)
+	{
+		auto mlirDl = mlir::translateDataLayout(info.getDataLayout(), &context);
+		ast->setAttr("rlc.target_datalayout", mlirDl);
+	}
 
 	if (manager.run(ast).failed())
 	{

@@ -76,7 +76,8 @@ namespace mlir::rlc
 				type,
 				originalDecl.getNameAttr(),
 				originalDecl.getMembers(),
-				rewriter.getArrayAttr({}));
+				rewriter.getArrayAttr({}),
+				nullptr);
 	}
 
 	static void declareInstantiatedStructs(
