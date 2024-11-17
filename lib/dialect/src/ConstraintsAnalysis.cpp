@@ -338,20 +338,6 @@ static bool setReturnValueInLattice(
 	return currentLattice->insertOrJoin(
 			{ value, bool_branch.getValue() }, currentLattice->getTOP());
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// METHODS BINDING FOR SUPERINTERFACE
-//////////////////////////////////////////////////////////////////////////////
-
-bool mlir::rlc::ConstraintsAnalyzable::constraintsAnalyze(
-		mlir::rlc::ConstraintsLattice* currentLattice,
-		mlir::rlc::ConstraintsAnalysis* analysis)
-{
-	mlir::rlc::ConstraintsAnalyzable::Concept c;
-	return getInterfaceFor(this->getOperation())
-			->constraintsAnalyze(&c, this->getOperation(), currentLattice, analysis);
-}
-
 //////////////////////////////////////////////////////////////////////////////
 // COMMUTATIVE OPERATION
 //////////////////////////////////////////////////////////////////////////////

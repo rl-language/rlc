@@ -103,6 +103,18 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		context.appendDialectRegistry(Registry);
 		context.loadAllAvailableDialects();
 		loadFile(path, contents, lspContext);
+		module.walk([this](mlir::rlc::ClassDeclaration decl) {
+			auto yieldLoc = decl.getBody()
+													.back()
+													.getTerminator()
+													->getLoc()
+													.cast<mlir::FileLineColLoc>();
+			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+			declarations.emplace_back(locsToRange(loc, loc), decl.getOperation());
+			// fixup the range to go from the start of the line to the end of the
+			// name. (4 characters because of "cls ")
+			declarations.back().first.end.character += decl.getName().size() + 4;
+		});
 		module.walk([this](mlir::rlc::DeclarationStatement decl) {
 			auto yieldLoc = decl.getBody()
 													.back()
@@ -939,4 +951,36 @@ void RLCServer::findReferencesOf(
 		return;
 
 	maybeInfo->findReferencesOf(pos, references);
+}
+
+mlir::lsp::WorkspaceEdit RLCServer::rename(
+		const mlir::lsp::URIForFile &uri,
+		llvm::StringRef newName,
+		mlir::lsp::Position position)
+{
+	mlir::lsp::WorkspaceEdit action;
+
+	const auto *maybeInfo = getModuleFromUri(uri);
+	if (maybeInfo == nullptr)
+		return action;
+
+	auto *nearestDecl = maybeInfo->getOperation(position);
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ClassDeclaration>(nearestDecl))
+	{
+		maybeInfo->getModule().walk([&](mlir::rlc::TypeUser user) {
+			auto srcRange = user.getTypeSourceRange();
+			if (srcRange == nullptr)
+				return;
+			auto file = srcRange.getStart().getFilename().str();
+
+			action.changes[file].emplace_back();
+			action.changes[file].back().newText = newName;
+			action.changes[file].back().range.start =
+					locToPos(user.getTypeSourceRange().getStart());
+			action.changes[file].back().range.end =
+					locToPos(user.getTypeSourceRange().getEnd());
+		});
+	}
+
+	return action;
 }

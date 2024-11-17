@@ -17,6 +17,7 @@ limitations under the License.
 #include "rlc/dialect/Attrs.hpp"
 
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/SMLoc.h"
 #include "rlc/dialect/Dialect.h"
 
 #define GET_ATTRDEF_CLASSES

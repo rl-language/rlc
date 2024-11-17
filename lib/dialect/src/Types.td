@@ -100,6 +100,12 @@ def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr", [DeclareTypeInterfac
 
   let parameters = (ins "Type":$underlying);
   let assemblyFormat = "`<` $underlying `>` ";
+
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins "mlir::Type":$underlying),[{
+		return 	mlir::rlc::OwningPtrType::get(underlying.getContext(), underlying);
+	  }]>,
+  ];
 }
 
 def RLC_AlternativeType : RLC_Type<"Alternative", "alternative", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {

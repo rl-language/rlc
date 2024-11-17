@@ -27,6 +27,7 @@ namespace mlir
 namespace mlir::rlc
 {
 	class ConstraintsLattice;
+	class SourceRangeAttr;
 	class ConstraintsAnalysis;
 }	 // namespace mlir::rlc
 

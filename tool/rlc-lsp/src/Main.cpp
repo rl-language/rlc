@@ -208,19 +208,8 @@ namespace mlir::rlc::lsp
 				const mlir::rlc::lsp::RenameParams &params,
 				mlir::lsp::Callback<llvm::json::Value> reply)
 		{
-			mlir::lsp::URIForFile uri = params.textDocument.uri;
-
-			std::error_code EC;
-
-			mlir::lsp::WorkspaceEdit action;
-			action.changes[uri.file().str()].emplace_back();
-			action.changes[uri.file().str()].front().newText = params.newName;
-			action.changes[uri.file().str()].front().range.start = params.position;
-			action.changes[uri.file().str()].front().range.end = params.position;
-			action.changes[uri.file().str()].front().range.end.character +=
-					params.newName.size();
-
-			reply(std::move(action));
+			reply(server->rename(
+					params.textDocument.uri, params.newName, params.position));
 		}
 
 		void onCodeAction(

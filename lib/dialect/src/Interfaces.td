@@ -26,6 +26,27 @@ class RLC_Interface<string name, list<OpInterface> baseinterface = []> : OpInter
     let cppNamespace = "::mlir::rlc";
 }
 
+def TypeUser : RLC_Interface<"TypeUser"> {
+    let description = [{
+        A element of the AST where the user has written a type.
+        example
+        let i : Int
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "range in the source file where the type was used. Null if there was no range",
+            "mlir::rlc::SourceRangeAttr", "getTypeSourceRange",
+            (ins)
+        >,
+        InterfaceMethod<
+            "type written by the user in the source code",
+            "mlir::Type", "getExplicitType",
+            (ins)
+        >,
+];
+}
+
 def TypeCheckable : RLC_Interface<"TypeCheckable"> {
     let description = [{
 		//todo

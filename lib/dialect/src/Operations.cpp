@@ -1177,7 +1177,7 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 
 	rewriter.setInsertionPoint(getOperation());
 	rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
-			*this, getExpression(), deducedType);
+			*this, getExpression(), deducedType, getTypeLocation());
 
 	return mlir::success();
 }
@@ -1601,14 +1601,12 @@ mlir::LogicalResult mlir::rlc::ConstructOp::typeCheck(
 {
 	builder.getConverter().setErrorLocation(getLoc());
 	auto deducedType = builder.getConverter().convertType(getType());
-	auto &rewriter = builder.getRewriter();
 	if (deducedType == nullptr)
 	{
 		return mlir::failure();
 	}
 
-	rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(*this, deducedType);
-
+	getResult().setType(deducedType);
 	return mlir::success();
 }
 
@@ -1778,8 +1776,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 					"Builtin from_byte_array to float must have a array of 8 bytes "
 					"as input");
 		}
-		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
-				*this, converted, getLhs());
+		getResult().setType(converted);
 		return mlir::success();
 	}
 
@@ -1792,8 +1789,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 					"Builtin from_byte_array to bool must have a array of 1 bytes "
 					"as input");
 		}
-		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
-				*this, converted, getLhs());
+		getResult().setType(converted);
 		return mlir::success();
 	}
 
@@ -1808,14 +1804,54 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 							llvm::Twine((casted.getSize() / 8)) +
 							std::string(" bytes as input"));
 		}
-		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
-				*this, casted, getLhs());
+		getResult().setType(converted);
 		return mlir::success();
 	}
 	return logError(
 			*this,
 			"Cannot convert byte array to desiderated output, only primitive types "
 			"are supported");
+}
+
+mlir::rlc::SourceRangeAttr mlir::rlc::IsOp::getTypeSourceRange()
+{
+	if (getTypeLocation().has_value())
+		return *getTypeLocation();
+	return nullptr;
+}
+
+mlir::Type mlir::rlc::IsOp::getExplicitType() { return getTypeOrTrait(); }
+
+mlir::rlc::SourceRangeAttr mlir::rlc::UncheckedIsOp::getTypeSourceRange()
+{
+	return getTypeLocation();
+}
+
+mlir::Type mlir::rlc::UncheckedIsOp::getExplicitType()
+{
+	return getTypeOrTrait();
+}
+
+mlir::rlc::SourceRangeAttr mlir::rlc::FromByteArrayOp::getTypeSourceRange()
+{
+	return getTypeLocation();
+}
+
+mlir::Type mlir::rlc::FromByteArrayOp::getExplicitType()
+{
+	return getResult().getType();
+}
+
+mlir::Type mlir::rlc::ConstructOp::getExplicitType()
+{
+	return getResult().getType();
+}
+
+mlir::rlc::SourceRangeAttr mlir::rlc::ConstructOp::getTypeSourceRange()
+{
+	if (getTypeLocation().has_value())
+		return *getTypeLocation();
+	return nullptr;
 }
 
 mlir::LogicalResult mlir::rlc::StringLiteralOp::typeCheck(
@@ -1934,11 +1970,18 @@ mlir::LogicalResult mlir::rlc::MallocOp::typeCheck(
 	{
 		return mlir::failure();
 	}
-
-	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::MallocOp>(
-			*this, converted, this->getSize());
-
+	getResult().setType(converted);
 	return mlir::success();
+}
+
+mlir::rlc::SourceRangeAttr mlir::rlc::MallocOp::getTypeSourceRange()
+{
+	return getTypeLocation();
+}
+
+mlir::Type mlir::rlc::MallocOp::getExplicitType()
+{
+	return getResult().getType();
 }
 
 mlir::LogicalResult mlir::rlc::InplaceInitializeOp::typeCheck(
