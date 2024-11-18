@@ -28,12 +28,6 @@ namespace rlc
 	class Parser
 	{
 		public:
-		struct FunctionDeclarationResult
-		{
-			mlir::rlc::FunctionOp op;
-			llvm::SmallVector<mlir::Location> argLocs;
-		};
-
 		Parser(
 				mlir::MLIRContext* ctx,
 				std::string source,
@@ -103,9 +97,9 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ContinueStatement> continueStatement();
 		llvm::Expected<mlir::rlc::SubActionStatement> subActionStatement();
 
-		llvm::Expected<llvm::SmallVector<std::tuple<std::string, mlir::Type>, 3>>
+		llvm::Expected<llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 3>>
 		functionArguments();
-		llvm::Expected<std::tuple<std::string, mlir::Type>> argDeclaration();
+		llvm::Expected<mlir::rlc::FunctionArgumentAttr> argDeclaration();
 
 		llvm::Expected<std::pair<mlir::Type, mlir::rlc::SourceRangeAttr>>
 		singleTypeUse();
@@ -116,9 +110,9 @@ namespace rlc
 		llvm::Expected<
 				llvm::SmallVector<mlir::rlc::UncheckedTemplateParameterType, 2>>
 		templateArguments();
-		llvm::Expected<FunctionDeclarationResult> functionDeclaration(
+		llvm::Expected<mlir::rlc::FunctionOp> functionDeclaration(
 				bool templateFunction = true, bool isMemberFunction = false);
-		llvm::Expected<FunctionDeclarationResult> externFunctionDeclaration();
+		llvm::Expected<mlir::rlc::FunctionOp> externFunctionDeclaration();
 		llvm::Expected<mlir::Operation*> actionDeclaration(bool actionFunction);
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();

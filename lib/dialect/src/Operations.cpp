@@ -819,7 +819,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		llvm::SmallVector<mlir::Type, 4> resultTypes;
 		llvm::SmallVector<mlir::Location, 4> resultLoc;
-		llvm::SmallVector<llvm::StringRef> nameAttrs;
+		llvm::SmallVector<mlir::rlc::FunctionArgumentAttr> nameAttrs;
 
 		for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 		{
@@ -827,7 +827,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			if (type.isa<mlir::rlc::ContextType>())
 			{
 				resultTypes.push_back(type);
-				nameAttrs.push_back(std::get<1>(arg));
+				nameAttrs.push_back(mlir::rlc::FunctionArgumentAttr::get(
+						type.getContext(), std::get<1>(arg), nullptr, type, nullptr));
 				resultLoc.push_back(parent.getLoc());
 			}
 		}
@@ -853,17 +854,18 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			resultLoc.push_back(actions.getLoc());
 		}
 
-		for (auto name :
-				 llvm::drop_begin(referred.getDeclaredNames(), forwardedArgsCount()))
+		for (auto arg :
+				 llvm::drop_begin(referred.getInfo().getArgs(), forwardedArgsCount()))
 		{
-			nameAttrs.push_back(name);
+			nameAttrs.push_back(arg);
 		}
 
 		auto fixed = rewiter.create<mlir::rlc::ActionStatement>(
 				referred.getLoc(),
 				resultTypes,
 				referred.getName(),
-				mlir::rlc::FunctionInfoAttr::get(referred.getContext(), nameAttrs),
+				mlir::rlc::FunctionInfoAttr::get(
+						referred.getContext(), nameAttrs, nullptr, nullptr),
 				referred.getId(),
 				referred.getResumptionPoint());
 
@@ -1635,7 +1637,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	rewriter.restoreInsertionPoint(point);
 
 	llvm::SmallVector<mlir::Type, 4> newResultTypes;
-	llvm::SmallVector<llvm::StringRef, 4> newArgNames;
+	llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 4> newArgNames;
 	unsigned contextArgCounts = 0;
 	for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 	{
@@ -1645,7 +1647,8 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 			getPrecondition().front().insertArgument(
 					contextArgCounts++, type, getLoc());
 			newResultTypes.push_back(type);
-			newArgNames.push_back(std::get<1>(arg));
+			newArgNames.push_back(mlir::rlc::FunctionArgumentAttr::get(
+					type.getContext(), std::get<1>(arg), nullptr, type, nullptr));
 		}
 	}
 
@@ -1670,14 +1673,15 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	for (auto result : getResults())
 		newResultTypes.push_back(result.getType());
 
-	for (auto name : getDeclaredNames())
-		newArgNames.push_back(name);
+	for (auto arg : getInfo().getArgs())
+		newArgNames.push_back(arg);
 
 	auto newDecl = builder.getRewriter().create<mlir::rlc::ActionStatement>(
 			getLoc(),
 			newResultTypes,
 			getName(),
-			mlir::rlc::FunctionInfoAttr::get(getContext(), newArgNames));
+			mlir::rlc::FunctionInfoAttr::get(
+					getContext(), newArgNames, nullptr, nullptr));
 
 	newDecl.getPrecondition().takeBody(getPrecondition());
 
@@ -1810,6 +1814,112 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 			*this,
 			"Cannot convert byte array to desiderated output, only primitive types "
 			"are supported");
+}
+
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::ActionFunction::getTypeSourceRange()
+{
+	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
+
+	if (getInfo().getReturnTypeLocation() != nullptr)
+		toReturn.push_back(getInfo().getReturnTypeLocation());
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(parameter.getTypeLocation());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::ActionFunction::getExplicitType()
+{
+	llvm::SmallVector<mlir::Type, 2> toReturn;
+
+	if (getInfo().getReturnTypeLocation() != nullptr)
+		toReturn.push_back(getMainActionType());
+
+	size_t i = 0;
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(getArgumentTypes()[i++]);
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::ActionStatement::getTypeSourceRange()
+{
+	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(parameter.getTypeLocation());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::ActionStatement::getExplicitType()
+{
+	llvm::SmallVector<mlir::Type, 2> toReturn;
+
+	int64_t i = 0;
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(getResultTypes()[i++]);
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::FlatFunctionOp::getTypeSourceRange()
+{
+	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
+
+	if (getInfo().getReturnTypeLocation() != nullptr)
+		toReturn.push_back(getInfo().getReturnTypeLocation());
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(parameter.getTypeLocation());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::FlatFunctionOp::getExplicitType()
+{
+	llvm::SmallVector<mlir::Type, 2> toReturn;
+
+	if (getInfo().getReturnTypeLocation() != nullptr)
+		toReturn.push_back(getResultTypes()[0]);
+
+	size_t i = 0;
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(getArgumentTypes()[i++]);
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
+mlir::rlc::FunctionOp::getTypeSourceRange()
+{
+	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
+
+	if (getInfo().getReturnTypeLocation() != nullptr)
+		toReturn.push_back(getInfo().getReturnTypeLocation());
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(parameter.getTypeLocation());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::FunctionOp::getExplicitType()
+{
+	llvm::SmallVector<mlir::Type, 2> toReturn;
+
+	if (getInfo().getReturnTypeLocation() != nullptr)
+		toReturn.push_back(getResultTypes()[0]);
+
+	size_t i = 0;
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getTypeLocation() != nullptr)
+			toReturn.push_back(getArgumentTypes()[i++]);
+	return toReturn;
 }
 
 llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>

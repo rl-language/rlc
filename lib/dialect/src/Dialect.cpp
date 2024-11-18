@@ -36,6 +36,11 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 			OS << "fun_info";
 			return AliasResult::FinalAlias;
 		}
+		if (auto casted = type.dyn_cast<mlir::rlc::ClassFieldAttr>())
+		{
+			OS << "field_info";
+			return AliasResult::FinalAlias;
+		}
 
 		return AliasResult::NoAlias;
 	}

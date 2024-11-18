@@ -737,7 +737,7 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [DeclareOpInterfaceMethods<Ty
 
 
 class RLC_FunctionBase<string mnemonic> :
-RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable]> {
+RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable, DeclareOpInterfaceMethods<TypeUser>  ]> {
 
   let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info);
   let description = [{
@@ -867,6 +867,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 		Block::args_iterator args_end() {
 			return getBody().front().args_end();
 		}
+
 
     }];
 }
@@ -1079,7 +1080,7 @@ def RLC_CallOp : RLC_Dialect<"call",
 }
 
 
-def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
+def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "statement list.";
 
   let arguments = (ins StrAttr:$name, RLC_FunctionInfoAttr:$info, I64Attr:$id, I64Attr:$resumption_point);

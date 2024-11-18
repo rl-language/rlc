@@ -1618,7 +1618,7 @@ Parser::singleTypeUse()
 										mlir::rlc::SourceRangeAttr::get(typeBegin, typeEnd) };
 }
 
-Expected<std::tuple<std::string, mlir::Type>> Parser::argDeclaration()
+Expected<mlir::rlc::FunctionArgumentAttr> Parser::argDeclaration()
 {
 	auto isFrame = accept<Token::KeywordFrame>();
 	bool isCtx = not isFrame && accept<Token::KeywordCtx>();
@@ -1628,20 +1628,27 @@ Expected<std::tuple<std::string, mlir::Type>> Parser::argDeclaration()
 		(*tp).first = mlir::rlc::FrameType::get((*tp).first);
 	if (isCtx)
 		(*tp).first = mlir::rlc::ContextType::get((*tp).first);
+	auto nameStart = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
 	EXPECT(Token::Identifier);
+	auto nameEnd = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
 	auto parName = lIdent;
-	return std::tuple{ parName, (*tp).first };
+	return mlir::rlc::FunctionArgumentAttr::get(
+			builder.getContext(),
+			parName,
+			mlir::rlc::SourceRangeAttr::get(nameStart, nameEnd),
+			(*tp).first,
+			(*tp).second);
 }
 
 /**
  * functionDefinition : "(" [argDeclaration ("," argDeclaration)*] ")"
  */
-Expected<llvm::SmallVector<std::tuple<std::string, mlir::Type>, 3>>
+Expected<llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 3>>
 Parser::functionArguments()
 {
 	EXPECT(Token::LPar);
 
-	llvm::SmallVector<std::tuple<std::string, mlir::Type>, 3> args;
+	llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 3> args;
 
 	if (current != Token::RPar)
 	{
@@ -1687,7 +1694,7 @@ Parser::templateArguments()
 	return toReturn;
 }
 
-Expected<Parser::FunctionDeclarationResult> Parser::externFunctionDeclaration()
+Expected<mlir::rlc::FunctionOp> Parser::externFunctionDeclaration()
 {
 	EXPECT(Token::KeywordExtern);
 	TRY(result, functionDeclaration());
@@ -1700,7 +1707,7 @@ Expected<Parser::FunctionDeclarationResult> Parser::externFunctionDeclaration()
  * [argDeclaration
  * ("," argDeclaration)*] ")" ["->" "ref"? singleTypeUse]
  */
-Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
+Expected<mlir::rlc::FunctionOp> Parser::functionDeclaration(
 		bool templateFunction, bool isMemberFunction)
 {
 	auto location = getCurrentSourcePos();
@@ -1715,38 +1722,37 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 			templateParameters.push_back(type);
 	}
 
-	llvm::SmallVector<mlir::Type> argTypes;
-	llvm::SmallVector<llvm::StringRef> argName;
-	llvm::SmallVector<mlir::Location> argLocs;
+	llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 3> args;
+	mlir::Type retType = mlir::rlc::VoidType::get(ctx);
+	mlir::rlc::SourceRangeAttr retTypeRange = nullptr;
 
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
 
-	mlir::Type retType = mlir::rlc::VoidType::get(ctx);
 	auto onExit = [&]() {
+		llvm::SmallVector<mlir::Type, 3> argTypes;
+		for (auto arg : args)
+			argTypes.push_back(arg.getShugarizedType());
+
 		auto fun = builder.create<mlir::rlc::FunctionOp>(
 				location,
 				builder.getStringAttr(nm),
 				mlir::FunctionType::get(ctx, argTypes, { retType }),
-				mlir::rlc::FunctionInfoAttr::get(builder.getContext(), argName),
+				mlir::rlc::FunctionInfoAttr::get(
+						builder.getContext(), args, retTypeRange, retType),
 				isMemberFunction,
 				templateParameters);
-		return FunctionDeclarationResult{ fun, argLocs };
+		return fun;
 	};
-	TRY(args, functionArguments(), onExit());
-
-	for (auto& arg : *args)
-	{
-		argTypes.push_back(std::get<mlir::Type>(arg));
-		argName.push_back(std::get<std::string>(arg));
-		argLocs.push_back(location);
-	}
+	TRY(_args, functionArguments(), onExit());
+	args = std::move(*_args);
 
 	if (accept<Token::Arrow>())
 	{
 		bool isRef = accept<Token::KeywordRef>();
 		TRY(actualRetType, singleTypeUse(), onExit());
 		retType = (*actualRetType).first;
+		retTypeRange = (*actualRetType).second;
 		if (isRef)
 			retType = mlir::rlc::ReferenceType::get(retType);
 	}
@@ -1760,15 +1766,17 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 		bool isMemberFunction)
 {
-	TRY(result, functionDeclaration(true, isMemberFunction));
-	auto fun = result->op;
+	TRY(fun, functionDeclaration(true, isMemberFunction));
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
+	llvm::SmallVector<mlir::Location, 2> argLocs;
+	for (auto arg : fun->getInfo().getArgs())
+		argLocs.push_back(arg.getNameLocation().getStart());
 
 	auto* bodyB = builder.createBlock(
-			&fun.getBody(), {}, fun.getArgumentTypes(), result->argLocs);
+			&fun->getBody(), {}, fun->getArgumentTypes(), argLocs);
 	auto* condB = builder.createBlock(
-			&fun.getPrecondition(), {}, fun.getArgumentTypes(), result->argLocs);
+			&fun->getPrecondition(), {}, fun->getArgumentTypes(), argLocs);
 
 	auto onExit = [&, this]() {
 		builder.setInsertionPointToEnd(bodyB);
@@ -1799,11 +1807,15 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 	EXPECT(Token::Identifier);
 	auto nm = lIdent;
 
-	llvm::SmallVector<mlir::Type> argTypes;
-	llvm::SmallVector<llvm::StringRef> argName;
+	mlir::SmallVector<mlir::rlc::FunctionArgumentAttr, 3> info;
 
 	mlir::Type retType = mlir::rlc::ClassType::getIdentified(ctx, "", {});
+	mlir::rlc::SourceRangeAttr retTypeSourceRange = nullptr;
 	auto onExit = [&]() -> mlir::Operation* {
+		mlir::SmallVector<mlir::Type, 3> argTypes;
+		for (auto argument : info)
+			argTypes.push_back(argument.getShugarizedType());
+
 		if (actionFunction)
 		{
 			auto decl = builder.create<mlir::rlc::ActionFunction>(
@@ -1812,7 +1824,8 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 					mlir::rlc::UnknownType::get(builder.getContext()),
 					mlir::TypeRange(),
 					builder.getStringAttr(nm),
-					mlir::rlc::FunctionInfoAttr::get(builder.getContext(), argName));
+					mlir::rlc::FunctionInfoAttr::get(
+							builder.getContext(), info, retTypeSourceRange, retType));
 			auto pos = builder.saveInsertionPoint();
 			llvm::SmallVector<mlir::Location> locs;
 			for (size_t i = 0; i < decl.getFunctionType().getInputs().size(); i++)
@@ -1833,29 +1846,19 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 		}
 		else
 		{
-			llvm::SmallVector<std::string> strs;
-			for (auto name : argName)
-				strs.push_back(name.str());
-			llvm::SmallVector<llvm::StringRef> strsRef;
-			for (auto& name : strs)
-				strsRef.push_back(name);
-
 			auto toReturn = builder.create<mlir::rlc::ActionStatement>(
 					location,
 					argTypes,
 					builder.getStringAttr(nm),
-					mlir::rlc::FunctionInfoAttr::get(builder.getContext(), strsRef));
+					mlir::rlc::FunctionInfoAttr::get(
+							builder.getContext(), info, nullptr, nullptr));
 			return toReturn;
 		}
 	};
 
 	TRY(args, functionArguments(), onExit());
 
-	for (auto& arg : *args)
-	{
-		argName.push_back(std::get<std::string>(arg));
-		argTypes.push_back(std::get<mlir::Type>(arg));
-	}
+	info = *args;
 
 	std::string name;
 	if (actionFunction)
