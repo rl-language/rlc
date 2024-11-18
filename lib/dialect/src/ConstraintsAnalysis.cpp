@@ -1021,10 +1021,8 @@ namespace mlir::rlc
 						fun->setAttr(
 								mlir::StringAttr::get(
 										fun->getContext(),
-										mlir::dyn_cast<mlir::StringAttr>(
-												fun.getArgNames()[arg.getArgNumber()])
-														.getValue()
-														.str() +
+
+										fun.getInfo().getArgs()[arg.getArgNumber()].getName() +
 												"_T"),
 								mlir::StringAttr::get(
 										fun->getContext(),
@@ -1041,11 +1039,7 @@ namespace mlir::rlc
 						fun->setAttr(
 								mlir::StringAttr::get(
 										fun->getContext(),
-										mlir::dyn_cast<mlir::StringAttr>(
-												fun.getArgNames()[arg.getArgNumber()])
-														.getValue()
-														.str() +
-												"_F"),
+										fun.getArgNames()[arg.getArgNumber()] + "_F"),
 								mlir::StringAttr::get(
 										fun->getContext(),
 										"[" +

@@ -58,7 +58,8 @@ namespace mlir::rlc
 						op.getLoc(),
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 						fType,
-						rewriter.getStrArrayAttr({ "arg0", "arg1" }),
+						mlir::rlc::FunctionInfoAttr::get(
+								fType.getContext(), { "arg0", "arg1" }),
 						true);
 
 				table.add(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(), fun);
@@ -74,7 +75,8 @@ namespace mlir::rlc
 				op.getLoc(),
 				mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 				fType,
-				rewriter.getStrArrayAttr({ "arg0", "arg1" }),
+				mlir::rlc::FunctionInfoAttr::get(
+						fType.getContext(), { "arg0", "arg1" }),
 				true);
 
 		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(), fun);

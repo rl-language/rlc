@@ -638,18 +638,18 @@ std::string mlir::rlc::mangledName(
 }
 
 std::string mlir::rlc::prettyPrintFunctionTypeWithNameArgs(
-		mlir::FunctionType fType, mlir::ArrayAttr attr)
+		mlir::FunctionType fType, mlir::rlc::FunctionInfoAttr attr)
 {
 	std::string toReturn = "(";
 	size_t current = 0;
-	if (fType.getNumInputs() != attr.size())
+	if (fType.getNumInputs() != attr.getArgs().size())
 		return mlir::rlc::prettyType(fType);
 
-	for (auto [type, name] : llvm::zip(fType.getInputs(), attr))
+	for (auto [type, arg] : llvm::zip(fType.getInputs(), attr.getArgs()))
 	{
 		toReturn += mlir::rlc::prettyType(type);
 		toReturn += " ";
-		toReturn += name.cast<mlir::StringAttr>().getValue().str();
+		toReturn += arg.getName();
 		current++;
 		if (current != fType.getInputs().size())
 			toReturn += ", ";

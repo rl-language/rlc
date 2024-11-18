@@ -739,7 +739,7 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [DeclareOpInterfaceMethods<Ty
 class RLC_FunctionBase<string mnemonic> :
 RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable]> {
 
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames);
+  let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info);
   let description = [{
 	expression.
   }];
@@ -752,12 +752,12 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
   );
 
    let builders = [
-        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames), [{
-			build($_builder, $_state, type, name, argNames);
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "mlir::rlc::FunctionInfoAttr":$info), [{
+			build($_builder, $_state, type, name, info);
     }]>];
 
   let assemblyFormat = [{
-	$unmangled_name type($result) $argNames $precondition $body attr-dict 
+	$unmangled_name type($result) $info $precondition $body attr-dict 
   }];
     code extraBaseClassDeclaration = [{
 
@@ -811,13 +811,20 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 			return getUnmangledName().starts_with("_");
 		}
 
+        llvm::SmallVector<llvm::StringRef, 4> getArgNames() {
+            llvm::SmallVector<llvm::StringRef, 4> names;
+            for (auto arg : getInfo().getArgs()) 
+                names.push_back(arg.getName());
+            return names;
+        }
+
         bool isDeclaration() {
             return getBody().empty();
         }
 	
 		mlir::LogicalResult addToSymbolTable(mlir::rlc::SymbolTable<mlir::Value>& table) {
-			for (const auto& [name, argument] : llvm::zip(getArgNames(), llvm::make_range(this->args_begin(), this->args_end()))) {
-				table.add(name.cast<mlir::StringAttr>().str(), argument);
+			for (const auto& [field, argument] : llvm::zip(getInfo().getArgs(), llvm::make_range(this->args_begin(), this->args_end()))) {
+				table.add(field.getName().str(), argument);
 			}
 			return mlir::success();
 		}
@@ -835,14 +842,14 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 				for (auto& operation : region->getOps())
 					ops.push_back(&operation);
 
-				for (const auto& [operand, name]: llvm::zip(region->front().getArguments(), getArgNames()))
+				for (const auto& [operand, field]: llvm::zip(region->front().getArguments(), getInfo().getArgs()))
 				{
 					auto converted = builder.getConverter().convertType(operand.getType());
 					if (not converted){
 						getOperation()->emitRemark("in of argument of function");
 					}
 					operand.setType(converted);
-					builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), operand);
+					builder.getSymbolTable().add(field.getName().str(), operand);
 				}
 				for (auto* operation : ops)
 					if (mlir::rlc::typeCheck(*operation, builder)
@@ -866,19 +873,19 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 
 def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
   let summary = "function.";
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function);
+  let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info, BoolAttr:$is_member_function);
   let extraClassDeclaration = extraBaseClassDeclaration;
 
    let builders = [
-        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction), [{
-			build($_builder, $_state, type, name, argNames, isMemberFunction);
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "mlir::rlc::FunctionInfoAttr":$info, "bool":$isMemberFunction), [{
+			build($_builder, $_state, type, name, info, isMemberFunction);
     }]>];
 }
 
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function , DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info, BoolAttr:$is_member_function , DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let extraClassDeclaration = extraBaseClassDeclaration # [{
 	mlir::LogicalResult typeCheckFunctionDeclaration(
 		mlir::IRRewriter& rewriter,
@@ -887,12 +894,12 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   }];
 
    let builders = [
-        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
-			build($_builder, $_state, type, name, argNames, isMemberFunction ,$_builder.getTypeArrayAttr(templateParameters));
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "rlc::FunctionInfoAttr":$info, "bool":$isMemberFunction, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
+			build($_builder, $_state, type, name, info, isMemberFunction ,$_builder.getTypeArrayAttr(templateParameters));
     }]>];
 
   let assemblyFormat = [{
-	$unmangled_name( $template_parameters^ )? type($result) $argNames $precondition $body attr-dict 
+	$unmangled_name( $template_parameters^ )? type($result) $info $precondition $body attr-dict 
   }];
 }
 
@@ -900,7 +907,7 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
   let results = (outs FunctionType:$result, AnyFunctionType:$is_done_function, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
-	$unmangled_name type($result) type($actions) type($is_done_function) $argNames $precondition $body attr-dict 
+	$unmangled_name type($result) type($actions) type($is_done_function) $info $precondition $body attr-dict 
   }];
     let extraClassDeclaration = extraBaseClassDeclaration # [{
         std::pair<ActionFrameContent, ActionFrameContent>  getFrameLists();
@@ -1075,25 +1082,33 @@ def RLC_CallOp : RLC_Dialect<"call",
 def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$name, StrArrayAttr:$declared_names, I64Attr:$id, I64Attr:$resumption_point);
+  let arguments = (ins StrAttr:$name, RLC_FunctionInfoAttr:$info, I64Attr:$id, I64Attr:$resumption_point);
   let description = [{
 	expression.
   }];
   let results = (outs Variadic<AnyType>:$results);
 
-   let builders = [
-        OpBuilder<(ins "TypeRange":$results, "StringRef":$name, "ArrayRef<std::string>":$declared_names, CArg<"int64_t", "-1">:$id, CArg<"int64_t", "-1">:$resumption_point), [{
-            auto nameAttr = $_builder.getStringAttr(name);
-            llvm::SmallVector<Attribute> attrs;
-            for (auto& name : declared_names)
-              attrs.push_back($_builder.getStringAttr(name));
-            build($_builder, $_state, results, nameAttr, $_builder.getArrayAttr(attrs), id, resumption_point);
-    }]>];
 
   let regions = (region AnyRegion:$precondition);
 
   let assemblyFormat = [{
-	$name `{` $declared_names`}` $precondition attr-dict `:` type($results)
+	$name $info $precondition attr-dict `:` type($results)
+  }];
+
+   let builders = [
+        OpBuilder<(ins "TypeRange":$results, "StringRef":$name, "mlir::rlc::FunctionInfoAttr":$info), [{
+            build($_builder, $_state, results, name, info, -1, -1);
+    }]>];
+
+  let extraClassDeclaration = [{
+      llvm::SmallVector<llvm::StringRef, 4> getDeclaredNames() {
+        llvm::SmallVector<llvm::StringRef, 4> names;
+        for (auto args : getInfo().getArgs()) {
+            names.push_back(args.getName());
+        }
+
+        return names;
+      }
   }];
 }
 

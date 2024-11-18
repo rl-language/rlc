@@ -362,7 +362,7 @@ namespace mlir::rlc
 							rewriter.getContext(),
 							mlir::TypeRange({ type }),
 							mlir::TypeRange()),
-					rewriter.getStrArrayAttr({ "to_drop" }),
+					mlir::rlc::FunctionInfoAttr::get(op.getContext(), { "to_drop" }),
 					true);
 			builder.getSymbolTable().add("drop", destructor);
 		}

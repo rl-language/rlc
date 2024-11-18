@@ -1728,7 +1728,7 @@ Expected<Parser::FunctionDeclarationResult> Parser::functionDeclaration(
 				location,
 				builder.getStringAttr(nm),
 				mlir::FunctionType::get(ctx, argTypes, { retType }),
-				builder.getStrArrayAttr(argName),
+				mlir::rlc::FunctionInfoAttr::get(builder.getContext(), argName),
 				isMemberFunction,
 				templateParameters);
 		return FunctionDeclarationResult{ fun, argLocs };
@@ -1812,7 +1812,7 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 					mlir::rlc::UnknownType::get(builder.getContext()),
 					mlir::TypeRange(),
 					builder.getStringAttr(nm),
-					builder.getStrArrayAttr(argName));
+					mlir::rlc::FunctionInfoAttr::get(builder.getContext(), argName));
 			auto pos = builder.saveInsertionPoint();
 			llvm::SmallVector<mlir::Location> locs;
 			for (size_t i = 0; i < decl.getFunctionType().getInputs().size(); i++)
@@ -1836,9 +1836,15 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 			llvm::SmallVector<std::string> strs;
 			for (auto name : argName)
 				strs.push_back(name.str());
+			llvm::SmallVector<llvm::StringRef> strsRef;
+			for (auto& name : strs)
+				strsRef.push_back(name);
 
 			auto toReturn = builder.create<mlir::rlc::ActionStatement>(
-					location, argTypes, builder.getStringAttr(nm), strs);
+					location,
+					argTypes,
+					builder.getStringAttr(nm),
+					mlir::rlc::FunctionInfoAttr::get(builder.getContext(), strsRef));
 			return toReturn;
 		}
 	};

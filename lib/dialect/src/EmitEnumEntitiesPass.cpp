@@ -31,15 +31,16 @@ namespace mlir::rlc
 		auto argType =
 				mlir::rlc::ScalarUseType::get(rewriter.getContext(), enumOp.getName());
 		auto intType = mlir::rlc::IntegerType::getInt64(rewriter.getContext());
-		auto argName = "self";
-		auto valueName = "new_value";
+		llvm::StringRef argName = "self";
+		llvm::StringRef valueName = "new_value";
 
 		auto f = rewriter.create<mlir::rlc::FunctionOp>(
 				enumOp.getLoc(),
 				"from_int",
 				mlir::FunctionType::get(
 						rewriter.getContext(), { argType, intType }, {}),
-				rewriter.getStrArrayAttr({ argName, valueName }),
+				mlir::rlc::FunctionInfoAttr::get(
+						intType.getContext(), { argName, valueName }),
 				false);
 
 		auto* bb = rewriter.createBlock(
@@ -73,7 +74,7 @@ namespace mlir::rlc
 				"as_int",
 				mlir::FunctionType::get(
 						rewriter.getContext(), { argType }, { returnType }),
-				rewriter.getStrArrayAttr({ argName }),
+				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
 
 		auto* bb = rewriter.createBlock(
@@ -109,7 +110,7 @@ namespace mlir::rlc
 				"max",
 				mlir::FunctionType::get(
 						rewriter.getContext(), { argType }, { returnType }),
-				rewriter.getStrArrayAttr({ argName }),
+				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
 
 		auto* bb = rewriter.createBlock(
@@ -142,7 +143,7 @@ namespace mlir::rlc
 				"is_enum",
 				mlir::FunctionType::get(
 						rewriter.getContext(), { argType }, { returnType }),
-				rewriter.getStrArrayAttr({ argName }),
+				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
 
 		auto* bb = rewriter.createBlock(
@@ -177,7 +178,8 @@ namespace mlir::rlc
 				"as_string_literal",
 				mlir::FunctionType::get(
 						rewriter.getContext(), { argType }, { returnType }),
-				rewriter.getStrArrayAttr({ argName }),
+
+				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
 
 		// Create function block and set insertion point
@@ -333,7 +335,8 @@ namespace mlir::rlc
 					expression.getName(),
 					mlir::FunctionType::get(
 							rewriter.getContext(), {}, { expression.getResult().getType() }),
-					rewriter.getStrArrayAttr({}),
+
+					mlir::rlc::FunctionInfoAttr::get(rewriter.getContext(), {}),
 					true);
 			rewriter.createBlock(&op.getBody());
 			auto retStm = rewriter.create<mlir::rlc::ReturnStatement>(

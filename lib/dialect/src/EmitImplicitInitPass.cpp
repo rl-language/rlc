@@ -82,7 +82,7 @@ namespace mlir::rlc
 				op.getLoc(),
 				mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 				fType,
-				rewriter.getStrArrayAttr({ "arg0" }),
+				mlir::rlc::FunctionInfoAttr::get(op.getContext(), { "arg0" }),
 				true);
 
 		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), fun);

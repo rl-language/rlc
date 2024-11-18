@@ -285,7 +285,7 @@ namespace mlir::rlc
 						action.getLoc(),
 						mlir::TypeRange({}),
 						"proxy",
-						llvm::ArrayRef<std::string>({}),
+						mlir::rlc::FunctionInfoAttr::get(action.getContext(), {}),
 						0,
 						0);
 

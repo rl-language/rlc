@@ -253,34 +253,34 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 		using KeyType = std::pair<std::string, const void *>;
 		std::set<KeyType> alreadyEmitted;
-		auto registerArgument =
-				[&](llvm::StringRef name, mlir::Type t, mlir::ArrayAttr argNames) {
-					KeyType key(name.str(), t.getAsOpaquePointer());
-					if (alreadyEmitted.contains(key))
-						return;
+		auto registerArgument = [&](llvm::StringRef name,
+																mlir::Type t,
+																mlir::rlc::FunctionInfoAttr info) {
+			KeyType key(name.str(), t.getAsOpaquePointer());
+			if (alreadyEmitted.contains(key))
+				return;
 
-					alreadyEmitted.insert(key);
-					mlir::lsp::CompletionItem item;
-					item.label = name.str();
-					item.kind = mlir::lsp::CompletionItemKind::Variable;
-					item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-					if (auto casted = t.dyn_cast<mlir::FunctionType>();
-							casted and argNames != nullptr)
-						item.detail = prettyPrintFunctionTypeWithNameArgs(casted, argNames);
-					else
-						item.detail = prettyType(t);
-					list.items.push_back(item);
-				};
+			alreadyEmitted.insert(key);
+			mlir::lsp::CompletionItem item;
+			item.label = name.str();
+			item.kind = mlir::lsp::CompletionItemKind::Variable;
+			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
+			if (auto casted = t.dyn_cast<mlir::FunctionType>();
+					casted and info != nullptr)
+			{
+				item.detail = prettyPrintFunctionTypeWithNameArgs(casted, info);
+			}
+			else
+				item.detail = prettyType(t);
+			list.items.push_back(item);
+		};
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
 				casted and not casted.getBody().empty())
 		{
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(
-						std::get<0>(arg).cast<mlir::StringAttr>(),
-						std::get<1>(arg),
-						nullptr);
+				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
 			}
 		}
 
@@ -290,10 +290,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(
-						std::get<0>(arg).cast<mlir::StringAttr>(),
-						std::get<1>(arg),
-						nullptr);
+				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
 			}
 		}
 
@@ -306,7 +303,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
 			if (not op.getIsMemberFunction())
-				registerArgument(op.getUnmangledName(), op.getType(), op.getArgNames());
+				registerArgument(op.getUnmangledName(), op.getType(), op.getInfo());
 
 		return mlir::success();
 	}
@@ -540,8 +537,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.label = fun.getUnmangledName();
 				item.kind = mlir::lsp::CompletionItemKind::Function;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-				item.detail = prettyPrintFunctionTypeWithNameArgs(
-						fun.getType(), fun.getArgNames());
+				item.detail =
+						prettyPrintFunctionTypeWithNameArgs(fun.getType(), fun.getInfo());
 				list.items.push_back(item);
 			}
 		}
@@ -565,8 +562,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.label = statemet.getName();
 				item.kind = mlir::lsp::CompletionItemKind::Function;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-				item.detail = prettyPrintFunctionTypeWithNameArgs(
-						fType, statemet.getDeclaredNames());
+				item.detail =
+						prettyPrintFunctionTypeWithNameArgs(fType, statemet.getInfo());
 				list.items.push_back(item);
 			});
 

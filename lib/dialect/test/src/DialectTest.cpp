@@ -75,8 +75,8 @@ TEST(ActionArgumentAnalysisTest, integerBoundTest)
 	auto action = builder.create<mlir::rlc::ActionStatement>(
 			builder.getUnknownLoc(),
 			mlir::TypeRange({ mlir::rlc::IntegerType::getInt64(&ctx) }),
-			"dc",
-			builder.getStrArrayAttr({ "arg" }),
+			builder.getStringAttr("dc"),
+			mlir::rlc::FunctionInfoAttr::get(builder.getContext(), { "arg" }),
 			0,
 			0);
 

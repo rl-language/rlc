@@ -29,6 +29,17 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 	public:
 	using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
+	AliasResult getAlias(mlir::Attribute type, llvm::raw_ostream &OS) const final
+	{
+		if (auto casted = type.dyn_cast<mlir::rlc::FunctionInfoAttr>())
+		{
+			OS << "fun_info";
+			return AliasResult::FinalAlias;
+		}
+
+		return AliasResult::NoAlias;
+	}
+
 	AliasResult getAlias(mlir::Type type, llvm::raw_ostream &OS) const final
 	{
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())

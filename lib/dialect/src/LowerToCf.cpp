@@ -590,7 +590,7 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 				op.getLoc(),
 				f.getFunctionType(),
 				f.getUnmangledName(),
-				f.getArgNamesAttr(),
+				f.getInfo(),
 				f.getIsMemberFunction());
 
 		rewriter.cloneRegionBefore(

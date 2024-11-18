@@ -130,9 +130,10 @@ mlir::rlc::ActionFunction::getFrameLists()
 			hiddenFrame.append(value, name);
 	};
 
-	for (auto pair : llvm::zip(getArgNames(), getBody().front().getArguments()))
+	for (auto pair :
+			 llvm::zip(getInfo().getArgs(), getBody().front().getArguments()))
 	{
-		auto name = std::get<0>(pair).cast<mlir::StringAttr>();
+		auto name = std::get<0>(pair).getName();
 		auto arg = std::get<1>(pair);
 		addToFrames(arg, name);
 	}
@@ -146,9 +147,9 @@ mlir::rlc::ActionFunction::getFrameLists()
 		else if (auto casted = llvm::dyn_cast<mlir::rlc::ActionStatement>(op))
 		{
 			for (auto pair :
-					 llvm::zip(casted.getDeclaredNames(), casted.getResults()))
+					 llvm::zip(casted.getInfo().getArgs(), casted.getResults()))
 			{
-				auto name = std::get<0>(pair).cast<mlir::StringAttr>();
+				auto name = std::get<0>(pair).getName();
 				auto arg = std::get<1>(pair);
 				addToFrames(arg, name);
 			}
@@ -230,7 +231,7 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 					mlir::TypeRange({ mlir::rlc::BoolType::get(rewriter.getContext()) })),
 			generatedFunctions,
 			fun.getUnmangledName(),
-			fun.getArgNames());
+			fun.getInfo());
 	newAction.getBody().takeBody(fun.getBody());
 	newAction.getPrecondition().takeBody(fun.getPrecondition());
 	fun.getResult().replaceAllUsesWith(newAction.getResult());
@@ -263,7 +264,7 @@ static void defineGetNameFunction(
 			statement.getLoc(),
 			"get_type_name",
 			fType,
-			builder.getRewriter().getStrArrayAttr(names),
+			mlir::rlc::FunctionInfoAttr::get(fType.getContext(), names),
 			false);
 
 	{
@@ -316,7 +317,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 		if (auto casted = actionType.dyn_cast<mlir::rlc::ContextType>())
 		{
 			types.push_back(casted.getUnderlying());
-			names.push_back(name.cast<mlir::StringAttr>());
+			names.push_back(name);
 			locs.push_back(statement.getLoc());
 		}
 	}
@@ -331,7 +332,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 			statement.getLoc(),
 			"apply",
 			applyFunctionType,
-			builder.getRewriter().getStrArrayAttr(names),
+			mlir::rlc::FunctionInfoAttr::get(applyFunctionType.getContext(), names),
 			false);
 
 	{
@@ -421,8 +422,7 @@ static mlir::Type declareActionStatementType(
 		auto type = result.getType();
 		if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 			type = casted.getUnderlying();
-		auto field = mlir::rlc::ClassFieldAttr::get(
-				name.cast<mlir::StringAttr>().str(), type);
+		auto field = mlir::rlc::ClassFieldAttr::get(name, type);
 		fields.push_back(field);
 		fieldsAttrs.push_back(field);
 	}
@@ -819,7 +819,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		llvm::SmallVector<mlir::Type, 4> resultTypes;
 		llvm::SmallVector<mlir::Location, 4> resultLoc;
-		llvm::SmallVector<std::string> nameAttrs;
+		llvm::SmallVector<llvm::StringRef> nameAttrs;
 
 		for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 		{
@@ -827,7 +827,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			if (type.isa<mlir::rlc::ContextType>())
 			{
 				resultTypes.push_back(type);
-				nameAttrs.push_back(std::get<1>(arg).cast<mlir::StringAttr>().str());
+				nameAttrs.push_back(std::get<1>(arg));
 				resultLoc.push_back(parent.getLoc());
 			}
 		}
@@ -856,14 +856,14 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		for (auto name :
 				 llvm::drop_begin(referred.getDeclaredNames(), forwardedArgsCount()))
 		{
-			nameAttrs.push_back(name.cast<mlir::StringAttr>().str());
+			nameAttrs.push_back(name);
 		}
 
 		auto fixed = rewiter.create<mlir::rlc::ActionStatement>(
 				referred.getLoc(),
 				resultTypes,
 				referred.getName(),
-				nameAttrs,
+				mlir::rlc::FunctionInfoAttr::get(referred.getContext(), nameAttrs),
 				referred.getId(),
 				referred.getResumptionPoint());
 
@@ -1635,7 +1635,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	rewriter.restoreInsertionPoint(point);
 
 	llvm::SmallVector<mlir::Type, 4> newResultTypes;
-	llvm::SmallVector<std::string, 4> newArgNames;
+	llvm::SmallVector<llvm::StringRef, 4> newArgNames;
 	unsigned contextArgCounts = 0;
 	for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 	{
@@ -1645,7 +1645,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 			getPrecondition().front().insertArgument(
 					contextArgCounts++, type, getLoc());
 			newResultTypes.push_back(type);
-			newArgNames.push_back(std::get<1>(arg).cast<mlir::StringAttr>().str());
+			newArgNames.push_back(std::get<1>(arg));
 		}
 	}
 
@@ -1671,10 +1671,13 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		newResultTypes.push_back(result.getType());
 
 	for (auto name : getDeclaredNames())
-		newArgNames.push_back(name.dyn_cast<mlir::StringAttr>().str());
+		newArgNames.push_back(name);
 
 	auto newDecl = builder.getRewriter().create<mlir::rlc::ActionStatement>(
-			getLoc(), newResultTypes, getName(), newArgNames);
+			getLoc(),
+			newResultTypes,
+			getName(),
+			mlir::rlc::FunctionInfoAttr::get(getContext(), newArgNames));
 
 	newDecl.getPrecondition().takeBody(getPrecondition());
 
@@ -1689,7 +1692,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		for (auto [name, res] : llvm::zip(
 						 newDecl.getDeclaredNames(),
 						 newDecl.getPrecondition().getArguments()))
-			builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), res);
+			builder.getSymbolTable().add(name, res);
 
 		for (auto *op : ToCheck)
 		{
@@ -1700,7 +1703,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	for (auto [name, res] :
 			 llvm::zip(newDecl.getDeclaredNames(), newDecl.getResults()))
-		builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), res);
+		builder.getSymbolTable().add(name.str(), res);
 
 	erase();
 	return mlir::success();
