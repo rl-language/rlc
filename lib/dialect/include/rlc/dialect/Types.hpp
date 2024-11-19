@@ -54,7 +54,8 @@ namespace mlir::rlc
 											 Type,
 											 StructTypeStorage,
 											 TypeTrait::IsMutable,
-											 mlir::rlc::RLCSerializable::Trait>
+											 mlir::rlc::RLCSerializable::Trait,
+											 mlir::rlc::Renemable::Trait>
 	{
 		public:
 		/// Inherit base constructors.
@@ -121,6 +122,8 @@ namespace mlir::rlc
 		void rlc_serialize(
 				llvm::raw_ostream &OS,
 				const mlir::rlc::SerializationContext &ctx) const;
+
+		mlir::Type rename(llvm::StringRef newName) const;
 	};
 
 	mlir::LogicalResult isTemplateType(mlir::Type type);

@@ -77,15 +77,15 @@ static mlir::lsp::Diagnostic rlcDiagToLSPDiag(
 	return toReturn;
 }
 
-static mlir::rlc::ClassDeclaration getClassDefinition(
+static mlir::rlc::TypeDeclarer getTypeDeclarer(
 		mlir::ModuleOp module, mlir::lsp::Position pos)
 {
-	for (auto decl : module.getOps<mlir::rlc::ClassDeclaration>())
+	for (auto decl : module.getOps<mlir::rlc::TypeDeclarer>())
 	{
-		if (not decl.getTypeLocation().has_value())
+		if (not decl.getDeclarationLocation().has_value())
 
 			continue;
-		auto loc = *decl.getTypeLocation();
+		auto loc = *decl.getDeclarationLocation();
 		if (locsToRange(loc.getStart(), loc.getEnd()).contains(pos))
 			return decl;
 	}
@@ -1011,35 +1011,42 @@ mlir::lsp::WorkspaceEdit RLCServer::rename(
 	if (maybeInfo == nullptr)
 		return action;
 
-	auto decl = getClassDefinition(maybeInfo->getModule(), position);
-	mlir::rlc::ClassType declType =
-			decl.getType().dyn_cast<mlir::rlc::ClassType>();
-	auto renamedType = mlir::rlc::ClassType::getIdentified(
-			decl.getContext(), newName, declType.getExplicitTemplateParameters());
-	if (renamedType.isInitialized())
-	{
+	auto decl = getTypeDeclarer(maybeInfo->getModule(), position);
+	if (decl == nullptr)
 		return action;
-	}
-	if (decl != nullptr)
-	{
-		maybeInfo->getModule().walk([&](mlir::rlc::TypeUser user) {
-			for (auto typeUse : user.getShugarizedTypes())
-			{
-				auto file = typeUse.getLocation().getStart().getFilename().str();
 
-				auto newType = rewrittenType(typeUse.getType(), declType, renamedType);
-				if (!newType or newType == typeUse.getType())
-					continue;
+	mlir::rlc::Renemable declType = decl.getDeclaredType().cast<Renemable>();
+	if (not declType)
+		return action;
 
-				action.changes[file].emplace_back();
-				action.changes[file].back().newText = toString(newType);
-				action.changes[file].back().range.start =
-						locToPos(typeUse.getLocation().getStart());
-				action.changes[file].back().range.end =
-						locToPos(typeUse.getLocation().getEnd());
-			}
-		});
-	}
+	auto renamedType = declType.rename(newName);
+	if (!renamedType)
+		return action;
+
+	action.changes[uri.file().str()].emplace_back();
+	action.changes[uri.file().str()].back().newText = newName;
+	action.changes[uri.file().str()].back().range.start =
+			locToPos(decl.getDeclarationLocation()->getStart());
+	action.changes[uri.file().str()].back().range.end =
+			locToPos(decl.getDeclarationLocation()->getEnd());
+
+	maybeInfo->getModule().walk([&](mlir::rlc::TypeUser user) {
+		for (auto typeUse : user.getShugarizedTypes())
+		{
+			auto file = typeUse.getLocation().getStart().getFilename().str();
+
+			auto newType = rewrittenType(typeUse.getType(), declType, renamedType);
+			if (!newType or newType == typeUse.getType())
+				continue;
+
+			action.changes[file].emplace_back();
+			action.changes[file].back().newText = toString(newType);
+			action.changes[file].back().range.start =
+					locToPos(typeUse.getLocation().getStart());
+			action.changes[file].back().range.end =
+					locToPos(typeUse.getLocation().getEnd());
+		}
+	});
 
 	return action;
 }

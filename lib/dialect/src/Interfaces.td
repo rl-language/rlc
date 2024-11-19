@@ -2,6 +2,25 @@
 #define __RLC_INTERFACES__
 include "mlir/IR/OpBase.td"
 
+def RLC_Renemable
+    : TypeInterface<"Renemable"> {
+  let cppNamespace = "::mlir::rlc";
+
+  let description = [{
+    a interface to be able to rename alias types, class types and template parameters 
+  }];
+
+  let methods = [
+    InterfaceMethod<
+      /*description=*/"Serializes a type to string as it would be written in a rlc file. Returns null if the renaming fails, that is, the type was already declared or similar",
+      /*retTy=*/"mlir::Type",
+      /*methodName=*/"rename",
+      /*args=*/(ins "llvm::StringRef":$newName),
+      /*methodBody=*/""
+    >
+  ];
+}
+
 def RLC_RLCSerializable
     : TypeInterface<"RLCSerializable"> {
   let cppNamespace = "::mlir::rlc";
@@ -24,6 +43,27 @@ def RLC_RLCSerializable
 
 class RLC_Interface<string name, list<OpInterface> baseinterface = []> : OpInterface<name, baseinterface> {
     let cppNamespace = "::mlir::rlc";
+}
+
+def TypeDeclarer : RLC_Interface<"TypeDeclarer"> {
+    let description = [{
+        A element of the AST wher the user has declared a type.
+        example
+        let i : Int
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "the declaread type",
+            "mlir::Type", "getDeclaredType",
+            (ins)
+        >,
+        InterfaceMethod<
+            "the optional location in the source code of the declared name",
+            "std::optional<mlir::rlc::SourceRangeAttr>", "getDeclarationLocation",
+            (ins)
+        >,
+];
 }
 
 def TypeUser : RLC_Interface<"TypeUser"> {

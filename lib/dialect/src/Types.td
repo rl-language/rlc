@@ -247,7 +247,7 @@ def RLC_ContextType : RLC_Type<"Context", "ctx", [DeclareTypeInterfaceMethods<RL
   ];
 }
 
-def RLC_AliasType : RLC_Type<"Alias", "alias", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
+def RLC_AliasType : RLC_Type<"Alias", "alias", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>, DeclareTypeInterfaceMethods<RLC_Renemable>]> {
   let summary = "a type created by the using X = Y statements";
   let description = [{
 Syntactical shugar type that is kept around to allow for LSP renames, better errors and so on. It does nothing for semantics of the program and never appears on values.

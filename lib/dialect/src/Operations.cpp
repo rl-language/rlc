@@ -495,6 +495,7 @@ static mlir::LogicalResult declareActionTypes(
 			function.getLoc(),
 			("Any" + function.getClassType().getName() + "Action").str(),
 			alternative,
+			nullptr,
 			nullptr);
 
 	return mlir::success();
@@ -2366,6 +2367,28 @@ void mlir::rlc::Yield::getSuccessorRegions(
 {
 	llvm::cast<::mlir::RegionBranchOpInterface>((*this)->getParentOp())
 			.getSuccessorRegions((*this)->getParentRegion(), regions);
+}
+
+mlir::Type mlir::rlc::TypeAliasOp::getDeclaredType()
+{
+	return mlir::rlc::AliasType::get(getName(), getAliased());
+}
+
+std::optional<mlir::rlc::SourceRangeAttr>
+mlir::rlc::TypeAliasOp::getDeclarationLocation()
+{
+	return getDeclaredNameLocation();
+}
+
+mlir::Type mlir::rlc::ClassDeclaration::getDeclaredType()
+{
+	return getResult().getType();
+}
+
+std::optional<mlir::rlc::SourceRangeAttr>
+mlir::rlc::ClassDeclaration::getDeclarationLocation()
+{
+	return getTypeLocation();
 }
 
 void mlir::rlc::ReturnStatement::getRegionInvocationBounds(

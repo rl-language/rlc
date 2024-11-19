@@ -451,17 +451,22 @@ def RLC_StatementList : RLC_Dialect<"list", [SymbolTable, DeclareOpInterfaceMeth
   }];
 }
 
-def RLC_TypeAliasOp : RLC_Dialect<"alias", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>]> {
+def RLC_TypeAliasOp : RLC_Dialect<"alias", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>, DeclareOpInterfaceMethods<TypeDeclarer>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
+  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased, OptionalAttr<RLC_SourceRangeAttr>:$declared_name_location, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
   let description = [{
 	expression.
   }];
 
   let assemblyFormat = [{
-	$name `=` $aliased ( `shugarized` `=` $shugarized_type^ )? attr-dict 
+	$name `=` $aliased ( `shugarized` `=` $shugarized_type^ )? (`declared_name_location` `=` $declared_name_location^ )? attr-dict 
   }];
+
+   let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::Type":$aliased), [{
+			build($_builder, $_state, name, aliased, nullptr, nullptr);
+    }]>];
 }
 
 def RLC_Reference : RLC_Dialect<"ref"> {
@@ -737,7 +742,7 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [DeclareOpInterfaceMethods<Ty
 
 
 class RLC_FunctionBase<string mnemonic> :
-RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable, DeclareOpInterfaceMethods<TypeUser>  ]> {
+RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable, DeclareOpInterfaceMethods<TypeUser>]> {
 
   let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info);
   let description = [{
@@ -1971,7 +1976,7 @@ def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInte
   }];
 }
 
-def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<TypeUser>, NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
+def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<TypeUser>, NoTerminator, NoRegionArguments, HasOnlyGraphRegion, DeclareOpInterfaceMethods<TypeDeclarer>]> {
   let summary = "constant.";
 
   let description = [{

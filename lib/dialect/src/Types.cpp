@@ -974,6 +974,17 @@ void mlir::rlc::TemplateParameterType::rlc_serialize(
 	OS << getName();
 }
 
+mlir::Type mlir::rlc::AliasType::rename(llvm::StringRef newName) const
+{
+	return mlir::rlc::AliasType::get(newName, getUnderlying());
+}
+
+mlir::Type mlir::rlc::ClassType::rename(llvm::StringRef newName) const
+{
+	return getNewIdentified(
+			getContext(), newName, getMembers(), getExplicitTemplateParameters());
+}
+
 void mlir::rlc::ContextType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {

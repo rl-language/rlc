@@ -333,14 +333,20 @@ Expected<mlir::Operation*> Parser::usingTypeStatement()
 {
 	EXPECT(Token::KeywordUsing);
 	auto location = getCurrentSourcePos();
+	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
 	EXPECT(Token::Identifier);
+	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
 	auto typeName = lIdent;
 	EXPECT(Token::Equal);
 	if (not accept<Token::KeywordType>())
 	{
 		TRY(shugarType, singleTypeUse());
 		return builder.create<mlir::rlc::TypeAliasOp>(
-				location, typeName, shugarType->getType(), *shugarType);
+				location,
+				typeName,
+				shugarType->getType(),
+				mlir::rlc::SourceRangeAttr::get(startLocation, endLocation),
+				*shugarType);
 	}
 	EXPECT(Token::LPar);
 
@@ -2054,14 +2060,20 @@ Expected<mlir::rlc::UncheckedTraitDefinition> Parser::traitDefinition()
 llvm::Expected<mlir::rlc::TypeAliasOp> Parser::usingStatement()
 {
 	EXPECT(Token::KeywordUsing);
-	EXPECT(Token::Identifier);
 	auto location = getCurrentSourcePos();
+	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+	EXPECT(Token::Identifier);
 	std::string name = lIdent;
+	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
 
 	EXPECT(Token::Equal);
 	TRY(typeUse, singleTypeUse());
 	return builder.create<mlir::rlc::TypeAliasOp>(
-			location, name, (*typeUse).getType(), *typeUse);
+			location,
+			name,
+			(*typeUse).getType(),
+			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation),
+			*typeUse);
 }
 
 void Parser::setComment(mlir::Operation* op, llvm::StringRef comment)
