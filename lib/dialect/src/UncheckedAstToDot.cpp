@@ -285,7 +285,7 @@ namespace mlir::rlc
 						action.getLoc(),
 						mlir::TypeRange({}),
 						"proxy",
-						mlir::rlc::FunctionInfoAttr::get(action.getContext(), {}),
+						mlir::rlc::FunctionInfoAttr::get(action.getContext()),
 						0,
 						0);
 

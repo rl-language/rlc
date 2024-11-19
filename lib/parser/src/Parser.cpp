@@ -102,14 +102,14 @@ llvm::Expected<mlir::Value> Parser::builtinFromArray()
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordFromArray);
 	EXPECT(Token::LAng);
-	TRY(type, singleTypeUse());
+	TRY(shugarType, singleTypeUse());
 	EXPECT(Token::RAng);
 	EXPECT(Token::LPar);
 	TRY(size, expression());
 	EXPECT(Token::RPar);
 
 	return builder.create<mlir::rlc::FromByteArrayOp>(
-			location, (*type).first, *size, (*type).second);
+			location, shugarType->getType(), *size, *shugarType);
 }
 
 llvm::Expected<mlir::Value> Parser::stringExpression()
@@ -211,7 +211,7 @@ Expected<mlir::Value> Parser::builtinMalloc()
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordMalloc);
 	EXPECT(Token::LAng);
-	TRY(type, singleTypeUse());
+	TRY(shugarType, singleTypeUse());
 	EXPECT(Token::RAng);
 	EXPECT(Token::LPar);
 	TRY(size, expression());
@@ -219,9 +219,9 @@ Expected<mlir::Value> Parser::builtinMalloc()
 
 	return builder.create<mlir::rlc::MallocOp>(
 			location,
-			mlir::rlc::OwningPtrType::get((*type).first),
+			mlir::rlc::OwningPtrType::get(shugarType->getType()),
 			*size,
-			(*type).second);
+			*shugarType);
 }
 
 // builtinFree : "__builtin_free_do_not_use(" expression ")\n"
@@ -338,9 +338,9 @@ Expected<mlir::Operation*> Parser::usingTypeStatement()
 	EXPECT(Token::Equal);
 	if (not accept<Token::KeywordType>())
 	{
-		TRY(typeUse, singleTypeUse());
+		TRY(shugarType, singleTypeUse());
 		return builder.create<mlir::rlc::TypeAliasOp>(
-				location, typeName, (*typeUse).first);
+				location, typeName, shugarType->getType(), *shugarType);
 	}
 	EXPECT(Token::LPar);
 
@@ -411,10 +411,10 @@ Expected<mlir::Value> Parser::postFixExpression()
 				continue;
 			}
 
-			TRY(type, singleTypeUse());
+			TRY(shugarType, singleTypeUse());
 			exp = builder
 								.create<mlir::rlc::UncheckedIsOp>(
-										location, exp, (*type).first, (*type).second)
+										location, exp, shugarType->getType(), *shugarType)
 								.getResult();
 			continue;
 		}
@@ -769,12 +769,12 @@ Expected<mlir::Value> Parser::expression() { return bitWiseOrExpression(); }
 /**
  * ClassField : TypeUse Identifier
  */
-llvm::Expected<mlir::rlc::ClassFieldAttr> Parser::classField()
+llvm::Expected<mlir::rlc::ClassFieldDeclarationAttr> Parser::classField()
 {
-	TRY(type, singleTypeUse());
+	TRY(shugarType, singleTypeUse());
 	EXPECT(Token::Identifier);
-
-	return mlir::rlc::ClassFieldAttr::get(lIdent, (*type).first, (*type).second);
+	return mlir::rlc::ClassFieldDeclarationAttr::get(
+			lIdent, shugarType->getType(), *shugarType);
 }
 
 /**
@@ -1485,9 +1485,9 @@ Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 
 	EXPECT(Token::Colons, onExit(nullptr));
 	auto typeLoc = getCurrentSourcePos();
-	TRY(use, singleTypeUse(), onExit(nullptr));
+	TRY(shugarType, singleTypeUse(), onExit(nullptr));
 	auto exp = builder.create<mlir::rlc::ConstructOp>(
-			typeLoc, (*use).first, (*use).second);
+			typeLoc, shugarType->getType(), *shugarType);
 	onExit(exp);
 	EXPECT(Token::Newline);
 	return expStatement;
@@ -1517,11 +1517,11 @@ Expected<mlir::rlc::FunctionUseType> Parser::functionTypeUse()
 	SmallVector<mlir::Type, 2> tpUse;
 
 	TRY(singleTp, singleTypeUse());
-	tpUse.emplace_back((*singleTp).first);
+	tpUse.emplace_back(singleTp->getType());
 	while (accept<Token::Arrow>())
 	{
 		TRY(singleTp, singleTypeUse());
-		tpUse.emplace_back((*singleTp).first);
+		tpUse.emplace_back((*singleTp).getType());
 	}
 
 	return mlir::rlc::FunctionUseType::get(ctx, tpUse);
@@ -1546,7 +1546,7 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleNonArrayTypeUse()
 		TRY(subType, singleTypeUse());
 		EXPECT(Token::RAng);
 		return mlir::rlc::ScalarUseType::get(
-				ctx, mlir::rlc::OwningPtrType::get((*subType).first));
+				ctx, mlir::rlc::OwningPtrType::get((*subType).getType()));
 	}
 
 	EXPECT(Token::Identifier);
@@ -1565,7 +1565,7 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleNonArrayTypeUse()
 			else
 			{
 				TRY(templateParameter, singleTypeUse());
-				templateParametersTypes.push_back((*templateParameter).first);
+				templateParametersTypes.push_back((*templateParameter).getType());
 			}
 		} while (accept<Token::Comma>());
 		EXPECT(Token::RAng);
@@ -1578,8 +1578,7 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleNonArrayTypeUse()
  * singleTypeUse : singleNonArrayTypeUse (["["int64"|Ident "]"] )* (|
  * singleTypeUse)*
  */
-Expected<std::pair<mlir::Type, mlir::rlc::SourceRangeAttr>>
-Parser::singleTypeUse()
+Expected<mlir::rlc::ShugarizedTypeAttr> Parser::singleTypeUse()
 {
 	mlir::FileLineColLoc typeBegin =
 			getCurrentSourcePos().cast<mlir::FileLineColLoc>();
@@ -1611,11 +1610,15 @@ Parser::singleTypeUse()
 	auto typeEnd = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
 
 	if (seenTypes.size() == 1)
-		return std::pair{ seenTypes.front(),
-											mlir::rlc::SourceRangeAttr::get(typeBegin, typeEnd) };
+		return mlir::rlc::ShugarizedTypeAttr::get(
+				builder.getContext(),
+				mlir::rlc::SourceRangeAttr::get(typeBegin, typeEnd),
+				seenTypes.front());
 
-	return std::pair{ mlir::rlc::AlternativeType::get(ctx, seenTypes),
-										mlir::rlc::SourceRangeAttr::get(typeBegin, typeEnd) };
+	return mlir::rlc::ShugarizedTypeAttr::get(
+			builder.getContext(),
+			mlir::rlc::SourceRangeAttr::get(typeBegin, typeEnd),
+			mlir::rlc::AlternativeType::get(ctx, seenTypes));
 }
 
 Expected<mlir::rlc::FunctionArgumentAttr> Parser::argDeclaration()
@@ -1625,9 +1628,9 @@ Expected<mlir::rlc::FunctionArgumentAttr> Parser::argDeclaration()
 
 	TRY(tp, singleTypeUse());
 	if (isFrame)
-		(*tp).first = mlir::rlc::FrameType::get((*tp).first);
+		(*tp) = tp->replaceType(mlir::rlc::FrameType::get((*tp).getType()));
 	if (isCtx)
-		(*tp).first = mlir::rlc::ContextType::get((*tp).first);
+		(*tp) = tp->replaceType(mlir::rlc::ContextType::get((*tp).getType()));
 	auto nameStart = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
 	EXPECT(Token::Identifier);
 	auto nameEnd = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
@@ -1636,8 +1639,7 @@ Expected<mlir::rlc::FunctionArgumentAttr> Parser::argDeclaration()
 			builder.getContext(),
 			parName,
 			mlir::rlc::SourceRangeAttr::get(nameStart, nameEnd),
-			(*tp).first,
-			(*tp).second);
+			*tp);
 }
 
 /**
@@ -1732,14 +1734,19 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDeclaration(
 	auto onExit = [&]() {
 		llvm::SmallVector<mlir::Type, 3> argTypes;
 		for (auto arg : args)
-			argTypes.push_back(arg.getShugarizedType());
+			argTypes.push_back(arg.getShugarizedType().getType());
+
+		mlir::rlc::ShugarizedTypeAttr retTypeInfo =
+				retTypeRange != nullptr
+						? mlir::rlc::ShugarizedTypeAttr::get(retTypeRange, retType)
+						: nullptr;
 
 		auto fun = builder.create<mlir::rlc::FunctionOp>(
 				location,
 				builder.getStringAttr(nm),
 				mlir::FunctionType::get(ctx, argTypes, { retType }),
 				mlir::rlc::FunctionInfoAttr::get(
-						builder.getContext(), args, retTypeRange, retType),
+						builder.getContext(), args, retTypeInfo),
 				isMemberFunction,
 				templateParameters);
 		return fun;
@@ -1751,8 +1758,8 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDeclaration(
 	{
 		bool isRef = accept<Token::KeywordRef>();
 		TRY(actualRetType, singleTypeUse(), onExit());
-		retType = (*actualRetType).first;
-		retTypeRange = (*actualRetType).second;
+		retType = (*actualRetType).getType();
+		retTypeRange = (*actualRetType).getLocation();
 		if (isRef)
 			retType = mlir::rlc::ReferenceType::get(retType);
 	}
@@ -1814,10 +1821,15 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 	auto onExit = [&]() -> mlir::Operation* {
 		mlir::SmallVector<mlir::Type, 3> argTypes;
 		for (auto argument : info)
-			argTypes.push_back(argument.getShugarizedType());
+			argTypes.push_back(argument.getShugarizedType().getType());
 
 		if (actionFunction)
 		{
+			mlir::rlc::ShugarizedTypeAttr retTypeInfo =
+					retTypeSourceRange != nullptr
+							? mlir::rlc::ShugarizedTypeAttr::get(retTypeSourceRange, retType)
+							: nullptr;
+
 			auto decl = builder.create<mlir::rlc::ActionFunction>(
 					location,
 					mlir::FunctionType::get(ctx, argTypes, { retType }),
@@ -1825,7 +1837,7 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 					mlir::TypeRange(),
 					builder.getStringAttr(nm),
 					mlir::rlc::FunctionInfoAttr::get(
-							builder.getContext(), info, retTypeSourceRange, retType));
+							builder.getContext(), info, retTypeInfo));
 			auto pos = builder.saveInsertionPoint();
 			llvm::SmallVector<mlir::Location> locs;
 			for (size_t i = 0; i < decl.getFunctionType().getInputs().size(); i++)
@@ -1850,8 +1862,7 @@ Expected<mlir::Operation*> Parser::actionDeclaration(bool actionFunction)
 					location,
 					argTypes,
 					builder.getStringAttr(nm),
-					mlir::rlc::FunctionInfoAttr::get(
-							builder.getContext(), info, nullptr, nullptr));
+					mlir::rlc::FunctionInfoAttr::get(builder.getContext(), info));
 			return toReturn;
 		}
 	};
@@ -1934,7 +1945,7 @@ Expected<mlir::rlc::EnumFieldDeclarationOp> Parser::enumFieldDeclaration()
 		TRY(type, singleTypeUse(), onExit());
 		EXPECT(Token::Identifier, onExit());
 		auto current = builder.create<mlir::rlc::EnumFieldExpressionOp>(
-				loc, (*type).first, lIdent);
+				loc, (*type).getType(), lIdent);
 		auto* inner = builder.createBlock(&current.getBody());
 		builder.setInsertionPointToEnd(inner);
 
@@ -2050,7 +2061,7 @@ llvm::Expected<mlir::rlc::TypeAliasOp> Parser::usingStatement()
 	EXPECT(Token::Equal);
 	TRY(typeUse, singleTypeUse());
 	return builder.create<mlir::rlc::TypeAliasOp>(
-			location, name, (*typeUse).first);
+			location, name, (*typeUse).getType(), *typeUse);
 }
 
 void Parser::setComment(mlir::Operation* op, llvm::StringRef comment)

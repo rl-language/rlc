@@ -336,7 +336,7 @@ namespace mlir::rlc
 					mlir::FunctionType::get(
 							rewriter.getContext(), {}, { expression.getResult().getType() }),
 
-					mlir::rlc::FunctionInfoAttr::get(rewriter.getContext(), {}),
+					mlir::rlc::FunctionInfoAttr::get(rewriter.getContext()),
 					true);
 			rewriter.createBlock(&op.getBody());
 			auto retStm = rewriter.create<mlir::rlc::ReturnStatement>(
@@ -440,17 +440,25 @@ namespace mlir::rlc
 			for (auto declaration : ops)
 			{
 				rewriter.setInsertionPoint(declaration);
-				llvm::SmallVector<mlir::Attribute, 1> fields{
+				llvm::SmallVector<mlir::rlc::ClassFieldAttr, 1> fields{
 					mlir::rlc::ClassFieldAttr::get(
 							"value",
 							mlir::rlc::ScalarUseType::get(getOperation().getContext(), "Int"))
 				};
+				assert(declaration.getTypeLocation().has_value());
+				auto shugarType = mlir::rlc::ShugarizedTypeAttr::get(
+						declaration.getContext(),
+						*declaration.getTypeLocation(),
+						fields.back().getType());
+				llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 1> fieldsDecl{
+					mlir::rlc::ClassFieldDeclarationAttr::get(
+							declaration.getContext(), fields.back(), shugarType)
+				};
 				auto op = rewriter.create<mlir::rlc::ClassDeclaration>(
 						declaration.getLoc(),
-						mlir::rlc::UnknownType::get(getOperation().getContext()),
 						declaration.getNameAttr(),
-						rewriter.getArrayAttr(fields),
-						rewriter.getTypeArrayAttr({}),
+						fieldsDecl,
+						mlir::ArrayRef<mlir::Type>({}),
 						*declaration.getTypeLocation());
 				moveAllFunctionDeclsToNewClass(declaration, op, rewriter);
 				if (moveAllMethodExpressionToNewClassFunctions(

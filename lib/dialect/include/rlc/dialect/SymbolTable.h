@@ -122,12 +122,17 @@ namespace mlir::rlc
 		{
 			return converter.convertType(type);
 		}
+		mlir::Type shugarizedConvertType(mlir::Type type)
+		{
+			return shugarizedConverter.convertType(type);
+		}
 
 		void setErrorLocation(mlir::Location newLoc) { loc = newLoc; }
 
 		private:
 		TypeTable types;
 		mlir::TypeConverter converter;
+		mlir::TypeConverter shugarizedConverter;
 		mlir::Location loc;
 	};
 

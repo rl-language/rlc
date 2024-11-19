@@ -451,16 +451,16 @@ def RLC_StatementList : RLC_Dialect<"list", [SymbolTable, DeclareOpInterfaceMeth
   }];
 }
 
-def RLC_TypeAliasOp : RLC_Dialect<"alias", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_TypeAliasOp : RLC_Dialect<"alias", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased);
+  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
   let description = [{
 	expression.
   }];
 
   let assemblyFormat = [{
-	$name `=` $aliased attr-dict 
+	$name `=` $aliased ( `shugarized` `=` $shugarized_type^ )? attr-dict 
   }];
 }
 
@@ -487,12 +487,12 @@ def RLC_MallocOp : RLC_Dialect<"malloc_op", [DeclareOpInterfaceMethods<TypeCheck
 	implements malloc.
   }];
 
-  let arguments = (ins RLCIntegerOrUnkownType:$size, RLC_SourceRangeAttr:$type_location);
+  let arguments = (ins RLCIntegerOrUnkownType:$size, RLC_ShugarizedTypeAttr:$shugarized_type);
 
   let results = (outs RLCPtrOrUnkownType:$result);
 
   let assemblyFormat = [{
-	$size type($size) `->` type($result) $type_location attr-dict 
+	$size type($size) `->` type($result) $shugarized_type attr-dict 
   }];
 }
 
@@ -633,17 +633,17 @@ def RLC_UncheckedIsOp : RLC_Dialect<"UncheckedIsOp", [DeclareOpInterfaceMethods<
 	implements is operator.
   }];
 
-  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait, RLC_SourceRangeAttr:$type_location);
+  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait, RLC_ShugarizedTypeAttr:$shugarized_type);
 
   let results = (outs RLC_BoolType:$result);
 
   let assemblyFormat = [{
-	$expression $type_or_trait type($expression) `->` type($result) $type_location attr-dict 
+	$expression $type_or_trait type($expression) `->` type($result) $shugarized_type attr-dict 
   }];
 
    let builders = [
-        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type, "mlir::rlc::SourceRangeAttr":$type_location), [{
-			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type, type_location);
+        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type, "mlir::rlc::ShugarizedTypeAttr":$shugarized_type), [{
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type, shugarized_type);
     }]>];
 }
 
@@ -654,17 +654,17 @@ def RLC_IsOp : RLC_Dialect<"IsOp", [DeclareOpInterfaceMethods<TypeUser>]> {
 	implements is operator.
   }];
 
-  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
+  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
 
   let results = (outs RLC_BoolType:$result);
 
   let assemblyFormat = [{
-	$expression  $type_or_trait  `:` type($expression) `->` type($result) (`type_location` `=` $type_location^ )? attr-dict 
+	$expression  $type_or_trait  `:` type($expression) `->` type($result) (`shugarized_type` `=` $shugarized_type^ )? attr-dict 
   }];
 
    let builders = [
-        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type, "mlir::rlc::SourceRangeAttr":$type_location), [{
-			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type, type_location);
+        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type, "mlir::rlc::ShugarizedTypeAttr":$shugarized_type), [{
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type, shugarized_type);
     }]>, 
         OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type), [{
 			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression, type, nullptr);
@@ -845,7 +845,8 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 				for (const auto& [operand, field]: llvm::zip(region->front().getArguments(), getInfo().getArgs()))
 				{
 					auto converted = builder.getConverter().convertType(operand.getType());
-					if (not converted){
+                     
+					if (not converted ){
 						getOperation()->emitRemark("in of argument of function");
 					}
 					operand.setType(converted);
@@ -1264,11 +1265,11 @@ def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCh
 	expression.
   }];
 
-  let arguments = (ins OptionalAttr<RLC_SourceRangeAttr>:$type_location);
+  let arguments = (ins OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-		type($result) ( `type_location` `:` $type_location^ )? attr-dict
+		type($result) ( `shugarized_type` `:` $shugarized_type^ )? attr-dict
   }];
 
    let builders = [
@@ -1476,11 +1477,11 @@ def RLC_FromByteArrayOp : RLC_Dialect<"from_byte_array", [DeclareOpInterfaceMeth
 	expression.
   }];
 
-  let arguments = (ins RLCArrayOrUnkownType:$lhs, RLC_SourceRangeAttr:$type_location);
+  let arguments = (ins RLCArrayOrUnkownType:$lhs, RLC_ShugarizedTypeAttr:$shugarized_type);
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-	$lhs `:` type($lhs) `->` type($result) $type_location attr-dict
+	$lhs `:` type($lhs) `->` type($result) $shugarized_type attr-dict
   }];
 }
 
@@ -1977,15 +1978,30 @@ def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<
 	expression.
   }];
 
-  let arguments = (ins StrAttr:$name,  ClassFieldsArrayAttr:$members, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
+  let arguments = (ins StrAttr:$name,  ClassDeclarationFieldsArrayAttr:$members, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
   let results = (outs AnyType:$result);
 
   let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name, "mlir::ArrayAttr":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
-            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), members, $_builder.getTypeArrayAttr(template_parameters), type_location);
+        OpBuilder<(ins "mlir::Type":$class_type, "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
+            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
+            for (auto attr : members) {
+                fieldAttrs.push_back(attr);
+            }
+            build($_builder, $_state, class_type, $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), type_location);
     }]>,
-        OpBuilder<(ins "llvm::StringRef":$name, "mlir::ArrayAttr":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters), [{
-            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), members, $_builder.getTypeArrayAttr(template_parameters), nullptr);
+        OpBuilder<(ins "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
+            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
+            for (auto attr : members) {
+                fieldAttrs.push_back(attr);
+            }
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), type_location);
+    }]>,
+        OpBuilder<(ins "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters), [{
+            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
+            for (auto attr : members) {
+                fieldAttrs.push_back(attr);
+            }
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), nullptr);
     }]>,
 ];
 
@@ -1994,12 +2010,12 @@ def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<
   );
 
   let extraClassDeclaration = [{
-      mlir::rlc::ClassFieldAttr getMemberField(size_t i) {
-        return getMembers()[i].cast<mlir::rlc::ClassFieldAttr>();
+      mlir::rlc::ClassFieldDeclarationAttr getMemberField(size_t i) {
+        return getMembers()[i].cast<mlir::rlc::ClassFieldDeclarationAttr>();
       }
 
-      llvm::SmallVector <mlir::rlc::ClassFieldAttr, 4> getMemberFields() {
-        llvm::SmallVector <mlir::rlc::ClassFieldAttr, 4> outs;
+      llvm::SmallVector <mlir::rlc::ClassFieldDeclarationAttr, 4> getMemberFields() {
+        llvm::SmallVector <mlir::rlc::ClassFieldDeclarationAttr, 4> outs;
         for (size_t i = 0; i != getMembers().size(); i++ )
             outs.push_back(getMemberField(i));
 

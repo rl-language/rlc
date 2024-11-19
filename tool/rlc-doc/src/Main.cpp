@@ -122,8 +122,10 @@ static void printClassDecl(
 		if (name.starts_with("_"))
 			continue;
 
-		OS << "* " << mlir::rlc::prettyType(op.getMemberField(i).getType()) << " "
-			 << name.str() << "\n";
+		OS << "* "
+			 << mlir::rlc::prettyType(
+							op.getMemberField(i).getShugarizedType().getType())
+			 << " " << name.str() << "\n";
 	}
 
 	OS

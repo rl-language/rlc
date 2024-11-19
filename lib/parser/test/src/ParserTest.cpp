@@ -180,7 +180,7 @@ TEST(ParserTest, singleTypeTest)
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
-	auto casted = (*s).first.cast<mlir::rlc::ScalarUseType>();
+	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
 
 	EXPECT_EQ(casted.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 0));
 	EXPECT_EQ(casted.getReadType(), "int");
@@ -195,7 +195,7 @@ TEST(ParserTest, arrayTypeTest)
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
-	auto casted = (*s).first.cast<mlir::rlc::ScalarUseType>();
+	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
 
 	EXPECT_EQ(casted.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
 	EXPECT_EQ(
@@ -213,7 +213,7 @@ TEST(ParserTest, functionTypeTest)
 	if (!s)
 		FAIL();
 
-	auto casted = (*s).first.cast<mlir::rlc::ScalarUseType>();
+	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
 	EXPECT_TRUE(casted.getUnderlying().isa<mlir::rlc::FunctionUseType>());
 	auto r = casted.getUnderlying()
 							 .cast<mlir::rlc::FunctionUseType>()
@@ -234,7 +234,7 @@ TEST(ParserTest, complexFunctionTypeTest)
 	if (!s)
 		FAIL();
 
-	auto casted = (*s).first.cast<mlir::rlc::ScalarUseType>();
+	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
 	EXPECT_TRUE(casted.getUnderlying().isa<mlir::rlc::FunctionUseType>());
 	auto r = casted.getUnderlying()
 							 .cast<mlir::rlc::FunctionUseType>()

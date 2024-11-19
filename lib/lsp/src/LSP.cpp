@@ -953,6 +953,53 @@ void RLCServer::findReferencesOf(
 	maybeInfo->findReferencesOf(pos, references);
 }
 
+static mlir::rlc::RLCSerializable rewrittenType(
+		mlir::Type currentType,
+		mlir::Type typeEditedByUser,
+		mlir::Type newTypeToBeWritten)
+{
+	if (currentType == typeEditedByUser)
+		return newTypeToBeWritten.dyn_cast<mlir::rlc::RLCSerializable>();
+	;
+
+	const auto replacer = [typeEditedByUser,
+												 newTypeToBeWritten](mlir::Type current)
+			-> std::optional<std::pair<mlir::Type, mlir::WalkResult>> {
+		if (typeEditedByUser == current)
+			return std::pair{ newTypeToBeWritten, mlir::WalkResult::skip() };
+
+		if (auto casted = current.dyn_cast<mlir::rlc::ClassType>())
+		{
+			llvm::SmallVector<mlir::Type, 2> templateArguments;
+			for (auto arg : casted.getExplicitTemplateParameters())
+			{
+				templateArguments.push_back(
+						rewrittenType(arg, typeEditedByUser, newTypeToBeWritten));
+			}
+
+			return std::pair{
+				mlir::rlc::ClassType::getIdentified(
+						casted.getContext(), casted.getName(), templateArguments),
+				mlir::WalkResult::skip()
+			};
+		}
+
+		return std::pair{ current, mlir::WalkResult::advance() };
+	};
+	auto newType =
+			currentType.replace(replacer).dyn_cast<mlir::rlc::RLCSerializable>();
+	return newType;
+}
+
+static std::string toString(mlir::rlc::RLCSerializable type)
+{
+	std::string toReturn;
+	llvm::raw_string_ostream OS(toReturn);
+	type.rlc_serialize(OS, {});
+	OS.flush();
+	return toReturn;
+}
+
 mlir::lsp::WorkspaceEdit RLCServer::rename(
 		const mlir::lsp::URIForFile &uri,
 		llvm::StringRef newName,
@@ -965,20 +1012,31 @@ mlir::lsp::WorkspaceEdit RLCServer::rename(
 		return action;
 
 	auto decl = getClassDefinition(maybeInfo->getModule(), position);
+	mlir::rlc::ClassType declType =
+			decl.getType().dyn_cast<mlir::rlc::ClassType>();
+	auto renamedType = mlir::rlc::ClassType::getIdentified(
+			decl.getContext(), newName, declType.getExplicitTemplateParameters());
+	if (renamedType.isInitialized())
+	{
+		return action;
+	}
 	if (decl != nullptr)
 	{
 		maybeInfo->getModule().walk([&](mlir::rlc::TypeUser user) {
-			for (auto [range, type] :
-					 llvm::zip(user.getTypeSourceRange(), user.getExplicitType()))
+			for (auto typeUse : user.getShugarizedTypes())
 			{
-				auto file = range.getStart().getFilename().str();
-				if (type != decl.getType())
+				auto file = typeUse.getLocation().getStart().getFilename().str();
+
+				auto newType = rewrittenType(typeUse.getType(), declType, renamedType);
+				if (!newType or newType == typeUse.getType())
 					continue;
 
 				action.changes[file].emplace_back();
-				action.changes[file].back().newText = newName;
-				action.changes[file].back().range.start = locToPos(range.getStart());
-				action.changes[file].back().range.end = locToPos(range.getEnd());
+				action.changes[file].back().newText = toString(newType);
+				action.changes[file].back().range.start =
+						locToPos(typeUse.getLocation().getStart());
+				action.changes[file].back().range.end =
+						locToPos(typeUse.getLocation().getEnd());
 			}
 		});
 	}

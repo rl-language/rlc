@@ -247,6 +247,21 @@ def RLC_ContextType : RLC_Type<"Context", "ctx", [DeclareTypeInterfaceMethods<RL
   ];
 }
 
+def RLC_AliasType : RLC_Type<"Alias", "alias", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
+  let summary = "a type created by the using X = Y statements";
+  let description = [{
+Syntactical shugar type that is kept around to allow for LSP renames, better errors and so on. It does nothing for semantics of the program and never appears on values.
+  }];
+
+  let parameters = (ins  StringRefParameter<>:$name, "Type":$underlying, OptionalArrayRefParameter<"Type">:$explicit_template_parameters);
+  let assemblyFormat = "`<`$name `=` $underlying`>`";
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins  "llvm::StringRef":$name, "mlir::Type":$underlying, CArg<"llvm::ArrayRef<mlir::Type>", "{}">:$explicit_template_parameters),[{
+		return mlir::rlc::AliasType::get(underlying.getContext(), name, underlying, explicit_template_parameters);
+	  }]>,
+  ];
+}
+
 def RLC_FrameType : RLC_Type<"Frame", "frame", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "Marks a type as being allocated in the frame of a action.";
   let description = [{

@@ -78,7 +78,7 @@ namespace rlc
 		llvm::Expected<mlir::Value> stringExpression();
 		llvm::Expected<mlir::Operation*> usingTypeStatement();
 		llvm::Expected<mlir::rlc::ClassDeclaration> classDeclaration();
-		llvm::Expected<mlir::rlc::ClassFieldAttr> classField();
+		llvm::Expected<mlir::rlc::ClassFieldDeclarationAttr> classField();
 		llvm::Expected<llvm::SmallVector<mlir::Value, 3>> argumentExpressionList();
 		llvm::Expected<mlir::rlc::TypeAliasOp> usingStatement();
 
@@ -101,8 +101,7 @@ namespace rlc
 		functionArguments();
 		llvm::Expected<mlir::rlc::FunctionArgumentAttr> argDeclaration();
 
-		llvm::Expected<std::pair<mlir::Type, mlir::rlc::SourceRangeAttr>>
-		singleTypeUse();
+		llvm::Expected<mlir::rlc::ShugarizedTypeAttr> singleTypeUse();
 		llvm::Expected<mlir::rlc::ScalarUseType> singleNonArrayTypeUse();
 		llvm::Expected<mlir::rlc::FunctionUseType> functionTypeUse();
 		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition(

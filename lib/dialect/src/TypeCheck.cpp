@@ -100,7 +100,7 @@ static mlir::LogicalResult getClassDeclarationSortedByDependencies(
 	{
 		llvm::SmallVector<mlir::StringRef, 2> names;
 		for (auto field : classDecl.getMemberFields())
-			collectClassUsedTyepNames(field.getType(), names);
+			collectClassUsedTyepNames(field.getDeshugarizedType(), names);
 
 		// remove the use of names that refer to the template parameters
 		for (auto parameter : classDecl.getTemplateParameters())
@@ -218,14 +218,14 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 			return mlir::rlc::logError(
 					action, "Action statements must have a return type");
 		}
-		auto type = action.getClassType();
+		mlir::rlc::ClassType type = action.getClassType();
 
 		auto classDecl = rewriter.create<mlir::rlc::ClassDeclaration>(
 				action.getLoc(),
 				type,
-				rewriter.getStringAttr(type.getName()),
-				rewriter.getArrayAttr({}),
-				rewriter.getArrayAttr({}),
+				type.getName(),
+				llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 3>({}),
+				mlir::ArrayRef<mlir::Type>({}),
 				nullptr);
 
 		if (decls.count(type.getName()) != 0)
@@ -262,7 +262,7 @@ static mlir::LogicalResult deduceClassBody(
 		return mlir::success();
 
 	llvm::SmallVector<mlir::rlc::ClassFieldAttr> newFields;
-	llvm::SmallVector<mlir::Attribute> newFieldsAttr;
+	llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr> newFieldsDeclarations;
 
 	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
 
@@ -287,15 +287,30 @@ static mlir::LogicalResult deduceClassBody(
 
 	for (auto field : decl.getMemberFields())
 	{
-		auto converted = scopedConverter.convertType(field.getType());
+		auto converted = scopedConverter.convertType(field.getDeshugarizedType());
 		if (!converted)
 		{
 			return mlir::failure();
 		}
+		newFields.push_back(
+				mlir::rlc::ClassFieldAttr::get(field.getName(), converted));
 
-		newFields.push_back(mlir::rlc::ClassFieldAttr::get(
-				field.getName(), converted, field.getTypeLocation()));
-		newFieldsAttr.push_back(newFields.back());
+		if (field.getShugarizedType())
+		{
+			auto shugarizedType = scopedConverter.shugarizedConvertType(
+					field.getShugarizedType().getType());
+			if (!shugarizedType)
+			{
+				return mlir::failure();
+			}
+			newFieldsDeclarations.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(
+					field.getContext(),
+					newFields.back(),
+					field.getShugarizedType().replaceType(shugarizedType)));
+		}
+		else
+			newFieldsDeclarations.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(
+					field.getContext(), newFields.back(), nullptr));
 	}
 	auto finalType = mlir::rlc::ClassType::getIdentified(
 			decl.getContext(), decl.getName(), checkedTemplateParameters);
@@ -310,8 +325,8 @@ static mlir::LogicalResult deduceClassBody(
 			decl,
 			finalType,
 			decl.getName(),
-			rewriter.getArrayAttr(newFieldsAttr),
-			rewriter.getTypeArrayAttr(checkedTemplateParameters),
+			newFieldsDeclarations,
+			checkedTemplateParameters,
 			decl.getTypeLocation().has_value() ? *decl.getTypeLocation() : nullptr);
 
 	return mlir::success();
@@ -552,7 +567,9 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 		}
 
 		auto convertedReturnType = builder.getConverter().convertType(funType);
-		if (convertedReturnType == nullptr)
+		auto shugarized =
+				builder.getConverter().shugarizedConvertType(fun.getFunctionType());
+		if (convertedReturnType == nullptr or shugarized == nullptr)
 		{
 			return mlir::rlc::logError(
 					fun,
@@ -570,6 +587,8 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 
 		rewriter.setInsertionPoint(fun);
 		fun.getResult().setType(actionType);
+		fun.setInfoAttr(
+				fun.getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
 		fun.getIsDoneFunction().setType(isDoneType);
 	}
 	return mlir::success();

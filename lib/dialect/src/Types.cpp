@@ -319,6 +319,11 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		OS << "Unkown";
 		return;
 	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::AliasType>())
+	{
+		OS << maybeType.getName();
+		return;
+	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
 	{
 		OS << "Float";
@@ -884,6 +889,25 @@ void mlir::rlc::IntegerType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
 	OS << "Int";
+}
+
+void mlir::rlc::AliasType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << getName();
+	if (getExplicitTemplateParameters().empty())
+		return;
+	OS << "<";
+	for (auto templateParameter : llvm::drop_end(getExplicitTemplateParameters()))
+	{
+		templateParameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+		OS << ", ";
+	}
+	getExplicitTemplateParameters()
+			.back()
+			.cast<mlir::rlc::RLCSerializable>()
+			.rlc_serialize(OS, ctx);
+	OS << ">";
 }
 
 void mlir::rlc::StringLiteralType::rlc_serialize(

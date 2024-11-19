@@ -36,12 +36,7 @@ def TypeUser : RLC_Interface<"TypeUser"> {
     let methods = [
         InterfaceMethod<
             "range in the source file where the type was used. Null if there was no range",
-            "llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>", "getTypeSourceRange",
-            (ins)
-        >,
-        InterfaceMethod<
-            "type written by the user in the source code. Empty if there are none. There may be more than one in places such as function declarations, since they include the return type and the argument type too.",
-            "llvm::SmallVector<mlir::Type, 2>", "getExplicitType",
+            "llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>", "getShugarizedTypes",
             (ins)
         >,
 ];

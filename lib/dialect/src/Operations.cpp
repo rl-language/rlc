@@ -412,7 +412,7 @@ static mlir::Type declareActionStatementType(
 	name += snakeCaseToCamelCase(statement.getName());
 
 	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> fields;
-	llvm::SmallVector<mlir::Attribute, 4> fieldsAttrs;
+	llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 4> fieldsAttrs;
 
 	for (auto [name, result] :
 			 llvm::zip(statement.getDeclaredNames(), statement.getResults()))
@@ -424,7 +424,7 @@ static mlir::Type declareActionStatementType(
 			type = casted.getUnderlying();
 		auto field = mlir::rlc::ClassFieldAttr::get(name, type);
 		fields.push_back(field);
-		fieldsAttrs.push_back(field);
+		fieldsAttrs.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(field));
 	}
 
 	auto type = mlir::rlc::ClassType::getNewIdentified(
@@ -434,8 +434,8 @@ static mlir::Type declareActionStatementType(
 			statement.getLoc(),
 			type,
 			name,
-			builder.getRewriter().getArrayAttr(fieldsAttrs),
-			builder.getRewriter().getTypeArrayAttr({}),
+			fieldsAttrs,
+			llvm::ArrayRef<mlir::Type>({}),
 			nullptr);
 	auto applyFunction =
 			defineApplyFunction(function, builder, action, statement, type);
@@ -494,7 +494,8 @@ static mlir::LogicalResult declareActionTypes(
 	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
 			function.getLoc(),
 			("Any" + function.getClassType().getName() + "Action").str(),
-			alternative);
+			alternative,
+			nullptr);
 
 	return mlir::success();
 }
@@ -648,6 +649,14 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 		return mlir::rlc::logError(
 				*this, "right hand of using is not a valid type");
 	}
+	if (getShugarizedType() != nullptr)
+	{
+		auto shugarized =
+				builder.getConverter().shugarizedConvertType(getAliased());
+		assert(shugarized != nullptr);
+		this->setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarized));
+	}
+
 	builder.getConverter().registerType(getName(), deducedType);
 	this->setAliased(deducedType);
 	return mlir::success();
@@ -828,7 +837,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			{
 				resultTypes.push_back(type);
 				nameAttrs.push_back(mlir::rlc::FunctionArgumentAttr::get(
-						type.getContext(), std::get<1>(arg), nullptr, type, nullptr));
+						type.getContext(), std::get<1>(arg), nullptr, nullptr));
 				resultLoc.push_back(parent.getLoc());
 			}
 		}
@@ -864,8 +873,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 				referred.getLoc(),
 				resultTypes,
 				referred.getName(),
-				mlir::rlc::FunctionInfoAttr::get(
-						referred.getContext(), nameAttrs, nullptr, nullptr),
+				mlir::rlc::FunctionInfoAttr::get(referred.getContext(), nameAttrs),
 				referred.getId(),
 				referred.getResumptionPoint());
 
@@ -1168,6 +1176,8 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 {
 	auto &rewriter = builder.getRewriter();
 	auto deducedType = builder.getConverter().convertType(getTypeOrTrait());
+	auto shugarizedType =
+			builder.getConverter().shugarizedConvertType(getTypeOrTrait());
 	if (deducedType == nullptr)
 	{
 		return mlir::rlc::logRemark(*this, "In Is expression");
@@ -1175,7 +1185,10 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 
 	rewriter.setInsertionPoint(getOperation());
 	rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
-			*this, getExpression(), deducedType, getTypeLocation());
+			*this,
+			getExpression(),
+			deducedType,
+			getShugarizedType().replaceType(shugarizedType));
 
 	return mlir::success();
 }
@@ -1599,12 +1612,14 @@ mlir::LogicalResult mlir::rlc::ConstructOp::typeCheck(
 {
 	builder.getConverter().setErrorLocation(getLoc());
 	auto deducedType = builder.getConverter().convertType(getType());
-	if (deducedType == nullptr)
+	auto shugarizedType = builder.getConverter().shugarizedConvertType(getType());
+	if (deducedType == nullptr or shugarizedType == nullptr)
 	{
 		return mlir::failure();
 	}
 
 	getResult().setType(deducedType);
+	setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarizedType));
 	return mlir::success();
 }
 
@@ -1637,7 +1652,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	rewriter.restoreInsertionPoint(point);
 
 	llvm::SmallVector<mlir::Type, 4> newResultTypes;
-	llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 4> newArgNames;
+	llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 4> argInfo;
 	unsigned contextArgCounts = 0;
 	for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 	{
@@ -1647,8 +1662,8 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 			getPrecondition().front().insertArgument(
 					contextArgCounts++, type, getLoc());
 			newResultTypes.push_back(type);
-			newArgNames.push_back(mlir::rlc::FunctionArgumentAttr::get(
-					type.getContext(), std::get<1>(arg), nullptr, type, nullptr));
+			argInfo.push_back(mlir::rlc::FunctionArgumentAttr::get(
+					type.getContext(), std::get<1>(arg)));
 		}
 	}
 
@@ -1674,14 +1689,17 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		newResultTypes.push_back(result.getType());
 
 	for (auto arg : getInfo().getArgs())
-		newArgNames.push_back(arg);
+	{
+		auto deduced = builder.getConverter().shugarizedConvertType(
+				arg.getShugarizedType().getType());
+		argInfo.push_back(arg.replaceType(deduced));
+	}
 
 	auto newDecl = builder.getRewriter().create<mlir::rlc::ActionStatement>(
 			getLoc(),
 			newResultTypes,
 			getName(),
-			mlir::rlc::FunctionInfoAttr::get(
-					getContext(), newArgNames, nullptr, nullptr));
+			mlir::rlc::FunctionInfoAttr::get(getContext(), argInfo));
 
 	newDecl.getPrecondition().takeBody(getPrecondition());
 
@@ -1816,186 +1834,100 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 			"are supported");
 }
 
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::ActionFunction::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ActionFunction::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
-
-	if (getInfo().getReturnTypeLocation() != nullptr)
-		toReturn.push_back(getInfo().getReturnTypeLocation());
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
 	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(parameter.getTypeLocation());
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
 }
 
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::ActionFunction::getExplicitType()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ActionStatement::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::Type, 2> toReturn;
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
-	if (getInfo().getReturnTypeLocation() != nullptr)
-		toReturn.push_back(getMainActionType());
-
-	size_t i = 0;
 	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(getArgumentTypes()[i++]);
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
 }
 
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::ActionStatement::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::FlatFunctionOp::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	if (getInfo().getShugarizedReturnType() != nullptr)
+		toReturn.push_back(getInfo().getShugarizedReturnType());
 
 	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(parameter.getTypeLocation());
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
 }
 
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::ActionStatement::getExplicitType()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::FunctionOp::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::Type, 2> toReturn;
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
-	int64_t i = 0;
+	if (getInfo().getShugarizedReturnType() != nullptr)
+		toReturn.push_back(getInfo().getShugarizedReturnType());
+
 	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(getResultTypes()[i++]);
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
 }
 
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::FlatFunctionOp::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::IsOp::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
+	if (not getShugarizedType().has_value())
+		return {};
+	return { *getShugarizedType() };
+}
 
-	if (getInfo().getReturnTypeLocation() != nullptr)
-		toReturn.push_back(getInfo().getReturnTypeLocation());
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ClassDeclaration::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
-	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(parameter.getTypeLocation());
+	for (auto parameter : getMemberFields())
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
 }
 
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::FlatFunctionOp::getExplicitType()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::TypeAliasOp::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::Type, 2> toReturn;
-
-	if (getInfo().getReturnTypeLocation() != nullptr)
-		toReturn.push_back(getResultTypes()[0]);
-
-	size_t i = 0;
-	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(getArgumentTypes()[i++]);
-	return toReturn;
-}
-
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::FunctionOp::getTypeSourceRange()
-{
-	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
-
-	if (getInfo().getReturnTypeLocation() != nullptr)
-		toReturn.push_back(getInfo().getReturnTypeLocation());
-
-	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(parameter.getTypeLocation());
-	return toReturn;
-}
-
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::FunctionOp::getExplicitType()
-{
-	llvm::SmallVector<mlir::Type, 2> toReturn;
-
-	if (getInfo().getReturnTypeLocation() != nullptr)
-		toReturn.push_back(getResultTypes()[0]);
-
-	size_t i = 0;
-	for (auto parameter : getInfo().getArgs())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(getArgumentTypes()[i++]);
-	return toReturn;
-}
-
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::IsOp::getTypeSourceRange()
-{
-	if (getTypeLocation().has_value())
-		return { *getTypeLocation() };
+	if (getShugarizedType().has_value())
+		return { *getShugarizedType() };
 	return {};
 }
 
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::ClassDeclaration::getExplicitType()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::UncheckedIsOp::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::Type, 2> toReturn;
-
-	if (getTypeLocation().has_value())
-		toReturn.push_back(getType());
-
-	for (auto parameter : getMemberFields())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(parameter.getType());
-	return toReturn;
+	return { getShugarizedType() };
 }
 
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::ClassDeclaration::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::FromByteArrayOp::getShugarizedTypes()
 {
-	llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2> toReturn;
-
-	if (getTypeLocation().has_value())
-		toReturn.push_back(*getTypeLocation());
-
-	for (auto parameter : getMemberFields())
-		if (parameter.getTypeLocation() != nullptr)
-			toReturn.push_back(parameter.getTypeLocation());
-	return toReturn;
+	return { getShugarizedType() };
 }
 
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::IsOp::getExplicitType()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ConstructOp::getShugarizedTypes()
 {
-	return { getTypeOrTrait() };
-}
-
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::UncheckedIsOp::getTypeSourceRange()
-{
-	return { getTypeLocation() };
-}
-
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::UncheckedIsOp::getExplicitType()
-{
-	return { getTypeOrTrait() };
-}
-
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::FromByteArrayOp::getTypeSourceRange()
-{
-	return { getTypeLocation() };
-}
-
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::FromByteArrayOp::getExplicitType()
-{
-	return { getResult().getType() };
-}
-
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::ConstructOp::getExplicitType()
-{
-	if (getTypeLocation().has_value())
-		return { getResult().getType() };
-	return {};
-}
-
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::ConstructOp::getTypeSourceRange()
-{
-	if (getTypeLocation().has_value())
-		return { *getTypeLocation() };
+	if (getShugarizedType().has_value())
+		return { *getShugarizedType() };
 	return {};
 }
 
@@ -2111,23 +2043,21 @@ mlir::LogicalResult mlir::rlc::MallocOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	auto converted = builder.getConverter().convertType(getResult().getType());
-	if (not converted)
+	auto shugarized = builder.getConverter().shugarizedConvertType(
+			getShugarizedType().getType());
+	if (not converted or not shugarized)
 	{
 		return mlir::failure();
 	}
+	setShugarizedTypeAttr(getShugarizedType().replaceType(shugarized));
 	getResult().setType(converted);
 	return mlir::success();
 }
 
-llvm::SmallVector<mlir::rlc::SourceRangeAttr, 2>
-mlir::rlc::MallocOp::getTypeSourceRange()
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::MallocOp::getShugarizedTypes()
 {
-	return { getTypeLocation() };
-}
-
-llvm::SmallVector<mlir::Type, 2> mlir::rlc::MallocOp::getExplicitType()
-{
-	return { getResult().getType() };
+	return { getShugarizedType() };
 }
 
 mlir::LogicalResult mlir::rlc::InplaceInitializeOp::typeCheck(
@@ -2286,13 +2216,15 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	}
 
 	auto deducedType = scopedConverter.convertType(getFunctionType());
-	if (deducedType == nullptr)
+	auto shugarized = scopedConverter.shugarizedConvertType(getFunctionType());
+	if (deducedType == nullptr or shugarized == nullptr)
 	{
 		return mlir::failure();
 	}
 	assert(deducedType.isa<mlir::FunctionType>());
 
 	getResult().setType(deducedType.cast<mlir::FunctionType>());
+	setInfoAttr(getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
 	setTemplateParametersAttr(
 			rewriter.getTypeArrayAttr(checkedTemplateParameters));
 

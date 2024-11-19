@@ -31,6 +31,11 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 
 	AliasResult getAlias(mlir::Attribute type, llvm::raw_ostream &OS) const final
 	{
+		if (auto casted = type.dyn_cast<mlir::rlc::ShugarizedTypeAttr>())
+		{
+			OS << "shugar_type";
+			return AliasResult::FinalAlias;
+		}
 		if (auto casted = type.dyn_cast<mlir::rlc::FunctionInfoAttr>())
 		{
 			OS << "fun_info";
