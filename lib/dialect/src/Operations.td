@@ -326,18 +326,35 @@ def RLC_UsingTypeOp : RLC_Dialect<"using_type", [DeclareOpInterfaceMethods<TypeC
   }];
 }
 
-def RLC_ConstantGlobalArrayOp : RLC_Dialect<"global_array"> {
+def RLC_ConstantGlobalOp : RLC_Dialect<"global", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "constant global array";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins TypeAttrOf<AnyType>:$result, ArrayAttr:$values, StrAttr:$name);
+  let arguments = (ins AnyAttr:$values, StrAttr:$name, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
+  let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-	$name $values `:` $result attr-dict 
+	$name $values `->` type($result) (`shugarized_type` `=` $shugarized_type^ )? attr-dict 
   }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Type":$type, "mlir::Attribute":$value, "mlir::StringRef":$name), [{
+			build($_builder, $_state, type, value, name, nullptr);
+  }]>];
+}
+
+def RLC_FlatConstantGlobalOp : RLC_Dialect<"flat_global"> {
+  let summary = "constant global array";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins TypeAttrOf<AnyType>:$type, AnyAttr:$values, StrAttr:$name);
+
 }
 
 def RLC_StringLiteralOp : RLC_Dialect<"string_literal", [DeclareOpInterfaceMethods<TypeCheckable>]> {

@@ -1450,18 +1450,18 @@ static void emitGlobalVectorInitialization(
 }
 
 class GlobalArrayRewriter
-		: public mlir::OpConversionPattern<mlir::rlc::ConstantGlobalArrayOp>
+		: public mlir::OpConversionPattern<mlir::rlc::FlatConstantGlobalOp>
 {
 	using mlir::OpConversionPattern<
-			mlir::rlc::ConstantGlobalArrayOp>::OpConversionPattern;
+			mlir::rlc::FlatConstantGlobalOp>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::ConstantGlobalArrayOp op,
+			mlir::rlc::FlatConstantGlobalOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
 		auto type = getTypeConverter()->convertType(
-				mlir::rlc::ProxyType::get(op.getResult()));
+				mlir::rlc::ProxyType::get(op.getType()));
 		auto global = rewriter.create<mlir::LLVM::GlobalOp>(
 				op->getLoc(),
 				type,
@@ -1472,18 +1472,20 @@ class GlobalArrayRewriter
 
 		auto* block = rewriter.createBlock(&global.getInitializer());
 		rewriter.setInsertionPoint(block, block->begin());
+		mlir::Value toReturn;
 
-		mlir::Value toReturn =
-				rewriter.create<mlir::LLVM::UndefOp>(op.getLoc(), type);
+		if (auto casted = op.getValues().dyn_cast<mlir::ArrayAttr>())
+		{
+			toReturn = rewriter.create<mlir::LLVM::UndefOp>(op.getLoc(), type);
 
-		llvm::SmallVector<int64_t, 4> indicies;
-		emitGlobalVectorInitialization(
-				op.getValues(),
-				toReturn,
-				indicies,
-				rewriter,
-				typeConverter,
-				op.getLoc());
+			llvm::SmallVector<int64_t, 4> indicies;
+			emitGlobalVectorInitialization(
+					casted, toReturn, indicies, rewriter, typeConverter, op.getLoc());
+		}
+		else
+		{
+			toReturn = lowerConstant(rewriter, op.getValues(), op.getLoc());
+		}
 
 		rewriter.create<mlir::LLVM::ReturnOp>(
 				op->getLoc(), mlir::ValueRange({ toReturn }));

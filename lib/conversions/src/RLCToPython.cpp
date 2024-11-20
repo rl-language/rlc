@@ -308,14 +308,14 @@ class ClassDeclarationToNothing
 };
 
 class ConstantGlobalArrayOpToNothing
-		: public mlir::OpConversionPattern<mlir::rlc::ConstantGlobalArrayOp>
+		: public mlir::OpConversionPattern<mlir::rlc::ConstantGlobalOp>
 {
 	public:
 	using mlir::OpConversionPattern<
-			mlir::rlc::ConstantGlobalArrayOp>::OpConversionPattern;
+			mlir::rlc::ConstantGlobalOp>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::ConstantGlobalArrayOp op,
+			mlir::rlc::ConstantGlobalOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{

@@ -45,6 +45,17 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	table.add(
 			"StringLiteral", mlir::rlc::StringLiteralType::get(mod.getContext()));
 
+	for (auto constant : mod.getOps<mlir::rlc::ConstantGlobalOp>())
+		if (constant.getResult().getType().isa<mlir::rlc::IntegerType>())
+			table.add(
+					constant.getName(),
+					mlir::rlc::IntegerLiteralType::get(
+							constant.getContext(),
+							constant.getValues()
+									.cast<mlir::IntegerAttr>()
+									.getValue()
+									.getSExtValue()));
+
 	for (auto classDecl : mod.getOps<mlir::rlc::ClassDeclaration>())
 		table.add(classDecl.getName(), classDecl.getType());
 
@@ -489,6 +500,11 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 	{
 		auto result = traits.try_emplace(trait.getMetaType().getName(), trait);
 		assert(result.second);
+	}
+
+	for (auto global : op.getOps<mlir::rlc::ConstantGlobalOp>())
+	{
+		getSymbolTable().add(global.getName(), global);
 	}
 
 	for (auto fun : getSymbolTable().get(

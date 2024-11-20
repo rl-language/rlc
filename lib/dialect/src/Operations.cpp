@@ -1608,6 +1608,22 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::ConstantGlobalOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getConverter().setErrorLocation(getLoc());
+	auto deducedType = builder.getConverter().convertType(getType());
+	auto shugarizedType = builder.getConverter().shugarizedConvertType(getType());
+	if (deducedType == nullptr or shugarizedType == nullptr)
+	{
+		return mlir::failure();
+	}
+
+	getResult().setType(deducedType);
+	setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarizedType));
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::ConstructOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -1833,6 +1849,16 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 			*this,
 			"Cannot convert byte array to desiderated output, only primitive types "
 			"are supported");
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ConstantGlobalOp::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	if (getShugarizedType() != nullptr)
+		toReturn.push_back(*getShugarizedType());
+	return toReturn;
 }
 
 llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>

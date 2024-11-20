@@ -52,11 +52,11 @@ namespace mlir::rlc
 		return variable;
 	}
 
-	static mlir::rlc::ConstantGlobalArrayOp rewriteAsGlobal(
+	static mlir::rlc::FlatConstantGlobalOp rewriteAsGlobal(
 			llvm::StringRef name, mlir::rlc::Constant op, mlir::IRRewriter& rewriter)
 	{
 		rewriter.setInsertionPoint(op);
-		auto global = rewriter.create<mlir::rlc::ConstantGlobalArrayOp>(
+		auto global = rewriter.create<mlir::rlc::FlatConstantGlobalOp>(
 				op.getLoc(),
 				op.getResult().getType(),
 				op.getValue().cast<mlir::ArrayAttr>(),
@@ -66,7 +66,7 @@ namespace mlir::rlc
 		{
 			rewriter.setInsertionPoint(use.getOwner());
 			use.assign(rewriter.create<mlir::rlc::Reference>(
-					op.getLoc(), global.getResult(), global.getName()));
+					op.getLoc(), global.getType(), global.getName()));
 		}
 
 		op.erase();

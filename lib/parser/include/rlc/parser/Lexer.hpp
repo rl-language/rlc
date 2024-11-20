@@ -42,6 +42,7 @@ namespace rlc
 		KeywordAssert,
 		KeywordDestroy,
 		KeywordContstruct,
+		KeywordConst,
 		KeywordCan,
 		KeywordBreak,
 		KeywordContinue,

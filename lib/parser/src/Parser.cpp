@@ -2085,6 +2085,41 @@ void Parser::setComment(mlir::Operation* op, llvm::StringRef comment)
 	op->setAttr("comment", builder.getStringAttr(comment));
 }
 
+llvm::Expected<mlir::rlc::ConstantGlobalOp> Parser::globalConstant()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordConst);
+	EXPECT(Token::Identifier);
+	std::string name = lIdent;
+	EXPECT(Token::Equal);
+	if (accept<Token::Double>())
+		return builder.create<mlir::rlc::ConstantGlobalOp>(
+				location,
+				mlir::rlc::FloatType::get(builder.getContext()),
+				builder.getF64FloatAttr(lDouble),
+				name);
+
+	if (accept<Token::Int64>())
+		return builder.create<mlir::rlc::ConstantGlobalOp>(
+				location,
+				mlir::rlc::IntegerType::getInt64(builder.getContext()),
+				builder.getIntegerAttr(builder.getIntegerType(64), lInt64),
+				name);
+
+	if (accept<Token::Character>())
+		return builder.create<mlir::rlc::ConstantGlobalOp>(
+				location,
+				mlir::rlc::IntegerType::getInt8(builder.getContext()),
+				builder.getIntegerAttr(builder.getIntegerType(8), lInt64),
+				name);
+
+	auto location2 = getCurrentSourcePos();
+	return make_error<RlcError>(
+			"Expected int, float or char",
+			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
+			location2);
+}
+
 Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 {
 	auto location = getCurrentSourcePos();
@@ -2125,6 +2160,13 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		if (current == Token::KeywordAction)
 		{
 			TRY(f, actionDefinition());
+			setComment(*f, comment);
+			continue;
+		}
+
+		if (current == Token::KeywordConst)
+		{
+			TRY(f, globalConstant());
 			setComment(*f, comment);
 			continue;
 		}
@@ -2180,7 +2222,7 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		}
 		auto location = getCurrentSourcePos();
 		return make_error<RlcError>(
-				"Expected function, action or class declaration",
+				"Expected declaration of function, action, class, constant or alias ",
 				RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
 				location);
 	}

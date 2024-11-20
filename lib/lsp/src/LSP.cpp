@@ -305,6 +305,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (not op.getIsMemberFunction())
 				registerArgument(op.getUnmangledName(), op.getType(), op.getInfo());
 
+		for (auto op : module.getOps<mlir::rlc::ConstantGlobalOp>())
+			registerArgument(op.getName(), op.getType(), nullptr);
+
 		return mlir::success();
 	}
 
@@ -318,7 +321,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			list.items.push_back(toReturn);
 		}
 
-		module.walk([&](mlir::rlc::ClassDeclaration op) {
+		for (mlir::rlc::ClassDeclaration op :
+				 module.getOps<mlir::rlc::ClassDeclaration>())
+		{
 			mlir::lsp::CompletionItem toReturn;
 			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
 			toReturn.label = op.getName().str();
@@ -333,14 +338,27 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 						params[params.size() - 1].cast<mlir::TypeAttr>().getValue());
 			toReturn.detail += ">";
 			list.items.push_back(toReturn);
-		});
+		}
 
-		module.walk([&](mlir::rlc::TypeAliasOp op) {
+		for (mlir::rlc::TypeAliasOp op : module.getOps<mlir::rlc::TypeAliasOp>())
+		{
 			mlir::lsp::CompletionItem toReturn;
 			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
 			toReturn.label = op.getName();
 			list.items.push_back(toReturn);
-		});
+		}
+		for (mlir::rlc::ConstantGlobalOp op :
+				 module.getOps<mlir::rlc::ConstantGlobalOp>())
+		{
+			if (op.getResult().getType() !=
+					mlir::rlc::IntegerType::getInt64(op.getContext()))
+				continue;
+			mlir::lsp::CompletionItem toReturn;
+			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
+			toReturn.label = op.getName();
+			toReturn.detail = prettyType(op.getType());
+			list.items.push_back(toReturn);
+		}
 	}
 
 	bool sameLineAsOp(const mlir::lsp::Position &completePos, mlir::Operation *op)

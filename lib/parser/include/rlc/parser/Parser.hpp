@@ -113,6 +113,7 @@ namespace rlc
 				bool templateFunction = true, bool isMemberFunction = false);
 		llvm::Expected<mlir::rlc::FunctionOp> externFunctionDeclaration();
 		llvm::Expected<mlir::Operation*> actionDeclaration(bool actionFunction);
+		llvm::Expected<mlir::rlc::ConstantGlobalOp> globalConstant();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();
 

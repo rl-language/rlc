@@ -93,6 +93,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordAnd";
 		case Token::KeywordOr:
 			return "KeywordOr";
+		case Token::KeywordConst:
+			return "KeywordConst";
 		case Token::KeywordRule:
 			return "KeywordRule";
 		case Token::KeywordContinue:
@@ -429,6 +431,9 @@ Token Lexer::eatIdent()
 
 	if (name == "evn")
 		return Token::KeywordEvent;
+
+	if (name == "const")
+		return Token::KeywordConst;
 
 	if (name == "rul")
 		return Token::KeywordRule;

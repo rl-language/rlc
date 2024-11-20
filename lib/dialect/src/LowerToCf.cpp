@@ -622,6 +622,35 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 		rewriter.eraseOp(f);
 	}
 
+	// rewrite globals to use references
+	llvm::SmallVector<mlir::rlc::ConstantGlobalOp, 2> globals(
+			op.getOps<mlir::rlc::ConstantGlobalOp>());
+	for (auto global : globals)
+	{
+		rewriter.setInsertionPoint(global);
+		rewriter.create<mlir::rlc::FlatConstantGlobalOp>(
+				global.getLoc(),
+				global.getType(),
+				global.getValues(),
+				global.getName());
+		llvm::SmallVector<mlir::OpOperand*> operands;
+		for (auto& use : global.getResult().getUses())
+			operands.push_back(&use);
+
+		for (auto& use : operands)
+		{
+			rewriter.setInsertionPoint(use->getOwner());
+
+			auto ref = rewriter.create<mlir::rlc::Reference>(
+					use->getOwner()->getLoc(),
+					global.getResult().getType(),
+					global.getName());
+			use->set(ref);
+		}
+
+		global.erase();
+	}
+
 	return mlir::LogicalResult::success();
 }
 
