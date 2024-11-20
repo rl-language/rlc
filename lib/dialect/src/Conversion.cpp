@@ -57,6 +57,26 @@ static mlir::LLVM::StoreOp makeAlignedStore(
 			loc, toStore, pointerTo, aligment);
 }
 
+class NullLowerer: public mlir::OpConversionPattern<mlir::rlc::NullOp>
+{
+	public:
+	using mlir::OpConversionPattern<mlir::rlc::NullOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::NullOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto alloca = makeAlloca(
+				rewriter, mlir::LLVM::LLVMPointerType::get(getContext()), op.getLoc());
+		auto value = rewriter.create<mlir::LLVM::ZeroOp>(
+				op.getLoc(), mlir::LLVM::LLVMPointerType::get(getContext()));
+		auto store = makeAlignedStore(rewriter, value, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+		return mlir::success();
+	}
+};
+
 class LowerFree: public mlir::OpConversionPattern<mlir::rlc::FreeOp>
 {
 	public:
@@ -2049,6 +2069,7 @@ namespace mlir::rlc
 					.add<BitAndRewriter>(converter, &getContext())
 					.add<BitXorRewriter>(converter, &getContext())
 					.add<YieldRewriter>(converter, &getContext())
+					.add<NullLowerer>(converter, &getContext())
 					.add<YieldReferenceRewriter>(converter, &getContext())
 					.add<AliasTypeEraser>(converter, &getContext())
 					.add<CopyRewriter>(converter, &getContext())

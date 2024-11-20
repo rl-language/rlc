@@ -1309,14 +1309,14 @@ class RLC_BinaryBitwiseOp<string mnemonic, list<OpInterface> CA_Interface=[]> : 
               mlir::rlc::ModuleBuilder& builder) {
 	      auto deducedTypeLHS = builder.getConverter().convertType(getLhs().getType());
 	      auto deducedTypeRHS = builder.getConverter().convertType(getRhs().getType());
-          if (not deducedTypeLHS.isa<mlir::rlc::IntegerType>()) {
+          if (not deducedTypeLHS or not deducedTypeLHS.isa<mlir::rlc::IntegerType>()) {
             
 		    return logError(
 				getOperation(),
 				"Bitwise operation requires integer left operand");
           }
 
-          if (not deducedTypeRHS.isa<mlir::rlc::IntegerType>()) {
+          if (not deducedTypeRHS or not deducedTypeRHS.isa<mlir::rlc::IntegerType>()) {
             
 		    return logError(
 				getOperation(),
@@ -2151,6 +2151,15 @@ def RLC_TemplateInstantiationOp : RLC_Dialect<"template_instantiation", [Declare
 
   let assemblyFormat = [{
 	$inputTemplate type($inputTemplate) `->` type($result) attr-dict 
+  }];
+}
+
+def RLC_NullOp : RLC_Dialect<"null"> {
+
+  let results = (outs RLC_OwningPtrType:$result);
+
+  let assemblyFormat = [{
+	type($result) attr-dict 
   }];
 }
 

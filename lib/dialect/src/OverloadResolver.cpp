@@ -199,6 +199,9 @@ static mlir::Value findBestMatch(
 			nonTemplates.push_back(candidate);
 	}
 
+	if (nonTemplates.size() > 1)
+		return nullptr;
+
 	if (nonTemplates.size() == 1)
 		return nonTemplates[0];
 
@@ -215,7 +218,8 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 			findOverloads(callPoint, isMemberCall, name, arguments);
 
 	if (not matching.empty())
-		return findBestMatch(matching, arguments);
+		if (auto value = findBestMatch(matching, arguments))
+			return value;
 
 	if (errorEmitter)
 	{

@@ -184,5 +184,6 @@ namespace rlc
 		size_t deindentToEmit{ 0 };
 		bool parsingString = false;
 		bool emittedExtraNewLine = false;
+		bool parsingComment = false;
 	};
 }	 // namespace rlc

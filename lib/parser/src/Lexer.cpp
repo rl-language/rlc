@@ -37,11 +37,13 @@ char Lexer::eatChar()
 	}
 	if (not isspace(c))
 		lastNonWitheSpaceColumn = currentColumn;
-	if ((c == '(' or c == '{' or c == '[') and not parsingString)
+	if ((c == '(' or c == '{' or c == '[') and not parsingString and
+			not parsingComment)
 	{
 		nestedParentesys++;
 	}
-	if ((c == ')' or c == '}' or c == ']') and not parsingString)
+	if ((c == ')' or c == '}' or c == ']') and not parsingString and
+			not parsingComment)
 	{
 		nestedParentesys--;
 	}
@@ -580,6 +582,7 @@ bool Lexer::eatComment()
 {
 	if (*in == '#')
 	{
+		parsingComment = true;
 		eatChar();
 		bool doubleComment = *in == '#';
 		while (*in != '\n' and *in != '\0')
@@ -587,6 +590,7 @@ bool Lexer::eatComment()
 		lComment += "\n";
 		if (doubleComment)
 			lComment.clear();
+		parsingComment = false;
 		return true;
 	}
 	return false;

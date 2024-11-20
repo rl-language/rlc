@@ -594,9 +594,48 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 	return mlir::success();
 }
 
+static mlir::LogicalResult areArgumentsEqual(
+		mlir::FunctionType lhs, mlir::FunctionType rhs)
+{
+	if (lhs.getNumInputs() != rhs.getNumInputs())
+		return mlir::failure();
+
+	for (auto [l, r] : llvm::zip(lhs.getInputs(), rhs.getInputs()))
+		if (l != r)
+			return mlir::failure();
+
+	return mlir::success();
+}
+
+static mlir::LogicalResult checkForActionRedefinitions(
+		mlir::rlc::ActionFunction typeChecked,
+		llvm::StringMap<mlir::FunctionType>& actionNameToMainFunctionType)
+{
+	auto candidate =
+			actionNameToMainFunctionType.find(typeChecked.getUnmangledName());
+	if (candidate == actionNameToMainFunctionType.end())
+	{
+		actionNameToMainFunctionType[typeChecked.getUnmangledName()] =
+				typeChecked.getFunctionType();
+		return mlir::success();
+	}
+	if (areArgumentsEqual(candidate->getValue(), typeChecked.getFunctionType())
+					.succeeded())
+	{
+		return logError(
+				typeChecked,
+				"Redefinition of action function named " +
+						typeChecked.getUnmangledName());
+	}
+	actionNameToMainFunctionType[typeChecked.getUnmangledName()] =
+			typeChecked.getFunctionType();
+	return mlir::success();
+}
+
 static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 {
 	mlir::IRRewriter rewriter(op.getContext());
+	llvm::StringMap<mlir::FunctionType> actionNameToMainFunctionType;
 
 	bool foundOne = true;
 	// the actions are allowed to type check each other, but that means that they
@@ -613,11 +652,14 @@ static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 			auto typeChecked = mlir::rlc::detail::typeCheckAction(fun);
 			if (typeChecked == nullptr)
 				return mlir::failure();
-			if (typeChecked != fun)
-			{
-				foundOne = true;
-				break;
-			}
+			if (typeChecked == fun)
+				continue;
+
+			foundOne = true;
+			if (checkForActionRedefinitions(typeChecked, actionNameToMainFunctionType)
+							.failed())
+				return mlir::failure();
+			break;
 		}
 	}
 	return mlir::success();

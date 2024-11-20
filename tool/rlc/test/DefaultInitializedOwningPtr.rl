@@ -1,0 +1,9 @@
+# RUN: rlc %s -o - --ir -O2 | FileCheck %s
+
+# CHECK-LABEL: define void @rl_m_init__Asd(ptr nocapture writeonly %0) local_unnamed_addr #0 {
+# CHECK: store ptr null, ptr %0, align 8
+cls Asd:
+    OwningPtr<Int> a
+
+fun main() -> Int:
+    return 0

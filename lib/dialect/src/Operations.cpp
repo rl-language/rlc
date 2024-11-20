@@ -644,6 +644,7 @@ mlir::LogicalResult mlir::rlc::BreakStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	builder.getConverter().setErrorLocation(getLoc());
 	auto deducedType = builder.getConverter().convertType(getAliased());
 	if (not deducedType)
 	{
@@ -1051,6 +1052,13 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		erase();
 		return mlir::success();
 	}
+
+	if (not getMemberIndex().getType().isa<mlir::rlc::IntegerType>())
+	{
+		return mlir::rlc::logError(
+				getOperation(), "Array access must have a integer index operand.");
+	}
+
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());
 	return mlir::success();

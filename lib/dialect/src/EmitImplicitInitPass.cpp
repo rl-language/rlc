@@ -24,10 +24,12 @@ namespace mlir::rlc
 	static bool isBuiltinType(mlir::Type type)
 	{
 		return type.isa<mlir::rlc::IntegerType>() or
-					 type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::BoolType>();
+					 type.isa<mlir::rlc::FloatType>() or
+					 type.isa<mlir::rlc::BoolType>() or
+					 type.isa<mlir::rlc::OwningPtrType>();
 	}
 
-	static mlir::rlc::Constant emitBuiltinZero(
+	static mlir::Value emitBuiltinZero(
 			mlir::IRRewriter& rewriter, mlir::Type t, mlir::Location loc)
 	{
 		if (auto casted = t.dyn_cast<mlir::rlc::IntegerType>())
@@ -45,6 +47,10 @@ namespace mlir::rlc
 		if (t.isa<mlir::rlc::BoolType>())
 		{
 			return rewriter.create<mlir::rlc::Constant>(loc, bool(false));
+		}
+		if (t.isa<mlir::rlc::OwningPtrType>())
+		{
+			return rewriter.create<mlir::rlc::NullOp>(loc, t);
 		}
 		t.dump();
 		llvm_unreachable("unrechable");
