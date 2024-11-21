@@ -20,6 +20,7 @@ limitations under the License.
 #include "llvm/Support/Error.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Diagnostics.h"
+#include "rlc/dialect/IRBuilder.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/parser/Lexer.hpp"
 
@@ -131,7 +132,7 @@ namespace rlc
 		private:
 		mlir::Type unkType();
 		mlir::MLIRContext* ctx;
-		mlir::OpBuilder builder;
+		mlir::rlc::IRBuilder builder;
 		void next();
 		bool accept(Token t);
 		template<Token T>

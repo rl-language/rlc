@@ -16,8 +16,14 @@ limitations under the License.
 
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Pass/Pass.h"
+#include "rlc/dialect/IRBuilder.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
+
+static void f(mlir::ModuleOp op, mlir::Value lhs, mlir::Value rhs)
+{
+	mlir::rlc::IRBuilder builder(op);
+}
 
 static mlir::LogicalResult findClassDecls(
 		mlir::ModuleOp op, llvm::StringMap<mlir::Operation*>& out)

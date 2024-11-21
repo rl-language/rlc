@@ -108,7 +108,7 @@ llvm::Expected<mlir::Value> Parser::builtinFromArray()
 	TRY(size, expression());
 	EXPECT(Token::RPar);
 
-	return builder.create<mlir::rlc::FromByteArrayOp>(
+	return builder.createFromByteArrayOp(
 			location, shugarType->getType(), *size, *shugarType);
 }
 
@@ -121,7 +121,7 @@ llvm::Expected<mlir::Value> Parser::stringExpression()
 		return value;
 
 	location = getCurrentSourcePos();
-	auto ref = builder.create<mlir::rlc::UnresolvedReference>(location, lIdent);
+	auto ref = builder.createUnresolvedReference(location, lIdent);
 
 	location = getCurrentSourcePos();
 	return builder
