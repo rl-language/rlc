@@ -15,12 +15,14 @@ limitations under the License.
 */
 
 #include "llvm/ADT/TypeSwitch.h"
+#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "rlc/dialect/DebugInfo.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
@@ -56,6 +58,46 @@ static mlir::LLVM::StoreOp makeAlignedStore(
 	return rewriter.create<mlir::LLVM::StoreOp>(
 			loc, toStore, pointerTo, aligment);
 }
+
+class VarNameLowerer: public mlir::OpConversionPattern<mlir::rlc::VarNameOp>
+{
+	public:
+	mlir::rlc::DebugInfoGenerator& diGenerator;
+	bool addDebugInfo;
+
+	VarNameLowerer(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			mlir::rlc::DebugInfoGenerator& diGenerator,
+			bool addDebugInfo)
+			: mlir::OpConversionPattern<mlir::rlc::VarNameOp>::OpConversionPattern(
+						converter, ctx),
+				diGenerator(diGenerator),
+				addDebugInfo(addDebugInfo)
+	{
+	}
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::VarNameOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		if (addDebugInfo)
+		{
+			auto localVar = diGenerator.getLocalVar(
+					op.getValue(),
+					op.getName(),
+					op.getLoc().cast<mlir::FileLineColLoc>());
+			if (localVar)
+			{
+				rewriter.create<mlir::LLVM::DbgDeclareOp>(
+						op.getLoc(), adaptor.getValue(), localVar);
+			}
+		}
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
 
 class NullLowerer: public mlir::OpConversionPattern<mlir::rlc::NullOp>
 {
@@ -1625,8 +1667,21 @@ class ConstantRewriter: public mlir::OpConversionPattern<mlir::rlc::Constant>
 class FunctionRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::FlatFunctionOp>
 {
-	using mlir::OpConversionPattern<
-			mlir::rlc::FlatFunctionOp>::OpConversionPattern;
+	public:
+	mlir::rlc::DebugInfoGenerator& diGenerator;
+	bool addDebugInfo;
+
+	FunctionRewriter(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			mlir::rlc::DebugInfoGenerator& diGenerator,
+			bool addDebugInfo)
+			: mlir::OpConversionPattern<
+						mlir::rlc::FlatFunctionOp>::OpConversionPattern(converter, ctx),
+				diGenerator(diGenerator),
+				addDebugInfo(addDebugInfo)
+	{
+	}
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::FlatFunctionOp op,
@@ -1660,9 +1715,31 @@ class FunctionRewriter
 			newF.getBody().front().insertArgument(
 					unsigned(0), op.getType().getResults().front(), op.getLoc());
 
-		rewriter.eraseOp(op);
-
 		auto res = rewriter.convertRegionTypes(&newF.getRegion(), *typeConverter);
+		if (not op.isDeclaration() and addDebugInfo)
+		{
+			auto subprogramAttr = diGenerator.getFunctionAttr(
+					newF, op.getUnmangledName(), op.getType());
+			newF->setLoc(mlir::FusedLoc::get(
+					op.getContext(), { newF.getLoc() }, subprogramAttr));
+
+			rewriter.setInsertionPointToStart(&newF.getBody().front());
+			for (auto [argument, value, newValue] : llvm::zip(
+							 op.getInfo().getArgs(),
+							 op.getBody().front().getArguments(),
+							 newF.getBody().front().getArguments()))
+			{
+				auto localVarAttr = diGenerator.getArgument(
+						value,
+						subprogramAttr,
+						argument.getName(),
+						value.getLoc().cast<mlir::FileLineColLoc>());
+				rewriter.create<mlir::LLVM::DbgDeclareOp>(
+						op.getLoc(), newValue, localVarAttr);
+			}
+		}
+
+		rewriter.eraseOp(op);
 
 		return mlir::success();
 	}
@@ -2007,6 +2084,9 @@ namespace mlir::rlc
 
 			mlir::TypeConverter realConverter;
 			mlir::rlc::registerConversions(realConverter, getOperation());
+			auto dl = mlir::DataLayout::closest(getOperation());
+			mlir::rlc::DebugInfoGenerator diGenerator(
+					getOperation(), rewriter, &realConverter, &dl);
 
 			mlir::TypeConverter converter;
 			converter.addConversion([&](mlir::Type t) -> mlir::Type {
@@ -2021,7 +2101,9 @@ namespace mlir::rlc
 			target.addIllegalDialect<mlir::rlc::RLCDialect>();
 
 			mlir::RewritePatternSet patterns(&getContext());
-			patterns.add<FunctionRewriter>(converter, &getContext())
+			patterns
+					.add<FunctionRewriter>(
+							converter, &getContext(), diGenerator, debug_info)
 					.add<TraitDeclarationEraser>(converter, &getContext())
 					.add<ValueUpcastRewriter>(converter, &getContext())
 					.add<EnumDeclarationEraser>(converter, &getContext())
@@ -2076,6 +2158,8 @@ namespace mlir::rlc
 					.add<ArrayAccessRewriter>(converter, &getContext())
 					.add<UninitializedConstructRewriter>(converter, &getContext())
 					.add<MemberAccessRewriter>(converter, &getContext())
+					.add<VarNameLowerer>(
+							converter, &getContext(), diGenerator, debug_info)
 					.add<ReferenceRewriter>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())

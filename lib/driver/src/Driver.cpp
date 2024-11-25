@@ -139,10 +139,10 @@ namespace mlir::rlc
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			return;
 		}
-		manager.addPass(mlir::rlc::createLowerToLLVMPass());
+		manager.addPass(mlir::rlc::createLowerToLLVMPass({ debug }));
 		manager.addPass(mlir::rlc::createRemoveUselessAllocaPass());
 		if (request == Request::executable and not emitFuzzer)
-			manager.addPass(mlir::rlc::createEmitMainPass());
+			manager.addPass(mlir::rlc::createEmitMainPass({ debug }));
 		manager.addPass(mlir::createCanonicalizerPass());
 		manager.addPass(mlir::rlc::createHoistAllocaPass());
 

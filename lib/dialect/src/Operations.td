@@ -734,6 +734,20 @@ def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods
 	}];
 }
 
+def RLC_VarNameOp : RLC_Dialect<"var_name"> {
+  let summary = "contains the name of a value so that it can be used for debugging purposed.";
+
+  let arguments = (ins AnyType:$value, StrAttr:$name);
+  let description = [{
+        debug info for a variable
+  }];
+
+
+  let assemblyFormat = [{
+	 $name $value `:` type($value) attr-dict
+  }];
+}
+
 def RLC_DeclarationStatement : RLC_Dialect<"decl", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 

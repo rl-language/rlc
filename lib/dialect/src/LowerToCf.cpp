@@ -398,6 +398,8 @@ static mlir::LogicalResult flatten(
 		mlir::IRRewriter& rewriter,
 		FlatteningContext& ctx)
 {
+	rewriter.setInsertionPointAfter(op);
+	rewriter.create<mlir::rlc::VarNameOp>(op.getLoc(), op, op.getSymName());
 	rewriter.setInsertionPoint(op);
 	auto terminators = getYieldTerminators(op);
 	assert(terminators.size() == 1);
@@ -587,7 +589,7 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 
 		rewriter.setInsertionPoint(f);
 		auto newF = rewriter.create<mlir::rlc::FlatFunctionOp>(
-				op.getLoc(),
+				f.getLoc(),
 				f.getFunctionType(),
 				f.getUnmangledName(),
 				f.getInfo(),

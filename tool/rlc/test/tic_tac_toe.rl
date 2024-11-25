@@ -72,7 +72,6 @@ act play() -> Game:
 
         if board.three_in_a_line_player(board.current_player()):
             return
-
         board.next_turn()
 
 fun get_current_player(Game g) -> Int:

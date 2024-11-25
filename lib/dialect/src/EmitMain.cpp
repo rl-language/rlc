@@ -17,8 +17,10 @@ limitations under the License.
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "rlc/dialect/DebugInfo.hpp"
 #include "rlc/dialect/Dialect.h"
-#include "rlc/dialect/conversion/TypeConverter.h"
+#include "rlc/dialect/Operations.hpp"
+#include "rlc/dialect/Passes.hpp"
 
 namespace mlir::rlc
 {
@@ -29,6 +31,7 @@ namespace mlir::rlc
 	//	which returns an int32.
 	struct EmitMainPass: public impl::EmitMainPassBase<EmitMainPass>
 	{
+		using EmitMainPassBase<EmitMainPass>::EmitMainPassBase;
 		void getDependentDialects(mlir::DialectRegistry& registry) const override
 		{
 			registry.insert<mlir::rlc::RLCDialect, mlir::cf::ControlFlowDialect>();
@@ -53,25 +56,29 @@ namespace mlir::rlc
 				return;
 
 			mlir::OpBuilder builder(realMain);
+			mlir::rlc::DebugInfoGenerator generator(getOperation(), builder);
 
 			// construct a function with return type int32 and name "main". As opposed
 			// to int64 and the mangled name.
 			auto returnType = builder.getI32Type();
+
+			// if we are emitting debug info, the location of main has been agumented
+			// with the extra debug info stuff
+			auto loc =
+					debug_info
+							? realMain.getLoc().cast<mlir::FusedLoc>().getLocations()[0]
+							: realMain.getLoc();
 			auto op = builder.create<mlir::LLVM::LLVMFuncOp>(
-					realMain.getLoc(),
-					"main",
-					mlir::LLVM::LLVMFunctionType::get(returnType, {}));
+					loc, "main", mlir::LLVM::LLVMFunctionType::get(returnType, {}));
 
 			auto* block = op.addEntryBlock(builder);
 			builder.setInsertionPoint(block, block->begin());
 
 			// allocate an int64, pointed by the result of alloca
 			auto count = builder.create<mlir::LLVM::ConstantOp>(
-					realMain.getLoc(),
-					builder.getI64Type(),
-					builder.getI64IntegerAttr(1));
+					loc, builder.getI64Type(), builder.getI64IntegerAttr(1));
 			auto alloca = builder.create<mlir::LLVM::AllocaOp>(
-					realMain.getLoc(),
+					loc,
 					mlir::LLVM::LLVMPointerType::get(&getContext()),
 					builder.getI64Type(),
 					count,
@@ -80,7 +87,7 @@ namespace mlir::rlc
 			// pass the int64 pointer to the RLC main function, as the return value
 			// will be stored in the first argument.
 			auto call = builder.create<mlir::LLVM::CallOp>(
-					realMain.getLoc(), realMain, mlir::ValueRange({ alloca }));
+					loc, realMain, mlir::ValueRange({ alloca }));
 
 			// Load the returned value and return it. Converting the 64-bit return to
 			// 32-bit integer.
@@ -88,12 +95,19 @@ namespace mlir::rlc
 					mlir::DataLayout::closest(alloca).getTypePreferredAlignment(
 							builder.getI64Type());
 			auto loaded = builder.create<mlir::LLVM::LoadOp>(
-					realMain.getLoc(), builder.getI64Type(), alloca, aligment);
+					loc, builder.getI64Type(), alloca, aligment);
 
-			auto trunchated = builder.create<mlir::LLVM::TruncOp>(
-					realMain.getLoc(), returnType, loaded);
+			auto trunchated =
+					builder.create<mlir::LLVM::TruncOp>(loc, returnType, loaded);
 			builder.create<mlir::LLVM::ReturnOp>(
-					realMain.getLoc(), mlir::ValueRange({ trunchated }));
+					loc, mlir::ValueRange({ trunchated }));
+			if (debug_info)
+			{
+				op->setLoc(mlir::FusedLoc::get(
+						op.getContext(),
+						{ loc },
+						generator.getFunctionAttr(op, "main", nullptr, true)));
+			}
 		}
 
 		private:
