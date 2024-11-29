@@ -207,8 +207,9 @@ def main():
         num_rollout_workers=args.num_rollout_cpus
     )
 
+    initial_args_dir = args.initial_states if args.initial_states == "" else os.path.abspath(args.initial_states)
     tune.register_env(
-        "rlc_env", lambda config: make_env(module_path, args.initial_states)
+        "rlc_env", lambda config: make_env(module_path, initial_args_dir)
     )
 
     stop = {
