@@ -66,7 +66,7 @@ def load_program_from_args(
     )
 
     if args.source_file.endswith(".py"):
-        return Simulation(args.source_file)
+        return Program(args.source_file)
     else:
         includes = [include for include in args.include]
         return compile(

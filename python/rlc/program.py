@@ -104,7 +104,7 @@ class State:
         self.program.load_string_from_file(path, self.state)
 
     def load_string_from_file(self, path: str) -> bool:
-        self.program.load_string_from_file(path, self.state)
+        return self.program.load_string_from_file(path, self.state)
 
     def print(self):
         program.functions.print(state.state)

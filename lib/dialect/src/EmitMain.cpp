@@ -71,7 +71,7 @@ namespace mlir::rlc
 			auto op = builder.create<mlir::LLVM::LLVMFuncOp>(
 					loc, "main", mlir::LLVM::LLVMFunctionType::get(returnType, {}));
 
-			auto* block = op.addEntryBlock(builder);
+			auto* block = builder.createBlock(&op.getBody(), op.getBody().begin());
 			builder.setInsertionPoint(block, block->begin());
 
 			// allocate an int64, pointed by the result of alloca

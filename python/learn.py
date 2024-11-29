@@ -3,6 +3,7 @@ import pickle
 import copy
 import math
 import time
+import sys
 import os
 import tempfile
 import random
@@ -136,6 +137,29 @@ def ray_count_alive_nodes():
         ]
     )
 
+def load_initial_states(program, init_state_dir):
+    initial_states = []
+    if init_state_dir == "":
+        return initial_states
+
+    if not os.path.isdir(init_state_dir):
+        print(f"initial states directory {init_state_dir} is not a directory")
+        exit(-1)
+
+    for filename in os.listdir(init_state_dir):
+        with open(f"{init_state_dir}/{filename}", "r") as file:
+            content = "".join(file.readlines())
+            state = program.module.Game()
+            if not program.functions.from_string(state, program.to_rl_string(content)).value:
+                print(f"failed to parse {file}")
+                exit(-1)
+            initial_states.append(state)
+
+    return initial_states
+
+def make_env(program_path, initial_states_path):
+    program = Program(program_path)
+    return RLCEnvironment(program=program, initial_states=load_initial_states(program, initial_states_path))
 
 def main():
     check_ray_bug()
@@ -150,6 +174,7 @@ def main():
     )
     parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--league-play", action="store_true", default=False)
+    parser.add_argument("--initial-states", type=str, default="")
     parser.add_argument("--no-tensorboard", action="store_true", default=False)
     parser.add_argument("--total-train-iterations", default=100000000, type=int)
     parser.add_argument("--num-sample", default=1, type=int)
@@ -161,6 +186,7 @@ def main():
         exit(-1)
     program.functions.emit_observation_tensor_warnings(program.functions.play())
     exit_on_invalid_env(program)
+    load_initial_states(program, args.initial_states)
     module_path = os.path.abspath(program.module_path)
 
     ray.init(num_cpus=12, num_gpus=1, include_dashboard=False, log_to_driver=False)
@@ -180,8 +206,9 @@ def main():
         true_self_play=args.true_self_play,
         num_rollout_workers=args.num_rollout_cpus
     )
+
     tune.register_env(
-        "rlc_env", lambda config: RLCEnvironment(program=Program(module_path))
+        "rlc_env", lambda config: make_env(module_path, args.initial_states)
     )
 
     stop = {

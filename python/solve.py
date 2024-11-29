@@ -43,6 +43,13 @@ def main():
         default=1,
     )
 
+    parser.add_argument(
+        "--initial-state",
+        type=str,
+        help="Initial state",
+        default="",
+    )
+
     args = parser.parse_args()
     with load_program_from_args(args) as program:
         if not program.functions.print_enumeration_errors(
@@ -58,6 +65,11 @@ def main():
             out.write(f"# game {current}\n")
             current = current + 1
             state.reset()
+
+            if args.initial_state != "":
+                if not state.load_string_from_file(args.initial_state):
+                    print("failed to load initial state")
+                    exit(-1)
             while not state.is_done():
                 if args.max_actions != -1:
                     if args.max_actions == 0:
