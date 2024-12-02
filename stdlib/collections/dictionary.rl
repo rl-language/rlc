@@ -145,7 +145,6 @@ cls<KeyType, ValueType>Dict:
                 distance = distance + 1
                 index = (index + 1) % self._capacity
         return false
-
     
     fun keys() -> Vector<KeyType>:
         let to_return : Vector<KeyType>
@@ -201,7 +200,9 @@ cls<KeyType, ValueType>Dict:
 
         counter = 0
         let index = 0
-        while counter < self._size:
+        let elements_to_copy = self._size
+        self._size = 0
+        while counter < elements_to_copy:
             if self._entries[index].occupied:
                 self._insert(new_entries, self._entries[index].key, self._entries[index].value)
                 counter = counter + 1
