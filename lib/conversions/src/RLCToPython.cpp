@@ -88,9 +88,9 @@ static void registerBuiltinConversions(
 
 	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getBody())
+		for (auto sub : t.getMembers())
 		{
-			auto converted = ctypesConverter.convertType(sub);
+			auto converted = ctypesConverter.convertType(sub.getType());
 			assert(converted);
 			types.push_back(converted);
 		}
@@ -172,9 +172,9 @@ static void registerCTypesConversions(mlir::TypeConverter& converter)
 
 	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
 		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getBody())
+		for (auto sub : t.getMembers())
 		{
-			auto converted = converter.convertType(sub);
+			auto converted = converter.convertType(sub.getType());
 			assert(converted);
 			types.push_back(converted);
 		}
@@ -213,7 +213,7 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 		const mlir::TypeConverter* converter,
 		llvm::StringRef overloadName,
 		llvm::StringRef fName,
-		mlir::ArrayAttr argNames,
+		llvm::ArrayRef<llvm::StringRef> argNames,
 		mlir::FunctionType fType)
 {
 	if (fName.starts_with("_"))
@@ -222,7 +222,7 @@ static mlir::rlc::python::PythonFun emitFunctionWrapper(
 	auto funType = converter->convertType(fType).cast<mlir::FunctionType>();
 
 	auto f = rewriter.create<mlir::rlc::python::PythonFun>(
-			loc, funType, fName, overloadName, argNames);
+			loc, funType, fName, overloadName, rewriter.getStrArrayAttr(argNames));
 	llvm::SmallVector<mlir::Location> locs;
 	for (const auto& _ : funType.getInputs())
 	{
@@ -308,14 +308,14 @@ class ClassDeclarationToNothing
 };
 
 class ConstantGlobalArrayOpToNothing
-		: public mlir::OpConversionPattern<mlir::rlc::ConstantGlobalArrayOp>
+		: public mlir::OpConversionPattern<mlir::rlc::ConstantGlobalOp>
 {
 	public:
 	using mlir::OpConversionPattern<
-			mlir::rlc::ConstantGlobalArrayOp>::OpConversionPattern;
+			mlir::rlc::ConstantGlobalOp>::OpConversionPattern;
 
 	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::ConstantGlobalArrayOp op,
+			mlir::rlc::ConstantGlobalOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
@@ -584,8 +584,8 @@ class ActionDeclToTNothing
 
 			llvm::SmallVector<llvm::StringRef, 2> arrayAttr;
 			arrayAttr.push_back("frame");
-			for (const auto& attr : casted.getDeclaredNames())
-				arrayAttr.push_back(attr.cast<mlir::StringAttr>());
+			for (const auto& attr : casted.getInfo().getArgs())
+				arrayAttr.push_back(attr.getName());
 
 			auto castedType = type.getType().cast<mlir::FunctionType>();
 			auto f = emitFunctionWrapper(
@@ -595,7 +595,7 @@ class ActionDeclToTNothing
 					getTypeConverter(),
 					casted.getName(),
 					mlir::rlc::mangledName(casted.getName(), true, castedType),
-					rewriter.getStrArrayAttr(arrayAttr),
+					arrayAttr,
 					castedType);
 			rewriter.setInsertionPointAfter(f);
 			if (f == nullptr)
@@ -615,7 +615,7 @@ class ActionDeclToTNothing
 					getTypeConverter(),
 					name,
 					mlir::rlc::mangledName(name, true, validityType),
-					rewriter.getStrArrayAttr(arrayAttr),
+					arrayAttr,
 					validityType);
 			rewriter.setInsertionPointAfter(preconditionCheckFunction);
 		}
@@ -688,8 +688,8 @@ namespace mlir::python
 
 		if (auto classDecl = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (const auto& name : classDecl.getFieldNames())
-				names.push_back(name);
+			for (auto field : classDecl.getMembers())
+				names.push_back(field.getName().str());
 		}
 		else if (auto alternative = type.dyn_cast<mlir::rlc::AlternativeType>())
 		{

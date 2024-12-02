@@ -23,6 +23,7 @@ limitations under the License.
 #include "mlir/IR/OpDefinition.h"
 #include "rlc/dialect/ActionLiveness.hpp"
 #include "rlc/dialect/Dialect.h"
+#include "rlc/dialect/Interfaces.hpp"
 #include "rlc/utils/IRange.hpp"
 #define GET_OP_CLASSES
 #include "./Operations.inc"
@@ -129,9 +130,10 @@ mlir::rlc::ActionFunction::getFrameLists()
 			hiddenFrame.append(value, name);
 	};
 
-	for (auto pair : llvm::zip(getArgNames(), getBody().front().getArguments()))
+	for (auto pair :
+			 llvm::zip(getInfo().getArgs(), getBody().front().getArguments()))
 	{
-		auto name = std::get<0>(pair).cast<mlir::StringAttr>();
+		auto name = std::get<0>(pair).getName();
 		auto arg = std::get<1>(pair);
 		addToFrames(arg, name);
 	}
@@ -145,9 +147,9 @@ mlir::rlc::ActionFunction::getFrameLists()
 		else if (auto casted = llvm::dyn_cast<mlir::rlc::ActionStatement>(op))
 		{
 			for (auto pair :
-					 llvm::zip(casted.getDeclaredNames(), casted.getResults()))
+					 llvm::zip(casted.getInfo().getArgs(), casted.getResults()))
 			{
-				auto name = std::get<0>(pair).cast<mlir::StringAttr>();
+				auto name = std::get<0>(pair).getName();
 				auto arg = std::get<1>(pair);
 				addToFrames(arg, name);
 			}
@@ -158,39 +160,37 @@ mlir::rlc::ActionFunction::getFrameLists()
 
 static void setFramesBody(mlir::rlc::ActionFunction fun)
 {
-	llvm::SmallVector<mlir::Type, 4> memberTypes;
-	llvm::SmallVector<std::string, 4> memberNames;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> fields;
 
-	llvm::SmallVector<mlir::Type, 4> hiddenMemberTypes;
-	llvm::SmallVector<std::string, 4> hiddenMemberNames;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> hiddenMembers;
 
 	// add the implicit local variable "resume_index" to members
-	memberTypes.push_back(mlir::rlc::IntegerType::getInt64(fun.getContext()));
-	memberNames.push_back("resume_index");
+	fields.push_back(mlir::rlc::ClassFieldAttr::get(
+			"resume_index", mlir::rlc::IntegerType::getInt64(fun.getContext())));
 
 	auto frames = fun.getFrameLists();
 	for (auto &entry : frames.first.valueNamePairs)
 	{
-		memberNames.push_back(entry.second.str());
-		memberTypes.push_back(
-				entry.first.getType().cast<mlir::rlc::FrameType>().getUnderlying());
+		fields.push_back(mlir::rlc::ClassFieldAttr::get(
+				entry.second.str(),
+				entry.first.getType().cast<mlir::rlc::FrameType>().getUnderlying()));
 	}
 
 	for (auto &entry : frames.second.valueNamePairs)
 	{
-		hiddenMemberNames.push_back(entry.second.str());
 		auto t = entry.first.getType();
 		if (auto casted = t.dyn_cast<mlir::rlc::ContextType>())
 			t = casted.getUnderlying();
-		hiddenMemberTypes.push_back(mlir::rlc::ReferenceType::get(t));
+		hiddenMembers.push_back(mlir::rlc::ClassFieldAttr::get(
+				entry.second.str(), mlir::rlc::ReferenceType::get(t)));
 	}
 
-	auto res = fun.getClassType().setBody(memberTypes, memberNames);
+	auto res = fun.getClassType().setBody(fields);
 	assert(res.succeeded());
 
 	auto res2 = mlir::rlc::ClassType::getIdentified(
 			fun.getContext(), (fun.getClassType().getName() + "_shadow").str(), {});
-	auto isOk = res2.setBody(hiddenMemberTypes, hiddenMemberNames).succeeded();
+	auto isOk = res2.setBody(hiddenMembers).succeeded();
 	assert(isOk);
 }
 
@@ -231,7 +231,7 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 					mlir::TypeRange({ mlir::rlc::BoolType::get(rewriter.getContext()) })),
 			generatedFunctions,
 			fun.getUnmangledName(),
-			fun.getArgNames());
+			fun.getInfo());
 	newAction.getBody().takeBody(fun.getBody());
 	newAction.getPrecondition().takeBody(fun.getPrecondition());
 	fun.getResult().replaceAllUsesWith(newAction.getResult());
@@ -264,7 +264,7 @@ static void defineGetNameFunction(
 			statement.getLoc(),
 			"get_type_name",
 			fType,
-			builder.getRewriter().getStrArrayAttr(names),
+			mlir::rlc::FunctionInfoAttr::get(fType.getContext(), names),
 			false);
 
 	{
@@ -317,7 +317,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 		if (auto casted = actionType.dyn_cast<mlir::rlc::ContextType>())
 		{
 			types.push_back(casted.getUnderlying());
-			names.push_back(name.cast<mlir::StringAttr>());
+			names.push_back(name);
 			locs.push_back(statement.getLoc());
 		}
 	}
@@ -332,7 +332,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 			statement.getLoc(),
 			"apply",
 			applyFunctionType,
-			builder.getRewriter().getStrArrayAttr(names),
+			mlir::rlc::FunctionInfoAttr::get(applyFunctionType.getContext(), names),
 			false);
 
 	{
@@ -345,7 +345,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 
 		llvm::SmallVector<mlir::Value, 4> args(
 				std::next(preconditionBB->args_begin()), preconditionBB->args_end());
-		for (auto [index, actionType] : llvm::enumerate(actionType.getBody()))
+		for (auto [index, field] : llvm::enumerate(actionType.getMembers()))
 		{
 			auto member = builder.getRewriter().create<mlir::rlc::MemberAccess>(
 					statement.getLoc(), preconditionBB->getArguments()[0], index);
@@ -367,7 +367,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 
 		llvm::SmallVector<mlir::Value, 4> args(
 				std::next(bodyBB->args_begin()), bodyBB->args_end());
-		for (auto [index, actionType] : llvm::enumerate(actionType.getBody()))
+		for (auto [index, field] : llvm::enumerate(actionType.getMembers()))
 		{
 			auto member = builder.getRewriter().create<mlir::rlc::MemberAccess>(
 					statement.getLoc(), bodyBB->getArguments()[0], index);
@@ -411,9 +411,8 @@ static mlir::Type declareActionStatementType(
 	std::string name = function.getClassType().getName().str();
 	name += snakeCaseToCamelCase(statement.getName());
 
-	llvm::SmallVector<mlir::Type, 4> fieldTypes;
-	llvm::SmallVector<std::string, 4> fieldNames;
-	llvm::SmallVector<llvm::StringRef, 4> fieldNamesRef;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> fields;
+	llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 4> fieldsAttrs;
 
 	for (auto [name, result] :
 			 llvm::zip(statement.getDeclaredNames(), statement.getResults()))
@@ -423,21 +422,21 @@ static mlir::Type declareActionStatementType(
 		auto type = result.getType();
 		if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 			type = casted.getUnderlying();
-		fieldNames.push_back(name.cast<mlir::StringAttr>().str());
-		fieldNamesRef.push_back(name.cast<mlir::StringAttr>());
-		fieldTypes.push_back(type);
+		auto field = mlir::rlc::ClassFieldAttr::get(name, type);
+		fields.push_back(field);
+		fieldsAttrs.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(field));
 	}
 
 	auto type = mlir::rlc::ClassType::getNewIdentified(
-			function.getContext(), name, fieldTypes, fieldNames, {});
+			function.getContext(), name, fields, {});
 
 	auto built = builder.getRewriter().create<mlir::rlc::ClassDeclaration>(
 			statement.getLoc(),
 			type,
 			name,
-			builder.getRewriter().getTypeArrayAttr(fieldTypes),
-			builder.getRewriter().getStrArrayAttr(fieldNamesRef),
-			builder.getRewriter().getTypeArrayAttr({}));
+			fieldsAttrs,
+			llvm::ArrayRef<mlir::Type>({}),
+			nullptr);
 	auto applyFunction =
 			defineApplyFunction(function, builder, action, statement, type);
 	defineGetNameFunction(function, builder, action, statement, type);
@@ -495,7 +494,9 @@ static mlir::LogicalResult declareActionTypes(
 	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
 			function.getLoc(),
 			("Any" + function.getClassType().getName() + "Action").str(),
-			alternative);
+			alternative,
+			nullptr,
+			nullptr);
 
 	return mlir::success();
 }
@@ -643,12 +644,21 @@ mlir::LogicalResult mlir::rlc::BreakStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	builder.getConverter().setErrorLocation(getLoc());
 	auto deducedType = builder.getConverter().convertType(getAliased());
 	if (not deducedType)
 	{
 		return mlir::rlc::logError(
 				*this, "right hand of using is not a valid type");
 	}
+	if (getShugarizedType() != nullptr)
+	{
+		auto shugarized =
+				builder.getConverter().shugarizedConvertType(getAliased());
+		assert(shugarized != nullptr);
+		this->setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarized));
+	}
+
 	builder.getConverter().registerType(getName(), deducedType);
 	this->setAliased(deducedType);
 	return mlir::success();
@@ -820,7 +830,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		llvm::SmallVector<mlir::Type, 4> resultTypes;
 		llvm::SmallVector<mlir::Location, 4> resultLoc;
-		llvm::SmallVector<std::string> nameAttrs;
+		llvm::SmallVector<mlir::rlc::FunctionArgumentAttr> nameAttrs;
 
 		for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 		{
@@ -828,7 +838,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			if (type.isa<mlir::rlc::ContextType>())
 			{
 				resultTypes.push_back(type);
-				nameAttrs.push_back(std::get<1>(arg).cast<mlir::StringAttr>().str());
+				nameAttrs.push_back(mlir::rlc::FunctionArgumentAttr::get(
+						type.getContext(), std::get<1>(arg), nullptr, nullptr));
 				resultLoc.push_back(parent.getLoc());
 			}
 		}
@@ -854,17 +865,17 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			resultLoc.push_back(actions.getLoc());
 		}
 
-		for (auto name :
-				 llvm::drop_begin(referred.getDeclaredNames(), forwardedArgsCount()))
+		for (auto arg :
+				 llvm::drop_begin(referred.getInfo().getArgs(), forwardedArgsCount()))
 		{
-			nameAttrs.push_back(name.cast<mlir::StringAttr>().str());
+			nameAttrs.push_back(arg);
 		}
 
 		auto fixed = rewiter.create<mlir::rlc::ActionStatement>(
 				referred.getLoc(),
 				resultTypes,
 				referred.getName(),
-				nameAttrs,
+				mlir::rlc::FunctionInfoAttr::get(referred.getContext(), nameAttrs),
 				referred.getId(),
 				referred.getResumptionPoint());
 
@@ -1041,6 +1052,13 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		erase();
 		return mlir::success();
 	}
+
+	if (not getMemberIndex().getType().isa<mlir::rlc::IntegerType>())
+	{
+		return mlir::rlc::logError(
+				getOperation(), "Array access must have a integer index operand.");
+	}
+
 	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::ArrayAccess>(
 			*this, getValue(), getMemberIndex());
 	return mlir::success();
@@ -1167,6 +1185,8 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 {
 	auto &rewriter = builder.getRewriter();
 	auto deducedType = builder.getConverter().convertType(getTypeOrTrait());
+	auto shugarizedType =
+			builder.getConverter().shugarizedConvertType(getTypeOrTrait());
 	if (deducedType == nullptr)
 	{
 		return mlir::rlc::logRemark(*this, "In Is expression");
@@ -1174,7 +1194,10 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 
 	rewriter.setInsertionPoint(getOperation());
 	rewriter.replaceOpWithNewOp<mlir::rlc::IsOp>(
-			*this, getExpression(), deducedType);
+			*this,
+			getExpression(),
+			deducedType,
+			getShugarizedType().replaceType(shugarizedType));
 
 	return mlir::success();
 }
@@ -1593,19 +1616,35 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::ConstantGlobalOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getConverter().setErrorLocation(getLoc());
+	auto deducedType = builder.getConverter().convertType(getType());
+	auto shugarizedType = builder.getConverter().shugarizedConvertType(getType());
+	if (deducedType == nullptr or shugarizedType == nullptr)
+	{
+		return mlir::failure();
+	}
+
+	getResult().setType(deducedType);
+	setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarizedType));
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::ConstructOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	builder.getConverter().setErrorLocation(getLoc());
 	auto deducedType = builder.getConverter().convertType(getType());
-	auto &rewriter = builder.getRewriter();
-	if (deducedType == nullptr)
+	auto shugarizedType = builder.getConverter().shugarizedConvertType(getType());
+	if (deducedType == nullptr or shugarizedType == nullptr)
 	{
 		return mlir::failure();
 	}
 
-	rewriter.replaceOpWithNewOp<mlir::rlc::ConstructOp>(*this, deducedType);
-
+	getResult().setType(deducedType);
+	setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarizedType));
 	return mlir::success();
 }
 
@@ -1638,7 +1677,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	rewriter.restoreInsertionPoint(point);
 
 	llvm::SmallVector<mlir::Type, 4> newResultTypes;
-	llvm::SmallVector<std::string, 4> newArgNames;
+	llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 4> argInfo;
 	unsigned contextArgCounts = 0;
 	for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 	{
@@ -1648,7 +1687,8 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 			getPrecondition().front().insertArgument(
 					contextArgCounts++, type, getLoc());
 			newResultTypes.push_back(type);
-			newArgNames.push_back(std::get<1>(arg).cast<mlir::StringAttr>().str());
+			argInfo.push_back(mlir::rlc::FunctionArgumentAttr::get(
+					type.getContext(), std::get<1>(arg)));
 		}
 	}
 
@@ -1673,11 +1713,18 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	for (auto result : getResults())
 		newResultTypes.push_back(result.getType());
 
-	for (auto name : getDeclaredNames())
-		newArgNames.push_back(name.dyn_cast<mlir::StringAttr>().str());
+	for (auto arg : getInfo().getArgs())
+	{
+		auto deduced = builder.getConverter().shugarizedConvertType(
+				arg.getShugarizedType().getType());
+		argInfo.push_back(arg.replaceType(deduced));
+	}
 
 	auto newDecl = builder.getRewriter().create<mlir::rlc::ActionStatement>(
-			getLoc(), newResultTypes, getName(), newArgNames);
+			getLoc(),
+			newResultTypes,
+			getName(),
+			mlir::rlc::FunctionInfoAttr::get(getContext(), argInfo));
 
 	newDecl.getPrecondition().takeBody(getPrecondition());
 
@@ -1692,7 +1739,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 		for (auto [name, res] : llvm::zip(
 						 newDecl.getDeclaredNames(),
 						 newDecl.getPrecondition().getArguments()))
-			builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), res);
+			builder.getSymbolTable().add(name, res);
 
 		for (auto *op : ToCheck)
 		{
@@ -1703,7 +1750,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	for (auto [name, res] :
 			 llvm::zip(newDecl.getDeclaredNames(), newDecl.getResults()))
-		builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), res);
+		builder.getSymbolTable().add(name.str(), res);
 
 	erase();
 	return mlir::success();
@@ -1775,8 +1822,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 					"Builtin from_byte_array to float must have a array of 8 bytes "
 					"as input");
 		}
-		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
-				*this, converted, getLhs());
+		getResult().setType(converted);
 		return mlir::success();
 	}
 
@@ -1789,8 +1835,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 					"Builtin from_byte_array to bool must have a array of 1 bytes "
 					"as input");
 		}
-		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
-				*this, converted, getLhs());
+		getResult().setType(converted);
 		return mlir::success();
 	}
 
@@ -1805,14 +1850,120 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 							llvm::Twine((casted.getSize() / 8)) +
 							std::string(" bytes as input"));
 		}
-		builder.getRewriter().replaceOpWithNewOp<mlir::rlc::FromByteArrayOp>(
-				*this, casted, getLhs());
+		getResult().setType(converted);
 		return mlir::success();
 	}
 	return logError(
 			*this,
 			"Cannot convert byte array to desiderated output, only primitive types "
 			"are supported");
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ConstantGlobalOp::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	if (getShugarizedType() != nullptr)
+		toReturn.push_back(*getShugarizedType());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ActionFunction::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ActionStatement::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::FlatFunctionOp::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	if (getInfo().getShugarizedReturnType() != nullptr)
+		toReturn.push_back(getInfo().getShugarizedReturnType());
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::FunctionOp::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	if (getInfo().getShugarizedReturnType() != nullptr)
+		toReturn.push_back(getInfo().getShugarizedReturnType());
+
+	for (auto parameter : getInfo().getArgs())
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::IsOp::getShugarizedTypes()
+{
+	if (not getShugarizedType().has_value())
+		return {};
+	return { *getShugarizedType() };
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ClassDeclaration::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	for (auto parameter : getMemberFields())
+		if (parameter.getShugarizedType() != nullptr)
+			toReturn.push_back(parameter.getShugarizedType());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::TypeAliasOp::getShugarizedTypes()
+{
+	if (getShugarizedType().has_value())
+		return { *getShugarizedType() };
+	return {};
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::UncheckedIsOp::getShugarizedTypes()
+{
+	return { getShugarizedType() };
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::FromByteArrayOp::getShugarizedTypes()
+{
+	return { getShugarizedType() };
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ConstructOp::getShugarizedTypes()
+{
+	if (getShugarizedType().has_value())
+		return { *getShugarizedType() };
+	return {};
 }
 
 mlir::LogicalResult mlir::rlc::StringLiteralOp::typeCheck(
@@ -1927,15 +2078,21 @@ mlir::LogicalResult mlir::rlc::MallocOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	auto converted = builder.getConverter().convertType(getResult().getType());
-	if (not converted)
+	auto shugarized = builder.getConverter().shugarizedConvertType(
+			getShugarizedType().getType());
+	if (not converted or not shugarized)
 	{
 		return mlir::failure();
 	}
-
-	builder.getRewriter().replaceOpWithNewOp<mlir::rlc::MallocOp>(
-			*this, converted, this->getSize());
-
+	setShugarizedTypeAttr(getShugarizedType().replaceType(shugarized));
+	getResult().setType(converted);
 	return mlir::success();
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::MallocOp::getShugarizedTypes()
+{
+	return { getShugarizedType() };
 }
 
 mlir::LogicalResult mlir::rlc::InplaceInitializeOp::typeCheck(
@@ -2021,9 +2178,9 @@ mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		return logError(*this, "Member accesses cannot refer to a empty name");
 	}
 
-	for (const auto &index : llvm::enumerate(structType.getFieldNames()))
+	for (const auto &index : llvm::enumerate(structType.getMembers()))
 	{
-		if (index.value() != getMemberName())
+		if (index.value().getName() != getMemberName())
 			continue;
 
 		auto *maybeDecl = builder.getDeclarationOfType(getValue().getType());
@@ -2094,13 +2251,15 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	}
 
 	auto deducedType = scopedConverter.convertType(getFunctionType());
-	if (deducedType == nullptr)
+	auto shugarized = scopedConverter.shugarizedConvertType(getFunctionType());
+	if (deducedType == nullptr or shugarized == nullptr)
 	{
 		return mlir::failure();
 	}
 	assert(deducedType.isa<mlir::FunctionType>());
 
 	getResult().setType(deducedType.cast<mlir::FunctionType>());
+	setInfoAttr(getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
 	setTemplateParametersAttr(
 			rewriter.getTypeArrayAttr(checkedTemplateParameters));
 
@@ -2242,6 +2401,28 @@ void mlir::rlc::Yield::getSuccessorRegions(
 {
 	llvm::cast<::mlir::RegionBranchOpInterface>((*this)->getParentOp())
 			.getSuccessorRegions((*this)->getParentRegion(), regions);
+}
+
+mlir::Type mlir::rlc::TypeAliasOp::getDeclaredType()
+{
+	return mlir::rlc::AliasType::get(getName(), getAliased());
+}
+
+std::optional<mlir::rlc::SourceRangeAttr>
+mlir::rlc::TypeAliasOp::getDeclarationLocation()
+{
+	return getDeclaredNameLocation();
+}
+
+mlir::Type mlir::rlc::ClassDeclaration::getDeclaredType()
+{
+	return getResult().getType();
+}
+
+std::optional<mlir::rlc::SourceRangeAttr>
+mlir::rlc::ClassDeclaration::getDeclarationLocation()
+{
+	return getTypeLocation();
 }
 
 void mlir::rlc::ReturnStatement::getRegionInvocationBounds(

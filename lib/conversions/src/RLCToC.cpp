@@ -138,7 +138,7 @@ static void printMethodOfType(
 		mlir::FunctionType type,
 		llvm::StringRef name,
 		llvm::StringRef mangledName,
-		mlir::ArrayAttr argNames,
+		llvm::ArrayRef<llvm::StringRef> argNames,
 		mlir::rlc::ModuleBuilder& builder,
 		bool isDecl)
 {
@@ -187,11 +187,7 @@ static void printMethodOfType(
 
 	for (size_t i = 1; i < argNames.size(); i++)
 	{
-		printTypeField(
-				argNames[i].cast<mlir::StringAttr>().strref(),
-				type.getInput(i),
-				OS,
-				true);
+		printTypeField(argNames[i], type.getInput(i), OS, true);
 		if (i + 1 != argNames.size())
 			OS << ", ";
 	}
@@ -222,7 +218,7 @@ static void printMethodOfType(
 	}
 	OS << "this";
 	for (size_t i = 1; i < argNames.size(); i++)
-		OS << ", &" << argNames[i].cast<mlir::StringAttr>().strref();
+		OS << ", &" << argNames[i];
 
 	OS << ");\n";
 	if (not returnsVoid)
@@ -272,7 +268,7 @@ static void printMethodsOfType(
 					f.getIsDoneFunctionType(),
 					"is_done",
 					mlir::rlc::mangledName("is_done", true, f.getIsDoneFunctionType()),
-					builder.getRewriter().getStrArrayAttr({ "self" }),
+					{ "self" },
 					builder,
 					isDecl);
 
@@ -281,10 +277,8 @@ static void printMethodsOfType(
 				auto action = mlir::cast<mlir::rlc::ActionStatement>(
 						builder.actionFunctionValueToActionStatement(value).front());
 
-				llvm::SmallVector<mlir::Attribute, 2> attrs(
-						{ mlir::StringAttr::get(action.getContext(), "self") });
-				for (auto attr :
-						 action.getDeclaredNames().getAsRange<mlir::StringAttr>())
+				llvm::SmallVector<llvm::StringRef, 2> attrs({ "self" });
+				for (auto attr : action.getDeclaredNames())
 					attrs.push_back(attr);
 				printMethodOfType(
 						OS,
@@ -295,7 +289,7 @@ static void printMethodsOfType(
 								action.getName(),
 								true,
 								value.getType().cast<mlir::FunctionType>()),
-						builder.getRewriter().getArrayAttr(attrs),
+						attrs,
 						builder,
 						isDecl);
 			}
@@ -308,7 +302,7 @@ static void printCPPOverload(
 		mlir::FunctionType type,
 		llvm::StringRef name,
 		llvm::StringRef mangledName,
-		mlir::ArrayAttr argNames,
+		llvm::ArrayRef<llvm::StringRef> argNames,
 		mlir::rlc::ModuleBuilder& builder)
 {
 	// do not emit a proper wrapper for arrays, it is not clear how to do that
@@ -332,11 +326,7 @@ static void printCPPOverload(
 
 	for (size_t i = 0; i < argNames.size(); i++)
 	{
-		printTypeField(
-				argNames[i].cast<mlir::StringAttr>().strref(),
-				type.getInput(i),
-				OS,
-				true);
+		printTypeField(argNames[i], type.getInput(i), OS, true);
 		if (i + 1 != argNames.size())
 			OS << ", ";
 	}
@@ -364,7 +354,7 @@ static void printCPPOverload(
 	}
 	for (size_t i = 0; i < argNames.size(); i++)
 	{
-		OS << "&" << argNames[i].cast<mlir::StringAttr>().strref();
+		OS << "&" << argNames[i];
 		if (i + 1 != argNames.size())
 			OS << ", ";
 	}
@@ -498,11 +488,10 @@ static void printTypeDefinition(
 				OS << "typedef union " << Class.mangledName() << " {\n";
 
 				OS << "struct _Content" << Class.mangledName() << " {\n";
-				for (const auto& [name, fieldType] :
-						 llvm::zip(Class.getFieldNames(), Class.getBody()))
+				for (auto field : Class.getMembers())
 				{
 					OS.indent(4);
-					printTypeField(name, fieldType, OS);
+					printTypeField(field.getName(), field.getType(), OS);
 					OS << ";\n";
 				}
 				OS.indent(2);
@@ -539,7 +528,7 @@ static void printFunctionSignature(
 		bool isMemberFunction,
 		llvm::StringRef cShortName,
 		mlir::FunctionType type,
-		mlir::ArrayAttr fieldNames,
+		llvm::ArrayRef<llvm::StringRef> fieldNames,
 		llvm::raw_ostream& OS)
 {
 	std::string name =
@@ -559,10 +548,7 @@ static void printFunctionSignature(
 
 	for (size_t index = 0; index < fieldNames.size(); index++)
 	{
-		printTypeField(
-				("* " + fieldNames[index].cast<mlir::StringAttr>().getValue()).str(),
-				type.getInput(index),
-				OS);
+		printTypeField("* " + fieldNames[index].str(), type.getInput(index), OS);
 
 		if (index + 1 < fieldNames.size())
 			OS << ", ";
@@ -580,7 +566,7 @@ static void printFunctionSignature(
 	{
 		I++;
 		printTypeField("*", type, OS);
-		OS << " " << name.cast<mlir::StringAttr>().getValue();
+		OS << " " << name;
 		if (I != fieldNames.size())
 			OS << ", ";
 	}
@@ -599,7 +585,7 @@ static void printFunctionSignature(
 	for (auto name : fieldNames)
 	{
 		I++;
-		OS << " " << name.cast<mlir::StringAttr>().getValue();
+		OS << " " << name;
 		if (I != fieldNames.size())
 			OS << ", ";
 	}
@@ -614,7 +600,7 @@ static void printFunctionAndCanFunctionSignature(
 		bool isMemberFunction,
 		llvm::StringRef cShortName,
 		mlir::FunctionType type,
-		mlir::ArrayAttr fieldNames,
+		llvm::ArrayRef<llvm::StringRef> fieldNames,
 		llvm::raw_ostream& OS)
 {
 	printFunctionSignature(
@@ -722,9 +708,8 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 			alreadyAdded.insert(key);
 
 			auto castedType = type.getType().cast<mlir::FunctionType>();
-			llvm::SmallVector<mlir::Attribute, 2> attrs(
-					{ mlir::StringAttr::get(casted.getContext(), "self") });
-			for (auto attr : casted.getDeclaredNames().getAsRange<mlir::StringAttr>())
+			llvm::SmallVector<mlir::StringRef, 2> attrs({ "self" });
+			for (auto attr : casted.getDeclaredNames())
 				attrs.push_back(attr);
 
 			printFunctionAndCanFunctionSignature(
@@ -732,7 +717,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 					true,
 					(fun.getClassType().getName() + "_" + casted.getName()).str(),
 					castedType,
-					mlir::ArrayAttr::get(casted.getContext(), attrs),
+					attrs,
 					OS);
 		}
 
@@ -741,9 +726,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 				true,
 				(fun.getClassType().getName() + "_is_done").str(),
 				fun.getIsDoneFunctionType(),
-				mlir::ArrayAttr::get(
-						Module.getContext(),
-						{ mlir::StringAttr::get(Module.getContext(), "arg0") }),
+				{ "arg0" },
 				OS);
 	}
 
@@ -1091,9 +1074,9 @@ public:
 
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (auto [name, type] :
-					 llvm::zip(casted.getFieldNames(), casted.getBody()))
+			for (auto field : casted.getMembers())
 			{
+				auto name = field.getName();
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
 
@@ -1139,9 +1122,9 @@ public:
 
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (auto [name, type] :
-					 llvm::zip(casted.getFieldNames(), casted.getBody()))
+			for (auto field : casted.getMembers())
 			{
+				auto name = field.getName();
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
 

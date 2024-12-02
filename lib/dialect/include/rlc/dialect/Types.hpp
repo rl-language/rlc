@@ -20,6 +20,7 @@ limitations under the License.
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/TypeSupport.h"
 #include "mlir/IR/Types.h"
+#include "rlc/dialect/TypeInterfaces.hpp"
 
 namespace mlir::rlc
 {
@@ -46,11 +47,15 @@ namespace mlir::rlc
 	std::string prettyType(mlir::Type type);
 
 	std::string prettyPrintFunctionTypeWithNameArgs(
-			mlir::FunctionType fType, mlir::ArrayAttr attr);
+			mlir::FunctionType fType, mlir::rlc::FunctionInfoAttr attr);
 
-	class ClassType
-			: public Type::
-						TypeBase<ClassType, Type, StructTypeStorage, TypeTrait::IsMutable>
+	class ClassType: public Type::TypeBase<
+											 ClassType,
+											 Type,
+											 StructTypeStorage,
+											 TypeTrait::IsMutable,
+											 mlir::rlc::RLCSerializable::Trait,
+											 mlir::rlc::Renemable::Trait>
 	{
 		public:
 		/// Inherit base constructors.
@@ -76,11 +81,8 @@ namespace mlir::rlc
 		static ClassType getNewIdentified(
 				MLIRContext *context,
 				StringRef name,
-				ArrayRef<Type> elements,
-				ArrayRef<std::string> fieldNames,
+				ArrayRef<mlir::rlc::ClassFieldAttr> fields,
 				ArrayRef<Type> explicitTemplateParameters);
-
-		llvm::ArrayRef<std::string> getFieldNames() const;
 
 		/// Set the body of an identified struct. Returns failure if the body could
 		/// not be set, e.g. if the struct already has a body or if it was marked as
@@ -88,8 +90,7 @@ namespace mlir::rlc
 		/// a different thread modified the struct after it was created. Most
 		/// callers are likely to assert this always succeeds, but it is possible to
 		/// implement a local renaming scheme based on the result of this call.
-		LogicalResult setBody(
-				ArrayRef<Type> types, ArrayRef<std::string> fieldNames);
+		LogicalResult setBody(ArrayRef<mlir::rlc::ClassFieldAttr> fields);
 
 		/// Checks if a struct is initialized.
 		bool isInitialized() const;
@@ -98,7 +99,7 @@ namespace mlir::rlc
 		StringRef getName() const;
 
 		/// Returns the list of element types contained in a non-opaque struct.
-		ArrayRef<Type> getBody() const;
+		ArrayRef<mlir::rlc::ClassFieldAttr> getMembers() const;
 		ArrayRef<Type> getExplicitTemplateParameters() const;
 
 		/// Verifies that the type about to be constructed is well-formed.
@@ -117,6 +118,12 @@ namespace mlir::rlc
 		static Type parse(AsmParser &parser);
 
 		Type print(AsmPrinter &p) const;
+
+		void rlc_serialize(
+				llvm::raw_ostream &OS,
+				const mlir::rlc::SerializationContext &ctx) const;
+
+		mlir::Type rename(llvm::StringRef newName) const;
 	};
 
 	mlir::LogicalResult isTemplateType(mlir::Type type);
@@ -127,5 +134,6 @@ namespace mlir::rlc
 			mlir::FunctionType original,
 			mlir::rlc::TemplateParameterType toReplace,
 			mlir::Type replacement);
+
 }	 // namespace mlir::rlc
 	 //

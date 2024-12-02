@@ -174,6 +174,12 @@ static cl::opt<bool> hidePosition(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> hideDataLayout(
+		"hide-dl",
+		cl::desc("does not the datalayout of the file"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> debugInfo(
 		"g",
 		cl::desc("Add debug info to the output"),
@@ -191,6 +197,14 @@ static cl::opt<bool> shared(
 		cl::desc("compile as shared lib"),
 		cl::init(false),
 		cl::cat(astDumperCategory));
+
+static cl::opt<bool> verbose(
+		"verbose",
+		cl::desc("compile as shared lib"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::alias v1("v", cl::aliasopt(verbose));
 
 static cl::opt<bool> dumpIR(
 		"ir",
@@ -233,6 +247,12 @@ static cl::opt<std::string> customFuzzerLibPath(
 		"fuzzer-lib",
 		cl::desc("path to the fuzzer library."),
 		cl::init(""),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> formatFile(
+		"format",
+		cl::desc("print the file formatted"),
+		cl::init(false),
 		cl::cat(astDumperCategory));
 
 static cl::opt<std::string> customRuntime(
@@ -287,6 +307,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::compile;
 	if (dumpBeforeTemplate)
 		return Driver::Request::dumpBeforeTemplate;
+	if (formatFile)
+		return Driver::Request::format;
 	return Driver::Request::executable;
 }
 
@@ -368,6 +390,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setEmitSanitizer(sanitize);
 	driver.setTargetInfo(&info);
 	driver.setEmitBoundChecks(emitBoundChecks);
+	driver.setVerbose(verbose);
 
 	return driver;
 }
@@ -387,8 +410,11 @@ static int run(
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, inputFile, 0, 0), inputFile);
 
-	auto mlirDl = mlir::translateDataLayout(info.getDataLayout(), &context);
-	ast->setAttr("rlc.target_datalayout", mlirDl);
+	if (not hideDataLayout)
+	{
+		auto mlirDl = mlir::translateDataLayout(info.getDataLayout(), &context);
+		ast->setAttr("rlc.target_datalayout", mlirDl);
+	}
 
 	if (manager.run(ast).failed())
 	{

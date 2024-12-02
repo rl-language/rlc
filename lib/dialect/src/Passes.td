@@ -34,6 +34,10 @@ def ActionStatementsToCoroPass : Pass<"rlc-action-statements-to-coro", "mlir::Mo
 def LowerToLLVMPass : Pass<"rlc-lower-to-llvm", "mlir::ModuleOp"> {
   let summary = "lower to cf";
   let dependentDialects = ["rlc::RLCDialect", "LLVM::LLVMDialect"];
+  let options = [
+    Option<"debug_info", "add debug info", "bool", /*default=*/"false",
+           "add the debug info to the output module">,
+  ];
 }
 
 def RemoveUselessAllocaPass : Pass<"rlc-remove-useless-alloca", "mlir::ModuleOp"> {
@@ -59,6 +63,10 @@ def RemoveUninitConstructsPass : Pass<"rlc-remove-uninit-constructs", "mlir::Mod
 def EmitMainPass: Pass<"rlc-emit-main", "mlir::ModuleOp"> {
   let summary = "emit rlc main pass";
   let dependentDialects = ["rlc::RLCDialect"];
+  let options = [
+    Option<"debug_info", "add debug info", "bool", /*default=*/"false",
+           "add the debug info to the output module">,
+  ];
 }
 
 def LowerIsOperationsPass : Pass<"rlc-lower-is-operations", "mlir::ModuleOp"> {
@@ -162,6 +170,15 @@ def PrintIRPass : Pass<"rlc-print-ir-pass", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def SerializeRLPass : Pass<"rlc-serialize-ir-pass", "mlir::ModuleOp"> {
+  let summary = "prints the ir on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"&llvm::outs()",
+           "stream on which to print the module">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def PrintCHeaderPass : Pass<"rlc-print-c-header-pass", "mlir::ModuleOp"> {
   let summary = "prints the c header on the provided stream";
   let options = [
@@ -217,6 +234,8 @@ def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
           "rpath entries">,
     Option<"targetInfo", "info about the target", "const mlir::rlc::TargetInfo*", /*default=*/"nullptr",
            "info about the target">,
+    Option<"verbose", "print sub commands invoked", "bool", /*default=*/"false",
+           "prints sub commands invoked">,
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

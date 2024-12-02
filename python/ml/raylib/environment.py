@@ -86,7 +86,7 @@ def validate_env(module, forced_one_player=False, needs_score=True):
 
 class RLCEnvironment(MultiAgentEnv):
     def __init__(
-        self, program: Program, dc="", solve_randomness=True, forced_one_player=False
+        self, program: Program, dc="", solve_randomness=True, forced_one_player=False, initial_states=[]
     ):
         self.solve_randomess = solve_randomness
         self.program = program
@@ -94,6 +94,8 @@ class RLCEnvironment(MultiAgentEnv):
         self.has_score_function = has_score_function(self.module)
         self.has_get_current_player_f = has_get_current_player(self.module)
         self.num_players = get_num_players(self.module)
+        self.initial_states = initial_states
+        self.current_state = random.randint(0, len(initial_states))
         if not forced_one_player:
             self.num_agents = get_num_players(self.module)
         else:
@@ -101,8 +103,14 @@ class RLCEnvironment(MultiAgentEnv):
         self._setup()
         self.metrics_to_log = self._collect_env_metrics_to_log()
 
+    def set_initial_state(self):
+        if len(self.initial_states) != 0:
+            self.program.functions.assign(self.state.state, self.initial_states[self.current_state])
+            self.current_state = (self.current_state + 1) % len(self.initial_states)
+
     def _setup(self):
         self.state = self.program.start()
+        self.set_initial_state()
 
         self.state_size = (
             self.program.functions.observation_tensor_size(self.module.Game()) + 1
@@ -256,6 +264,7 @@ class RLCEnvironment(MultiAgentEnv):
         self.state.reset(
             seed=seed, options=options, path_to_binary_state=path_to_binary_state
         )
+        self.set_initial_state()
         self._resolve_randomness()
         observation = self._current_state()
         info = self._get_info()

@@ -18,6 +18,7 @@ limitations under the License.
 #include "mlir/IR/TypeSupport.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Support/StorageUniquer.h"
+#include "rlc/dialect/Attrs.hpp"
 
 namespace llvm
 {
@@ -66,18 +67,15 @@ namespace mlir::rlc
 		{
 			public:
 			llvm::StringRef name;
-			std::optional<llvm::SmallVector<mlir::Type, 2>> containedTypes;
-			llvm::SmallVector<std::string, 2> fieldNames;
+			std::optional<llvm::SmallVector<mlir::rlc::ClassFieldAttr, 2>> fields;
 			llvm::SmallVector<mlir::Type, 2> explicitTemplateParameters;
 
 			Key(llvm::StringRef name,
 					llvm::ArrayRef<Type> explicitTemplateParameters,
-					llvm::ArrayRef<std::string> fieldNames = {},
-					std::optional<llvm::ArrayRef<mlir::Type>> containedTypes =
+					std::optional<llvm::ArrayRef<mlir::rlc::ClassFieldAttr>> fields =
 							std::nullopt)
 					: name(name),
-						containedTypes(containedTypes),
-						fieldNames(fieldNames),
+						fields(fields),
 						explicitTemplateParameters(explicitTemplateParameters)
 			{
 			}
@@ -90,10 +88,10 @@ namespace mlir::rlc
 				return hashed;
 			}
 
-			llvm::ArrayRef<mlir::Type> getBody() const
+			llvm::ArrayRef<mlir::rlc::ClassFieldAttr> getFields() const
 			{
 				assert(isInitialized());
-				return *containedTypes;
+				return *fields;
 			}
 
 			llvm::ArrayRef<mlir::Type> getExplicitTemplateParameters() const
@@ -108,10 +106,7 @@ namespace mlir::rlc
 							 std::tie(name, explicitTemplateParameters);
 			}
 
-			[[nodiscard]] bool isInitialized() const
-			{
-				return containedTypes.has_value();
-			}
+			[[nodiscard]] bool isInitialized() const { return fields.has_value(); }
 		};
 
 		/// The type is uniquely identified by its name. Note that the contained
@@ -132,11 +127,7 @@ namespace mlir::rlc
 		Key getAsKey() const
 		{
 			if (content.isInitialized())
-				return Key(
-						content.name,
-						getExplicitTemplateParameters(),
-						getFieldNames(),
-						getBody());
+				return Key(content.name, getExplicitTemplateParameters(), getFields());
 			return Key(content.name, getExplicitTemplateParameters());
 		}
 
@@ -155,8 +146,7 @@ namespace mlir::rlc
 							allocator.copyInto<mlir::Type>(key.explicitTemplateParameters));
 			if (key.isInitialized())
 			{
-				auto result =
-						toReturn->mutate(allocator, key.getBody(), key.fieldNames);
+				auto result = toReturn->mutate(allocator, *key.fields);
 				assert(result.succeeded());
 			}
 
@@ -169,28 +159,20 @@ namespace mlir::rlc
 		/// from this function.
 		mlir::LogicalResult mutate(
 				mlir::StorageUniquer::StorageAllocator &,
-				llvm::ArrayRef<mlir::Type> body,
-				llvm::ArrayRef<std::string> fieldNames)
+				llvm::ArrayRef<mlir::rlc::ClassFieldAttr> fields)
 		{
-			if (content.containedTypes.has_value() and
-					body == llvm::ArrayRef(*content.containedTypes))
+			if (content.fields.has_value() and
+					fields == llvm::ArrayRef(*content.fields))
 				return mlir::success();
 
 			// If the contained type has been initialized already, and the call tries
 			// to change it, reject the change.
-			if (content.containedTypes.has_value())
+			if (content.fields.has_value())
 				return mlir::failure();
 
-			content.containedTypes = llvm::SmallVector<mlir::Type, 2>();
-			// Change the body successfully.
-			for (auto type : body)
-			{
-				assert(type != nullptr);
-				content.containedTypes->push_back(type);
-			}
-			this->content.fieldNames.clear();
-			for (const auto &field : fieldNames)
-				this->content.fieldNames.push_back(field);
+			this->content.fields.emplace();
+			for (const auto &field : fields)
+				this->content.fields->push_back(field);
 			return mlir::success();
 		}
 
@@ -198,16 +180,15 @@ namespace mlir::rlc
 
 		[[nodiscard]] bool isInitialized() const { return content.isInitialized(); }
 
-		llvm::ArrayRef<std::string> getFieldNames() const
-		{
-			return content.fieldNames;
-		}
 		llvm::ArrayRef<mlir::Type> getExplicitTemplateParameters() const
 		{
 			return content.getExplicitTemplateParameters();
 		}
 
-		llvm::ArrayRef<mlir::Type> getBody() const { return content.getBody(); }
+		llvm::ArrayRef<mlir::rlc::ClassFieldAttr> getFields() const
+		{
+			return content.getFields();
+		}
 
 		private:
 		Key content;
@@ -230,7 +211,7 @@ namespace mlir
 				walker.walk(type);
 
 			if (param.isInitialized())
-				for (Type type : param.getBody())
+				for (mlir::Attribute type : param.getFields())
 					walker.walk(type);
 		}
 		static FailureOr<rlc::StructTypeStorage::Key> replace(
@@ -242,9 +223,13 @@ namespace mlir
 			{
 				auto templateParameters =
 						typeRepls.take_front(param.getExplicitTemplateParameters().size());
-				auto members = typeRepls.take_front(param.getBody().size());
+				auto members = attrRepls.take_front(param.getFields().size());
+				llvm::SmallVector<rlc::ClassFieldAttr> attrs;
+				for (auto member : members)
+					attrs.push_back(member.cast<rlc::ClassFieldAttr>());
+
 				return rlc::StructTypeStorage::Key(
-						param.name, templateParameters, param.fieldNames, members);
+						param.name, templateParameters, attrs);
 			}
 
 			return rlc::StructTypeStorage::Key(

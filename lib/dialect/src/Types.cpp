@@ -57,8 +57,7 @@ ClassType ClassType::getIdentified(
 ClassType ClassType::getNewIdentified(
 		MLIRContext *context,
 		StringRef name,
-		ArrayRef<Type> elements,
-		ArrayRef<std::string> fieldNames,
+		ArrayRef<mlir::rlc::ClassFieldAttr> fields,
 		ArrayRef<Type> explicitTemplateParameters)
 {
 	std::string stringName = name.str();
@@ -67,7 +66,7 @@ ClassType ClassType::getNewIdentified(
 	{
 		auto type = ClassType::getIdentified(
 				context, stringName, explicitTemplateParameters);
-		if (type.isInitialized() || failed(type.setBody(elements, fieldNames)))
+		if (type.isInitialized() || failed(type.setBody(fields)))
 		{
 			counter += 1;
 			stringName = (Twine(name) + "." + std::to_string(counter)).str();
@@ -78,9 +77,9 @@ ClassType ClassType::getNewIdentified(
 }
 
 mlir::LogicalResult ClassType::setBody(
-		ArrayRef<Type> types, ArrayRef<std::string> fieldNames)
+		ArrayRef<mlir::rlc::ClassFieldAttr> fields)
 {
-	return Base::mutate(types, fieldNames);
+	return Base::mutate(fields);
 }
 
 bool ClassType::isInitialized() const { return getImpl()->isInitialized(); }
@@ -88,9 +87,9 @@ llvm::StringRef ClassType::getName() const
 {
 	return getImpl()->getIdentifier();
 }
-llvm::ArrayRef<mlir::Type> ClassType::getBody() const
+llvm::ArrayRef<mlir::rlc::ClassFieldAttr> ClassType::getMembers() const
 {
-	return getImpl()->getBody();
+	return getImpl()->getFields();
 }
 
 llvm::ArrayRef<mlir::Type> ClassType::getExplicitTemplateParameters() const
@@ -114,8 +113,8 @@ void ClassType::walkImmediateSubElements(
 		function_ref<void(Attribute)> walkAttrsFn,
 		function_ref<void(Type)> walkTypesFn) const
 {
-	for (Type type : getBody())
-		walkTypesFn(type);
+	for (auto attr : getMembers())
+		walkAttrsFn(attr);
 
 	for (Type type : getExplicitTemplateParameters())
 		walkTypesFn(type);
@@ -125,16 +124,15 @@ mlir::Type ClassType::replaceImmediateSubElements(
 		ArrayRef<Attribute> replAttrs, ArrayRef<Type> replTypes) const
 {
 	auto type = ClassType::getIdentified(
-			getContext(), getName(), replTypes.drop_front(getBody().size()));
-	auto result =
-			type.setBody(replTypes.take_front(getBody().size()), getFieldNames());
+			getContext(), getName(), replTypes.drop_front(getMembers().size()));
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr> fields;
+	for (auto attr : replAttrs.take_front(getMembers().size()))
+	{
+		fields.push_back(attr.cast<mlir::rlc::ClassFieldAttr>());
+	}
+	auto result = type.setBody(fields);
 	assert(result.succeeded());
 	return type;
-}
-
-llvm::ArrayRef<std::string> ClassType::getFieldNames() const
-{
-	return getImpl()->getFieldNames();
 }
 
 mlir::Type ClassType::parse(mlir::AsmParser &parser)
@@ -173,28 +171,17 @@ mlir::Type ClassType::parse(mlir::AsmParser &parser)
 	auto toReturn =
 			ClassType::getIdentified(parser.getContext(), name, templateParameters);
 
-	llvm::SmallVector<std::string, 2> names;
-	llvm::SmallVector<mlir::Type, 2> inners;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 2> inners;
 
 	if (parser.parseLBrace().succeeded())
 	{
 		while (parser.parseOptionalRBrace().failed())
 		{
-			names.emplace_back();
-			if (parser.parseKeywordOrString(&names.back()).failed() or
-					parser.parseColon().failed())
+			mlir::Attribute field;
+			if (parser.parseAttribute(field).failed())
 			{
 				parser.emitError(
-						parser.getCurrentLocation(), "failed to parse Class sub type ");
-				return {};
-			}
-
-			mlir::Type elem = {};
-			auto res = parser.parseType(elem);
-			if (res.failed())
-			{
-				parser.emitError(
-						parser.getCurrentLocation(), "failed to parse Class sub type ");
+						parser.getCurrentLocation(), "failed to parse class member");
 				return {};
 			}
 
@@ -207,11 +194,11 @@ mlir::Type ClassType::parse(mlir::AsmParser &parser)
 				return {};
 			}
 
-			inners.push_back(elem);
+			inners.push_back(field.cast<mlir::rlc::ClassFieldAttr>());
 		}
 	}
 
-	if (toReturn.setBody(inners, names).failed())
+	if (toReturn.setBody(inners).failed())
 	{
 		parser.emitError(
 				parser.getCurrentLocation(),
@@ -248,11 +235,9 @@ mlir::Type ClassType::print(mlir::AsmPrinter &p) const
 		return *this;
 	}
 	p << " {";
-	for (const auto &[type, name] : llvm::zip(getBody(), getFieldNames()))
+	for (auto member : getMembers())
 	{
-		p << name;
-		p << ": ";
-		p.printType(type);
+		p.printAttribute(member);
 		p << ", ";
 	}
 
@@ -332,6 +317,11 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 	if (auto maybeType = t.dyn_cast<mlir::rlc::UnknownType>())
 	{
 		OS << "Unkown";
+		return;
+	}
+	if (auto maybeType = t.dyn_cast<mlir::rlc::AliasType>())
+	{
+		OS << maybeType.getName();
 		return;
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
@@ -653,18 +643,18 @@ std::string mlir::rlc::mangledName(
 }
 
 std::string mlir::rlc::prettyPrintFunctionTypeWithNameArgs(
-		mlir::FunctionType fType, mlir::ArrayAttr attr)
+		mlir::FunctionType fType, mlir::rlc::FunctionInfoAttr attr)
 {
 	std::string toReturn = "(";
 	size_t current = 0;
-	if (fType.getNumInputs() != attr.size())
+	if (fType.getNumInputs() != attr.getArgs().size())
 		return mlir::rlc::prettyType(fType);
 
-	for (auto [type, name] : llvm::zip(fType.getInputs(), attr))
+	for (auto [type, arg] : llvm::zip(fType.getInputs(), attr.getArgs()))
 	{
 		toReturn += mlir::rlc::prettyType(type);
 		toReturn += " ";
-		toReturn += name.cast<mlir::StringAttr>().getValue().str();
+		toReturn += arg.getName();
 		current++;
 		if (current != fType.getInputs().size())
 			toReturn += ", ";
@@ -779,8 +769,8 @@ mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 		if (not casted.isInitialized())
 			return mlir::failure();
 
-		for (auto child : casted.getBody())
-			if (isTemplateType(child).succeeded())
+		for (auto child : casted.getMembers())
+			if (isTemplateType(child.getType()).succeeded())
 				return mlir::success();
 		return mlir::failure();
 	}
@@ -893,4 +883,146 @@ mlir::Type mlir::rlc::decayCtxFrmType(mlir::Type t)
 int64_t mlir::rlc::ArrayType::getArraySize()
 {
 	return getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();
+}
+
+void mlir::rlc::IntegerType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "Int";
+}
+
+void mlir::rlc::AliasType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << getName();
+	if (getExplicitTemplateParameters().empty())
+		return;
+	OS << "<";
+	for (auto templateParameter : llvm::drop_end(getExplicitTemplateParameters()))
+	{
+		templateParameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+		OS << ", ";
+	}
+	getExplicitTemplateParameters()
+			.back()
+			.cast<mlir::rlc::RLCSerializable>()
+			.rlc_serialize(OS, ctx);
+	OS << ">";
+}
+
+void mlir::rlc::StringLiteralType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "StringLiteral";
+}
+
+void mlir::rlc::FloatType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "Float";
+}
+
+void mlir::rlc::BoolType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "Bool";
+}
+
+void mlir::rlc::ReferenceType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "ref ";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+}
+
+void mlir::rlc::OwningPtrType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "OwningPtr<";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	OS << ">";
+}
+
+void mlir::rlc::AlternativeType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	for (size_t i = 0; i != getUnderlying().size(); i++)
+	{
+		getUnderlying()[i].cast<mlir::rlc::RLCSerializable>().rlc_serialize(
+				OS, ctx);
+		if (i + 1 != getUnderlying().size())
+			OS << " | ";
+	}
+}
+
+void mlir::rlc::ArrayType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	OS << "[";
+	getSize().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	OS << "]";
+}
+
+void mlir::rlc::TemplateParameterType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	if (getTrait() != nullptr)
+	{
+		getTrait().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	}
+	OS << getName();
+}
+
+mlir::Type mlir::rlc::AliasType::rename(llvm::StringRef newName) const
+{
+	return mlir::rlc::AliasType::get(newName, getUnderlying());
+}
+
+mlir::Type mlir::rlc::ClassType::rename(llvm::StringRef newName) const
+{
+	return getNewIdentified(
+			getContext(), newName, getMembers(), getExplicitTemplateParameters());
+}
+
+void mlir::rlc::ContextType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "ctx ";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+}
+
+void mlir::rlc::FrameType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << "frm ";
+	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+}
+
+void mlir::rlc::IntegerLiteralType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << getValue();
+}
+
+void mlir::rlc::ClassType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << getName();
+	if (getExplicitTemplateParameters().size() != 0)
+	{
+		OS << "<";
+		for (auto templateParameter :
+				 llvm::drop_end(getExplicitTemplateParameters()))
+		{
+			templateParameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(
+					OS, ctx);
+			OS << ", ";
+		}
+		getExplicitTemplateParameters()
+				.back()
+				.cast<mlir::rlc::RLCSerializable>()
+				.rlc_serialize(OS, ctx);
+		OS << ">";
+	}
 }

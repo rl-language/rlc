@@ -419,7 +419,8 @@ namespace mlir::rlc
 				action.getLoc(),
 				firstStatement.getName(),
 				type,
-				firstStatement.getDeclaredNames(),
+				mlir::rlc::FunctionInfoAttr::get(
+						action.getContext(), firstStatement.getDeclaredNames()),
 				true);
 		action.getActions()[subActionIndex].replaceAllUsesWith(subF);
 
@@ -476,7 +477,8 @@ namespace mlir::rlc
 				action.getLoc(),
 				action.getUnmangledName(),
 				decayFunctionType(action.getType().cast<mlir::FunctionType>()),
-				action.getArgNames(),
+				mlir::rlc::FunctionInfoAttr::get(
+						action.getContext(), action.getArgNames()),
 				false);
 
 		f.getPrecondition().takeBody(action.getPrecondition());
@@ -670,7 +672,7 @@ namespace mlir::rlc
 						action.getLoc(),
 						"is_done",
 						action.getIsDoneFunctionType(),
-						rewriter.getStrArrayAttr({ "frame" }),
+						mlir::rlc::FunctionInfoAttr::get(action.getContext(), { "frame" }),
 						true);
 
 				auto* block = rewriter.createBlock(
@@ -701,7 +703,8 @@ namespace mlir::rlc
 								action.getContext(),
 								{ actionType, getHiddenFrameType(action) },
 								{}),
-						rewriter.getStrArrayAttr({ "frame", "hidden_frame" }),
+						mlir::rlc::FunctionInfoAttr::get(
+								action.getContext(), { "frame", "hidden_frame" }),
 						true);
 				loweredToFun.getBody().takeBody(action.getBody());
 				action.getResult().replaceAllUsesWith(loweredToFun);

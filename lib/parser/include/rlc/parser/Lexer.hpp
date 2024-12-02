@@ -32,7 +32,9 @@ namespace rlc
 		KeywordSystem,
 		KeywordTrait,
 		KeywordIs,
+		KeywordBitAnd,
 		KeywordAnd,
+		KeywordBitXor,
 		KeywordOr,
 		KeywordRule,
 		KeywordEnum,
@@ -40,6 +42,7 @@ namespace rlc
 		KeywordAssert,
 		KeywordDestroy,
 		KeywordContstruct,
+		KeywordConst,
 		KeywordCan,
 		KeywordBreak,
 		KeywordContinue,
@@ -52,6 +55,7 @@ namespace rlc
 		KeywordAlternative,
 		KeywordAction,
 		KeywordSubAction,
+		KeywordPass,
 		KeywordFrame,
 		KeywordCtx,
 		KeywordClass,
@@ -106,6 +110,7 @@ namespace rlc
 		Int64,
 		Bool,
 		Dot,
+		Tilde,
 		Error,
 		VerticalPipe
 	};
@@ -128,6 +133,19 @@ namespace rlc
 		[[nodiscard]] llvm::StringRef lastString() const { return lString; }
 		[[nodiscard]] llvm::StringRef lastIndent() const { return lIdent; }
 		[[nodiscard]] size_t getCurrentColumn() const { return currentColumn; }
+		[[nodiscard]] size_t getStartOfTokenCol() const { return tokenStartCol; }
+
+		void startToken()
+		{
+			tokenStartCol = currentColumn;
+			tokenStartLine = currentLine;
+		}
+
+		[[nodiscard]] size_t getStartOfTokenLine() const { return tokenStartLine; }
+		[[nodiscard]] size_t getLastNonWhiteSpaceColumn() const
+		{
+			return lastNonWitheSpaceColumn;
+		}
 		[[nodiscard]] size_t getCurrentLine() const { return currentLine; }
 		// returns the comments before the last token but after the previous tokens.
 		[[nodiscard]] llvm::StringRef getLastComment() const { return lComment; }
@@ -150,6 +168,9 @@ namespace rlc
 
 		const char* in;
 		size_t currentLine{ 1 };
+		size_t lastNonWitheSpaceColumn{ 1 };
+		size_t tokenStartCol{ 1 };
+		size_t tokenStartLine{ 1 };
 		size_t currentColumn{ 1 };
 		std::vector<size_t> indentStack;
 		bool newLine{ true };
@@ -163,5 +184,6 @@ namespace rlc
 		size_t deindentToEmit{ 0 };
 		bool parsingString = false;
 		bool emittedExtraNewLine = false;
+		bool parsingComment = false;
 	};
 }	 // namespace rlc

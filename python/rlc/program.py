@@ -92,7 +92,7 @@ class State:
         return self.program.as_byte_vector(obj, self.state)
 
     def load_string(self, string: str) -> bool:
-        return self.program.load_string(str, self.state)
+        return self.program.load_string(string, self.state)
 
     def load_byte_vector(self, byte_vector):
         self.program.load_byte_vector(byte_vector, self.state)
@@ -104,7 +104,7 @@ class State:
         self.program.load_string_from_file(path, self.state)
 
     def load_string_from_file(self, path: str) -> bool:
-        self.program.load_string_from_file(path, self.state)
+        return self.program.load_string_from_file(path, self.state)
 
     def print(self):
         program.functions.print(state.state)
@@ -202,7 +202,7 @@ class Program:
         return bytes(real_content)
 
     def load_string(self, string: str, obj) -> bool:
-        rl_string = self.to_rl_string(str)
+        rl_string = self.to_rl_string(string)
         return self.module.functions.from_string(obj, rl_string)
 
     def load_byte_vector(self, byte_vector, obj):
@@ -221,10 +221,10 @@ class Program:
             bytes = file.read()
             self.from_byte_vector(bytes)
 
-    def load_string_from_file(self, path: str) -> bool:
+    def load_string_from_file(self, path: str, obj) -> bool:
         with open(path, mode="r") as file:
             bytes = file.read()
-            return self.from_string(bytes)
+            return self.load_string(bytes, obj)
 
 
 def stdlib_location(rlc):

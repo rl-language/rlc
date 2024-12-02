@@ -16,8 +16,14 @@ limitations under the License.
 
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Pass/Pass.h"
+#include "rlc/dialect/IRBuilder.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
+
+static void f(mlir::ModuleOp op, mlir::Value lhs, mlir::Value rhs)
+{
+	mlir::rlc::IRBuilder builder(op);
+}
 
 static mlir::LogicalResult findClassDecls(
 		mlir::ModuleOp op, llvm::StringMap<mlir::Operation*>& out)
@@ -99,9 +105,8 @@ static mlir::LogicalResult getClassDeclarationSortedByDependencies(
 	for (auto classDecl : op.getOps<mlir::rlc::ClassDeclaration>())
 	{
 		llvm::SmallVector<mlir::StringRef, 2> names;
-		for (auto subtypes : classDecl.getMemberTypes())
-			collectClassUsedTyepNames(
-					subtypes.cast<mlir::TypeAttr>().getValue(), names);
+		for (auto field : classDecl.getMemberFields())
+			collectClassUsedTyepNames(field.getDeshugarizedType(), names);
 
 		// remove the use of names that refer to the template parameters
 		for (auto parameter : classDecl.getTemplateParameters())
@@ -194,10 +199,11 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 				casted.getLoc(),
 				mlir::rlc::ClassType::getIdentified(
 						casted.getContext(), casted.getName(), templates),
-				casted.getName(),
-				casted.getMemberTypes(),
-				casted.getMemberNames(),
-				casted.getTemplateParameters());
+				casted.getNameAttr(),
+				casted.getMembers(),
+				casted.getTemplateParameters(),
+				casted.getTypeLocation().has_value() ? *casted.getTypeLocation()
+																						 : nullptr);
 		rewriter.eraseOp(casted);
 	}
 	return mlir::success();
@@ -218,15 +224,15 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 			return mlir::rlc::logError(
 					action, "Action statements must have a return type");
 		}
-		auto type = action.getClassType();
+		mlir::rlc::ClassType type = action.getClassType();
 
 		auto classDecl = rewriter.create<mlir::rlc::ClassDeclaration>(
 				action.getLoc(),
 				type,
-				rewriter.getStringAttr(type.getName()),
-				rewriter.getTypeArrayAttr({}),
-				rewriter.getStrArrayAttr({}),
-				rewriter.getArrayAttr({}));
+				type.getName(),
+				llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 3>({}),
+				mlir::ArrayRef<mlir::Type>({}),
+				nullptr);
 
 		if (decls.count(type.getName()) != 0)
 		{
@@ -261,8 +267,8 @@ static mlir::LogicalResult deduceClassBody(
 	if (builder.isClassOfAction(decl.getType()))
 		return mlir::success();
 
-	llvm::SmallVector<std::string> names;
-	llvm::SmallVector<mlir::Type, 2> types;
+	llvm::SmallVector<mlir::rlc::ClassFieldAttr> newFields;
+	llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr> newFieldsDeclarations;
 
 	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
 
@@ -285,23 +291,37 @@ static mlir::LogicalResult deduceClassBody(
 		scopedConverter.registerType(actualType.getName(), actualType);
 	}
 
-	for (const auto& [field, name] :
-			 llvm::zip(decl.getMemberTypes(), decl.getMemberNames()))
+	for (auto field : decl.getMemberFields())
 	{
-		auto fieldType = field.cast<mlir::TypeAttr>().getValue();
-		auto converted = scopedConverter.convertType(fieldType);
+		auto converted = scopedConverter.convertType(field.getDeshugarizedType());
 		if (!converted)
 		{
 			return mlir::failure();
 		}
+		newFields.push_back(
+				mlir::rlc::ClassFieldAttr::get(field.getName(), converted));
 
-		types.push_back(converted);
-		names.push_back(name.cast<mlir::StringAttr>().str());
+		if (field.getShugarizedType())
+		{
+			auto shugarizedType = scopedConverter.shugarizedConvertType(
+					field.getShugarizedType().getType());
+			if (!shugarizedType)
+			{
+				return mlir::failure();
+			}
+			newFieldsDeclarations.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(
+					field.getContext(),
+					newFields.back(),
+					field.getShugarizedType().replaceType(shugarizedType)));
+		}
+		else
+			newFieldsDeclarations.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(
+					field.getContext(), newFields.back(), nullptr));
 	}
 	auto finalType = mlir::rlc::ClassType::getIdentified(
 			decl.getContext(), decl.getName(), checkedTemplateParameters);
 
-	if (finalType.setBody(types, names).failed())
+	if (finalType.setBody(newFields).failed())
 	{
 		assert(false && "unrechable");
 		return mlir::failure();
@@ -311,9 +331,9 @@ static mlir::LogicalResult deduceClassBody(
 			decl,
 			finalType,
 			decl.getName(),
-			rewriter.getTypeArrayAttr(types),
-			decl.getMemberNames(),
-			rewriter.getTypeArrayAttr(checkedTemplateParameters));
+			newFieldsDeclarations,
+			checkedTemplateParameters,
+			decl.getTypeLocation().has_value() ? *decl.getTypeLocation() : nullptr);
 
 	return mlir::success();
 }
@@ -553,7 +573,9 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 		}
 
 		auto convertedReturnType = builder.getConverter().convertType(funType);
-		if (convertedReturnType == nullptr)
+		auto shugarized =
+				builder.getConverter().shugarizedConvertType(fun.getFunctionType());
+		if (convertedReturnType == nullptr or shugarized == nullptr)
 		{
 			return mlir::rlc::logError(
 					fun,
@@ -571,14 +593,55 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 
 		rewriter.setInsertionPoint(fun);
 		fun.getResult().setType(actionType);
+		fun.setInfoAttr(
+				fun.getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
 		fun.getIsDoneFunction().setType(isDoneType);
 	}
+	return mlir::success();
+}
+
+static mlir::LogicalResult areArgumentsEqual(
+		mlir::FunctionType lhs, mlir::FunctionType rhs)
+{
+	if (lhs.getNumInputs() != rhs.getNumInputs())
+		return mlir::failure();
+
+	for (auto [l, r] : llvm::zip(lhs.getInputs(), rhs.getInputs()))
+		if (l != r)
+			return mlir::failure();
+
+	return mlir::success();
+}
+
+static mlir::LogicalResult checkForActionRedefinitions(
+		mlir::rlc::ActionFunction typeChecked,
+		llvm::StringMap<mlir::FunctionType>& actionNameToMainFunctionType)
+{
+	auto candidate =
+			actionNameToMainFunctionType.find(typeChecked.getUnmangledName());
+	if (candidate == actionNameToMainFunctionType.end())
+	{
+		actionNameToMainFunctionType[typeChecked.getUnmangledName()] =
+				typeChecked.getFunctionType();
+		return mlir::success();
+	}
+	if (areArgumentsEqual(candidate->getValue(), typeChecked.getFunctionType())
+					.succeeded())
+	{
+		return logError(
+				typeChecked,
+				"Redefinition of action function named " +
+						typeChecked.getUnmangledName());
+	}
+	actionNameToMainFunctionType[typeChecked.getUnmangledName()] =
+			typeChecked.getFunctionType();
 	return mlir::success();
 }
 
 static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 {
 	mlir::IRRewriter rewriter(op.getContext());
+	llvm::StringMap<mlir::FunctionType> actionNameToMainFunctionType;
 
 	bool foundOne = true;
 	// the actions are allowed to type check each other, but that means that they
@@ -595,11 +658,14 @@ static mlir::LogicalResult typeCheckActions(mlir::ModuleOp op)
 			auto typeChecked = mlir::rlc::detail::typeCheckAction(fun);
 			if (typeChecked == nullptr)
 				return mlir::failure();
-			if (typeChecked != fun)
-			{
-				foundOne = true;
-				break;
-			}
+			if (typeChecked == fun)
+				continue;
+
+			foundOne = true;
+			if (checkForActionRedefinitions(typeChecked, actionNameToMainFunctionType)
+							.failed())
+				return mlir::failure();
+			break;
 		}
 	}
 	return mlir::success();

@@ -33,12 +33,17 @@ char Lexer::eatChar()
 	{
 		currentLine++;
 		currentColumn = 1;
+		lastNonWitheSpaceColumn = 1;
 	}
-	if ((c == '(' or c == '{' or c == '[') and not parsingString)
+	if (not isspace(c))
+		lastNonWitheSpaceColumn = currentColumn;
+	if ((c == '(' or c == '{' or c == '[') and not parsingString and
+			not parsingComment)
 	{
 		nestedParentesys++;
 	}
-	if ((c == ')' or c == '}' or c == ']') and not parsingString)
+	if ((c == ')' or c == '}' or c == ']') and not parsingString and
+			not parsingComment)
 	{
 		nestedParentesys--;
 	}
@@ -57,6 +62,8 @@ void Lexer::print(llvm::raw_ostream& OS)
 	while (token != Token::End)
 	{
 		OS << tokenToString(token);
+		OS << " start[" << tokenStartLine << ":" << tokenStartCol << "]";
+		OS << " end[" << currentLine << ":" << currentColumn << "]";
 		OS << "\n";
 		token = next();
 	}
@@ -80,10 +87,16 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordTrait";
 		case Token::KeywordIs:
 			return "KeywordIs";
+		case Token::KeywordBitXor:
+			return "KeywordBitXor";
+		case Token::KeywordBitAnd:
+			return "KeywordBitAnd";
 		case Token::KeywordAnd:
 			return "KeywordAnd";
 		case Token::KeywordOr:
 			return "KeywordOr";
+		case Token::KeywordConst:
+			return "KeywordConst";
 		case Token::KeywordRule:
 			return "KeywordRule";
 		case Token::KeywordContinue:
@@ -104,6 +117,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordLet";
 		case Token::KeywordClass:
 			return "KeywordClass";
+		case Token::KeywordPass:
+			return "KeywordPass";
 		case Token::KeywordDestroy:
 			return "KeywordDestroy";
 		case Token::KeywordContstruct:
@@ -188,6 +203,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Colons";
 		case Token::ColonsColons:
 			return "ColonsColons";
+		case Token::Tilde:
+			return "Tilde";
 		case Token::Equal:
 			return "Equal";
 		case Token::Identifier:
@@ -345,6 +362,12 @@ optional<Token> Lexer::eatSymbol()
 			return Token::Comma;
 		case '.':
 			return Token::Dot;
+		case '~':
+			return Token::Tilde;
+		case '&':
+			return Token::KeywordBitAnd;
+		case '^':
+			return Token::KeywordBitXor;
 		case '\n':
 			return Token::Newline;
 		case '|':
@@ -411,8 +434,14 @@ Token Lexer::eatIdent()
 	if (name == "evn")
 		return Token::KeywordEvent;
 
+	if (name == "const")
+		return Token::KeywordConst;
+
 	if (name == "rul")
 		return Token::KeywordRule;
+
+	if (name == "pass")
+		return Token::KeywordPass;
 
 	if (name == "using")
 		return Token::KeywordUsing;
@@ -553,6 +582,7 @@ bool Lexer::eatComment()
 {
 	if (*in == '#')
 	{
+		parsingComment = true;
 		eatChar();
 		bool doubleComment = *in == '#';
 		while (*in != '\n' and *in != '\0')
@@ -560,6 +590,7 @@ bool Lexer::eatComment()
 		lComment += "\n";
 		if (doubleComment)
 			lComment.clear();
+		parsingComment = false;
 		return true;
 	}
 	return false;
@@ -666,6 +697,7 @@ Token Lexer::nextWithoutTrailingConsume()
 		consumeLine = eatComment();
 	}
 
+	startToken();
 	if (isdigit(*in) != 0)
 		return eatNumber();
 

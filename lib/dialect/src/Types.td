@@ -2,6 +2,10 @@
 // our types.
 include "mlir/IR/AttrTypeBase.td"
 include "Dialect.td"
+include "mlir/IR/OpBase.td"
+include "Interfaces.td"
+
+
 
 // It's common to define a base classes for types in the same dialect. This
 // removes the need to pass in the dialect for each type, and can also be used
@@ -12,7 +16,7 @@ class RLC_Type<string name, string typeMnemonic, list<Trait> traits = []>
 }
 
 // Here is a simple definition of an "integer" type, with a width parameter.
-def RLC_IntegerType : RLC_Type<"Integer", "int"> {
+def RLC_IntegerType : RLC_Type<"Integer", "int", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC builtin integer type";
   let description = [{
     Implementation agnostic integer type.
@@ -43,7 +47,7 @@ def RLC_IntegerType : RLC_Type<"Integer", "int"> {
   let assemblyFormat = "`<` $size`>`";
 }
 
-def RLC_StringLiteralType : RLC_Type<"StringLiteral", "str_literal"> {
+def RLC_StringLiteralType : RLC_Type<"StringLiteral", "str_literal", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC string literal type";
   let description = [{
     Implementation agnostic float type.
@@ -58,7 +62,7 @@ def RLC_VoidType : RLC_Type<"Void", "void"> {
 
 }
 
-def RLC_FloatType : RLC_Type<"Float", "float"> {
+def RLC_FloatType : RLC_Type<"Float", "float", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC builtin float type";
   let description = [{
     Implementation agnostic float type.
@@ -66,14 +70,14 @@ def RLC_FloatType : RLC_Type<"Float", "float"> {
 
 }
 
-def RLC_BoolType : RLC_Type<"Bool", "bool"> {
+def RLC_BoolType : RLC_Type<"Bool", "bool", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC builtin bool type";
   let description = [{
     Implementation agnostic bool type.
   }];
 }
 
-def RLC_ReferenceType : RLC_Type<"Reference", "ref"> {
+def RLC_ReferenceType : RLC_Type<"Reference", "ref", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC reference type";
   let description = [{
     reference type.
@@ -88,7 +92,7 @@ def RLC_ReferenceType : RLC_Type<"Reference", "ref"> {
   ];
 }
 
-def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr"> {
+def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC array type";
   let description = [{
     Class type.
@@ -96,9 +100,15 @@ def RLC_OwningPtrType : RLC_Type<"OwningPtr", "owning_ptr"> {
 
   let parameters = (ins "Type":$underlying);
   let assemblyFormat = "`<` $underlying `>` ";
+
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins "mlir::Type":$underlying),[{
+		return 	mlir::rlc::OwningPtrType::get(underlying.getContext(), underlying);
+	  }]>,
+  ];
 }
 
-def RLC_AlternativeType : RLC_Type<"Alternative", "alternative"> {
+def RLC_AlternativeType : RLC_Type<"Alternative", "alternative", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC alternative type";
   let description = [{
     Alternative type.
@@ -112,7 +122,7 @@ def RLC_AlternativeType : RLC_Type<"Alternative", "alternative"> {
 }
 
 
-def RLC_ArrayType : RLC_Type<"Array", "array"> {
+def RLC_ArrayType : RLC_Type<"Array", "array", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC array type";
   let description = [{
     Class type.
@@ -189,7 +199,7 @@ def RLC_UncheckedTemplateParameterType : RLC_Type<"UncheckedTemplateParameter", 
 }
 
 
-def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter"> {
+def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_parameter", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC type rappresenting a template paremeter";
   let description = [{
 	 rapresents template parameter
@@ -222,7 +232,7 @@ def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
   }];
 }
 
-def RLC_ContextType : RLC_Type<"Context", "ctx"> {
+def RLC_ContextType : RLC_Type<"Context", "ctx", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "Marks a type as being allocated externally to the action and needs to passed to every action.";
   let description = [{
         Marks a type as being allocated in the frame of a action and needs to be passed to every action.
@@ -237,7 +247,22 @@ def RLC_ContextType : RLC_Type<"Context", "ctx"> {
   ];
 }
 
-def RLC_FrameType : RLC_Type<"Frame", "frame"> {
+def RLC_AliasType : RLC_Type<"Alias", "alias", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>, DeclareTypeInterfaceMethods<RLC_Renemable>]> {
+  let summary = "a type created by the using X = Y statements";
+  let description = [{
+Syntactical shugar type that is kept around to allow for LSP renames, better errors and so on. It does nothing for semantics of the program and never appears on values.
+  }];
+
+  let parameters = (ins  StringRefParameter<>:$name, "Type":$underlying, OptionalArrayRefParameter<"Type">:$explicit_template_parameters);
+  let assemblyFormat = "`<`$name `=` $underlying`>`";
+  let builders = [
+	  TypeBuilderWithInferredContext<(ins  "llvm::StringRef":$name, "mlir::Type":$underlying, CArg<"llvm::ArrayRef<mlir::Type>", "{}">:$explicit_template_parameters),[{
+		return mlir::rlc::AliasType::get(underlying.getContext(), name, underlying, explicit_template_parameters);
+	  }]>,
+  ];
+}
+
+def RLC_FrameType : RLC_Type<"Frame", "frame", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "Marks a type as being allocated in the frame of a action.";
   let description = [{
         Marks a type as being allocated in the frame of a action.
@@ -270,7 +295,7 @@ def RLC_ProxyType : RLC_Type<"Proxy", "proxy"> {
 
 
 // Here is a simple definition of an "integer" type, with a width parameter.
-def RLC_IntegerLiteralType : RLC_Type<"IntegerLiteral", "int_literal"> {
+def RLC_IntegerLiteralType : RLC_Type<"IntegerLiteral", "int_literal", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC builtin integer type";
   let description = [{
     Implementation agnostic integer type.

@@ -13,9 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-#include "any"
 #include "gtest/gtest.h"
 
+#include "any"
 #include "rlc/dialect/ActionArgumentAnalysis.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Operations.hpp"
@@ -38,7 +38,11 @@ TEST(DialectTest, structTest)
 	auto integer = mlir::rlc::IntegerType::getInt64(&ctx);
 	auto floattype = mlir::rlc::FloatType::get(&ctx);
 	auto classDecl = mlir::rlc::ClassType::getNewIdentified(
-			&ctx, "peppino", { integer, floattype }, { "asdint", "asdfloat" }, {});
+			&ctx,
+			"peppino",
+			{ mlir::rlc::ClassFieldAttr::get("asdint", integer),
+				mlir::rlc::ClassFieldAttr::get("asdfloat", floattype) },
+			{});
 	EXPECT_EQ(classDecl.getMnemonic(), "class");
 	EXPECT_EQ(classDecl.getName(), "peppino");
 }
@@ -71,8 +75,8 @@ TEST(ActionArgumentAnalysisTest, integerBoundTest)
 	auto action = builder.create<mlir::rlc::ActionStatement>(
 			builder.getUnknownLoc(),
 			mlir::TypeRange({ mlir::rlc::IntegerType::getInt64(&ctx) }),
-			"dc",
-			builder.getStrArrayAttr({ "arg" }),
+			builder.getStringAttr("dc"),
+			mlir::rlc::FunctionInfoAttr::get(builder.getContext(), { "arg" }),
 			0,
 			0);
 

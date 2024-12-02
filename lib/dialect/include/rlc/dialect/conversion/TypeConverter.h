@@ -143,8 +143,8 @@ namespace mlir::rlc
 		});
 		converter.addConversion([&](mlir::rlc::ClassType type) -> Type {
 			SmallVector<Type, 2> fields;
-			for (auto arg : type.getBody())
-				fields.push_back(converter.convertType(arg));
+			for (auto arg : type.getMembers())
+				fields.push_back(converter.convertType(arg.getType()));
 
 			return mlir::LLVM::LLVMStructType::getNewIdentified(
 					type.getContext(), type.getName(), fields);

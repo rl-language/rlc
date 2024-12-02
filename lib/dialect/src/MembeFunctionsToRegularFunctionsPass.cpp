@@ -68,13 +68,9 @@ namespace mlir::rlc
 						templateParameters.push_back(
 								templateParamenter.cast<mlir::TypeAttr>().getValue());
 
-					llvm::SmallVector<llvm::StringRef, 4> argNames = { "self" };
-					for (const auto& name : function.getArgNames())
-						argNames.push_back(name.cast<mlir::StringAttr>());
-
 					function.setTemplateParametersAttr(
 							rewriter.getTypeArrayAttr(templateParameters));
-					function.setArgNamesAttr(rewriter.getStrArrayAttr(argNames));
+					function.setInfoAttr(function.getInfo().addSelfArgument());
 					function.getResult().setType(newType);
 
 					if (not function.isDeclaration())

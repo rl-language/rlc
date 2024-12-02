@@ -141,6 +141,11 @@ namespace mlir::rlc::lsp
 		{
 		}
 
+		mlir::lsp::WorkspaceEdit rename(
+				const mlir::lsp::URIForFile &uri,
+				llvm::StringRef newName,
+				mlir::lsp::Position position);
+
 		const LSPModuleInfo *getModuleFromUri(const mlir::lsp::URIForFile &uri);
 
 		private:

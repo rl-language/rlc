@@ -20,6 +20,7 @@ limitations under the License.
 #include "llvm/Support/Error.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Diagnostics.h"
+#include "rlc/dialect/IRBuilder.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/parser/Lexer.hpp"
 
@@ -28,12 +29,6 @@ namespace rlc
 	class Parser
 	{
 		public:
-		struct FunctionDeclarationResult
-		{
-			mlir::rlc::FunctionOp op;
-			llvm::SmallVector<mlir::Location> argLocs;
-		};
-
 		Parser(
 				mlir::MLIRContext* ctx,
 				std::string source,
@@ -42,6 +37,7 @@ namespace rlc
 				: ctx(ctx),
 					builder(ctx),
 					pos(mlir::FileLineColLoc::get(ctx, sourceName, 1, 1)),
+					lastTokenEndpos(mlir::FileLineColLoc::get(ctx, sourceName, 1, 1)),
 					toParse(std::move(source)),
 					fileName(sourceName),
 					lexer(toParse.data()),
@@ -52,6 +48,7 @@ namespace rlc
 		}
 
 		[[nodiscard]] mlir::Location getCurrentSourcePos() const;
+		[[nodiscard]] mlir::Location getLastTokenEndPos() const;
 
 		void setComment(mlir::Operation* op, llvm::StringRef comment);
 		llvm::Expected<mlir::Value> primaryExpression();
@@ -76,10 +73,13 @@ namespace rlc
 		llvm::Expected<mlir::Value> equalityExpression();
 		llvm::Expected<mlir::Value> andExpression();
 		llvm::Expected<mlir::Value> orExpression();
+		llvm::Expected<mlir::Value> bitWiseAndExpression();
+		llvm::Expected<mlir::Value> bitWiseXorExpression();
+		llvm::Expected<mlir::Value> bitWiseOrExpression();
 		llvm::Expected<mlir::Value> stringExpression();
 		llvm::Expected<mlir::Operation*> usingTypeStatement();
 		llvm::Expected<mlir::rlc::ClassDeclaration> classDeclaration();
-		llvm::Expected<std::pair<std::string, mlir::Type>> classField();
+		llvm::Expected<mlir::rlc::ClassFieldDeclarationAttr> classField();
 		llvm::Expected<llvm::SmallVector<mlir::Value, 3>> argumentExpressionList();
 		llvm::Expected<mlir::rlc::TypeAliasOp> usingStatement();
 
@@ -98,11 +98,11 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ContinueStatement> continueStatement();
 		llvm::Expected<mlir::rlc::SubActionStatement> subActionStatement();
 
-		llvm::Expected<llvm::SmallVector<std::tuple<std::string, mlir::Type>, 3>>
+		llvm::Expected<llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 3>>
 		functionArguments();
-		llvm::Expected<std::tuple<std::string, mlir::Type>> argDeclaration();
+		llvm::Expected<mlir::rlc::FunctionArgumentAttr> argDeclaration();
 
-		llvm::Expected<mlir::Type> singleTypeUse();
+		llvm::Expected<mlir::rlc::ShugarizedTypeAttr> singleTypeUse();
 		llvm::Expected<mlir::rlc::ScalarUseType> singleNonArrayTypeUse();
 		llvm::Expected<mlir::rlc::FunctionUseType> functionTypeUse();
 		llvm::Expected<mlir::rlc::FunctionOp> functionDefinition(
@@ -110,10 +110,11 @@ namespace rlc
 		llvm::Expected<
 				llvm::SmallVector<mlir::rlc::UncheckedTemplateParameterType, 2>>
 		templateArguments();
-		llvm::Expected<FunctionDeclarationResult> functionDeclaration(
+		llvm::Expected<mlir::rlc::FunctionOp> functionDeclaration(
 				bool templateFunction = true, bool isMemberFunction = false);
-		llvm::Expected<FunctionDeclarationResult> externFunctionDeclaration();
+		llvm::Expected<mlir::rlc::FunctionOp> externFunctionDeclaration();
 		llvm::Expected<mlir::Operation*> actionDeclaration(bool actionFunction);
+		llvm::Expected<mlir::rlc::ConstantGlobalOp> globalConstant();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();
 
@@ -131,7 +132,7 @@ namespace rlc
 		private:
 		mlir::Type unkType();
 		mlir::MLIRContext* ctx;
-		mlir::OpBuilder builder;
+		mlir::rlc::IRBuilder builder;
 		void next();
 		bool accept(Token t);
 		template<Token T>
@@ -143,6 +144,7 @@ namespace rlc
 
 		Token current;
 		mlir::Location pos;
+		mlir::Location lastTokenEndpos;
 		std::string toParse;
 		std::string fileName;
 		Lexer lexer;

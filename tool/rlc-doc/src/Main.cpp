@@ -83,7 +83,7 @@ static void printFunction(mlir::rlc::FunctionOp op, llvm::raw_ostream& OS)
 		OS << ">";
 	}
 	OS << mlir::rlc::prettyPrintFunctionTypeWithNameArgs(
-						op.getType(), op.getArgNames())
+						op.getType(), op.getInfo())
 		 << "`\n";
 	writeComment(op, OS);
 }
@@ -100,8 +100,7 @@ static void printActionFuntion(
 		for (size_t i = 0; i != action.getResultTypes().size(); i++)
 		{
 			OS << mlir::rlc::prettyType(action.getResultTypes()[i]);
-			OS << " "
-				 << action.getDeclaredNames()[i].cast<mlir::StringAttr>().getValue();
+			OS << " " << action.getDeclaredNames()[i];
 			if (i != action.getResultTypes().size() - 1)
 				OS << ", ";
 		}
@@ -116,16 +115,16 @@ static void printClassDecl(
 	OS << "## cls " << op.getName() << "\n";
 	writeComment(op, OS);
 
-	OS << (op.getMemberNames().size() != 0 ? "\n### Fields\n\n" : "");
-	for (size_t i = 0; i != op.getMemberNames().size(); i++)
+	OS << (op.getMembers().size() != 0 ? "\n### Fields\n\n" : "");
+	for (size_t i = 0; i != op.getMembers().size(); i++)
 	{
-		auto name = op.getMemberNames()[i].cast<mlir::StringAttr>();
-		if (name.strref().starts_with("_"))
+		auto name = op.getMemberField(i).getName();
+		if (name.starts_with("_"))
 			continue;
 
 		OS << "* "
 			 << mlir::rlc::prettyType(
-							op.getMemberTypes()[i].cast<mlir::TypeAttr>().getValue())
+							op.getMemberField(i).getShugarizedType().getType())
 			 << " " << name.str() << "\n";
 	}
 

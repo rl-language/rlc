@@ -45,6 +45,17 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 	table.add(
 			"StringLiteral", mlir::rlc::StringLiteralType::get(mod.getContext()));
 
+	for (auto constant : mod.getOps<mlir::rlc::ConstantGlobalOp>())
+		if (constant.getResult().getType().isa<mlir::rlc::IntegerType>())
+			table.add(
+					constant.getName(),
+					mlir::rlc::IntegerLiteralType::get(
+							constant.getContext(),
+							constant.getValues()
+									.cast<mlir::IntegerAttr>()
+									.getValue()
+									.getSExtValue()));
+
 	for (auto classDecl : mod.getOps<mlir::rlc::ClassDeclaration>())
 		table.add(classDecl.getName(), classDecl.getType());
 
@@ -53,7 +64,10 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 				traitDefinition.getMetaType().getName(), traitDefinition.getMetaType());
 
 	for (auto usingStatemenet : mod.getOps<mlir::rlc::TypeAliasOp>())
-		table.add(usingStatemenet.getName(), usingStatemenet.getAliased());
+		table.add(
+				usingStatemenet.getName(),
+				mlir::rlc::AliasType::get(
+						usingStatemenet.getName(), usingStatemenet.getAliased()));
 
 	return table;
 }
@@ -140,10 +154,12 @@ static mlir::Type instantiateTemplate(
 static void registerConversions(
 		mlir::TypeConverter& converter,
 		mlir::rlc::TypeTable& types,
-		mlir::Location& errorPoint)
+		mlir::Location& errorPoint,
+		bool deshugarizeAliases = true)
 {
 	converter.addConversion(
-			[&](mlir::rlc::ScalarUseType use) -> std::optional<mlir::Type> {
+			[&, deshugarizeAliases](
+					mlir::rlc::ScalarUseType use) -> std::optional<mlir::Type> {
 				if (use.getUnderlying() != nullptr)
 				{
 					auto convertedUnderlying = converter.convertType(use.getUnderlying());
@@ -184,6 +200,16 @@ static void registerConversions(
 					mlir::emitError(
 							errorPoint, "No known type named " + use.getReadType());
 					return std::nullopt;
+				}
+				if (auto casted = maybeType.dyn_cast<mlir::rlc::AliasType>())
+				{
+					if (not deshugarizeAliases)
+						return mlir::rlc::AliasType::get(
+								casted.getName(),
+								casted.getUnderlying(),
+								explicitTemplateParameters);
+
+					maybeType = casted.getUnderlying();
 				}
 				maybeType = instantiateTemplate(
 						maybeType, explicitTemplateParameters, errorPoint);
@@ -326,6 +352,7 @@ mlir::rlc::RLCTypeConverter::RLCTypeConverter(mlir::ModuleOp op)
 		: types(makeTypeTable(op)), loc(op.getLoc())
 {
 	registerConversions(converter, types, loc);
+	registerConversions(shugarizedConverter, types, loc, false);
 }
 
 mlir::rlc::RLCTypeConverter::RLCTypeConverter(
@@ -333,6 +360,7 @@ mlir::rlc::RLCTypeConverter::RLCTypeConverter(
 		: types(&parentScopeConverter->types), loc(parentScopeConverter->loc)
 {
 	registerConversions(converter, types, loc);
+	registerConversions(shugarizedConverter, types, loc, false);
 }
 
 static llvm::SmallVector<std::pair<int, mlir::rlc::ActionStatement>, 4>
@@ -472,6 +500,11 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 	{
 		auto result = traits.try_emplace(trait.getMetaType().getName(), trait);
 		assert(result.second);
+	}
+
+	for (auto global : op.getOps<mlir::rlc::ConstantGlobalOp>())
+	{
+		getSymbolTable().add(global.getName(), global);
 	}
 
 	for (auto fun : getSymbolTable().get(

@@ -1,5 +1,5 @@
 include "Types.td"
-include "Interfaces.td"
+include "Attrs.td"
 include "Enums.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -326,18 +326,35 @@ def RLC_UsingTypeOp : RLC_Dialect<"using_type", [DeclareOpInterfaceMethods<TypeC
   }];
 }
 
-def RLC_ConstantGlobalArrayOp : RLC_Dialect<"global_array"> {
+def RLC_ConstantGlobalOp : RLC_Dialect<"global", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "constant global array";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins TypeAttrOf<AnyType>:$result, ArrayAttr:$values, StrAttr:$name);
+  let arguments = (ins AnyAttr:$values, StrAttr:$name, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
+  let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-	$name $values `:` $result attr-dict 
+	$name $values `->` type($result) (`shugarized_type` `=` $shugarized_type^ )? attr-dict 
   }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Type":$type, "mlir::Attribute":$value, "mlir::StringRef":$name), [{
+			build($_builder, $_state, type, value, name, nullptr);
+  }]>];
+}
+
+def RLC_FlatConstantGlobalOp : RLC_Dialect<"flat_global"> {
+  let summary = "constant global array";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins TypeAttrOf<AnyType>:$type, AnyAttr:$values, StrAttr:$name);
+
 }
 
 def RLC_StringLiteralOp : RLC_Dialect<"string_literal", [DeclareOpInterfaceMethods<TypeCheckable>]> {
@@ -451,17 +468,22 @@ def RLC_StatementList : RLC_Dialect<"list", [SymbolTable, DeclareOpInterfaceMeth
   }];
 }
 
-def RLC_TypeAliasOp : RLC_Dialect<"alias", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_TypeAliasOp : RLC_Dialect<"alias", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>, DeclareOpInterfaceMethods<TypeDeclarer>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased);
+  let arguments = (ins StrAttr:$name, TypeAttrOf<AnyType>:$aliased, OptionalAttr<RLC_SourceRangeAttr>:$declared_name_location, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
   let description = [{
 	expression.
   }];
 
   let assemblyFormat = [{
-	$name `=` $aliased attr-dict 
+	$name `=` $aliased ( `shugarized` `=` $shugarized_type^ )? (`declared_name_location` `=` $declared_name_location^ )? attr-dict 
   }];
+
+   let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::Type":$aliased), [{
+			build($_builder, $_state, name, aliased, nullptr, nullptr);
+    }]>];
 }
 
 def RLC_Reference : RLC_Dialect<"ref"> {
@@ -480,19 +502,19 @@ def RLC_Reference : RLC_Dialect<"ref"> {
   }];
 }
 
-def RLC_MallocOp : RLC_Dialect<"malloc_op", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_MallocOp : RLC_Dialect<"malloc_op", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "implement malloc";
 
   let description = [{
 	implements malloc.
   }];
 
-  let arguments = (ins RLCIntegerOrUnkownType:$size);
+  let arguments = (ins RLCIntegerOrUnkownType:$size, RLC_ShugarizedTypeAttr:$shugarized_type);
 
   let results = (outs RLCPtrOrUnkownType:$result);
 
   let assemblyFormat = [{
-	$size type($size) `->` type($result) attr-dict 
+	$size type($size) `->` type($result) $shugarized_type attr-dict 
   }];
 }
 
@@ -503,7 +525,7 @@ def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op", [NoTerminator, No
 	implements malloc.
   }];
 
-  let arguments = (ins StrAttr:$name);
+  let arguments = (ins StrAttr:$name, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
 
   let regions = (region
     AnyRegion:$body
@@ -514,7 +536,7 @@ def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op", [NoTerminator, No
   }];
 
   let assemblyFormat = [{
-	$name $body attr-dict 
+	$name $body attr-dict ( `type_location` `=` $type_location^ )?
   }];
 }
 
@@ -626,46 +648,51 @@ def RLC_FreeOp : RLC_Dialect<"free_op", [DeclareOpInterfaceMethods<TypeCheckable
   }];
 }
 
-def RLC_UncheckedIsOp : RLC_Dialect<"UncheckedIsOp", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_UncheckedIsOp : RLC_Dialect<"UncheckedIsOp", [DeclareOpInterfaceMethods<TypeCheckable>,  DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "implement is operator";
 
   let description = [{
 	implements is operator.
   }];
 
-  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait);
+  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait, RLC_ShugarizedTypeAttr:$shugarized_type);
 
   let results = (outs RLC_BoolType:$result);
 
   let assemblyFormat = [{
-	$expression $type_or_trait type($expression) `->` type($result) attr-dict 
+	$expression $type_or_trait type($expression) `->` type($result) $shugarized_type attr-dict 
   }];
 
    let builders = [
-        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type), [{
-			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type);
+        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type, "mlir::rlc::ShugarizedTypeAttr":$shugarized_type), [{
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type, shugarized_type);
     }]>];
 }
 
-def RLC_IsOp : RLC_Dialect<"IsOp"> {
+def RLC_IsOp : RLC_Dialect<"IsOp", [DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "implement is operator";
 
   let description = [{
 	implements is operator.
   }];
 
-  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait);
+  let arguments = (ins AnyType:$expression, TypeAttrOf<AnyType>:$type_or_trait, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
 
   let results = (outs RLC_BoolType:$result);
 
   let assemblyFormat = [{
-	$expression  $type_or_trait  `:` type($expression) `->` type($result) attr-dict 
+	$expression  $type_or_trait  `:` type($expression) `->` type($result) (`shugarized_type` `=` $shugarized_type^ )? attr-dict 
   }];
 
    let builders = [
+        OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type, "mlir::rlc::ShugarizedTypeAttr":$shugarized_type), [{
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type, shugarized_type);
+    }]>, 
         OpBuilder<(ins "mlir::Value":$expression, "mlir::Type":$type), [{
-			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression,type);
-    }]>];
+			build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), expression, type, nullptr);
+    }]>
+
+];
 }
 
 def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
@@ -707,6 +734,20 @@ def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods
 	}];
 }
 
+def RLC_VarNameOp : RLC_Dialect<"var_name"> {
+  let summary = "contains the name of a value so that it can be used for debugging purposed.";
+
+  let arguments = (ins AnyType:$value, StrAttr:$name);
+  let description = [{
+        debug info for a variable
+  }];
+
+
+  let assemblyFormat = [{
+	 $name $value `:` type($value) attr-dict
+  }];
+}
+
 def RLC_DeclarationStatement : RLC_Dialect<"decl", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "statement list.";
 
@@ -732,9 +773,9 @@ def RLC_DeclarationStatement : RLC_Dialect<"decl", [DeclareOpInterfaceMethods<Ty
 
 
 class RLC_FunctionBase<string mnemonic> :
-RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable]> {
+RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeCheckable, DeclareOpInterfaceMethods<TypeUser>]> {
 
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames);
+  let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info);
   let description = [{
 	expression.
   }];
@@ -747,12 +788,12 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
   );
 
    let builders = [
-        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames), [{
-			build($_builder, $_state, type, name, argNames);
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "mlir::rlc::FunctionInfoAttr":$info), [{
+			build($_builder, $_state, type, name, info);
     }]>];
 
   let assemblyFormat = [{
-	$unmangled_name type($result) $argNames $precondition $body attr-dict 
+	$unmangled_name type($result) $info $precondition $body attr-dict 
   }];
     code extraBaseClassDeclaration = [{
 
@@ -806,13 +847,20 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 			return getUnmangledName().starts_with("_");
 		}
 
+        llvm::SmallVector<llvm::StringRef, 4> getArgNames() {
+            llvm::SmallVector<llvm::StringRef, 4> names;
+            for (auto arg : getInfo().getArgs()) 
+                names.push_back(arg.getName());
+            return names;
+        }
+
         bool isDeclaration() {
             return getBody().empty();
         }
 	
 		mlir::LogicalResult addToSymbolTable(mlir::rlc::SymbolTable<mlir::Value>& table) {
-			for (const auto& [name, argument] : llvm::zip(getArgNames(), llvm::make_range(this->args_begin(), this->args_end()))) {
-				table.add(name.cast<mlir::StringAttr>().str(), argument);
+			for (const auto& [field, argument] : llvm::zip(getInfo().getArgs(), llvm::make_range(this->args_begin(), this->args_end()))) {
+				table.add(field.getName().str(), argument);
 			}
 			return mlir::success();
 		}
@@ -830,14 +878,15 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 				for (auto& operation : region->getOps())
 					ops.push_back(&operation);
 
-				for (const auto& [operand, name]: llvm::zip(region->front().getArguments(), getArgNames()))
+				for (const auto& [operand, field]: llvm::zip(region->front().getArguments(), getInfo().getArgs()))
 				{
 					auto converted = builder.getConverter().convertType(operand.getType());
-					if (not converted){
+                     
+					if (not converted ){
 						getOperation()->emitRemark("in of argument of function");
 					}
 					operand.setType(converted);
-					builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), operand);
+					builder.getSymbolTable().add(field.getName().str(), operand);
 				}
 				for (auto* operation : ops)
 					if (mlir::rlc::typeCheck(*operation, builder)
@@ -856,24 +905,25 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 			return getBody().front().args_end();
 		}
 
+
     }];
 }
 
 def RLC_FlatFunctionOp : RLC_FunctionBase<"flat_fun"> {
   let summary = "function.";
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function);
+  let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info, BoolAttr:$is_member_function);
   let extraClassDeclaration = extraBaseClassDeclaration;
 
    let builders = [
-        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction), [{
-			build($_builder, $_state, type, name, argNames, isMemberFunction);
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "mlir::rlc::FunctionInfoAttr":$info, "bool":$isMemberFunction), [{
+			build($_builder, $_state, type, name, info, isMemberFunction);
     }]>];
 }
 
 
 def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   let summary = "function.";
-  let arguments = (ins StrAttr:$unmangled_name, StrArrayAttr:$argNames, BoolAttr:$is_member_function , DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$unmangled_name, RLC_FunctionInfoAttr:$info, BoolAttr:$is_member_function , DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
   let extraClassDeclaration = extraBaseClassDeclaration # [{
 	mlir::LogicalResult typeCheckFunctionDeclaration(
 		mlir::IRRewriter& rewriter,
@@ -882,12 +932,12 @@ def RLC_FunctionOp : RLC_FunctionBase<"fun"> {
   }];
 
    let builders = [
-        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "ArrayAttr":$argNames, "bool":$isMemberFunction, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
-			build($_builder, $_state, type, name, argNames, isMemberFunction ,$_builder.getTypeArrayAttr(templateParameters));
+        OpBuilder<(ins "StringRef":$name, "FunctionType":$type, "rlc::FunctionInfoAttr":$info, "bool":$isMemberFunction, CArg<"mlir::TypeRange", "{}">:$templateParameters), [{
+			build($_builder, $_state, type, name, info, isMemberFunction ,$_builder.getTypeArrayAttr(templateParameters));
     }]>];
 
   let assemblyFormat = [{
-	$unmangled_name( $template_parameters^ )? type($result) $argNames $precondition $body attr-dict 
+	$unmangled_name( $template_parameters^ )? type($result) $info $precondition $body attr-dict 
   }];
 }
 
@@ -895,7 +945,7 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
   let summary = "function.";
   let results = (outs FunctionType:$result, AnyFunctionType:$is_done_function, Variadic<FunctionType>:$actions);
   let assemblyFormat = [{
-	$unmangled_name type($result) type($actions) type($is_done_function) $argNames $precondition $body attr-dict 
+	$unmangled_name type($result) type($actions) type($is_done_function) $info $precondition $body attr-dict 
   }];
     let extraClassDeclaration = extraBaseClassDeclaration # [{
         std::pair<ActionFrameContent, ActionFrameContent>  getFrameLists();
@@ -1067,28 +1117,36 @@ def RLC_CallOp : RLC_Dialect<"call",
 }
 
 
-def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
+def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "statement list.";
 
-  let arguments = (ins StrAttr:$name, StrArrayAttr:$declared_names, I64Attr:$id, I64Attr:$resumption_point);
+  let arguments = (ins StrAttr:$name, RLC_FunctionInfoAttr:$info, I64Attr:$id, I64Attr:$resumption_point);
   let description = [{
 	expression.
   }];
   let results = (outs Variadic<AnyType>:$results);
 
-   let builders = [
-        OpBuilder<(ins "TypeRange":$results, "StringRef":$name, "ArrayRef<std::string>":$declared_names, CArg<"int64_t", "-1">:$id, CArg<"int64_t", "-1">:$resumption_point), [{
-            auto nameAttr = $_builder.getStringAttr(name);
-            llvm::SmallVector<Attribute> attrs;
-            for (auto& name : declared_names)
-              attrs.push_back($_builder.getStringAttr(name));
-            build($_builder, $_state, results, nameAttr, $_builder.getArrayAttr(attrs), id, resumption_point);
-    }]>];
 
   let regions = (region AnyRegion:$precondition);
 
   let assemblyFormat = [{
-	$name `{` $declared_names`}` $precondition attr-dict `:` type($results)
+	$name $info $precondition attr-dict `:` type($results)
+  }];
+
+   let builders = [
+        OpBuilder<(ins "TypeRange":$results, "StringRef":$name, "mlir::rlc::FunctionInfoAttr":$info), [{
+            build($_builder, $_state, results, name, info, -1, -1);
+    }]>];
+
+  let extraClassDeclaration = [{
+      llvm::SmallVector<llvm::StringRef, 4> getDeclaredNames() {
+        llvm::SmallVector<llvm::StringRef, 4> names;
+        for (auto args : getInfo().getArgs()) {
+            names.push_back(args.getName());
+        }
+
+        return names;
+      }
   }];
 }
 
@@ -1148,7 +1206,7 @@ def RLC_MemberAccess : RLC_Dialect<"member_access", [DeclareOpInterfaceMethods<T
         OpBuilder<(ins "mlir::Value":$value, "std::int64_t":$fieldIndex), [{
 			auto index = $_builder.getI64IntegerAttr(fieldIndex);
 			auto real_type = value.getType().cast<ClassType>();
-			auto resType = real_type.getBody()[fieldIndex];
+			auto resType = real_type.getMembers()[fieldIndex].getType();
             build($_builder, $_state, resType, value, index);
     }]>];
 
@@ -1236,19 +1294,101 @@ def RLC_InplaceInitializeOp : RLC_Dialect<"inplace_initialize", [DeclareOpInterf
   }];
 }
 
-def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "constant.";
 
   let description = [{
 	expression.
   }];
 
+  let arguments = (ins OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-		type($result) attr-dict
+		type($result) ( `shugarized_type` `:` $shugarized_type^ )? attr-dict
   }];
 
+   let builders = [
+        OpBuilder<(ins "mlir::Type":$type), [{
+			build($_builder, $_state, type, nullptr);
+    }]>];
+
+}
+
+class RLC_BinaryBitwiseOp<string mnemonic, list<OpInterface> CA_Interface=[]> : RLC_Dialect<mnemonic, [TypeCheckable]#CA_Interface> {
+
+    let extraClassDeclaration = [{
+	
+	  mlir::LogicalResult typeCheck(
+              mlir::rlc::ModuleBuilder& builder) {
+	      auto deducedTypeLHS = builder.getConverter().convertType(getLhs().getType());
+	      auto deducedTypeRHS = builder.getConverter().convertType(getRhs().getType());
+          if (not deducedTypeLHS or not deducedTypeLHS.isa<mlir::rlc::IntegerType>()) {
+            
+		    return logError(
+				getOperation(),
+				"Bitwise operation requires integer left operand");
+          }
+
+          if (not deducedTypeRHS or not deducedTypeRHS.isa<mlir::rlc::IntegerType>()) {
+            
+		    return logError(
+				getOperation(),
+				"Bitwis operation requires integer right operand");
+          }
+
+        getResult().setType(deducedTypeLHS);
+        return mlir::success();
+      }
+	}];
+
+    let arguments = (ins RLCIntegerOrUnkownType:$lhs, RLCIntegerOrUnkownType:$rhs);
+    let results = (outs RLCIntegerOrUnkownType:$result);
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$lhs, "mlir::Value":$rhs), [{
+            build($_builder, $_state, lhs.getType(), lhs, rhs);
+      }]>];
+
+    let assemblyFormat = [{
+	  $rhs `:` type($rhs) `,` $lhs `:` type($lhs) `->` type($result) attr-dict
+    }];
+}
+
+def RLC_BitOrOp : RLC_BinaryBitwiseOp<"bit_or"> {}
+def RLC_BitAndOp : RLC_BinaryBitwiseOp<"bit_and"> {}
+def RLC_BitXorOp : RLC_BinaryBitwiseOp<"bit_xor"> {}
+
+def RLC_BitNotOp : RLC_Dialect<"bit_not", [TypeCheckable]> {
+
+    let extraClassDeclaration = [{
+	
+	  mlir::LogicalResult typeCheck(
+              mlir::rlc::ModuleBuilder& builder) {
+	      auto deducedType = builder.getConverter().convertType(getUnderlying().getType());
+          if (not deducedType.isa<mlir::rlc::IntegerType>()) {
+            
+		    return logError(
+				getOperation(),
+				"Bitwise not requires integer operand");
+          }
+
+        getResult().setType(deducedType);
+        return mlir::success();
+      }
+	}];
+
+    let arguments = (ins RLCIntegerOrUnkownType:$underlying);
+    let results = (outs RLCIntegerOrUnkownType:$result);
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$underlying), [{
+            build($_builder, $_state, underlying.getType(), underlying);
+      }]>];
+
+    let assemblyFormat = [{
+	  $underlying`:` type($underlying) type($result) attr-dict
+    }];
 }
 
 class RLC_InternalOp<string mnemonic, list<OpInterface> CA_Interface=[]> : RLC_Dialect<mnemonic, [TypeCheckable]#CA_Interface> {
@@ -1366,18 +1506,18 @@ def RLC_DivOp : RLC_InternalOp<"div"> {
   }];
 }
 
-def RLC_FromByteArrayOp : RLC_Dialect<"from_byte_array", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+def RLC_FromByteArrayOp : RLC_Dialect<"from_byte_array", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<TypeUser>]> {
   let summary = "constant.";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins RLCArrayOrUnkownType:$lhs);
+  let arguments = (ins RLCArrayOrUnkownType:$lhs, RLC_ShugarizedTypeAttr:$shugarized_type);
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-	$lhs `:` type($lhs) `->` type($result) attr-dict
+	$lhs `:` type($lhs) `->` type($result) $shugarized_type attr-dict
   }];
 }
 
@@ -1867,22 +2007,61 @@ def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInte
   }];
 }
 
-def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion]> {
+def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<TypeUser>, NoTerminator, NoRegionArguments, HasOnlyGraphRegion, DeclareOpInterfaceMethods<TypeDeclarer>]> {
   let summary = "constant.";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins StrAttr:$name, TypeArrayAttr:$memberTypes, StrArrayAttr:$memberNames, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters);
+  let arguments = (ins StrAttr:$name,  ClassDeclarationFieldsArrayAttr:$members, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
   let results = (outs AnyType:$result);
+
+  let builders = [
+        OpBuilder<(ins "mlir::Type":$class_type, "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
+            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
+            for (auto attr : members) {
+                fieldAttrs.push_back(attr);
+            }
+            build($_builder, $_state, class_type, $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), type_location);
+    }]>,
+        OpBuilder<(ins "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
+            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
+            for (auto attr : members) {
+                fieldAttrs.push_back(attr);
+            }
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), type_location);
+    }]>,
+        OpBuilder<(ins "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters), [{
+            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
+            for (auto attr : members) {
+                fieldAttrs.push_back(attr);
+            }
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), nullptr);
+    }]>,
+];
 
   let regions = (region
   AnyRegion:$body
   );
 
+  let extraClassDeclaration = [{
+      mlir::rlc::ClassFieldDeclarationAttr getMemberField(size_t i) {
+        return getMembers()[i].cast<mlir::rlc::ClassFieldDeclarationAttr>();
+      }
+
+      llvm::SmallVector <mlir::rlc::ClassFieldDeclarationAttr, 4> getMemberFields() {
+        llvm::SmallVector <mlir::rlc::ClassFieldDeclarationAttr, 4> outs;
+        for (size_t i = 0; i != getMembers().size(); i++ )
+            outs.push_back(getMemberField(i));
+
+        return outs;
+      }
+
+  }];
+
   let assemblyFormat = [{
-	$name ( `template_parameters` $template_parameters^ )? $memberTypes $memberNames type($result) $body attr-dict 
+	$name ( `template_parameters` $template_parameters^ )? $members type($result) $body (`location` `=` $type_location^ )? attr-dict 
   }];
 }
 
@@ -1986,6 +2165,15 @@ def RLC_TemplateInstantiationOp : RLC_Dialect<"template_instantiation", [Declare
 
   let assemblyFormat = [{
 	$inputTemplate type($inputTemplate) `->` type($result) attr-dict 
+  }];
+}
+
+def RLC_NullOp : RLC_Dialect<"null"> {
+
+  let results = (outs RLC_OwningPtrType:$result);
+
+  let assemblyFormat = [{
+	type($result) attr-dict 
   }];
 }
 

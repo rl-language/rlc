@@ -24,10 +24,12 @@ namespace mlir::rlc
 	static bool isBuiltinType(mlir::Type type)
 	{
 		return type.isa<mlir::rlc::IntegerType>() or
-					 type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::BoolType>();
+					 type.isa<mlir::rlc::FloatType>() or
+					 type.isa<mlir::rlc::BoolType>() or
+					 type.isa<mlir::rlc::OwningPtrType>();
 	}
 
-	static mlir::rlc::Constant emitBuiltinZero(
+	static mlir::Value emitBuiltinZero(
 			mlir::IRRewriter& rewriter, mlir::Type t, mlir::Location loc)
 	{
 		if (auto casted = t.dyn_cast<mlir::rlc::IntegerType>())
@@ -45,6 +47,10 @@ namespace mlir::rlc
 		if (t.isa<mlir::rlc::BoolType>())
 		{
 			return rewriter.create<mlir::rlc::Constant>(loc, bool(false));
+		}
+		if (t.isa<mlir::rlc::OwningPtrType>())
+		{
+			return rewriter.create<mlir::rlc::NullOp>(loc, t);
 		}
 		t.dump();
 		llvm_unreachable("unrechable");
@@ -82,7 +88,7 @@ namespace mlir::rlc
 				op.getLoc(),
 				mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 				fType,
-				rewriter.getStrArrayAttr({ "arg0" }),
+				mlir::rlc::FunctionInfoAttr::get(op.getContext(), { "arg0" }),
 				true);
 
 		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), fun);
@@ -250,7 +256,7 @@ namespace mlir::rlc
 	{
 		auto& rewriter = builder.getRewriter();
 
-		for (auto field : llvm::enumerate(type.getBody()))
+		for (auto field : llvm::enumerate(type.getMembers()))
 		{
 			auto lhs = rewriter.create<mlir::rlc::MemberAccess>(
 					fun.getLoc(), fun.getBody().front().getArgument(0), field.index());

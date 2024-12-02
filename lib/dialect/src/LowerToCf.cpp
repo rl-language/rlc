@@ -398,6 +398,8 @@ static mlir::LogicalResult flatten(
 		mlir::IRRewriter& rewriter,
 		FlatteningContext& ctx)
 {
+	rewriter.setInsertionPointAfter(op);
+	rewriter.create<mlir::rlc::VarNameOp>(op.getLoc(), op, op.getSymName());
 	rewriter.setInsertionPoint(op);
 	auto terminators = getYieldTerminators(op);
 	assert(terminators.size() == 1);
@@ -587,10 +589,10 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 
 		rewriter.setInsertionPoint(f);
 		auto newF = rewriter.create<mlir::rlc::FlatFunctionOp>(
-				op.getLoc(),
+				f.getLoc(),
 				f.getFunctionType(),
 				f.getUnmangledName(),
-				f.getArgNamesAttr(),
+				f.getInfo(),
 				f.getIsMemberFunction());
 
 		rewriter.cloneRegionBefore(
@@ -620,6 +622,35 @@ static mlir::LogicalResult flattenModule(mlir::ModuleOp op)
 		}
 
 		rewriter.eraseOp(f);
+	}
+
+	// rewrite globals to use references
+	llvm::SmallVector<mlir::rlc::ConstantGlobalOp, 2> globals(
+			op.getOps<mlir::rlc::ConstantGlobalOp>());
+	for (auto global : globals)
+	{
+		rewriter.setInsertionPoint(global);
+		rewriter.create<mlir::rlc::FlatConstantGlobalOp>(
+				global.getLoc(),
+				global.getType(),
+				global.getValues(),
+				global.getName());
+		llvm::SmallVector<mlir::OpOperand*> operands;
+		for (auto& use : global.getResult().getUses())
+			operands.push_back(&use);
+
+		for (auto& use : operands)
+		{
+			rewriter.setInsertionPoint(use->getOwner());
+
+			auto ref = rewriter.create<mlir::rlc::Reference>(
+					use->getOwner()->getLoc(),
+					global.getResult().getType(),
+					global.getName());
+			use->set(ref);
+		}
+
+		global.erase();
 	}
 
 	return mlir::LogicalResult::success();

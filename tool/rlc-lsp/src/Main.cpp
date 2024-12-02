@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,7 @@ limitations under the License.
 #include "mlir/Tools/lsp-server-support/Transport.h"
 #include "rlc/lsp/LSP.hpp"
 #include "rlc/lsp/LSPContext.hpp"
+#include "rlc/lsp/Protocol.hpp"
 
 #define DEBUG_TYPE "rlc-lsp-server"
 
@@ -86,6 +87,7 @@ namespace mlir::rlc::lsp
 				{ "definitionProvider", true },
 				{ "referencesProvider", true },
 				{ "hoverProvider", true },
+				{ "renameProvider", true },
 
 				// For now we only support documenting symbols when the client
 				// supports hierarchical symbols.
@@ -202,6 +204,14 @@ namespace mlir::rlc::lsp
 					server->getCodeCompletion(params.textDocument.uri, params.position));
 		}
 
+		void onRename(
+				const mlir::rlc::lsp::RenameParams &params,
+				mlir::lsp::Callback<llvm::json::Value> reply)
+		{
+			reply(server->rename(
+					params.textDocument.uri, params.newName, params.position));
+		}
+
 		void onCodeAction(
 				const mlir::lsp::CodeActionParams &params,
 				mlir::lsp::Callback<llvm::json::Value> reply)
@@ -289,6 +299,7 @@ int main(int argc, char *argv[])
 	handler.notification("initialized", &lsp, &LSPServer::onInitialized);
 	handler.method("shutdown", &lsp, &LSPServer::onShutdown);
 	handler.method("textDocument/codeAction", &lsp, &LSPServer::onCodeAction);
+	handler.method("textDocument/rename", &lsp, &LSPServer::onRename);
 	handler.method(
 			"textDocument/documentSymbol", &lsp, &LSPServer::onDocumentSymbol);
 	handler.method("textDocument/hover", &lsp, &LSPServer::onHover);

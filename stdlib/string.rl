@@ -383,6 +383,7 @@ fun<T, Int X> parse_string(T[X] result, String buffer, Int index) -> Bool:
         if !_parse_string_impl(result[counter], buffer, index):
             return false
         _consume_space(buffer, index)
+        counter = counter + 1
         if counter != X:
             if buffer.get(index) != ',':
                 return false
@@ -395,12 +396,17 @@ fun<T, Int X> parse_string(T[X] result, String buffer, Int index) -> Bool:
     return true
 
 fun<T> parse_string(Vector<T> result, String buffer, Int index) -> Bool:
+    result.clear()
     _consume_space(buffer, index)
     let counter = 0
     if buffer.get(index) != '[':
         return false
     index = index + 1
     _consume_space(buffer, index)
+
+    if buffer.get(index) == ']':
+        index = index + 1
+        return true
 
     let keep_parsing = true
     while keep_parsing: 
@@ -421,12 +427,17 @@ fun<T> parse_string(Vector<T> result, String buffer, Int index) -> Bool:
 
 
 fun<T, Int x> parse_string(BoundedVector<T, x> result, String buffer, Int index) -> Bool:
+    result.clear()
     _consume_space(buffer, index)
     let counter = 0
     if buffer.get(index) != '[':
         return false
     index = index + 1
     _consume_space(buffer, index)
+
+    if buffer.get(index) == ']':
+        index = index + 1
+        return true
 
     let keep_parsing = true
     while keep_parsing: 

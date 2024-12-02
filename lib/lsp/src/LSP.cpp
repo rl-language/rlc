@@ -77,6 +77,21 @@ static mlir::lsp::Diagnostic rlcDiagToLSPDiag(
 	return toReturn;
 }
 
+static mlir::rlc::TypeDeclarer getTypeDeclarer(
+		mlir::ModuleOp module, mlir::lsp::Position pos)
+{
+	for (auto decl : module.getOps<mlir::rlc::TypeDeclarer>())
+	{
+		if (not decl.getDeclarationLocation().has_value())
+
+			continue;
+		auto loc = *decl.getDeclarationLocation();
+		if (locsToRange(loc.getStart(), loc.getEnd()).contains(pos))
+			return decl;
+	}
+	return nullptr;
+}
+
 class mlir::rlc::lsp::LSPModuleInfoImpl
 {
 	public:
@@ -238,34 +253,34 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 		using KeyType = std::pair<std::string, const void *>;
 		std::set<KeyType> alreadyEmitted;
-		auto registerArgument =
-				[&](llvm::StringRef name, mlir::Type t, mlir::ArrayAttr argNames) {
-					KeyType key(name.str(), t.getAsOpaquePointer());
-					if (alreadyEmitted.contains(key))
-						return;
+		auto registerArgument = [&](llvm::StringRef name,
+																mlir::Type t,
+																mlir::rlc::FunctionInfoAttr info) {
+			KeyType key(name.str(), t.getAsOpaquePointer());
+			if (alreadyEmitted.contains(key))
+				return;
 
-					alreadyEmitted.insert(key);
-					mlir::lsp::CompletionItem item;
-					item.label = name.str();
-					item.kind = mlir::lsp::CompletionItemKind::Variable;
-					item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-					if (auto casted = t.dyn_cast<mlir::FunctionType>();
-							casted and argNames != nullptr)
-						item.detail = prettyPrintFunctionTypeWithNameArgs(casted, argNames);
-					else
-						item.detail = prettyType(t);
-					list.items.push_back(item);
-				};
+			alreadyEmitted.insert(key);
+			mlir::lsp::CompletionItem item;
+			item.label = name.str();
+			item.kind = mlir::lsp::CompletionItemKind::Variable;
+			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
+			if (auto casted = t.dyn_cast<mlir::FunctionType>();
+					casted and info != nullptr)
+			{
+				item.detail = prettyPrintFunctionTypeWithNameArgs(casted, info);
+			}
+			else
+				item.detail = prettyType(t);
+			list.items.push_back(item);
+		};
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
 				casted and not casted.getBody().empty())
 		{
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(
-						std::get<0>(arg).cast<mlir::StringAttr>(),
-						std::get<1>(arg),
-						nullptr);
+				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
 			}
 		}
 
@@ -275,10 +290,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(
-						std::get<0>(arg).cast<mlir::StringAttr>(),
-						std::get<1>(arg),
-						nullptr);
+				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
 			}
 		}
 
@@ -291,7 +303,10 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
 			if (not op.getIsMemberFunction())
-				registerArgument(op.getUnmangledName(), op.getType(), op.getArgNames());
+				registerArgument(op.getUnmangledName(), op.getType(), op.getInfo());
+
+		for (auto op : module.getOps<mlir::rlc::ConstantGlobalOp>())
+			registerArgument(op.getName(), op.getType(), nullptr);
 
 		return mlir::success();
 	}
@@ -306,7 +321,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			list.items.push_back(toReturn);
 		}
 
-		module.walk([&](mlir::rlc::ClassDeclaration op) {
+		for (mlir::rlc::ClassDeclaration op :
+				 module.getOps<mlir::rlc::ClassDeclaration>())
+		{
 			mlir::lsp::CompletionItem toReturn;
 			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
 			toReturn.label = op.getName().str();
@@ -321,14 +338,27 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 						params[params.size() - 1].cast<mlir::TypeAttr>().getValue());
 			toReturn.detail += ">";
 			list.items.push_back(toReturn);
-		});
+		}
 
-		module.walk([&](mlir::rlc::TypeAliasOp op) {
+		for (mlir::rlc::TypeAliasOp op : module.getOps<mlir::rlc::TypeAliasOp>())
+		{
 			mlir::lsp::CompletionItem toReturn;
 			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
 			toReturn.label = op.getName();
 			list.items.push_back(toReturn);
-		});
+		}
+		for (mlir::rlc::ConstantGlobalOp op :
+				 module.getOps<mlir::rlc::ConstantGlobalOp>())
+		{
+			if (op.getResult().getType() !=
+					mlir::rlc::IntegerType::getInt64(op.getContext()))
+				continue;
+			mlir::lsp::CompletionItem toReturn;
+			toReturn.kind = mlir::lsp::CompletionItemKind::TypeParameter;
+			toReturn.label = op.getName();
+			toReturn.detail = prettyType(op.getType());
+			list.items.push_back(toReturn);
+		}
 	}
 
 	bool sameLineAsOp(const mlir::lsp::Position &completePos, mlir::Operation *op)
@@ -491,14 +521,13 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		auto type = memberAccess->getOperand(0).getType();
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
-			for (const auto &field :
-					 llvm::zip(casted.getFieldNames(), casted.getBody()))
+			for (auto field : casted.getMembers())
 			{
 				mlir::lsp::CompletionItem item;
-				item.label = std::get<0>(field);
+				item.label = field.getName();
 				item.kind = mlir::lsp::CompletionItemKind::Field;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-				item.detail = prettyType(std::get<1>(field));
+				item.detail = prettyType(field.getType());
 				list.items.push_back(item);
 			}
 		}
@@ -526,8 +555,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.label = fun.getUnmangledName();
 				item.kind = mlir::lsp::CompletionItemKind::Function;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-				item.detail = prettyPrintFunctionTypeWithNameArgs(
-						fun.getType(), fun.getArgNames());
+				item.detail =
+						prettyPrintFunctionTypeWithNameArgs(fun.getType(), fun.getInfo());
 				list.items.push_back(item);
 			}
 		}
@@ -551,8 +580,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.label = statemet.getName();
 				item.kind = mlir::lsp::CompletionItemKind::Function;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-				item.detail = prettyPrintFunctionTypeWithNameArgs(
-						fType, statemet.getDeclaredNames());
+				item.detail =
+						prettyPrintFunctionTypeWithNameArgs(fType, statemet.getInfo());
 				list.items.push_back(item);
 			});
 
@@ -940,4 +969,102 @@ void RLCServer::findReferencesOf(
 		return;
 
 	maybeInfo->findReferencesOf(pos, references);
+}
+
+static mlir::rlc::RLCSerializable rewrittenType(
+		mlir::Type currentType,
+		mlir::Type typeEditedByUser,
+		mlir::Type newTypeToBeWritten)
+{
+	if (currentType == typeEditedByUser)
+		return newTypeToBeWritten.dyn_cast<mlir::rlc::RLCSerializable>();
+	;
+
+	const auto replacer = [typeEditedByUser,
+												 newTypeToBeWritten](mlir::Type current)
+			-> std::optional<std::pair<mlir::Type, mlir::WalkResult>> {
+		if (typeEditedByUser == current)
+			return std::pair{ newTypeToBeWritten, mlir::WalkResult::skip() };
+
+		if (auto casted = current.dyn_cast<mlir::rlc::ClassType>())
+		{
+			llvm::SmallVector<mlir::Type, 2> templateArguments;
+			for (auto arg : casted.getExplicitTemplateParameters())
+			{
+				templateArguments.push_back(
+						rewrittenType(arg, typeEditedByUser, newTypeToBeWritten));
+			}
+
+			return std::pair{
+				mlir::rlc::ClassType::getIdentified(
+						casted.getContext(), casted.getName(), templateArguments),
+				mlir::WalkResult::skip()
+			};
+		}
+
+		return std::pair{ current, mlir::WalkResult::advance() };
+	};
+	auto newType =
+			currentType.replace(replacer).dyn_cast<mlir::rlc::RLCSerializable>();
+	return newType;
+}
+
+static std::string toString(mlir::rlc::RLCSerializable type)
+{
+	std::string toReturn;
+	llvm::raw_string_ostream OS(toReturn);
+	type.rlc_serialize(OS, {});
+	OS.flush();
+	return toReturn;
+}
+
+mlir::lsp::WorkspaceEdit RLCServer::rename(
+		const mlir::lsp::URIForFile &uri,
+		llvm::StringRef newName,
+		mlir::lsp::Position position)
+{
+	mlir::lsp::WorkspaceEdit action;
+
+	const auto *maybeInfo = getModuleFromUri(uri);
+	if (maybeInfo == nullptr)
+		return action;
+
+	auto decl = getTypeDeclarer(maybeInfo->getModule(), position);
+	if (decl == nullptr)
+		return action;
+
+	mlir::rlc::Renemable declType = decl.getDeclaredType().cast<Renemable>();
+	if (not declType)
+		return action;
+
+	auto renamedType = declType.rename(newName);
+	if (!renamedType)
+		return action;
+
+	action.changes[uri.file().str()].emplace_back();
+	action.changes[uri.file().str()].back().newText = newName;
+	action.changes[uri.file().str()].back().range.start =
+			locToPos(decl.getDeclarationLocation()->getStart());
+	action.changes[uri.file().str()].back().range.end =
+			locToPos(decl.getDeclarationLocation()->getEnd());
+
+	maybeInfo->getModule().walk([&](mlir::rlc::TypeUser user) {
+		for (auto typeUse : user.getShugarizedTypes())
+		{
+			auto file = typeUse.getLocation().getStart().getFilename().str();
+
+			auto newType = rewrittenType(typeUse.getType(), declType, renamedType);
+			if (!newType or newType == typeUse.getType())
+				continue;
+
+			action.changes[file].emplace_back();
+			action.changes[file].back().newText = toString(newType);
+			action.changes[file].back().range.start =
+					locToPos(typeUse.getLocation().getStart());
+			action.changes[file].back().range.end =
+					locToPos(typeUse.getLocation().getEnd());
+		}
+	});
+
+	return action;
 }
