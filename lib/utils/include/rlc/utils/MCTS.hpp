@@ -48,6 +48,14 @@ class GameState
 		owner_id = get_current_player(state);
 	}
 
+	GameState(Game& initial)
+	{
+		state = initial;
+		owner_id = get_current_player(state);
+	}
+
+	Game& getPayload() { return state; }
+
 	int64_t getAction() const { return lastActionTaken; }
 
 	std::vector<int64_t> getLegalActions() const
@@ -149,6 +157,7 @@ void MCTSNode<State>::expand()
 	{
 		untriedActions = state.getLegalActions();
 	}
+	assert(not untriedActions.empty() or state.isTerminal());
 	if (!untriedActions.empty())
 	{
 		typename State::Action action = untriedActions.back();
@@ -383,24 +392,24 @@ bool playGame(size_t iterations, size_t iterations2)
 	return mcts.getState().getReward() == 1.0;
 }
 
-int main()
-{
-	for (auto y : { 100000 })
-		for (auto i : { 100000 })
-		{
-			std::thread threads[30];
-			for (int t = 0; t != 30; t++)
-				threads[t] = std::thread([=]() {
-					for (int game = 0; game != 3; game++)
-					{
-						bool p1Win = playGame(i, y);
-						std::cout << i << " " << y << " g: " << game + (t * 3)
-											<< ", did p1 win? " << p1Win << "\n";
-						std::cout.flush();
-					}
-				});
-			for (int t = 0; t != 30; t++)
-				threads[t].join();
-		}
-	return 0;
-}
+// int main()
+//{
+// for (auto y : { 100000 })
+// for (auto i : { 100000 })
+//{
+// std::thread threads[30];
+// for (int t = 0; t != 30; t++)
+// threads[t] = std::thread([=]() {
+// for (int game = 0; game != 3; game++)
+//{
+// bool p1Win = playGame(i, y);
+// std::cout << i << " " << y << " g: " << game + (t * 3)
+//<< ", did p1 win? " << p1Win << "\n";
+// std::cout.flush();
+//}
+//});
+// for (int t = 0; t != 30; t++)
+// threads[t].join();
+//}
+// return 0;
+//}
