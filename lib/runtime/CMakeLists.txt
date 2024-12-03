@@ -28,9 +28,10 @@ if (WIN32)
     )
 
 else()
-    rlcAddLibrary(runtime STATIC src/Parse.c)
+    rlcAddLibrary(runtime STATIC src/Runtime.c)
     set_property(TARGET runtime PROPERTY C_STANDARD 11)
 endif()
+INSTALL(FILES src/Runtime.c DESTINATION include/rlc/runtime)
 
 find_package (Python COMPONENTS Interpreter Development)
 add_library(pyrlc STATIC ${CMAKE_SOURCE_DIR}/python/native/call_python.c)

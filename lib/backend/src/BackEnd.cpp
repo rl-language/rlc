@@ -257,6 +257,11 @@ bool mlir::rlc::TargetInfo::isWindows() const
 	return pimpl->triple.isOSWindows();
 }
 
+std::string mlir::rlc::TargetInfo::tripleToString() const
+{
+	return pimpl->triple.getTriple();
+}
+
 const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
 {
 	return *pimpl->datalayout;
@@ -441,6 +446,7 @@ static int linkLibraries(
 	llvm::SmallVector<std::string, 4> argSource;
 	argSource.push_back("clang");
 	argSource.push_back(library.getFilename().str());
+	argSource.push_back("-target=" + info.tripleToString());
 	if (info.isWindows())
 	{
 		argSource.push_back("-fuse-ld=lld");
@@ -530,7 +536,7 @@ namespace mlir::rlc
 			auto Module = mlir::translateModuleToLLVMIR(
 					getOperation(), LLVMcontext, getOperation().getName().value());
 			assert(Module);
-			Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
+			Module->setTargetTriple(targetInfo->tripleToString());
 
 			runOptimizer(
 					*Module,

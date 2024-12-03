@@ -243,6 +243,13 @@ static cl::opt<bool> ExpectFail(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<std::string> customTargetTriple(
+		"target",
+		cl::desc("specify a target triple, if empty the default target triple will "
+						 "be used instead"),
+		cl::init(""),
+		cl::cat(astDumperCategory));
+
 static cl::opt<std::string> customFuzzerLibPath(
 		"fuzzer-lib",
 		cl::desc("path to the fuzzer library."),
@@ -487,6 +494,8 @@ int main(int argc, char *argv[])
 			mlir::DLTIDialect,
 			mlir::index::IndexDialect>();
 	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
+	if (customTargetTriple != "")
+		targetTriple = customTargetTriple;
 	mlir::rlc::TargetInfo targetInfo(targetTriple, shared, Optimize);
 
 	mlir::registerLLVMDialectTranslation(Registry);

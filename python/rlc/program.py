@@ -82,7 +82,11 @@ class State:
             self.load_binary(path_to_binary_state)
 
     def step(self, action):
-        assert self.can_apply(action)
+        if not self.can_apply(action):
+            self.module.functions.print(action)
+            sys.stdout.flush()
+            assert(len(self.legal_actions) != 0, "found a state with no valid actions, yet the game is not terminated")
+            return
         self.program.functions.apply(action, self.state)
 
     def can_apply(self, action) -> bool:

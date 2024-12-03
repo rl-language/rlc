@@ -1358,6 +1358,8 @@ class RLC_BinaryBitwiseOp<string mnemonic, list<OpInterface> CA_Interface=[]> : 
 def RLC_BitOrOp : RLC_BinaryBitwiseOp<"bit_or"> {}
 def RLC_BitAndOp : RLC_BinaryBitwiseOp<"bit_and"> {}
 def RLC_BitXorOp : RLC_BinaryBitwiseOp<"bit_xor"> {}
+def RLC_LeftShiftOp : RLC_BinaryBitwiseOp<"left_shift"> {}
+def RLC_RightShiftOp : RLC_BinaryBitwiseOp<"right_shift"> {}
 
 def RLC_BitNotOp : RLC_Dialect<"bit_not", [TypeCheckable]> {
 

@@ -592,8 +592,8 @@ Expected<mlir::Value> Parser::additiveExpression()
 }
 
 /**
- * orExpression : additiveExpression (('<' | '>' | '<=' | '>=')
- * additiveExpression)*
+ * orExpression : shiftExpression (('<' | '>' | '<=' | '>=')
+ * relationalExpression)*
  */
 Expected<mlir::Value> Parser::relationalExpression()
 {
@@ -602,11 +602,24 @@ Expected<mlir::Value> Parser::relationalExpression()
 	auto location = getCurrentSourcePos();
 	if (accept<Token::LAng>())
 	{
+		if (accept<Token::LAng>())
+		{
+			TRY(rhs, additiveExpression());
+			return builder.create<mlir::rlc::LeftShiftOp>(
+					location, unkType(), *exp, *rhs);
+		}
 		TRY(rhs, relationalExpression());
 		return builder.create<mlir::rlc::LessOp>(location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::RAng>())
 	{
+		if (accept<Token::RAng>())
+		{
+			TRY(rhs, additiveExpression());
+			return builder.create<mlir::rlc::RightShiftOp>(
+					location, unkType(), *exp, *rhs);
+		}
+
 		TRY(rhs, relationalExpression());
 		return builder.create<mlir::rlc::GreaterOp>(
 				location, unkType(), *exp, *rhs);

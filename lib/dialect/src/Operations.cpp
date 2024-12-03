@@ -893,6 +893,17 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		llvm::SmallVector<mlir::Value, 4> canArgs(
 				terminator.getArguments().begin(), terminator.getArguments().end());
+		for (auto [forwardedArg, toCallArg] :
+				 llvm::zip_first(canArgs, referred.getResultTypes()))
+		{
+			if (forwardedArg.getType() != decayCtxFrmType(toCallArg))
+			{
+				return logError(
+						*this,
+						"forwarded arg type missmatch, expected: " + prettyType(toCallArg) +
+								" got " + prettyType(decayCtxFrmType(forwardedArg.getType())));
+			}
+		}
 		terminator.erase();
 
 		for (auto arg : llvm::drop_begin(newBody->getArguments(), contextArgsCount))
@@ -905,6 +916,13 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		rewiter.create<mlir::rlc::Yield>(
 				actions.getLoc(), mlir::ValueRange({ result.getResult(0) }));
 		rewiter.setInsertionPointAfter(fixed);
+		auto expression =
+				rewiter.create<mlir::rlc::ExpressionStatement>(fixed.getLoc());
+
+		// yield of the action statements
+		rewiter.create<mlir::rlc::Yield>(actions.getLoc());
+
+		rewiter.createBlock(&expression.getBody());
 
 		mlir::IRMapping mapping2;
 		for (auto &op : getForwardedArgs().front())
@@ -922,6 +940,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, false, args);
 
+		// yield for the expression statement
 		rewiter.create<mlir::rlc::Yield>(actions.getLoc());
 	}
 	rewiter.setInsertionPointAfter(*this);

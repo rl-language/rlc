@@ -13,14 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+#include "rlc/runtime/Runtime.h"
+
 #include <ctype.h>
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "rlc/runtime/Runtime.h"
 
 struct String
 {
@@ -45,7 +45,7 @@ void impl_rl_m_append__String_strlit(String* self, char** to_append)
 	if (selflen + to_copy_len >= self->capacity)
 	{
 		size_t new_capacity = (selflen + to_copy_len) * 2;
-		self->str = realloc(self->str, new_capacity);
+		self->str = (char*) realloc(self->str, new_capacity);
 		self->capacity = new_capacity;
 	}
 

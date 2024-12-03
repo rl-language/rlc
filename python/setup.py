@@ -89,6 +89,7 @@ copy_binaries(
 )
 extra_files_bin = package_files([target_bin_dir], target_bin_dir)
 extra_files_lib = package_files(["lib"], "lib")
+extra_files_share = package_files(["share"], "share")
 
 site_packages_path = (
     target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
@@ -103,6 +104,7 @@ setup(
     include_package_data=True,
     data_files=extra_files_bin
     + extra_files_lib
+    + extra_files_share
     + [
         (
             os.path.join(site_packages_path, "impl"),

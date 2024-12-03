@@ -194,3 +194,15 @@ endif()
 ###         stdlib         ###
 ##############################
 install(DIRECTORY ./stdlib DESTINATION ${CMAKE_INSTALL_LIBDIR}/rlc)
+
+##############################
+###     cmake config       ###
+##############################
+configure_package_config_file(
+    rlcConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/rlcConfig.cmake
+    INSTALL_DESTINATION share/rlc/cmake
+)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/rlcConfig.cmake
+        DESTINATION share/rlc/cmake)

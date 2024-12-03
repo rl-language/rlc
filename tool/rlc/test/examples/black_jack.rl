@@ -100,7 +100,7 @@ act play() -> Game:
 
     # shuffle the deck, we will see later 
     # how this is implemented
-    subaction*(deck) shuffling = shuffle(deck.value)
+    subaction*(deck.value) shuffling = shuffle(deck.value)
 
     # deal the initial cards
     deal(deck.value, player_hand)
