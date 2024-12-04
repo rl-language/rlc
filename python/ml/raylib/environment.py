@@ -95,7 +95,8 @@ class RLCEnvironment(MultiAgentEnv):
         self.has_get_current_player_f = has_get_current_player(self.module)
         self.num_players = get_num_players(self.module)
         self.initial_states = initial_states
-        self.current_state = random.randint(0, len(initial_states))
+        random.shuffle(self.initial_states)
+        self.current_state = 0
         if not forced_one_player:
             self.num_agents = get_num_players(self.module)
         else:
