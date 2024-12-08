@@ -26,6 +26,8 @@ limitations under the License.
 #include <utility>
 #include <random>
 
+#include "absl/container/flat_hash_map.h"
+
 std::random_device rd;
 std::mt19937 gen(rd());
 
@@ -231,10 +233,10 @@ static void BM_EraseRandom(benchmark::State& state) {
         ->Complexity();
 
 #define REGISTER_BENCHMARK_SUITE(DictType, KeyType, NameSuffix)        \
-    REGISTER_BENCHMARK(BM_SubsciptOperatorInsert, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_SubsciptOperatorInsertRandom, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_Insert, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_InsertRandom, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsert, DictType, KeyType, NameSuffix) \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsertRandom, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_SubscriptOperatorFind, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_SubscriptOperatorFindRandom, DictType, KeyType, NameSuffix) \
     REGISTER_BENCHMARK(BM_Find, DictType, KeyType, NameSuffix) \
@@ -246,11 +248,15 @@ using UnorderedMapIntInt = std::unordered_map<int, int>;
 using UnorderedMapLargeKeyInt = std::unordered_map<LargeKey, int>;
 using MapIntInt = std::map<int, int>;
 using MapLargeKeyInt = std::map<LargeKey, int>;
+using FlatHashMapIntInt = absl::flat_hash_map<int, int>;
+using FlatHashMapLargeKeyInt = absl::flat_hash_map<LargeKey, int>;
 
 // Register benchmark suites
 REGISTER_BENCHMARK_SUITE(UnorderedMapIntInt, int, "UnorderedMap_Small")
 REGISTER_BENCHMARK_SUITE(UnorderedMapLargeKeyInt, LargeKey, "UnorderedMap_Large")
 REGISTER_BENCHMARK_SUITE(MapIntInt, int, "Map_Small")
 REGISTER_BENCHMARK_SUITE(MapLargeKeyInt, LargeKey, "Map_Large")
+REGISTER_BENCHMARK_SUITE(FlatHashMapIntInt, int, "FlatHashMap_Small")
+REGISTER_BENCHMARK_SUITE(FlatHashMapLargeKeyInt, LargeKey, "FlatHashMap_Large")
 
 BENCHMARK_MAIN();
