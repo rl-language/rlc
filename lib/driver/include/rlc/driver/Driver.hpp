@@ -61,6 +61,7 @@ namespace mlir::rlc
 
 		void setEmitBoundChecks(bool doEmit) { emitBoundChecks = doEmit; }
 		void setEmitSanitizer(bool doEmit) { emitSanitizer = doEmit; }
+		void setEmitDependencyFile(bool doEmit) { emitDependencyFile = doEmit; }
 
 		void setSkipParsing(bool doIt = true) { skipParsing = doIt; }
 		void setDebug(bool doIt = true) { debug = doIt; }
@@ -85,6 +86,7 @@ namespace mlir::rlc
 		bool emitBoundChecks = true;
 		bool emitFuzzer = false;
 		bool emitSanitizer = false;
+		bool emitDependencyFile = false;
 		bool skipParsing = false;
 		bool debug = false;
 

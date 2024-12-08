@@ -23,8 +23,9 @@ function(rlc TARGET_NAME)
     if (NOT ${RLC_OUTPUT} STREQUAL "")
         add_custom_command(
             OUTPUT ${RLC_OUTPUT} 
-            COMMAND rlc ${RLC_INPUT} -o ${RLC_OUTPUT} -O2 ${RLC_EXTRA_ARGS} ${ARG}
+            COMMAND rlc ${RLC_INPUT} -o ${RLC_OUTPUT} -O2 ${RLC_EXTRA_ARGS} ${ARG} -MD
             DEPENDS ${RLC_INPUT}
+            DEPFILE ${RLC_OUTPUT}.dep
         )
 
         list(APPEND CREATED_FILES ${RLC_OUTPUT})
@@ -36,8 +37,9 @@ function(rlc TARGET_NAME)
         set(TMP_GODOT ${CMAKE_CURRENT_BINARY_DIR}/${RLC_GODOT_FILENAME}.tmp)
         add_custom_command(
             OUTPUT ${RLC_GODOT} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_GODOT} -O2 --godot ${RLC_EXTRA_ARGS}
+            COMMAND rlc ${RLC_INPUT} -o ${TMP_GODOT} -O2 --godot ${RLC_EXTRA_ARGS} -MD
             COMMAND ${CMAKE_COMMAND} -E  copy_if_different ${TMP_GODOT}  ${RLC_GODOT}
+            DEPFILE ${RLC_GODOT}.dep
             DEPENDS ${RLC_INPUT}
         )
 
@@ -51,9 +53,10 @@ function(rlc TARGET_NAME)
         set(TMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${RLC_HEADER_FILENAME}.tmp)
         add_custom_command(
             OUTPUT ${RLC_HEADER} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_HEADER} -O2 --header ${RLC_EXTRA_ARGS}
+            COMMAND rlc ${RLC_INPUT} -o ${TMP_HEADER} -O2 --header ${RLC_EXTRA_ARGS} -MD
             COMMAND ${CMAKE_COMMAND} -E  copy_if_different ${TMP_HEADER}  ${RLC_HEADER}
             DEPENDS ${RLC_INPUT}
+            DEPFILE ${RLC_HEADER}.dep
         )
 
         add_custom_target(${TARGET_NAME}_HEADER DEPENDS ${RLC_HEADER})
@@ -67,9 +70,10 @@ function(rlc TARGET_NAME)
 
         add_custom_command(
             OUTPUT ${RLC_PYTHON} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_PYTHON} --python ${RLC_EXTRA_ARGS}
+            COMMAND rlc ${RLC_INPUT} -o ${TMP_PYTHON} --python ${RLC_EXTRA_ARGS} -MD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${TMP_PYTHON}  ${RLC_PYTHON}
             DEPENDS ${RLC_INPUT}
+            DEPFILE ${RLC_PYTHON}.dep
         )
         add_custom_target(${TARGET_NAME}_PYTHON DEPENDS ${RLC_PYTHON})
         list(APPEND CREATED_FILES ${RLC_PYTHON})
@@ -78,8 +82,9 @@ function(rlc TARGET_NAME)
         set(RLC_PYTHON_LIB ${RLC_PYTHON_DIR}/lib${CMAKE_SHARED_LIBRARY_SUFFIX})
         add_custom_command(
             OUTPUT ${RLC_PYTHON_LIB} 
-            COMMAND rlc ${RLC_INPUT} -o ${RLC_PYTHON_LIB} --shared -O2 ${RLC_EXTRA_ARGS}
+            COMMAND rlc ${RLC_INPUT} -o ${RLC_PYTHON_LIB} --shared -O2 ${RLC_EXTRA_ARGS} -MD
             DEPENDS ${RLC_INPUT}
+            DEPFILE ${RLC_PYTHON_LIB}.dep
         )
         add_custom_target(${TARGET_NAME}_PYTHON_LIB DEPENDS ${RLC_PYTHON_LIB})
         list(APPEND CREATED_FILES ${RLC_PYTHON_LIB})

@@ -268,6 +268,12 @@ static cl::opt<bool> formatFile(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> generateDependecyFile(
+		"MD",
+		cl::desc("creates a dependency file called OUTPUT.dep"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<std::string> customRuntime(
 		"runtime-lib",
 		cl::desc("path to runtime"),
@@ -422,6 +428,7 @@ static mlir::rlc::Driver configureDriver(
 	Driver driver(srcManager, inputs, outputFile, OS);
 	driver.setRequest(getRequest());
 	driver.setDebug(debugInfo);
+	driver.setEmitDependencyFile(generateDependecyFile);
 	driver.setHidePosition(hidePosition);
 	driver.setEmitPreconditionChecks(emitPreconditionChecks);
 	driver.setDumpIR(dumpIR);

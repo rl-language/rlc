@@ -16,7 +16,9 @@ limitations under the License.
 #include "rlc/parser/MultiFileParser.hpp"
 
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/ToolOutputFile.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Pass/Pass.h"
 #include "rlc/dialect/Operations.hpp"
@@ -59,6 +61,33 @@ namespace mlir::rlc
 									<< toPrint;
 						});
 				signalPassFailure();
+				return;
+			}
+
+			if (dependencyFile != "")
+			{
+				std::error_code EC;
+
+				llvm::ToolOutputFile library(
+						dependencyFile + ".dep", EC, llvm::sys::fs::OpenFlags::OF_None);
+				if (EC)
+				{
+					getContext().getDiagEngine().emit(
+							mlir::UnknownLoc::get(&getContext()),
+							mlir::DiagnosticSeverity::Error)
+							<< "failed to create dependency file " + dependencyFile + ".dep";
+				}
+				library.os() << dependencyFile << ":";
+				for (auto file : parser.getImportedFiles())
+				{
+					llvm::SmallVector<char> absolute;
+					llvm::sys::fs::real_path(file, absolute);
+					llvm::StringRef ref(absolute.begin(), absolute.size());
+					library.os() << " " << ref << " \\\n";
+				}
+				library.os() << "\n";
+
+				library.keep();
 			}
 		}
 	};

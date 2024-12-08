@@ -208,7 +208,9 @@ def ParseFilePass : Pass<"rlc-parse-file-pass", "mlir::ModuleOp"> {
     Option<"inputs", "input files", "llvm::ArrayRef<std::string>", /*default=*/"llvm::ArrayRef<std::string>{}",
            "input files">,
     Option<"srcManager", "source manager", "llvm::SourceMgr*", /*default=*/"nullptr",
-           "source manager">
+           "source manager">,
+    Option<"dependencyFile", "dependency file", "std::string", /*default=*/"\"\"",
+           "dependency file">
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

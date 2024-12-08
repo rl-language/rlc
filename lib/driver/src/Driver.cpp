@@ -16,7 +16,10 @@ namespace mlir::rlc
 		if (not skipParsing)
 		{
 			manager.addPass(mlir::rlc::createParseFilePass(
-					{ &includeDirs, inputFile, srcManager }));
+					{ &includeDirs,
+						inputFile,
+						srcManager,
+						emitDependencyFile ? outputFile : "" }));
 		}
 		if (request == Request::dumpUncheckedAST)
 		{
