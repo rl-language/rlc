@@ -87,6 +87,10 @@ copy_binaries(
     os.path.join("..", "..", "rlc-release", "install", "lib", "rlc"),
     os.path.join("lib", "rlc"),
 )
+copy_binaries(
+    os.path.join("..", "..", "rlc-release", "install", "lib", "cmake"),
+    os.path.join("lib", "cmake"),
+)
 extra_files_bin = package_files([target_bin_dir], target_bin_dir)
 extra_files_lib = package_files(["lib"], "lib")
 extra_files_share = package_files(["share"], "share")
@@ -97,7 +101,7 @@ site_packages_path = (
 
 setup(
     name="rl_language",
-    version="0.1.41",
+    version="0.2.1",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
