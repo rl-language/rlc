@@ -73,7 +73,7 @@ def build_rlc(
         "-DHAVE_STD_REGEX=ON",
         "-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument",
         "-DRUN_HAVE_STD_REGEX=1",
-        "-DPython_EXECUTABLE:FILEPATH={}".format(python_path),
+        "-DPython3_EXECUTABLE:FILEPATH={}".format("/root/rlc-infrastructure/.venv/bin/python"),
         "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" and not is_windows and not is_mac else "",
     )
 

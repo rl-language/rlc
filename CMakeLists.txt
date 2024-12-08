@@ -94,9 +94,9 @@ add_subdirectory(tool)
 ##############################
 ###         Python         ###
 ##############################
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 add_test(NAME pytest
-COMMAND ${Python_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/python
+COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/python
 )
 
 ##############################
