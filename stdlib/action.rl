@@ -63,11 +63,22 @@ fun<AllActionsVariant> parse_actions(AllActionsVariant variant, Vector<Byte> inp
             to_return.append(variant)
     return to_return
 
+fun _consume_comment(String input, Int current):
+    while is_space(input[current]) and current < input.size():
+        current = current + 1
+    if input[current] != '#':
+        return
+
+    while input[current] != '\n' and current < input.size():
+        current = current + 1
+
+
 fun<AllActionsVariant> parse_actions(AllActionsVariant variant, String input) -> Vector<AllActionsVariant>:
     let to_return : Vector<AllActionsVariant>
     let counter = 0 
+    _consume_comment(input, counter)
     while from_string(variant, input, counter):
-        print(variant)
+        _consume_comment(input, counter)
         to_return.append(variant)
     return to_return
 
