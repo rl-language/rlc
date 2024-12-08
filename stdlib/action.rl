@@ -156,21 +156,18 @@ fun<T> _enumerate_impl(T obj, Int current_argument, Vector<T> out, Int num_args)
     let counter = 0
     for field of obj:
         if counter == current_argument:
-            if field is Enumerable:
-                using Type = type(field)
-                let vec : Vector<Type>
-                field.enumerate(vec)
+            let vec = enumerate(field)
 
-                let next_current_argument = current_argument + 1
-                let is_last_one = next_current_argument == num_args
-                let counter_2 = 0
-                while counter_2 != vec.size():
-                    field = vec.get(counter_2)
-                    if is_last_one:
-                        out.append(obj)
-                    else:
-                        _enumerate_impl(obj, next_current_argument, out, num_args)
-                    counter_2 = counter_2 + 1
+            let next_current_argument = current_argument + 1
+            let is_last_one = next_current_argument == num_args
+            let counter_2 = 0
+            while counter_2 != vec.size():
+                field = vec.get(counter_2)
+                if is_last_one:
+                    out.append(obj)
+                else:
+                    _enumerate_impl(obj, next_current_argument, out, num_args)
+                counter_2 = counter_2 + 1
             return
         counter = counter + 1
 
@@ -352,6 +349,13 @@ fun<Int min, Int max> write_in_observation_tensor(BInt<min, max> obj, Int observ
 
 fun<Int min, Int max> size_as_observation_tensor(BInt<min, max> obj) -> Int:
     return max - min 
+
+fun<Int min, Int max> write_in_observation_tensor(LinearlyDistributedInt<min, max> obj, Int observer_id, Vector<Float> output, Int index):
+    output[index] = (float(obj.value) - (float(max - min) / 2.0)) / float(max-min)
+    index = index + 1
+
+fun<Int min, Int max> size_as_observation_tensor(LinearlyDistributedInt<min, max> obj) -> Int:
+    return 1
 
 fun<T> _size_as_observation_tensor_impl(T obj) -> Int:
     if obj is Tensorable:

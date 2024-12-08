@@ -40,6 +40,7 @@ namespace mlir::rlc
 
 		void setDumpIR(bool doDump) { dumpIR = doDump; }
 		void setClangPath(std::string newPath) { clangPath = newPath; }
+		void setAbortSymbol(std::string abortSym) { abortSymbol = abortSym; }
 		void setExtraObjectFile(std::vector<std::string> newExtraObjectFiles)
 		{
 			extraObjectFiles = newExtraObjectFiles;
@@ -88,6 +89,8 @@ namespace mlir::rlc
 		bool debug = false;
 
 		std::string clangPath = "clang";
+
+		std::string abortSymbol = "";
 
 		llvm::SourceMgr *srcManager;
 		llvm::SmallVector<std::string, 2> inputFile;

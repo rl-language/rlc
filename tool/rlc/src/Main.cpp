@@ -120,6 +120,12 @@ static cl::opt<std::string> clangPath(
 		cl::init("clang"),
 		cl::cat(astDumperCategory));
 
+static cl::opt<std::string> abortSymbol(
+		"abort-symbol",
+		cl::desc("abort symbol called by assertions"),
+		cl::init(""),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpPythonAST(
 		"python-ast",
 		cl::desc("dumps the ast of python-ast and exits"),
@@ -278,7 +284,10 @@ static cl::opt<bool> pylib(
 		"pylib",
 		cl::desc("link against python interpreter"),
 		cl::init(false),
-		cl::cat(astDumperCategory));
+		cl::cat(astDumperCategory),
+		cl::callback([](const bool &value) {
+			abortSymbol.setInitialValue("rl_py_abort");
+		}));
 
 static cl::opt<std::string> customPythonLibPath(
 		"pyrlc-lib",
@@ -425,6 +434,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setTargetInfo(&info);
 	driver.setEmitBoundChecks(emitBoundChecks);
 	driver.setVerbose(verbose);
+	driver.setAbortSymbol(abortSymbol);
 
 	return driver;
 }

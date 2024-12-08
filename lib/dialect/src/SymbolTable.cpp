@@ -315,7 +315,7 @@ static void registerConversions(
 			content.push_back(converted);
 		}
 
-		return mlir::rlc::AlternativeType::get(t.getContext(), content);
+		return mlir::rlc::AlternativeType::get(t.getContext(), content, t.getName());
 	});
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());

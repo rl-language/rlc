@@ -357,6 +357,11 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
 	{
+        if (not maybeType.getName().empty())
+        {
+			OS << maybeType.getName();
+            return;
+        }
 		size_t i = 0;
 		for (auto input : maybeType.getUnderlying())
 		{
@@ -548,6 +553,11 @@ namespace mlir::rlc
 		}
 		if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
 		{
+            if (not maybeType.getName().empty())
+            {
+			    OS << maybeType.getName();
+                return;
+            }
 			size_t i = 0;
 			OS << "alt_";
 			for (auto input : maybeType.getUnderlying())
@@ -946,6 +956,11 @@ void mlir::rlc::OwningPtrType::rlc_serialize(
 void mlir::rlc::AlternativeType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
+    if (not getName().empty()){
+        OS << getName();
+        return;
+    }
+
 	for (size_t i = 0; i != getUnderlying().size(); i++)
 	{
 		getUnderlying()[i].cast<mlir::rlc::RLCSerializable>().rlc_serialize(

@@ -488,12 +488,12 @@ static mlir::LogicalResult declareActionTypes(
 		return mlir::success();
 
 	// declares a type that contains the alternative between all possible actions
-	mlir::Type alternative =
-			mlir::rlc::AlternativeType::get(function.getContext(), declaredTypes);
+	auto alternative =
+			mlir::rlc::AlternativeType::get(function.getContext(), declaredTypes, ("Any" + function.getClassType().getName() + "Action").str());
 
 	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
 			function.getLoc(),
-			("Any" + function.getClassType().getName() + "Action").str(),
+		    alternative.getName(),	
 			alternative,
 			nullptr,
 			nullptr);
@@ -658,6 +658,10 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 		assert(shugarized != nullptr);
 		this->setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarized));
 	}
+
+    if (auto casted = deducedType.dyn_cast<mlir::rlc::AlternativeType>() ) {
+        deducedType = mlir::rlc::AlternativeType::get(casted.getContext(), casted.getUnderlying(), getName());
+    }
 
 	builder.getConverter().registerType(getName(), deducedType);
 	this->setAliased(deducedType);

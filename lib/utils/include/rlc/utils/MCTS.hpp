@@ -55,6 +55,7 @@ class GameState
 	}
 
 	Game& getPayload() { return state; }
+	const Game& getPayload() const { return state; }
 
 	int64_t getAction() const { return lastActionTaken; }
 
@@ -109,6 +110,7 @@ class MCTSNode
 	MCTSNode* parent;
 	std::vector<std::unique_ptr<MCTSNode>> children;
 	int visits;
+	size_t depth = 0;
 	double reward;
 	std::vector<typename State::Action> untriedActions;
 
@@ -116,7 +118,8 @@ class MCTSNode
 	{
 		std::cout << "\"" << this << "\"" << "[label=\"" << state.getAction()
 							<< " visits=" << visits << ", average_value=" << (reward / visits)
-							<< ", player " << state.getCurrentPlayer() << "\"];\n";
+							<< ", player " << state.getCurrentPlayer() << ", hash "
+							<< hash(state.getPayload()) << "\"];\n";
 		for (auto& child : children)
 		{
 			std::cout << "\"" << this << "\"" << " -> " << "\"" << child.get() << "\""
@@ -125,6 +128,9 @@ class MCTSNode
 		}
 	}
 };
+
+static std::map<int64_t, size_t> visitedNodeMap;
+static constexpr const float discout_factor = 1;
 
 template<typename State>
 MCTSNode<State>* MCTSNode<State>::select()
@@ -158,14 +164,25 @@ void MCTSNode<State>::expand()
 		untriedActions = state.getLegalActions();
 	}
 	assert(not untriedActions.empty() or state.isTerminal());
-	if (!untriedActions.empty())
+	State newState;
+	int64_t node_hash;
+	auto entry = visitedNodeMap.begin();
+	do
 	{
+		if (untriedActions.empty())
+			return;
+
 		typename State::Action action = untriedActions.back();
 		untriedActions.pop_back();
-		State newState = state;
+		newState = state;
 		newState.applyAction(action);
-		children.push_back(std::make_unique<MCTSNode>(newState, this));
-	}
+		node_hash = hash(newState.getPayload());
+		entry = visitedNodeMap.find(node_hash);
+
+	} while (entry != visitedNodeMap.end() and entry->second < depth + 1);
+	children.push_back(std::make_unique<MCTSNode>(newState, this));
+	visitedNodeMap[node_hash] = depth + 1;
+	children.back().get()->depth = depth + 1;
 }
 
 template<typename State>
@@ -177,17 +194,23 @@ void MCTSNode<State>::simulate_woker(double* result)
 	size_t count = 0;
 	while (!currentState.isTerminal())
 	{
+		// auto node_hash = hash(state.getPayload());
+		// if (auto iter = visitedNodeMap.find(node_hash); iter !=
+		// visitedNodeMap.end()) { *result = iter->second->reward *
+		// std::pow(discout_factor, count); return;
+		//}
+
 		count++;
 		auto legalActions = currentState.getLegalActions();
 		std::uniform_int_distribution<int> distribution(0, legalActions.size() - 1);
 		currentState.applyAction(legalActions[distribution(generator)]);
-		if (count == 100)
+		if (count == max_game_lenght())
 		{
 			*result = 0;
 			return;
 		}
 	}
-	*result = currentState.getReward();
+	*result = currentState.getReward() * std::pow(discout_factor, count);
 }
 
 template<typename State>
@@ -231,7 +254,7 @@ void MCTSNode<State>::backpropagate(double reward)
 			// node->reward -= reward;
 			node->reward += reward;
 		node = node->parent;
-		// reward = reward * 0.95;
+		reward = reward * discout_factor;
 	}
 }
 
@@ -268,7 +291,10 @@ void MCTS<State>::worker(MCTSNode<State>* node, uint64_t num_threads)
 	if (!selectedNode->state.isTerminal())
 	{
 		selectedNode->expand();
-		selectedNode = selectedNode->children.back().get();
+		if (not selectedNode->children.empty())
+		{
+			selectedNode = selectedNode->children.back().get();
+		}
 	}
 	double reward = selectedNode->simulate(num_threads);
 	selectedNode->backpropagate(reward);
@@ -278,6 +304,7 @@ template<typename State>
 void MCTS<State>::setState(const State& initialState)
 {
 	root = std::make_unique<MCTSNode<State>>(initialState);
+	visitedNodeMap.clear();
 }
 
 template<typename State>

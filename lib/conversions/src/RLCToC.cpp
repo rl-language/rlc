@@ -908,6 +908,12 @@ static void emitGodotFunction(
 					 << "]))))";
 			else if (type.isa<mlir::rlc::StringLiteralType>())
 				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::STRING";
+			else if (type.isa<mlir::rlc::BoolType>())
+				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::BOOL";
+			else if (type.isa<mlir::rlc::IntegerType>())
+				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::INT";
+			else if (type.isa<mlir::rlc::FloatType>())
+				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::FLOAT";
 		}
 
 		OS << ") {\n";
@@ -1077,8 +1083,15 @@ public:
 
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"get_member\"), &"
+				 << wrapperName << "::get_member);\n";
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"set_member\"), &"
+				 << wrapperName << "::set_member);\n";
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"members_count\"), &"
+				 << wrapperName << "::members_count);\n";
 			for (auto field : casted.getMembers())
 			{
+				auto type = field.getType();
 				auto name = field.getName();
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
@@ -1095,6 +1108,10 @@ public:
 		}
 		else if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
 		{
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"unwrap\"), &"
+				 << wrapperName << "::unwrap);\n";
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"assign\"), &"
+				 << wrapperName << "::assign);\n";
 			for (auto type : casted.getUnderlying())
 			{
 				if (unhandledType(type))
@@ -1156,6 +1173,43 @@ public:
 					OS << "content->content." << name << " =newVal;\n}\n";
 				}
 			}
+
+			OS << "godot::Variant get_member(int64_t index) {\n";
+			for (auto pair : llvm::enumerate(casted.getMembers()))
+			{
+				auto type = pair.value().getType();
+				auto name = pair.value().getName();
+				if (unhandledType(type) or name.starts_with("_"))
+					continue;
+
+				OS << "if (index == " << pair.index() << ")\n";
+				OS << "return get_" << name << "();\n";
+			}
+			OS << "return nullptr;\n}\n";
+
+			OS << "godot::Variant members_count() {\n";
+			OS << "return " << casted.getMembers().size() << ";\n}\n";
+
+			OS << "void set_member(int64_t index, godot::Variant newVar) "
+						"{\n";
+			for (auto pair : llvm::enumerate(casted.getMembers()))
+			{
+				auto type = pair.value().getType();
+				auto name = pair.value().getName();
+				if (unhandledType(type) or name.starts_with("_"))
+					continue;
+
+				OS << "if (index == " << pair.index() << ")\n";
+
+				if (type.isa<mlir::rlc::ClassType>() or
+						type.isa<mlir::rlc::AlternativeType>())
+					OS << "content->content." << name << "= *(godot::Object::cast_to<RLC"
+						 << typeToString(type, false) << ">(newVar)->content);\n";
+				else
+					OS << "set_" << name << "((" << typeToString(type, false)
+						 << ")newVar);\n";
+			}
+			OS << "\n}\n";
 		}
 
 		if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
@@ -1197,6 +1251,35 @@ public:
 					OS << "content->content.field" << index << " =newVal;\n}\n";
 				}
 			}
+
+			OS << "godot::Variant unwrap() {\n";
+			for (auto pair : llvm::enumerate(casted.getUnderlying()))
+			{
+				auto type = pair.value();
+				if (unhandledType(type))
+					continue;
+
+				auto name = mlir::rlc::typeToMangled(type);
+				OS << "if(auto candidate = get_" << name << "())\n";
+				OS << "return candidate;\n";
+			}
+			OS << "return nullptr;\n}\n";
+
+			OS << "void assign(godot::Variant other) {\n";
+			for (auto pair : llvm::enumerate(casted.getUnderlying()))
+			{
+				auto type = pair.value();
+				if (unhandledType(type))
+					continue;
+
+				auto name = mlir::rlc::typeToMangled(type);
+				OS << "if(auto casted = godot::Object::cast_to<RLC" << name
+					 << ">(other)){\n";
+				OS << "*content = *((*casted).content);\n";
+				OS << "return;}\n";
+			}
+			OS << "ERR_PRINT(\"could not assign, right hand side of assigment was "
+						"not a member of the alternative\");\n}\n";
 		}
 
 		OS << "};\n";
@@ -1269,6 +1352,7 @@ public:
 				continue;
 
 			memberFunctions.push_back(isMemberFunction(overload, builder));
+			overloads.push_back(overload.getType().cast<mlir::FunctionType>());
 			if (auto casted = overload.getDefiningOp<mlir::rlc::FunctionOp>();
 					casted and casted.getPrecondition().empty())
 			{
@@ -1280,7 +1364,6 @@ public:
 				canOverloads.push_back(nullptr);
 				continue;
 			}
-			overloads.push_back(overload.getType().cast<mlir::FunctionType>());
 			canOverloads.push_back(mlir::FunctionType::get(
 					ctx,
 					overloads.back().getInputs(),

@@ -37,6 +37,8 @@ def LowerToLLVMPass : Pass<"rlc-lower-to-llvm", "mlir::ModuleOp"> {
   let options = [
     Option<"debug_info", "add debug info", "bool", /*default=*/"false",
            "add the debug info to the output module">,
+    Option<"abort_symbol", "abort will call the provided symbol instead of trap", "std::string", /*default=*/"\"\"",
+           "change the default behaviour of abort">,
   ];
 }
 

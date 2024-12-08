@@ -1569,36 +1569,49 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 	AbortRewriter(
 			mlir::TypeConverter& converter,
 			mlir::MLIRContext* ctx,
-			mlir::LLVM::LLVMFuncOp puts)
+			mlir::LLVM::LLVMFuncOp puts,
+			mlir::StringRef abort = "")
 			: mlir::OpConversionPattern<mlir::rlc::AbortOp>::OpConversionPattern(
 						converter, ctx),
-				puts(puts)
+				puts(puts),
+				abort(abort)
 	{
 	}
 	mutable mlir::LLVM::LLVMFuncOp puts;
+	llvm::StringRef abort;
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::AbortOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		if (not op.getMessage().empty())
-		{
-			auto global = getOrCreateGlobalString(
-					op.getLoc(),
-					rewriter,
-					"",
-					op.getMessage(),
-					op->getParentOfType<mlir::ModuleOp>());
+		auto global = getOrCreateGlobalString(
+				op.getLoc(),
+				rewriter,
+				"",
+				op.getMessage(),
+				op->getParentOfType<mlir::ModuleOp>());
 
-			rewriter.setInsertionPoint(op);
+		rewriter.setInsertionPoint(op);
+
+		if (not abort.empty())
+		{
 			rewriter.create<mlir::LLVM::CallOp>(
-					op.getLoc(),
-					mlir::TypeRange(rewriter.getI32Type()),
-					puts.getSymName(),
-					mlir::ValueRange({ global }));
+					op.getLoc(), mlir::TypeRange(), abort, mlir::ValueRange({ global }));
 		}
-		rewriter.create<mlir::LLVM::Trap>(op.getLoc());
+		else
+		{
+			if (not op.getMessage().empty())
+			{
+				rewriter.create<mlir::LLVM::CallOp>(
+						op.getLoc(),
+						mlir::TypeRange(rewriter.getI32Type()),
+						puts.getSymName(),
+						mlir::ValueRange({ global }));
+			}
+			rewriter.create<mlir::LLVM::Trap>(op.getLoc());
+		}
+
 		rewriter.create<mlir::LLVM::ReturnOp>(op.getLoc(), mlir::ValueRange());
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -2176,6 +2189,15 @@ namespace mlir::rlc
 					getOperation(), rewriter, &realConverter, &dl);
 
 			auto ptrType = mlir::LLVM::LLVMPointerType::get(&getContext());
+
+			if (abort_symbol != "")
+				rewriter.create<mlir::LLVM::LLVMFuncOp>(
+						getOperation().getLoc(),
+						abort_symbol,
+						mlir::LLVM::LLVMFunctionType::get(
+								mlir::LLVM::LLVMVoidType::get(&getContext()),
+								{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
+
 			auto malloc = rewriter.create<mlir::LLVM::LLVMFuncOp>(
 					getOperation().getLoc(),
 					"malloc",
@@ -2276,7 +2298,7 @@ namespace mlir::rlc
 					.add<BuiltinAsPtrRewriter>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
-					.add<AbortRewriter>(converter, &getContext(), puts);
+					.add<AbortRewriter>(converter, &getContext(), puts, abort_symbol);
 
 			if (failed(
 							applyFullConversion(getOperation(), target, std::move(patterns))))

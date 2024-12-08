@@ -114,11 +114,12 @@ def RLC_AlternativeType : RLC_Type<"Alternative", "alternative", [DeclareTypeInt
     Alternative type.
   }];
 
-  let parameters = (ins ArrayRefParameter<"Type">:$underlying);
-  let assemblyFormat = "`<` $underlying `>` ";
+  let parameters = (ins ArrayRefParameter<"Type">:$underlying, StringRefParameter<>:$name);
+  let assemblyFormat = "`<`$name $underlying `>` ";
   let extraClassDeclaration = [{
 	  std::string getMangledName();
   }];
+
 }
 
 

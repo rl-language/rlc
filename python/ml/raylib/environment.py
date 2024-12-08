@@ -225,7 +225,11 @@ class RLCEnvironment(MultiAgentEnv):
 
     def log_extra_metrics(self, metrics_logger):
         for name, metric in self.metrics_to_log.items():
-            metrics_logger.log_value(name, metric(self.state.state))
+            value = metric(self.state.state)
+            if isinstance(value, int):
+                metrics_logger.log_value(name, value)
+            else:
+                metrics_logger.log_value(name, value.value)
 
     def _get_info(self):
         done, reward = self._get_done_winner()

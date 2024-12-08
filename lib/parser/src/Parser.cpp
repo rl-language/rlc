@@ -1667,7 +1667,7 @@ Expected<mlir::rlc::ShugarizedTypeAttr> Parser::singleTypeUse()
 	return mlir::rlc::ShugarizedTypeAttr::get(
 			builder.getContext(),
 			mlir::rlc::SourceRangeAttr::get(typeBegin, typeEnd),
-			mlir::rlc::AlternativeType::get(ctx, seenTypes));
+			mlir::rlc::AlternativeType::get(ctx, seenTypes, ""));
 }
 
 Expected<mlir::rlc::FunctionArgumentAttr> Parser::argDeclaration()
