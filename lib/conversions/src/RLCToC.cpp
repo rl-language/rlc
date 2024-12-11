@@ -869,6 +869,21 @@ static bool unhandledType(mlir::Type t)
 	return t.isa<mlir::rlc::OwningPtrType>() or t.isa<mlir::rlc::ArrayType>();
 };
 
+llvm::StringRef godotVariantBuiltinTypesName(mlir::Type type)
+{
+	if (type.isa<mlir::rlc::StringLiteralType>())
+		return "godot::Variant::STRING";
+	if (type.isa<mlir::rlc::BoolType>())
+		return "godot::Variant::BOOL";
+	if (type.isa<mlir::rlc::IntegerType>())
+		return "godot::Variant::INT";
+	if (type.isa<mlir::rlc::FloatType>())
+		return "godot::Variant::FLOAT";
+
+	llvm_unreachable("no kwown type");
+	return "TYPEUNWKOWN";
+}
+
 static void emitGodotFunction(
 		llvm::ArrayRef<mlir::FunctionType> overloadTypes,
 		llvm::StringRef name,
@@ -906,14 +921,9 @@ static void emitGodotFunction(
 					 << typeToString(fType.getInput(I), false) << ">(*((godot::Ref<RLC"
 					 << typeToString(fType.getInput(I), false) << ">)(*(args[" << I
 					 << "]))))";
-			else if (type.isa<mlir::rlc::StringLiteralType>())
-				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::STRING";
-			else if (type.isa<mlir::rlc::BoolType>())
-				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::BOOL";
-			else if (type.isa<mlir::rlc::IntegerType>())
-				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::INT";
-			else if (type.isa<mlir::rlc::FloatType>())
-				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::FLOAT";
+			else
+				OS << " && (*(args[" << I
+					 << "])).get_type() == " << godotVariantBuiltinTypesName(type);
 		}
 
 		OS << ") {\n";
@@ -1272,10 +1282,21 @@ public:
 				if (unhandledType(type))
 					continue;
 
+				auto isUserDefiend = type.isa<mlir::rlc::ClassType>() or
+														 type.isa<mlir::rlc::AlternativeType>();
 				auto name = mlir::rlc::typeToMangled(type);
-				OS << "if(auto casted = godot::Object::cast_to<RLC" << name
-					 << ">(other)){\n";
-				OS << "*content = *((*casted).content);\n";
+				if (isUserDefiend)
+				{
+					OS << "if(auto casted = godot::Object::cast_to<RLC" << name
+						 << ">(other)){\n";
+					OS << "*content = *((*casted).content);\n";
+				}
+				else
+				{
+					OS << " if (other.get_type() == "
+						 << godotVariantBuiltinTypesName(type);
+					OS << "){\n*content = (" << name << "&) other;\n";
+				}
 				OS << "return;}\n";
 			}
 			OS << "ERR_PRINT(\"could not assign, right hand side of assigment was "
@@ -1299,6 +1320,8 @@ public:
 		if (pair.first().starts_with("_") or pair.first() == "main")
 			continue;
 		if (llvm::all_of(pair.second, [](mlir::Value v) {
+					if (v.getDefiningOp<mlir::rlc::ConstantGlobalOp>())
+						return true;
 					auto casted = v.getDefiningOp<mlir::rlc::FunctionOp>();
 					return casted and casted.isDeclaration();
 				}))
@@ -1345,6 +1368,8 @@ public:
 		llvm::SmallVector<mlir::FunctionType, 4> canOverloads;
 		for (auto overload : pair.second)
 		{
+			if (overload.getDefiningOp<mlir::rlc::ConstantGlobalOp>())
+				continue;
 			if (auto casted = overload.getDefiningOp<mlir::rlc::FunctionOp>();
 					casted and
 					(casted.isInternal() or casted.getUnmangledName() == "main" or

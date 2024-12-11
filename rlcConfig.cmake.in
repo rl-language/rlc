@@ -1,5 +1,5 @@
 function(rlc TARGET_NAME)
-    set(options OPTIONAL SHARED COMPILE FUZ)
+    set(options OPTIONAL SHARED COMPILE FUZ OPTIMIZE DEBUG_INFO)
     set(oneValueArgs DESTINATION INPUT OUTPUT HEADER PYTHON GODOT)
     set(multiValueArgs EXTRA_ARGS)
     cmake_parse_arguments(RLC
@@ -12,6 +12,12 @@ function(rlc TARGET_NAME)
     set(ARG "")
     if (${RLC_COMPILE})
         list(APPEND ARG "--compile")
+    endif()
+    if (${RLC_OPTIMIZE})
+        list(APPEND ARG "-O2")
+    endif()
+    if (${RLC_DEBUG_INFO})
+        list(APPEND ARG "-g")
     endif()
     if (${RLC_SHARED})
         list(APPEND ARG "--shared")
@@ -37,7 +43,7 @@ function(rlc TARGET_NAME)
         set(TMP_GODOT ${CMAKE_CURRENT_BINARY_DIR}/${RLC_GODOT_FILENAME}.tmp)
         add_custom_command(
             OUTPUT ${RLC_GODOT} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_GODOT} -O2 --godot ${RLC_EXTRA_ARGS} -MD
+            COMMAND rlc ${RLC_INPUT} -o ${TMP_GODOT} --godot ${RLC_EXTRA_ARGS} -MD
             COMMAND ${CMAKE_COMMAND} -E  copy_if_different ${TMP_GODOT}  ${RLC_GODOT}
             DEPFILE ${RLC_GODOT}.dep
             DEPENDS ${RLC_INPUT}
@@ -53,7 +59,7 @@ function(rlc TARGET_NAME)
         set(TMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${RLC_HEADER_FILENAME}.tmp)
         add_custom_command(
             OUTPUT ${RLC_HEADER} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_HEADER} -O2 --header ${RLC_EXTRA_ARGS} -MD
+            COMMAND rlc ${RLC_INPUT} -o ${TMP_HEADER} --header ${RLC_EXTRA_ARGS} -MD
             COMMAND ${CMAKE_COMMAND} -E  copy_if_different ${TMP_HEADER}  ${RLC_HEADER}
             DEPENDS ${RLC_INPUT}
             DEPFILE ${RLC_HEADER}.dep
@@ -82,7 +88,7 @@ function(rlc TARGET_NAME)
         set(RLC_PYTHON_LIB ${RLC_PYTHON_DIR}/lib${CMAKE_SHARED_LIBRARY_SUFFIX})
         add_custom_command(
             OUTPUT ${RLC_PYTHON_LIB} 
-            COMMAND rlc ${RLC_INPUT} -o ${RLC_PYTHON_LIB} --shared -O2 ${RLC_EXTRA_ARGS} -MD
+            COMMAND rlc ${RLC_INPUT} -o ${RLC_PYTHON_LIB} --shared ${RLC_EXTRA_ARGS} -MD
             DEPENDS ${RLC_INPUT}
             DEPFILE ${RLC_PYTHON_LIB}.dep
         )

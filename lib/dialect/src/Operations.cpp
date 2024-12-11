@@ -488,15 +488,13 @@ static mlir::LogicalResult declareActionTypes(
 		return mlir::success();
 
 	// declares a type that contains the alternative between all possible actions
-	auto alternative =
-			mlir::rlc::AlternativeType::get(function.getContext(), declaredTypes, ("Any" + function.getClassType().getName() + "Action").str());
+	auto alternative = mlir::rlc::AlternativeType::get(
+			function.getContext(),
+			declaredTypes,
+			("Any" + function.getClassType().getName() + "Action").str());
 
 	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
-			function.getLoc(),
-		    alternative.getName(),	
-			alternative,
-			nullptr,
-			nullptr);
+			function.getLoc(), alternative.getName(), alternative, nullptr, nullptr);
 
 	return mlir::success();
 }
@@ -659,9 +657,11 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 		this->setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarized));
 	}
 
-    if (auto casted = deducedType.dyn_cast<mlir::rlc::AlternativeType>() ) {
-        deducedType = mlir::rlc::AlternativeType::get(casted.getContext(), casted.getUnderlying(), getName());
-    }
+	if (auto casted = deducedType.dyn_cast<mlir::rlc::AlternativeType>())
+	{
+		deducedType = mlir::rlc::AlternativeType::get(
+				casted.getContext(), casted.getUnderlying(), getName());
+	}
 
 	builder.getConverter().registerType(getName(), deducedType);
 	this->setAliased(deducedType);
@@ -1353,13 +1353,29 @@ static void promoteArgumentOfIsOp(
 		return;
 	}
 
-	auto name = table.lookUpValue(isOp.getExpression());
+	mlir::Value isOperand = isOp.getExpression();
+	llvm::StringRef name = table.lookUpValue(isOperand);
+	if (auto casted = mlir::dyn_cast_or_null<mlir::rlc::StorageCast>(
+					isOperand.getDefiningOp()))
+	{
+		name = table.lookUpValue(casted.getOperand());
+		mlir::IRMapping mapping;
+		isOperand =
+				rewriter.clone(*isOperand.getDefiningOp(), mapping)->getResult(0);
+	}
+
 	if (name.empty())
 		return;
 
 	auto upcastedValue = rewriter.create<mlir::rlc::ValueUpcastOp>(
-			isOp.getLoc(), isOp.getTypeOrTrait(), isOp.getExpression());
+			isOp.getLoc(), isOp.getTypeOrTrait(), isOperand);
 	table.add(name, upcastedValue);
+}
+
+mlir::LogicalResult mlir::rlc::StorageCast::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::TemplateInstantiationOp::typeCheck(

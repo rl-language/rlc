@@ -2002,7 +2002,7 @@ def RLC_SelectBranch : RLC_Dialect<"switch", [Terminator, DeclareOpInterfaceMeth
   }];
 }
 
-def RLC_StorageCast : RLC_Dialect<"storage_cast"> {
+def RLC_StorageCast : RLC_Dialect<"storage_cast", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "Turns context and frame types into a regular type";
 
   let description = [{
