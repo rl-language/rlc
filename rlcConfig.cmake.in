@@ -28,7 +28,7 @@ function(rlc TARGET_NAME)
 
     if (NOT ${RLC_OUTPUT} STREQUAL "")
         add_custom_command(
-            OUTPUT ${RLC_OUTPUT} 
+            OUTPUT ${RLC_OUTPUT} ${RLC_OUTPUT}.dep
             COMMAND rlc ${RLC_INPUT} -o ${RLC_OUTPUT} -O2 ${RLC_EXTRA_ARGS} ${ARG} -MD
             DEPENDS ${RLC_INPUT}
             DEPFILE ${RLC_OUTPUT}.dep
@@ -38,13 +38,9 @@ function(rlc TARGET_NAME)
     endif()
 
     if (NOT ${RLC_GODOT} STREQUAL "")
-        set(RLC_GODOT ${CMAKE_CURRENT_BINARY_DIR}/${RLC_GODOT})
-        get_filename_component(RLC_GODOT_FILENAME ${RLC_GODOT} NAME)
-        set(TMP_GODOT ${CMAKE_CURRENT_BINARY_DIR}/${RLC_GODOT_FILENAME}.tmp)
         add_custom_command(
-            OUTPUT ${RLC_GODOT} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_GODOT} --godot ${RLC_EXTRA_ARGS} -MD
-            COMMAND ${CMAKE_COMMAND} -E  copy_if_different ${TMP_GODOT}  ${RLC_GODOT}
+            OUTPUT ${RLC_GODOT} ${RLC_GODOT}.dep
+            COMMAND rlc ${RLC_INPUT} -o ${RLC_GODOT} --godot ${RLC_EXTRA_ARGS} -MD
             DEPFILE ${RLC_GODOT}.dep
             DEPENDS ${RLC_INPUT}
         )
@@ -54,13 +50,9 @@ function(rlc TARGET_NAME)
     endif()
 
     if (NOT ${RLC_HEADER} STREQUAL "")
-        set(RLC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${RLC_HEADER})
-        get_filename_component(RLC_HEADER_FILENAME ${RLC_HEADER} NAME)
-        set(TMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${RLC_HEADER_FILENAME}.tmp)
         add_custom_command(
-            OUTPUT ${RLC_HEADER} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_HEADER} --header ${RLC_EXTRA_ARGS} -MD
-            COMMAND ${CMAKE_COMMAND} -E  copy_if_different ${TMP_HEADER}  ${RLC_HEADER}
+            OUTPUT ${RLC_HEADER} ${RLC_HEADER}.dep
+            COMMAND rlc ${RLC_INPUT} -o ${RLC_HEADER} --header ${RLC_EXTRA_ARGS} -MD
             DEPENDS ${RLC_INPUT}
             DEPFILE ${RLC_HEADER}.dep
         )
@@ -70,24 +62,18 @@ function(rlc TARGET_NAME)
     endif()
 
     if (NOT ${RLC_PYTHON} STREQUAL "")
-        set(RLC_PYTHON ${CMAKE_CURRENT_BINARY_DIR}/${RLC_PYTHON})
-        get_filename_component(RLC_PYTHON_FILENAME ${RLC_PYTHON} NAME)
-        set(TMP_PYTHON ${CMAKE_CURRENT_BINARY_DIR}/${RLC_PTYHON_FILENAME}.tmp)
-
         add_custom_command(
-            OUTPUT ${RLC_PYTHON} 
-            COMMAND rlc ${RLC_INPUT} -o ${TMP_PYTHON} --python ${RLC_EXTRA_ARGS} -MD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${TMP_PYTHON}  ${RLC_PYTHON}
+            OUTPUT ${RLC_PYTHON} ${RLC_PYTHON}.dep
+            COMMAND rlc ${RLC_INPUT} -o ${RLC_PYTHON} --python ${RLC_EXTRA_ARGS} -MD
             DEPENDS ${RLC_INPUT}
             DEPFILE ${RLC_PYTHON}.dep
         )
         add_custom_target(${TARGET_NAME}_PYTHON DEPENDS ${RLC_PYTHON})
         list(APPEND CREATED_FILES ${RLC_PYTHON})
 
-        get_filename_component(RLC_PYTHON_DIR ${RLC_PYTHON} DIRECTORY)
-        set(RLC_PYTHON_LIB ${RLC_PYTHON_DIR}/lib${CMAKE_SHARED_LIBRARY_SUFFIX})
+        set(RLC_PYTHON_LIB lib${CMAKE_SHARED_LIBRARY_SUFFIX})
         add_custom_command(
-            OUTPUT ${RLC_PYTHON_LIB} 
+            OUTPUT ${RLC_PYTHON_LIB} ${RLC_PYTHON_LIB}.dep
             COMMAND rlc ${RLC_INPUT} -o ${RLC_PYTHON_LIB} --shared ${RLC_EXTRA_ARGS} -MD
             DEPENDS ${RLC_INPUT}
             DEPFILE ${RLC_PYTHON_LIB}.dep
