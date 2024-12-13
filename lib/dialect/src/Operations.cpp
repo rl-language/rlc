@@ -268,18 +268,6 @@ static void defineGetNameFunction(
 			false);
 
 	{
-		auto *preconditionBB = builder.getRewriter().createBlock(
-				&applyFunction.getPrecondition(), {}, types, locs);
-
-		builder.getRewriter().setInsertionPointToStart(preconditionBB);
-		auto trueValue = builder.getRewriter().create<mlir::rlc::Constant>(
-				statement.getLoc(), true);
-
-		builder.getRewriter().create<mlir::rlc::Yield>(
-				statement.getLoc(), mlir::ValueRange({ trueValue }));
-	}
-
-	{
 		auto *bodyBB = builder.getRewriter().createBlock(
 				&applyFunction.getBody(), {}, types, locs);
 

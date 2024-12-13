@@ -32,7 +32,7 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 				callPoint, substitutions, casted.getUnderlying(), callSiteArgument);
 	// if the called function argument is not a template, you must provide exactly
 	// that argumen of course.
-	if (mlir::rlc::isTemplateType(calleeArgument).failed())
+	if (mlir::rlc::isTemplateType(calleeArgument, isTemplate).failed())
 		return mlir::success(callSiteArgument == calleeArgument);
 
 	if (auto templateParameter =
@@ -186,14 +186,17 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 }
 
 static mlir::Value findBestMatch(
-		mlir::ValueRange candidates, mlir::TypeRange arguments)
+		mlir::ValueRange candidates,
+		mlir::TypeRange arguments,
+		mlir::DenseMap<mlir::Type, bool>& isTemplateTypeCache)
 {
 	llvm::SmallVector<mlir::Value> nonTemplates;
 	llvm::SmallVector<mlir::Value> templates;
 
 	for (auto candidate : candidates)
 	{
-		if (mlir::rlc::isTemplateType(candidate.getType()).succeeded())
+		if (mlir::rlc::isTemplateType(candidate.getType(), isTemplateTypeCache)
+						.succeeded())
 			templates.push_back(candidate);
 		else
 			nonTemplates.push_back(candidate);
@@ -218,7 +221,7 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 			findOverloads(callPoint, isMemberCall, name, arguments);
 
 	if (not matching.empty())
-		if (auto value = findBestMatch(matching, arguments))
+		if (auto value = findBestMatch(matching, arguments, isTemplate))
 			return value;
 
 	if (errorEmitter)
@@ -309,7 +312,7 @@ mlir::Value mlir::rlc::OverloadResolver::instantiateOverload(
 
 	auto instantiated = deduceTemplateCallSiteType(
 			loc, arguments, overload.getType().cast<mlir::FunctionType>());
-	if (isTemplateType(overload.getType()).failed())
+	if (isTemplateType(overload.getType(), isTemplate).failed())
 		return overload;
 
 	return rewriter.create<mlir::rlc::TemplateInstantiationOp>(

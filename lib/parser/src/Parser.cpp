@@ -941,7 +941,7 @@ llvm::Expected<bool> Parser::requirementList()
 	if (!accept<Token::LBracket>())
 	{
 		builder.create<mlir::rlc::Yield>(getCurrentSourcePos());
-		return true;
+		return false;
 	}
 
 	mlir::rlc::ShortCircuitingAnd lastAnd = nullptr;
@@ -1831,8 +1831,6 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 
 	auto* bodyB = builder.createBlock(
 			&fun->getBody(), {}, fun->getArgumentTypes(), argLocs);
-	auto* condB = builder.createBlock(
-			&fun->getPrecondition(), {}, fun->getArgumentTypes(), argLocs);
 
 	auto onExit = [&, this]() {
 		builder.setInsertionPointToEnd(bodyB);
@@ -1840,7 +1838,14 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 		builder.restoreInsertionPoint(pos);
 	};
 
+	// the precondition region is optional
+	mlir::Region region;
+	auto* condB =
+			builder.createBlock(&region, {}, fun->getArgumentTypes(), argLocs);
 	TRY(list, requirementList(), onExit());
+	if (*list)
+		fun->getPrecondition().takeBody(region);
+
 	EXPECT(Token::Colons, onExit());
 	EXPECT(Token::Newline, onExit());
 

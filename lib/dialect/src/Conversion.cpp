@@ -262,26 +262,26 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 static mlir::Value getOrCreateGlobalString(
 		mlir::Location loc,
 		mlir::OpBuilder& builder,
-		mlir::StringRef name,
+		mlir::StringRef maybeName,
 		mlir::StringRef value,
-		mlir::ModuleOp module)
+		mlir::ModuleOp module,
+		llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
 {
 	// Create the global at the entry of the module.
-	mlir::LLVM::GlobalOp global;
 	auto type = mlir::LLVM::LLVMArrayType::get(
 			mlir::IntegerType::get(builder.getContext(), 8), value.size());
 
-	std::string defaultName;
-	if (name == "")
-	{
-		defaultName =
-				(llvm::Twine("anon_") +
-				 llvm::Twine(module.getBodyRegion().front().getOperations().size()))
-						.str();
-		name = defaultName;
-	}
+	std::string name =
+			maybeName.empty()
+					? (llvm::Twine("str_") + llvm::Twine(stringsCache.size())).str()
+					: maybeName.str();
 
-	if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
+	mlir::LLVM::GlobalOp global;
+	if (auto iter = stringsCache.find(value); iter != stringsCache.end())
+	{
+		global = iter->second;
+	}
+	else
 	{
 		mlir::OpBuilder::InsertionGuard insertGuard(builder);
 		builder.setInsertionPointToStart(module.getBody());
@@ -293,6 +293,7 @@ static mlir::Value getOrCreateGlobalString(
 				name,
 				mlir::StringAttr::get(loc.getContext(), value),
 				/*alignment=*/0);
+		stringsCache[value] = global;
 	}
 
 	// Get the pointer to the first character in the global string.
@@ -318,64 +319,6 @@ class ClassDeclarationRewriter
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		auto pointerType = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
-		auto i64Type = rewriter.getI64Type();
-		auto arrayType =
-				mlir::LLVM::LLVMArrayType::get(pointerType, op.getMembers().size());
-		auto structTest = ::mlir::LLVM::LLVMStructType::getNewIdentified(
-				op->getContext(),
-				"globalVariableType",
-				::mlir::ArrayRef<mlir::Type>({ pointerType, i64Type, arrayType }));
-
-		auto newOp = rewriter.create<mlir::LLVM::GlobalOp>(
-				op->getLoc(),
-				structTest,
-				true,
-				mlir::LLVM::Linkage::LinkonceODR,
-				op.getType().cast<mlir::rlc::ClassType>().mangledName(),
-				mlir::Attribute());
-
-		auto* block = rewriter.createBlock(&newOp.getInitializer());
-		rewriter.setInsertionPoint(block, block->begin());
-		mlir::Value structValue =
-				rewriter.create<mlir::LLVM::UndefOp>(op.getLoc(), structTest);
-
-		auto variableName = getOrCreateGlobalString(
-				op.getLoc(),
-				rewriter,
-				"__globalVariableName" +
-						op.getType().cast<mlir::rlc::ClassType>().mangledName(),
-				op.getName().str(),
-				newOp->getParentOfType<mlir::ModuleOp>());
-		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
-				op.getLoc(), structValue, variableName, mlir::ArrayRef<int64_t>({ 0 }));
-
-		auto numberOfFields = op.getMembers().size();
-		auto numberOfFieldsValue = rewriter.create<mlir::LLVM::ConstantOp>(
-				op.getLoc(), rewriter.getI64Type(), numberOfFields);
-		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
-				op.getLoc(),
-				structValue,
-				numberOfFieldsValue,
-				mlir::ArrayRef<int64_t>({ 1 }));
-
-		for (unsigned i = 0, e = op.getMembers().size(); i < e; ++i)
-		{
-			auto variableName = getOrCreateGlobalString(
-					op.getLoc(),
-					rewriter,
-					op.getMemberField(i).getName(),
-					op.getMemberField(i).getName(),
-					newOp->getParentOfType<mlir::ModuleOp>());
-			structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
-					op.getLoc(),
-					structValue,
-					variableName,
-					mlir::ArrayRef<int64_t>({ 2, i }));
-		}
-
-		rewriter.create<mlir::LLVM::ReturnOp>(
-				op->getLoc(), mlir::ValueRange({ structValue }));
 		rewriter.eraseOp(op);
 
 		return mlir::success();
@@ -1186,7 +1129,8 @@ static mlir::Value lowerLess(
 static void replaceOpWithStringLiteral(
 		mlir::Operation* op,
 		mlir::ConversionPatternRewriter& rewriter,
-		llvm::StringRef content)
+		llvm::StringRef content,
+		llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
 {
 	llvm::SmallVector<char, 4> out;
 	auto str = getOrCreateGlobalString(
@@ -1194,7 +1138,8 @@ static void replaceOpWithStringLiteral(
 			rewriter,
 			"",
 			(content + llvm::Twine('\0')).toNullTerminatedStringRef(out),
-			op->getParentOfType<mlir::ModuleOp>());
+			op->getParentOfType<mlir::ModuleOp>(),
+			stringsCache);
 
 	auto alloca = makeAlloca(
 			rewriter,
@@ -1209,8 +1154,17 @@ static void replaceOpWithStringLiteral(
 class BuiltinMangledNameRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::BuiltinMangledNameOp>
 {
-	using mlir::OpConversionPattern<
-			mlir::rlc::BuiltinMangledNameOp>::OpConversionPattern;
+	public:
+	BuiltinMangledNameRewriter(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
+			: mlir::OpConversionPattern<mlir::rlc::BuiltinMangledNameOp>::
+						OpConversionPattern(converter, ctx),
+				stringsCache(&stringsCache)
+	{
+	}
+	llvm::StringMap<mlir::LLVM::GlobalOp>* stringsCache;
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::BuiltinMangledNameOp op,
@@ -1218,7 +1172,7 @@ class BuiltinMangledNameRewriter
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
 		auto name = mlir::rlc::typeToMangled(op.getValue().getType());
-		replaceOpWithStringLiteral(op, rewriter, name);
+		replaceOpWithStringLiteral(op, rewriter, name, *stringsCache);
 		return mlir::LogicalResult::success();
 	}
 };
@@ -1570,14 +1524,17 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 			mlir::TypeConverter& converter,
 			mlir::MLIRContext* ctx,
 			mlir::LLVM::LLVMFuncOp puts,
+			llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache,
 			mlir::StringRef abort = "")
 			: mlir::OpConversionPattern<mlir::rlc::AbortOp>::OpConversionPattern(
 						converter, ctx),
 				puts(puts),
+				stringsCache(&stringsCache),
 				abort(abort)
 	{
 	}
 	mutable mlir::LLVM::LLVMFuncOp puts;
+	llvm::StringMap<mlir::LLVM::GlobalOp>* stringsCache;
 	llvm::StringRef abort;
 
 	mlir::LogicalResult matchAndRewrite(
@@ -1590,7 +1547,8 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 				rewriter,
 				"",
 				op.getMessage(),
-				op->getParentOfType<mlir::ModuleOp>());
+				op->getParentOfType<mlir::ModuleOp>(),
+				*stringsCache);
 
 		rewriter.setInsertionPoint(op);
 
@@ -1695,15 +1653,24 @@ class GlobalArrayRewriter
 class LowerStringLiteral
 		: public mlir::OpConversionPattern<mlir::rlc::StringLiteralOp>
 {
-	using mlir::OpConversionPattern<
-			mlir::rlc::StringLiteralOp>::OpConversionPattern;
+	public:
+	LowerStringLiteral(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
+			: mlir::OpConversionPattern<
+						mlir::rlc::StringLiteralOp>::OpConversionPattern(converter, ctx),
+				stringsCache(&stringsCache)
+	{
+	}
+	llvm::StringMap<mlir::LLVM::GlobalOp>* stringsCache;
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::StringLiteralOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		replaceOpWithStringLiteral(op, rewriter, op.getValue());
+		replaceOpWithStringLiteral(op, rewriter, op.getValue(), *stringsCache);
 		return mlir::LogicalResult::success();
 	}
 };
@@ -2178,6 +2145,7 @@ namespace mlir::rlc
 		using impl::LowerToLLVMPassBase<LowerToLLVMPass>::LowerToLLVMPassBase;
 		void runOnOperation() override
 		{
+			llvm::StringMap<mlir::LLVM::GlobalOp> stringsCache;
 			mlir::IRRewriter rewriter(&getContext());
 			rewriter.setInsertionPoint(
 					getOperation().getBody(0), getOperation().getBody(0)->begin());
@@ -2260,7 +2228,7 @@ namespace mlir::rlc
 					.add<InitRewriter>(converter, &getContext())
 					.add<LowerMalloc>(converter, &getContext(), malloc)
 					.add<LowerFree>(converter, &getContext(), free)
-					.add<LowerStringLiteral>(converter, &getContext())
+					.add<LowerStringLiteral>(converter, &getContext(), stringsCache)
 					.add(makeArith(lowerLess, converter, &getContext()))
 					.add(makeArith(lowerLessEqual, converter, &getContext()))
 					.add(makeArith(lowerGreaterEqual, converter, &getContext()))
@@ -2290,7 +2258,8 @@ namespace mlir::rlc
 					.add<CopyRewriter>(converter, &getContext())
 					.add<ArrayAccessRewriter>(converter, &getContext())
 					.add<UninitializedConstructRewriter>(converter, &getContext())
-					.add<BuiltinMangledNameRewriter>(converter, &getContext())
+					.add<BuiltinMangledNameRewriter>(
+							converter, &getContext(), stringsCache)
 					.add<MemberAccessRewriter>(converter, &getContext())
 					.add<VarNameLowerer>(
 							converter, &getContext(), diGenerator, debug_info)
@@ -2298,7 +2267,8 @@ namespace mlir::rlc
 					.add<BuiltinAsPtrRewriter>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
-					.add<AbortRewriter>(converter, &getContext(), puts, abort_symbol);
+					.add<AbortRewriter>(
+							converter, &getContext(), puts, stringsCache, abort_symbol);
 
 			if (failed(
 							applyFullConversion(getOperation(), target, std::move(patterns))))

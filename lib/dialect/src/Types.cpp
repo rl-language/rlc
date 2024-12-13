@@ -357,11 +357,11 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 	}
 	if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
 	{
-        if (not maybeType.getName().empty())
-        {
+		if (not maybeType.getName().empty())
+		{
 			OS << maybeType.getName();
-            return;
-        }
+			return;
+		}
 		size_t i = 0;
 		for (auto input : maybeType.getUnderlying())
 		{
@@ -553,11 +553,11 @@ namespace mlir::rlc
 		}
 		if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
 		{
-            if (not maybeType.getName().empty())
-            {
-			    OS << maybeType.getName();
-                return;
-            }
+			if (not maybeType.getName().empty())
+			{
+				OS << maybeType.getName();
+				return;
+			}
 			size_t i = 0;
 			OS << "alt_";
 			for (auto input : maybeType.getUnderlying())
@@ -768,111 +768,166 @@ mlir::LogicalResult mlir::rlc::TraitMetaType::typeRespectsTrait(
 
 mlir::LogicalResult mlir::rlc::isTemplateType(mlir::Type type)
 {
+	mlir::DenseMap<mlir::Type, bool> table;
+	return isTemplateType(type, table);
+}
+
+mlir::LogicalResult mlir::rlc::isTemplateType(
+		mlir::Type type, mlir::DenseMap<mlir::Type, bool> &table)
+{
+	if (auto t = table.find(type); t != table.end())
+		return mlir::success(t->getSecond());
+
 	if (auto casted = type.dyn_cast<mlir::rlc::TemplateParameterType>())
+	{
+		table[type] = true;
 		return mlir::success();
+	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 	{
 		for (auto child : casted.getExplicitTemplateParameters())
-			if (isTemplateType(child).succeeded())
+			if (isTemplateType(child, table).succeeded())
+			{
+				table[type] = true;
 				return mlir::success();
+			}
 		if (not casted.isInitialized())
+		{
+			table[type] = false;
 			return mlir::failure();
+		}
 
 		for (auto child : casted.getMembers())
-			if (isTemplateType(child.getType()).succeeded())
+			if (isTemplateType(child.getType(), table).succeeded())
+			{
+				table[type] = true;
 				return mlir::success();
+			}
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
 	{
 		for (auto child : casted.getUnderlying())
-			if (isTemplateType(child).succeeded())
+			if (isTemplateType(child, table).succeeded())
+			{
+				table[type] = true;
 				return mlir::success();
+			}
 
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::FunctionType>())
 	{
 		for (auto child : casted.getInputs())
-			if (isTemplateType(child).succeeded())
+			if (isTemplateType(child, table).succeeded())
+			{
+				table[type] = true;
 				return mlir::success();
+			}
 
 		for (auto child : casted.getResults())
-			if (isTemplateType(child).succeeded())
+			if (isTemplateType(child, table).succeeded())
+			{
+				table[type] = true;
 				return mlir::success();
+			}
+
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
 	{
-		return isTemplateType(casted.getUnderlying());
+		auto success = isTemplateType(casted.getUnderlying(), table);
+		table[type] = success.succeeded();
+		return success;
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
 	{
-		return isTemplateType(casted.getUnderlying());
+		auto success = isTemplateType(casted.getUnderlying(), table);
+		table[type] = success.succeeded();
+		return success;
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::StringLiteralType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())
 	{
-		return isTemplateType(casted.getUnderlying());
+		auto success = isTemplateType(casted.getUnderlying(), table);
+		table[type] = success.succeeded();
+		return success;
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
 	{
-		return mlir::success(
-				isTemplateType(casted.getUnderlying()).succeeded() or
-				isTemplateType(casted.getSize()).succeeded());
+		auto isTemplate =
+				(isTemplateType(casted.getUnderlying(), table).succeeded() or
+				 isTemplateType(casted.getSize(), table).succeeded());
+
+		table[type] = isTemplate;
+		return mlir::success(isTemplate);
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::IntegerType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 	if (auto casted = type.dyn_cast<mlir::rlc::FloatType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 	if (auto casted = type.dyn_cast<mlir::rlc::BoolType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::VoidType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::OwningPtrType>())
 	{
-		return isTemplateType(casted.getUnderlying());
+		auto success = isTemplateType(casted.getUnderlying(), table);
+		table[type] = success.succeeded();
+		return success;
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::IntegerLiteralType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::ScalarUseType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 
 	if (auto casted = type.dyn_cast<mlir::rlc::FunctionUseType>())
 	{
+		table[type] = false;
 		return mlir::failure();
 	}
 
@@ -956,10 +1011,11 @@ void mlir::rlc::OwningPtrType::rlc_serialize(
 void mlir::rlc::AlternativeType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
-    if (not getName().empty()){
-        OS << getName();
-        return;
-    }
+	if (not getName().empty())
+	{
+		OS << getName();
+		return;
+	}
 
 	for (size_t i = 0; i != getUnderlying().size(); i++)
 	{

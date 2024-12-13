@@ -8,5 +8,5 @@
 	#		return true
 	#return false
 
-fun foo(Int a) -> Bool:
+fun foo(Int a) -> Bool {true}:
 	return a<11 and a>5

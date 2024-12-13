@@ -315,7 +315,8 @@ static void registerConversions(
 			content.push_back(converted);
 		}
 
-		return mlir::rlc::AlternativeType::get(t.getContext(), content, t.getName());
+		return mlir::rlc::AlternativeType::get(
+				t.getContext(), content, t.getName());
 	});
 	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
 		auto converted = converter.convertType(t.getUnderlying());
@@ -695,4 +696,9 @@ mlir::Value mlir::rlc::ModuleBuilder::resolveFunctionCall(
 			getSymbolTable(), logErrors ? callSite : nullptr);
 	return resolver.instantiateOverload(
 			rewriter, isMemberCall, callSite->getLoc(), name, arguments);
+}
+
+bool mlir::rlc::ModuleBuilder::isTemplateType(mlir::Type t)
+{
+	return ::mlir::rlc::isTemplateType(t, isTemplate).succeeded();
 }
