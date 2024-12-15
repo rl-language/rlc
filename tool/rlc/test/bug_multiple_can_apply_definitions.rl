@@ -6,6 +6,7 @@ import action
 fun crash_on_five(Int input) -> Int {input != 5}:
 	return 0
 
+@classes
 act play() -> Play:
 	frm current = 0
 	while current != 7:

@@ -183,6 +183,7 @@ fun can_move_anything(Int player_id, Board b) -> Bool:
         x = x + 1
     return false
 
+@classes
 act play() -> Game:
     frm current_player : Bool
     frm board = make_board()

@@ -277,7 +277,7 @@ namespace mlir::rlc
 					fun.getLoc(), toAssignType, block->getArgument(0));
 			auto contructed = rewriter.create<mlir::rlc::ConstructOp>(
 					fun.getLoc(), casted.getResult().getType());
-			assert(builder.isTemplateType(contructed.getType()));
+			assert(!builder.isTemplateType(contructed.getType()));
 			auto* call = builder.emitCall(
 					fun,
 					true,

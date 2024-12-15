@@ -82,6 +82,7 @@ fun calculate_points(BoundedVector<Card, 20> hand) -> Int:
 # must return a Game, otherwise the machine
 # learning components will not know what
 # to look for.
+@classes
 act play() -> Game:
 
     # allocates a deck and initializes it

@@ -490,6 +490,7 @@ static mlir::LogicalResult declareActionTypes(
 mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 		mlir::rlc::ActionFunction fun, mlir::rlc::ValueTable *parentSymbolTable)
 {
+	bool emitClasses = fun->hasAttr("emit_classes");
 	if (fun.getUnmangledName() == "init")
 	{
 		auto _ = logError(
@@ -544,10 +545,13 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 	if (not newF)
 		return nullptr;
 
-	mlir::rlc::ModuleBuilder builder2(
-			newF->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
-	if (declareActionTypes(newF, builder2).failed())
-		return nullptr;
+	if (emitClasses)
+	{
+		mlir::rlc::ModuleBuilder builder2(
+				newF->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
+		if (declareActionTypes(newF, builder2).failed())
+			return nullptr;
+	}
 
 	if (newF.getActions().empty())
 	{
@@ -755,30 +759,18 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 												.getDefiningOp<mlir::rlc::ActionFunction>();
 
 	mlir::IRRewriter &rewiter = builder.getRewriter();
-	rewiter.setInsertionPoint(*this);
 
-	mlir::Value decl = nullptr;
-	if (getName().empty())
+	if (not getName().empty())
 	{
-		auto terminator =
-				mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
-		while (not getBody().front().empty())
-			getBody().front().front().moveBefore(getOperation());
-
-		decl = terminator.getArguments()[0];
-		terminator.erase();
-	}
-	else
-	{
+		rewiter.setInsertionPoint(*this);
 		auto varDecl = rewiter.create<mlir::rlc::DeclarationStatement>(
 				getLoc(), mlir::rlc::FrameType::get(underlyingType), getName());
 		varDecl.getBody().takeBody(getBody());
 		builder.getSymbolTable().add(getName(), varDecl);
-		decl = varDecl;
+		rewiter.createBlock(&getBody());
+		rewiter.create<mlir::rlc::Yield>(getLoc(), mlir::ValueRange({ varDecl }));
 	}
-
-	frameVar = builder.getRewriter().create<mlir::rlc::StorageCast>(
-			getLoc(), underlyingType, decl);
+	rewiter.setInsertionPoint(*this);
 
 	llvm::SmallVector<mlir::Value, 2> actionValues = underlying.getActions();
 	if (actionValues.empty())
@@ -787,13 +779,29 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		return mlir::success();
 	}
 
+	const auto &make_frame_access = [this, &rewiter, underlyingType]() {
+		mlir::IRMapping mapping;
+		for (auto &op : llvm::drop_end(getBody().front().getOperations()))
+			rewiter.clone(op, mapping);
+
+		auto yielded =
+				mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator())
+						.getArguments()[0];
+		mlir::Value frame = mapping.getValueMap().contains(yielded)
+														? mapping.getValueMap().at(yielded)
+														: yielded;
+
+		return rewiter.create<mlir::rlc::StorageCast>(
+				getLoc(), underlyingType, frame);
+	};
+
 	if (not getRunOnce())
 	{
 		auto loop = rewiter.create<mlir::rlc::WhileStatement>(getLoc());
 		rewiter.createBlock(&loop.getCondition());
 
 		auto *call = builder.emitCall(
-				*this, true, "is_done", mlir::ValueRange({ frameVar }));
+				*this, true, "is_done", mlir::ValueRange({ make_frame_access() }));
 		assert(call);
 		auto isDone = call->getResult(0);
 
@@ -900,7 +908,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		for (auto arg : llvm::drop_begin(newBody->getArguments(), contextArgsCount))
 			canArgs.push_back(arg);
-		canArgs.insert(canArgs.begin(), frameVar);
+
+		canArgs.insert(canArgs.begin(), make_frame_access());
 
 		auto casted = rewiter.create<mlir::rlc::CanOp>(actions.getLoc(), toCall);
 		auto result = rewiter.create<mlir::rlc::CallOp>(
@@ -928,7 +937,7 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		for (auto result : llvm::drop_begin(fixed.getResults(), contextArgsCount))
 			args.push_back(result);
 
-		args.insert(args.begin(), frameVar);
+		args.insert(args.begin(), make_frame_access());
 
 		rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, false, args);
 
@@ -1283,8 +1292,8 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 	rewriter.setInsertionPointAfter(*this);
 	auto op = rewriter.create<mlir::rlc::TraitDefinition>(getLoc(), type);
 
-	// replace the template parameters provided by the user with one prefixed with
-	// TraitType so that it does not clashes with regular names
+	// replace the template parameters provided by the user with one prefixed
+	// with TraitType so that it does not clashes with regular names
 	for (auto templateParameter : getTemplateParameterTypes())
 	{
 		mlir::AttrTypeReplacer replacer;
@@ -1557,8 +1566,10 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 		return logError(
 				*this,
 				"Missmatched count between for induction variables and for "
-				"arguments. The number of induction varaibles must be exactly the same "
-				"as the number of expressions, or one more to capture the name of the "
+				"arguments. The number of induction varaibles must be exactly the "
+				"same "
+				"as the number of expressions, or one more to capture the name of "
+				"the "
 				"field");
 	}
 

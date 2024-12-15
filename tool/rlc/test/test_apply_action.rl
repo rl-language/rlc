@@ -3,6 +3,7 @@
 
 import action
 
+@classes
 act example() -> Name:
     act first(Int x)
     frm to_return = x

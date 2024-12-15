@@ -453,6 +453,7 @@ static int run(
 		const mlir::rlc::TargetInfo &info)
 {
 	mlir::PassManager manager(&context);
+	manager.enableVerifier(isDebug);
 	driver.configurePassManager(manager);
 
 	if (timing)

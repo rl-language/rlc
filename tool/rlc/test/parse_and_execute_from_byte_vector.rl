@@ -3,6 +3,7 @@
 
 import action
 
+@classes
 act play() -> Game:
     frm counter = 0
     while true:

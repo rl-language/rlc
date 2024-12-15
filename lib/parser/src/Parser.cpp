@@ -1012,8 +1012,23 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 
 	llvm::SmallVector<mlir::Value, 3> expressions;
 	auto insertionPoint = builder.saveInsertionPoint();
-	mlir::Region region;
-	builder.createBlock(&region);
+
+	mlir::Region forwardedArgsRegion;
+	mlir::Region bodyRegion;
+	std::string name;
+
+	auto onExit = [&, this](bool success) -> mlir::rlc::SubActionStatement {
+		builder.restoreInsertionPoint(insertionPoint);
+		if (not success)
+			return nullptr;
+		auto operation =
+				builder.create<mlir::rlc::SubActionStatement>(location, name, runOnce);
+		operation.getBody().takeBody(bodyRegion);
+		operation.getForwardedArgs().takeBody(forwardedArgsRegion);
+		return operation;
+	};
+
+	builder.createBlock(&forwardedArgsRegion);
 	if (accept<Token::LPar>())
 	{
 		TRY(list, argumentExpressionList());
@@ -1021,45 +1036,28 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 		EXPECT(Token::RPar);
 	}
 	builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), expressions);
-	builder.restoreInsertionPoint(insertionPoint);
-
-	std::string name;
-	accept(Token::Identifier);
-	name = lIdent;
-	// is we don't see a equal it means that the
-	// user has written `subaction name `
-	if (not accept(Token::Equal))
+	builder.createBlock(&bodyRegion);
+	TRY(exp, expression(), onExit(false));
+	auto maybeName =
+			mlir::dyn_cast<mlir::rlc::UnresolvedReference>(*exp->getDefiningOp());
+	if (!maybeName or not accept(Token::Equal))
 	{
-		auto operation =
-				builder.create<mlir::rlc::SubActionStatement>(location, "", runOnce);
-		operation.getForwardedArgs().takeBody(region);
-		builder.createBlock(&operation.getBody());
-		auto exp = builder.create<mlir::rlc::UnresolvedReference>(location, name);
-		builder.create<mlir::rlc::Yield>(
-				getCurrentSourcePos(), mlir::ValueRange(exp));
-		builder.setInsertionPointAfter(operation);
 		EXPECT(Token::Newline);
-		return operation;
+		builder.create<mlir::rlc::Yield>(
+				getCurrentSourcePos(), mlir::ValueRange(*exp));
+		return onExit(true);
 	}
 
-	auto operation =
-			builder.create<mlir::rlc::SubActionStatement>(location, name, runOnce);
-	operation.getForwardedArgs().takeBody(region);
-	builder.createBlock(&operation.getBody());
-	auto onExit = [&, this](mlir::Value exp) {
-		if (exp)
-			builder.create<mlir::rlc::Yield>(
-					getCurrentSourcePos(), mlir::ValueRange(exp));
-		builder.setInsertionPointAfter(operation);
-		if (not exp)
-			operation.erase();
-	};
+	name = maybeName.getName();
+	(*exp).getDefiningOp()->erase();
 
-	TRY(exp, expression(), onExit(nullptr));
-	EXPECT(Token::Newline, onExit(*exp));
-	onExit(*exp);
+	builder.setInsertionPointToStart(&bodyRegion.front());
+	TRY(body, expression(), onExit(false));
+	EXPECT(Token::Newline);
+	builder.create<mlir::rlc::Yield>(
+			getCurrentSourcePos(), mlir::ValueRange(*body));
 
-	return operation;
+	return onExit(true);
 }
 
 llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
@@ -2205,9 +2203,18 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 			continue;
 		}
 
+		bool emitClasses = false;
+		if (accept(Token::AnnotationIntroducer))
+		{
+			EXPECT(Token::KeywordActionClass);
+			EXPECT(Token::Newline);
+			emitClasses = true;
+		}
 		if (current == Token::KeywordAction)
 		{
 			TRY(f, actionDefinition());
+			if (emitClasses)
+				f->getOperation()->setAttr("emit_classes", builder.getBoolAttr(true));
 			setComment(*f, comment);
 			continue;
 		}

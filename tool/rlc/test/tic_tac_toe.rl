@@ -57,6 +57,7 @@ cls Board:
         self.playerTurn = !self.playerTurn
 
 # tic tac toe implementation
+@classes
 act play() -> Game:
     frm board : Board
     frm score = 10

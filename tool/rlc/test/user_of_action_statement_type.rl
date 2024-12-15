@@ -1,6 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t%exeext
 
+@classes
 act action() -> Action:
     frm to_return = 0
     act to_call(Int arg)

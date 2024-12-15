@@ -111,6 +111,7 @@ fun make_player_ships() -> BoundedVector<Ship, 5>:
 
     return ships_to_place
 
+@classes
 act play() -> Game:
     frm current_player : Bool
     frm players : HiddenInformation<Player>[2]
