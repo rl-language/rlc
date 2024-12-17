@@ -112,6 +112,24 @@ fun<AllActionsVariant> parse_actions(AllActionsVariant variant, Vector<Byte> inp
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input):
     parse_and_execute(state, variant, input, 0)
 
+fun<FrameType, ActionType> make_valid_actions_vector(Vector<ActionType> all_actions, FrameType state) -> Vector<Byte>:
+    let valid_actions : Vector<Byte>
+    let i = 0
+    while i != all_actions.size():
+        valid_actions.append(byte(1))
+        i = i + 1
+    return valid_actions
+
+fun<FrameType, ActionType> get_valid_actions(Vector<Byte> valid_actions, Vector<ActionType> all_actions, FrameType state):
+    let i = 0
+    while i != all_actions.size():
+        if can_apply_impl(all_actions[i], state):
+            valid_actions[i] = byte(1)
+        else:
+            valid_actions[i] = byte(0)
+        i = i + 1
+
+
 # method that bust be present in binary to ensure that all methods 
 # required by rlc-learn are available
 fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActionsVariant variant):
@@ -139,6 +157,10 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     let vector : Vector<AllActionsVariant>
     load_action_vector_file("dc"s, vector)
     apply(vector, state)
+
+    let v_byte : Vector<Byte>
+    get_valid_actions(v_byte, vector, state)
+    make_valid_actions_vector(vector, state)
     emit_observation_tensor_warnings(state)
     print_enumeration_errors(variant)
 

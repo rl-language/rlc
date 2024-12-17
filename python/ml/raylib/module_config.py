@@ -140,6 +140,7 @@ def get_config(
     ]
     ppo_config.model["fcnet_activation"] = "relu"
     ppo_config.model["framestack"] = False
+    ppo_config.model["use_kl_loss"] = False
     ppo_config.model["exploration"] = exploration
 
     space = {

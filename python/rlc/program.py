@@ -56,6 +56,10 @@ class State:
         self.state = self.program.functions.play()
 
     @property
+    def raw_actions(self):
+        return self._actions
+
+    @property
     def module(self):
         return self.program.module
 
