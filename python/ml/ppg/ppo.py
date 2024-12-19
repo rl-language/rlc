@@ -5,17 +5,17 @@ Mostly copied from ppo.py but with some extra options added that are relevant to
 import numpy as np
 import torch as th
 from mpi4py import MPI
-from tree_util import tree_map
-import torch_util as tu
-from log_save_helper import LogSaveHelper
-from minibatch_optimize import minibatch_optimize
-from roller import Roller
-from reward_normalizer import RewardNormalizer
+from . import tree_util
+from . import torch_util as tu
+from . import log_save_helper
+from . import minibatch_optimize
+from . import roller as roll
+from . import reward_normalizer as rew_normalizer
+from . import logger
 
 import math
-import logger
 
-INPUT_KEYS = {"ob", "ac", "first", "logp", "vtarg", "adv", "state_in"}
+INPUT_KEYS = {"ob", "ac", "first", "logp", "vtarg", "adv", "state_in", "action_mask"}
 
 def compute_gae(
     *,
@@ -53,8 +53,8 @@ def log_vf_stats(comm, **kwargs):
 
 def compute_advantage(model, seg, γ, λ, comm=None):
     comm = comm or MPI.COMM_WORLD
-    finalob, finalfirst = seg["finalob"], seg["finalfirst"]
-    vpredfinal = model.v(finalob, finalfirst, seg["finalstate"])
+    finalob, finalfirst, finalmask = seg["finalob"], seg["finalfirst"], seg["finalmask"]
+    vpredfinal = model.v(finalob, finalfirst, seg["finalstate"], finalmask)
     reward = seg["reward"]
     logger.logkv("Misc/FrameRewMean", reward.mean())
     adv, vtarg = compute_gae(
@@ -72,6 +72,7 @@ def compute_advantage(model, seg, γ, λ, comm=None):
 def compute_losses(
     model,
     ob,
+    action_mask,
     ac,
     first,
     logp,
@@ -85,7 +86,7 @@ def compute_losses(
 ):
     losses = {}
     diags = {}
-    pd, vpred, aux, _state_out = model(ob=ob, first=first, state_in=state_in)
+    pd, vpred, aux, _state_out = model(ob=ob, first=first, state_in=state_in, action_mask=action_mask)
     newlogp = tu.sum_nonbatch(pd.log_prob(ac))
     # prob ratio for KL / clipping based on a (possibly) recomputed logp
     logratio = newlogp - logp
@@ -122,7 +123,7 @@ def learn(
     λ: "(float) GAE parameter" = 0.95,
     clip_param: "(float) PPO parameter for clipping prob ratio" = 0.2,
     vfcoef: "(float) value function coefficient" = 0.5,
-    entcoef: "(float) entropy coefficient" = 0.01,
+    entcoef: "(float) entropy coefficient" = 0.0015,
     nminibatch: "(int) number of minibatches to break epoch of data into" = 4,
     n_epoch_vf: "(int) number of epochs to use when training the value function" = 1,
     n_epoch_pi: "(int) number of epochs to use when training the policy" = 1,
@@ -156,7 +157,7 @@ def learn(
     tu.sync_params(params)
 
     if rnorm:
-        reward_normalizer = learn_state.get("reward_normalizer") or RewardNormalizer(venv.num)
+        reward_normalizer = learn_state.get("reward_normalizer") or rew_normalizer.RewardNormalizer(venv.num)
     else:
         reward_normalizer = None
 
@@ -191,7 +192,7 @@ def learn(
     def train_pi_and_vf(**arrays):
         return train_with_losses_and_opt(["pi", "vf"], opts["pi"], **arrays)
 
-    roller = learn_state.get("roller") or Roller(
+    roller = learn_state.get("roller") or roll.Roller(
         act_fn=model.act,
         venv=venv,
         initial_state=model.initial_state(venv.num),
@@ -199,7 +200,7 @@ def learn(
         keep_non_rolling=log_save_opts.get("log_new_eps", False),
     )
 
-    lsh = learn_state.get("lsh") or LogSaveHelper(
+    lsh = learn_state.get("lsh") or log_save_helper.LogSaveHelper(
         ic_per_step=ic_per_step, model=model, comm=comm, **log_save_opts
     )
 
@@ -217,12 +218,12 @@ def learn(
         compute_advantage(model, seg, γ, λ, comm=comm)
 
         if store_segs:
-            seg_buf.append(tree_map(lambda x: x.cpu(), seg))
+            seg_buf.append(tree_util.tree_map(lambda x: x.cpu(), seg))
 
         with logger.profile_kv("optimization"):
             # when n_epoch_pi != n_epoch_vf, we perform separate policy and vf epochs with separate optimizers
             if n_epoch_pi != n_epoch_vf:
-                minibatch_optimize(
+                minibatch_optimize.minibatch_optimize(
                     train_vf,
                     {k: seg[k] for k in INPUT_KEYS},
                     nminibatch=nminibatch,
@@ -235,7 +236,7 @@ def learn(
             else:
                 train_fn = train_pi_and_vf
 
-            epoch_stats = minibatch_optimize(
+            epoch_stats = minibatch_optimize.minibatch_optimize(
                 train_fn,
                 {k: seg[k] for k in INPUT_KEYS},
                 nminibatch=nminibatch,

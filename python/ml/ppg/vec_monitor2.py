@@ -9,7 +9,7 @@ Episode = namedtuple("Episode", ["ret", "len", "time", "info"])
 
 class PostActProcessing(gym3.Wrapper):
     """
-    Call process() after each action, except possibly possibly the last 
+    Call process() after each action, except possibly possibly the last
     one which you never called observe for.
     """
 
@@ -21,6 +21,9 @@ class PostActProcessing(gym3.Wrapper):
         if self.need_process:
             self.process()
             self.need_process = False
+
+    def action_mask(self):
+        return self.env.action_mask()
 
     def act(self, ac):
         self.process_if_needed()

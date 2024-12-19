@@ -18,17 +18,26 @@ class TicTacToeGame:
         # Return the board as a numpy array, shape (9,)
         return np.array(self.board, dtype=np.int64).reshape((9, 1, 1))
 
+    def action_mask(self):
+        return np.array([self.valid_move(i) for i in range(9)], dtype=np.int8).reshape((9))
+
+
+    def valid_move(self, position):
+        if position < 0 or position >= 9:
+            return False
+        if self.board[position] != self.EMPTY:
+            return False
+        return True
+
     def make_move(self, position):
         """
         Attempt to place current_player's mark at position.
         Returns:
             valid: bool indicating if the move was valid
         """
-        if position < 0 or position >= 9:
-            return False
-        if self.board[position] != self.EMPTY:
-            return False
+        # assert self.valid_move(position)
         self.board[position] = self.current_player
+        self.switch_player()
         return True
 
     def switch_player(self):
@@ -77,6 +86,9 @@ class TicTacToeEnv(Env):
             num=self.num
         )
 
+    def action_mask(self):
+        return np.array([g.action_mask() for g in self.games])
+
     def observe(self):
         obs = np.array([g.get_state() for g in self.games])
         return self.rew, obs, self.done
@@ -87,50 +99,23 @@ class TicTacToeEnv(Env):
     def step(self, ac):
         for i, action in enumerate(ac):
             game = self.games[i]
-
-            if self.done[i]:
-                # If it's the start of a new episode
-                game.reset()
-                self.rew[i] = 0.0
-                self.done[i] = False
-                # After reset, we expect the next call to be the agent's move.
-                # So we continue to the next environment without doing anything else.
-                continue
-
-            # Check if the game is over before making a move
-            if game.check_winner(TicTacToeGame.X) or game.check_winner(TicTacToeGame.O) or game.is_draw():
-                # The previous episode ended, reset now
-                game.reset()
-                self.rew[i] = 0.0
-                self.done[i] = False
-                continue
-
-            # Agent tries to make a move
             valid = game.make_move(action[0])
-            if not valid:
-                # Invalid move, agent loses immediately
-                self.rew[i] = -1.0
+
+            if game.check_winner(TicTacToeGame.O):
+                self.rew[i] = 1.0
                 self.done[i] = True
+                game.reset()
+            elif game.check_winner(TicTacToeGame.X):
+                self.rew[i] = 0.0
+                self.done[i] = True
+                game.reset()
+            elif game.is_draw():
+                self.done[i] = True
+                self.rew[i] = 0.0
+                game.reset()
             else:
-                # Agent just made a valid move
-                if game.check_winner(TicTacToeGame.X):
-                    self.rew[i] = 1.0
-                    self.done[i] = True
-                elif game.is_draw():
-                    self.rew[i] = 0.0
-                    self.done[i] = True
-                else:
-                    # Opponent moves
-                    game.opponent_move()
-                    if game.check_winner(TicTacToeGame.O):
-                        self.rew[i] = -1.0
-                        self.done[i] = True
-                    elif game.is_draw():
-                        self.rew[i] = 0.0
-                        self.done[i] = True
-                    else:
-                        # Continue the game
-                        self.rew[i] = 0.0
+                self.rew[i] = 0.0
+                self.done[i] = False
 
         return self.observe()
 

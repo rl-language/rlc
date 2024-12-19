@@ -1,7 +1,7 @@
 import torch as th
-import logger
-from tree_util import tree_map
-import torch_util as tu
+from . import logger
+from . import tree_util
+from . import torch_util as tu
 
 def _fmt_row(width, row, header=False):
     out = " | ".join(_fmt_item(x, width) for x in row)
@@ -88,6 +88,6 @@ def minibatch_gen(data, *, batch_size=None, nminibatch=None, forever=False):
         nminibatch = max(ntrain // batch_size, 1)
     while True:
         for mbinds in th.chunk(th.randperm(ntrain), nminibatch):
-            yield tree_map(to_th_device, tu.tree_slice(data, mbinds))
+            yield tree_util.tree_map(to_th_device, tu.tree_slice(data, mbinds))
         if not forever:
             return

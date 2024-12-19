@@ -1,49 +1,53 @@
 from copy import deepcopy
-import ppo
-import logger
+from . import ppo
+from . import logger
 import torch as th
 import itertools
-import torch_util as tu
+from . import torch_util as tu
 from torch import distributions as td
-from distr_builder import distr_builder
+from . import distr_builder
 from mpi4py import MPI
-from tree_util import tree_map, tree_reduce
+from . import tree_util
 import operator
+import torch
 
 def sum_nonbatch(logprob_tree):
     """
     sums over nonbatch dimensions and over all leaves of the tree
     use with nested action spaces, which require Product distributions
     """
-    return tree_reduce(operator.add, tree_map(tu.sum_nonbatch, logprob_tree))
+    return tree_util.tree_reduce(operator.add, tree_util.tree_map(tu.sum_nonbatch, logprob_tree))
 
 
 class PpoModel(th.nn.Module):
-    def forward(self, ob, first, state_in) -> "pd, vpred, aux, state_out":
+    def forward(self, ob, first, state_in, action_mask) -> "pd, vpred, aux, state_out":
         raise NotImplementedError
 
     @tu.no_grad
-    def act(self, ob, first, state_in):
+    def act(self, ob, first, state_in, action_mask):
         pd, vpred, _, state_out = self(
-            ob=tree_map(lambda x: x[:, None], ob),
+            ob=tree_util.tree_map(lambda x: x[:, None], ob),
             first=first[:, None],
             state_in=state_in,
+            action_mask=action_mask
         )
+
         ac = pd.sample()
         # ToDo: handle invalid actions here
         logp = sum_nonbatch(pd.log_prob(ac))
         return (
-            tree_map(lambda x: x[:, 0], ac),
+            tree_util.tree_map(lambda x: x[:, 0], ac),
             state_out,
             dict(vpred=vpred[:, 0], logp=logp[:, 0]),
         )
 
     @tu.no_grad
-    def v(self, ob, first, state_in):
+    def v(self, ob, first, state_in, action_mask):
         _pd, vpred, _, _state_out = self(
-            ob=tree_map(lambda x: x[:, None], ob),
+            ob=tree_util.tree_map(lambda x: x[:, None], ob),
             first=first[:, None],
             state_in=state_in,
+            action_mask=action_mask,
         )
         return vpred[:, 0]
 
@@ -95,7 +99,7 @@ class PhasicValueModel(PhasicModel):
         self.vf_keys = vf_keys
         self.enc_keys = list(set([pi_key] + vf_keys))
         self.detach_value_head = detach_value_head
-        pi_outsize, self.make_distr = distr_builder(actype)
+        pi_outsize, self.make_distr = distr_builder.distr_builder(actype)
 
         for k in self.enc_keys:
             self.set_encoder(k, enc_fn(obtype))
@@ -133,7 +137,7 @@ class PhasicValueModel(PhasicModel):
     def set_vhead(self, key, layer):
         setattr(self, key + "_vhead", layer)
 
-    def forward(self, ob, first, state_in):
+    def forward(self, ob, first, state_in, action_mask):
         state_out = {}
         x_out = {}
 
@@ -143,7 +147,9 @@ class PhasicValueModel(PhasicModel):
 
         pi_x = x_out[self.pi_key]
         pivec = self.pi_head(pi_x)
-        pd = self.make_distr(pivec)
+        masked_pivec = pivec + ((1.0 - action_mask.reshape(pivec.shape)) * -3.4e38)
+        # masked_pivec = torch.where(action_mask.reshape(pivec.shape).bool(), pivec, torch.tensor(-1e9))
+        pd = self.make_distr(masked_pivec)
 
         aux = {}
         for k in self.vf_keys:
@@ -180,11 +186,11 @@ def aux_train(*, model, segs, opt, mbsize, name2coef):
     """
     Train on auxiliary loss + policy KL + vf distance
     """
-    needed_keys = {"ob", "first", "state_in", "oldpd"}.union(model.aux_keys())
+    needed_keys = {"ob", "first", "state_in", "oldpd", "action_mask"}.union(model.aux_keys())
     segs = [{k: seg[k] for k in needed_keys} for seg in segs]
     for mb in make_minibatches(segs, mbsize):
-        mb = tree_map(lambda x: x.to(tu.dev()), mb)
-        pd, _, aux, _state_out = model(mb["ob"], mb["first"], mb["state_in"])
+        mb = tree_util.tree_map(lambda x: x.to(tu.dev()), mb)
+        pd, _, aux, _state_out = model(mb["ob"], mb["first"], mb["state_in"], mb["action_mask"])
         name2loss = {}
         name2loss["pol_distance"] = td.kl_divergence(mb["oldpd"], pd).mean()
         name2loss.update(model.compute_aux_loss(aux, mb))
@@ -205,13 +211,13 @@ def aux_train(*, model, segs, opt, mbsize, name2coef):
 def compute_presleep_outputs(
     *, model, segs, mbsize, pdkey="oldpd", vpredkey="oldvpred"
 ):
-    def forward(ob, first, state_in):
-        pd, vpred, _aux, _state_out = model.forward(ob.to(tu.dev()), first, state_in)
+    def forward(ob, first, state_in, action_mask):
+        pd, vpred, _aux, _state_out = model.forward(ob.to(tu.dev()), first, state_in, action_mask=action_mask.to(tu.dev()))
         return pd, vpred
 
     for seg in segs:
         seg[pdkey], seg[vpredkey] = tu.minibatched_call(
-            forward, mbsize, ob=seg["ob"], first=seg["first"], state_in=seg["state_in"]
+            forward, mbsize, ob=seg["ob"], first=seg["first"], state_in=seg["state_in"], action_mask=seg["action_mask"]
         )
 
 

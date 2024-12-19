@@ -2,7 +2,7 @@ import torch as th
 import torch.distributed as dist
 from torch import nn
 
-import torch_util as tu
+from . import torch_util as tu
 
 
 class RunningMeanStd(nn.Module):

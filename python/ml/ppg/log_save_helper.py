@@ -4,7 +4,7 @@ import resource
 
 import numpy as np
 import torch as th
-import logger
+from . import logger
 from mpi4py import MPI
 
 

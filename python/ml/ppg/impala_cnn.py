@@ -4,7 +4,7 @@ import torch as th
 from torch import nn
 from torch.nn import functional as F
 
-import torch_util as tu
+from . import torch_util as tu
 from gym3.types import Real, TensorType
 REAL = Real()
 
@@ -181,6 +181,74 @@ class ImpalaEncoder(Encoder):
     def forward(self, x, first, state_in):
         x = self.cnn(x)
         return x, state_in
+
+    def initial_state(self, batchsize):
+        return tu.zeros(batchsize, 0)
+
+class FullyConnectedNN(nn.Module):
+    """
+    A simple MLP that takes in (B,T,features) and outputs (B,T,outsize).
+
+    This replaces the ImpalaCNN for non-image inputs.
+    """
+    def __init__(self, in_size, out_size=256, hidden_sizes=(256, 256), scale_ob=1.0):
+        super().__init__()
+        self.scale_ob = scale_ob
+        layers = []
+        prev_size = in_size
+        for h in hidden_sizes:
+            layers.append(tu.NormedLinear(prev_size, h, scale=1.0))
+            layers.append(nn.ReLU())
+            prev_size = h
+        layers.append(tu.NormedLinear(prev_size, out_size, scale=1.0))
+        self.net = nn.Sequential(*layers)
+        self.outsize = out_size
+
+    def forward(self, x):
+        # x shape: (B,T,features)
+        x = x.to(dtype=th.float32) / self.scale_ob
+        B, T = x.shape[:2]
+        x = x.reshape(B*T, -1)
+        x = self.net(x)
+        x = x.reshape(B, T, self.outsize)
+        return x
+
+class FullyConnectedEncoder(Encoder):
+    def __init__(
+        self,
+        inshape,
+        outsize=256,
+        hidden_sizes=(256, 256),
+        scale_ob=1.0,
+        **kwargs
+    ):
+        """
+        inshape: tuple of input dimensions, e.g. (features,)
+        outsize: size of the output embedding
+        hidden_sizes: tuple defining the hidden layer sizes of the MLP
+        scale_ob: scaling factor for inputs, default 1.0 if not image-based
+        """
+        codetype = TensorType(eltype=REAL, shape=(outsize,))
+        obtype = TensorType(eltype=REAL, shape=inshape)
+        super().__init__(obtype=obtype, codetype=codetype)
+
+        # Compute the input dimension from inshape
+        input_dim = 1
+        for d in inshape:
+            input_dim *= d
+
+        self.mlp = FullyConnectedNN(
+            in_size=input_dim,
+            out_size=outsize,
+            hidden_sizes=hidden_sizes,
+            scale_ob=scale_ob,
+        )
+
+    def forward(self, x, first, state_in):
+        # x shape: (B,T, *inshape)
+        # Flatten any extra dimensions beyond (B,T) if necessary
+        # If inshape = (features,), x already has shape (B,T,features)
+        return self.mlp(x), state_in
 
     def initial_state(self, batchsize):
         return tu.zeros(batchsize, 0)

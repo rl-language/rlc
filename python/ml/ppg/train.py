@@ -18,7 +18,7 @@ def train_fn(env_name="coinrun",
     n_epoch_vf=1,
     gamma=.999,
     aux_lr=5e-4,
-    lr=5e-4,
+    lr=2e-5,
     nminibatch=8,
     aux_mbsize=4,
     clip_param=.2,
@@ -60,7 +60,7 @@ def train_fn(env_name="coinrun",
         ppo_hps=dict(
             lr=lr,
             γ=gamma,
-            λ=0.95,
+            λ=0.99,
             nminibatch=nminibatch,
             n_epoch_vf=n_epoch_vf,
             n_epoch_pi=n_epoch_pi,
@@ -84,7 +84,7 @@ def main():
     parser.add_argument('--n_epoch_vf', type=int, default=1)
     parser.add_argument('--n_aux_epochs', type=int, default=6)
     parser.add_argument('--n_pi', type=int, default=32)
-    parser.add_argument('--clip_param', type=float, default=0.2)
+    parser.add_argument('--clip_param', type=float, default=0.01)
     parser.add_argument('--kl_penalty', type=float, default=0.0)
     parser.add_argument('--arch', type=str, default='dual') # 'shared', 'detach', or 'dual'
 

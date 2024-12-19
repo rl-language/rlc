@@ -12,10 +12,10 @@ import torch as th
 import torch.distributed as dist
 import torch.distributions as dis
 import torch.nn.functional as F
-import logger
+from . import logger
 from mpi4py import MPI
 from torch import nn
-import tree_util
+from . import tree_util
 import socket
 import time
 import random

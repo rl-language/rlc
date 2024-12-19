@@ -3,9 +3,9 @@ from collections import defaultdict
 import numpy as np
 import torch as th
 
-import torch_util as tu
-from tree_util import tree_map
-from vec_monitor2 import VecMonitor2
+from . import torch_util as tu
+from . import tree_util
+from . import vec_monitor2
 
 class Roller:
     def __init__(
@@ -23,8 +23,8 @@ class Roller:
             All outputs from public methods are torch arrays on default device
         """
         self._act_fn = act_fn
-        if not isinstance(venv, VecMonitor2):
-            venv = VecMonitor2(
+        if not isinstance(venv, vec_monitor2.VecMonitor2):
+            venv = vec_monitor2.VecMonitor2(
                 venv,
                 keep_buf=keep_buf,
                 keep_sep_eps=keep_sep_eps,
@@ -137,10 +137,11 @@ class Roller:
         singles = [self.single_step(**act_kwargs) for i in range(nstep)]
         out = self.singles_to_multi(singles)
         out["state_in"] = state_in
-        finalrew, out["finalob"], out["finalfirst"] = tree_map(
+        finalrew, out["finalob"], out["finalfirst"] = tree_util.tree_map(
             tu.np2th, self._venv.observe()
         )
         out["finalstate"] = self.get_state()
+        out["finalmask"] = th.from_numpy(self._venv.action_mask()).to(tu.dev())
         out["reward"] = th.cat([out["lastrew"][:, 1:], finalrew[:, None]], dim=1)
         if self._keep_cost:
             out["finalcost"] = tu.np2th(
@@ -157,19 +158,20 @@ class Roller:
         step vectorized environment once, return results
         """
         out = {}
-        lastrew, ob, first = tree_map(tu.np2th, self._venv.observe())
+        lastrew, ob, first = tree_util.tree_map(tu.np2th, self._venv.observe())
         if self._keep_cost:
             out.update(
                 lastcost=tu.np2th(
                     np.array([i.get("cost", 0.0) for i in self._venv.get_info()])
                 )
             )
+        action_mask = th.from_numpy(self._venv.action_mask()).to(device=tu.dev())
         ac, newstate, other_outs = self._act_fn(
-            ob=ob, first=first, state_in=self._state, **act_kwargs
+            ob=ob, first=first, state_in=self._state, action_mask=action_mask, **act_kwargs
         )
         self._state = newstate
-        out.update(lastrew=lastrew, ob=ob, first=first, ac=ac)
-        self._venv.act(tree_map(tu.th2np, ac))
+        out.update(lastrew=lastrew, ob=ob, first=first, ac=ac, action_mask=action_mask)
+        self._venv.act(tree_util.tree_map(tu.th2np, ac))
         for (k, v) in other_outs.items():
             out[k] = v
         self._step_count += 1
