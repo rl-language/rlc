@@ -10,7 +10,6 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial, wraps
-from mpi4py import MPI
 
 
 def mpi_weighted_mean(comm, local_name2valcount):
@@ -473,6 +472,7 @@ def configure(
     format_strs: "(str|None) list of formats" = None,
     comm: "(MPI communicator | None) average numerical stats over comm" = None,
 ):
+    assert(comm != None)
     if dir is None:
         if os.getenv("OPENAI_LOGDIR"):
             dir = os.environ["OPENAI_LOGDIR"]
@@ -485,13 +485,10 @@ def configure(
 
     # choose log suffix based on world rank because otherwise the files will collide
     # if we split the world comm into different comms
-    if MPI.COMM_WORLD.rank == 0:
+    if comm.rank == 0:
         log_suffix = ""
     else:
-        log_suffix = "-rank%03i" % MPI.COMM_WORLD.rank
-
-    if comm is None:
-        comm = MPI.COMM_WORLD
+        log_suffix = "-rank%03i" % comm.rank
 
     format_strs = format_strs or default_format_strs(comm.rank)
 
@@ -523,32 +520,6 @@ def scoped_configure(dir=None, format_strs=None, comm=None):
         Logger.CURRENT = prevlogger
 
 
-# ================================================================
-
-
-def _demo():
-    configure()
-    log("hi")
-    dir = "/tmp/testlogging"
-    if os.path.exists(dir):
-        shutil.rmtree(dir)
-    configure(dir=dir)
-    logkv("a", 3)
-    logkv("b", 2.5)
-    dumpkvs()
-    logkv("b", -2.5)
-    logkv("a", 5.5)
-    dumpkvs()
-    log("^^^ should see a = 5.5")
-    logkv_mean("b", -22.5)
-    logkv_mean("b", -44.4)
-    logkv("a", 5.5)
-    dumpkvs()
-    log("^^^ should see b = -33.3")
-
-    logkv("b", -2.5)
-    dumpkvs()
-
 
 # ================================================================
 # Readers
@@ -572,5 +543,3 @@ def read_csv(fname):
 
 
 
-if __name__ == "__main__":
-    _demo()

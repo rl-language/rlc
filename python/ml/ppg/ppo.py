@@ -4,7 +4,6 @@ Mostly copied from ppo.py but with some extra options added that are relevant to
 
 import numpy as np
 import torch as th
-from mpi4py import MPI
 from . import tree_util
 from . import torch_util as tu
 from . import log_save_helper
@@ -52,7 +51,6 @@ def log_vf_stats(comm, **kwargs):
         logger.logkv_mean(f"VFStats/{key.capitalize()}Std", kwargs[key].std())
 
 def compute_advantage(model, seg, γ, λ, comm=None):
-    comm = comm or MPI.COMM_WORLD
     finalob, finalfirst, finalmask = seg["finalob"], seg["finalfirst"], seg["finalmask"]
     vpredfinal = model.v(finalob, finalfirst, seg["finalstate"], finalmask)
     reward = seg["reward"]
@@ -139,9 +137,8 @@ def learn(
     callbacks: "(seq of function(dict)->bool) to run each update" = (),
     learn_state: "dict with optional keys {'opts', 'roller', 'lsh', 'reward_normalizer', 'curr_interact_count', 'seg_buf'}" = None,
 ):
-    if comm is None:
-        comm = MPI.COMM_WORLD
 
+    assert(comm != None)
     learn_state = learn_state or {}
     ic_per_step = venv.num * comm.size * nstep
 

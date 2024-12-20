@@ -6,7 +6,6 @@ import itertools
 from . import torch_util as tu
 from torch import distributions as td
 from . import distr_builder
-from mpi4py import MPI
 from . import tree_util
 import operator
 import torch
@@ -239,8 +238,7 @@ def learn(
     Run PPO for X iterations
     Then minimize aux loss + KL + value distance for X passes over data
     """
-    if comm is None:
-        comm = MPI.COMM_WORLD
+    assert(comm != None)
 
     ppo_state = None
     aux_state = th.optim.Adam(model.parameters(), lr=aux_lr)

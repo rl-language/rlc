@@ -8,27 +8,44 @@ from ml.ppg.envs import RLCMultiEnv, exit_on_invalid_env, get_num_players
 from ml.ppg.impala_cnn import ImpalaEncoder, FullyConnectedEncoder
 
 import ml.ppg.ppg as ppg
+import numpy as np
 import ml.ppg.torch_util as tu
 import ml.ppg.logger as logger
 
-from mpi4py import MPI
+
+class MPIFakeObject:
+    def __init__(self):
+        self.size = 1
+        self.rank = 0
+
+    def Get_rank(self):
+        return 0
+
+    def allgather(self, obj):
+        return [obj]
+
+    def Allreduce(self, sendbuf, recvbuf, op=None):
+        np.copyto(recvbuf, sendbuf)
+
+    def gather(self, obj):
+        return [obj]
 
 
 def train_fn(
     program,
     distribution_mode="hard",
-    arch="shared",  # 'shared', 'detach', or 'dual'
+    arch="dual",  # 'shared', 'detach', or 'dual'
     # 'shared' = shared policy and value networks
     # 'dual' = separate policy and value networks
     # 'detach' = shared policy and value networks, but with the value function gradient detached during the policy phase to avoid interference
-    interacts_total=1000000,
+    interacts_total=1000000000,
     num_envs=6,
     n_epoch_pi=1,
     n_epoch_vf=1,
     gamma=.999,
     aux_lr=5e-4,
     lr=2e-5,
-    nminibatch=8,
+    nminibatch=6,
     aux_mbsize=4,
     clip_param=.2,
     kl_penalty=0.0,
@@ -38,9 +55,7 @@ def train_fn(
     vf_true_weight=1.0,
     log_dir='/tmp/ppg',
     comm=None):
-    if comm is None:
-        comm = MPI.COMM_WORLD
-    tu.setup_dist(comm=comm)
+    tu.setup_dist(comm=comm, should_init_process_group=False)
     tu.register_distributions_for_tree_util()
 
     if log_dir is not None:
@@ -201,9 +216,8 @@ def main():
         # tb.configure(argv=[None, "--logdir", session_dir])
         # url = tb.launch()
 
-    comm = MPI.COMM_WORLD
 
-    train_fn(program, comm=comm)
+    train_fn(program, comm=MPIFakeObject())
 
     program.cleanup()
 

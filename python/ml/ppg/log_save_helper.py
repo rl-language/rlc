@@ -5,7 +5,6 @@ import resource
 import numpy as np
 import torch as th
 from . import logger
-from mpi4py import MPI
 
 
 def rcm(start, stop, modulus, mode="[)"):
@@ -37,8 +36,9 @@ class LogSaveHelper:
         log_callbacks: "(list) extra callbacks to run before self.log()" = None,
         log_new_eps: "(bool) whether to log statistics for new episodes from non-rolling buffer" = False,
     ):
+        assert(comm != None)
+        self.comm = comm
         self.model = model
-        self.comm = comm or MPI.COMM_WORLD
         self.ic_per_step = ic_per_step
         self.ic_per_save = ic_per_save
         self.save_mode = save_mode
@@ -125,7 +125,11 @@ class LogSaveHelper:
             return
         else:
             raise NotImplementedError
-        suffix = f"_rank{MPI.COMM_WORLD.rank:03d}" if MPI.COMM_WORLD.rank != 0 else ""
+
+        # ToDo correclty handle mpi
+        # suffix = f"_rank{MPI.COMM_WORLD.rank:03d}" if MPI.COMM_WORLD.rank != 0 else ""
+        suffix = ""
+
         basename += f"{suffix}.jd"
         fname = os.path.join(logger.get_dir(), basename)
         logger.log("Saving to ", fname, f"IC={self.total_interact_count}")

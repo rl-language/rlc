@@ -13,7 +13,6 @@ import torch.distributed as dist
 import torch.distributions as dis
 import torch.nn.functional as F
 from . import logger
-from mpi4py import MPI
 from torch import nn
 from . import tree_util
 import socket
@@ -25,7 +24,6 @@ def format_model(mod, rms=False):
     """
     Return a str: a formatted table listing parameters and their sizes
     """
-    import pandas
 
     rows = []
     ntotal = sum(p.numel() for p in mod.parameters())
@@ -47,11 +45,8 @@ def format_model(mod, rms=False):
         rows = [row[:-1] for row in rows]
         columns = columns[:-1]
     rows.sort(key=lambda x: x[0])
-    df = pandas.DataFrame(rows, columns=columns)
-    maxlen = df["path"].str.len().max()
-    return df.to_string(
-        index=False, formatters={"path": "{{:<{}s}}".format(maxlen).format}
-    )
+    stringed_rows = [" ".join([str(elem) for elem in row]) for row in rows]
+    return "\n".join(stringed_rows)
 
 def intprod(xs):
     """
@@ -140,8 +135,6 @@ def torch_init_process_group(
         # already initialized
         return
 
-    if comm is None:
-        comm = MPI.COMM_WORLD
 
     os.environ["NCCL_NSOCKS_PERTHREAD"] = "2"
     os.environ["NCCL_SOCKET_NTHREADS"] = "8"
@@ -227,13 +220,15 @@ def torch_setup(device_type=None, gpu_offset=0):
 
     Returns the torch device to use
     """
-    from mpi4py import MPI
+    # from mpi4py import MPI
     import torch
 
     if device_type is None:
         device_type = "cuda" if torch.cuda.is_available() else "cpu"
 
-    local_rank, local_size = _get_local_rank_size(MPI.COMM_WORLD)
+    # ToDo correctly handle MPI
+    # local_rank, local_size = _get_local_rank_size(MPI.COMM_WORLD)
+    local_rank, local_size = 0, 1
     if device_type == "cuda":
         device_index = (local_rank + gpu_offset) % torch.cuda.device_count()
         torch.cuda.set_device(device_index)
@@ -464,7 +459,7 @@ def _numpy_allmean(comm, x):
     return out
 
 
-def mpi_moments(comm: MPI.Comm, x: th.Tensor) -> (float, float):
+def mpi_moments(comm, x: th.Tensor) -> (float, float):
     mean_x_x2 = np.array([x.mean().item(), (x ** 2).mean().item()])
     mean_x_x2 = _numpy_allmean(comm, mean_x_x2)
     mean_x, mean_x2 = mean_x_x2
@@ -472,7 +467,7 @@ def mpi_moments(comm: MPI.Comm, x: th.Tensor) -> (float, float):
     return float(mean_x), max(float(var_x), 0)
 
 
-def explained_variance(ypred: th.Tensor, y: th.Tensor, comm: MPI.Comm = None) -> float:
+def explained_variance(ypred: th.Tensor, y: th.Tensor, comm = None) -> float:
     """
     Computes fraction of variance that ypred explains about y.
     Returns 1 - Var[y-ypred] / Var[y]
