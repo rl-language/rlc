@@ -11,6 +11,7 @@ import ml.ppg.ppg as ppg
 import numpy as np
 import ml.ppg.torch_util as tu
 import ml.ppg.logger as logger
+from tensorboard.program import TensorBoard
 
 
 class MPIFakeObject:
@@ -59,7 +60,7 @@ def train_fn(
     tu.register_distributions_for_tree_util()
 
     if log_dir is not None:
-        format_strs = ['csv', 'stdout'] if comm.Get_rank() == 0 else []
+        format_strs = ['csv', 'stdout', "tensorboard"] if comm.Get_rank() == 0 else []
         logger.configure(comm=comm, dir=log_dir, format_strs=format_strs)
 
     venv = RLCMultiEnv(program, num=num_envs)
@@ -211,10 +212,10 @@ def main():
 
 
     # initial_args_dir = args.initial_states if args.initial_states == "" else os.path.abspath(args.initial_states)
-    # if not args.no_tensorboard:
-        # tb = TensorBoard()
-        # tb.configure(argv=[None, "--logdir", session_dir])
-        # url = tb.launch()
+    if not args.no_tensorboard:
+        tb = TensorBoard()
+        tb.configure(argv=[None, "--logdir", "/tmp/ppg/"])
+        url = tb.launch()
 
 
     train_fn(program, comm=MPIFakeObject())
