@@ -82,7 +82,7 @@ class SingleRLCEnvironment:
         self.solve_randomess = solve_randomness
         self.has_score_function = has_score_function(self.module)
         self.has_get_current_player_f = has_get_current_player(self.module)
-        self.num_players = get_num_players(self.program)
+        self.num_players = get_num_players(self.module)
         self.state = self.program.start()
         self.valid_action_vector = program.module.functions.make_valid_actions_vector(self.state.raw_actions, self.state.state)
         self.score_fn = (lambda g, p: self.state.state.score) if not self.has_score_function else self.module.rl_score__Game_int64_t_r_double
@@ -101,9 +101,13 @@ class SingleRLCEnvironment:
 
         self.current_player_fn = (lambda state: 0) if not self.has_get_current_player_f else self.module.rl_get_current_player__Game_r_int64_t
 
+        self.is_terminating_episode = False
+        self.players_final_turn = []
+
         self._resolve_randomness()
-        self.last_score = 0.0
-        self.current_score = 0.0
+        self.last_score = [0.0 for p in range(self.num_players)]
+        self.current_score = [0.0 for p in range(self.num_players)]
+
 
 
     def legal_actions(self):
@@ -113,6 +117,8 @@ class SingleRLCEnvironment:
         return self.state.actions
 
     def get_current_player(self):
+        if self.is_terminating_episode:
+            return self.players_final_turn[0]
         if self.state.state.resume_index == -1:
             return -4
         return self.current_player_fn(self.state.state)
@@ -132,7 +138,7 @@ class SingleRLCEnvironment:
         return self.score_fn(self.state.state, player_id).value
 
     def step_score(self, player_id):
-        return self.current_score - self.last_score
+        return self.current_score[player_id] - self.last_score[player_id]
 
     def _resolve_randomness(self):
         if not self.solve_randomess:
@@ -144,18 +150,31 @@ class SingleRLCEnvironment:
             self.program.functions.apply(action, self.state.state)
 
     def reset(self, seed=None, options=None, path_to_binary_state=None):
+        self.is_terminating_episode = False
+        self.players_final_turn = []
         self.state.reset(
             seed=seed, options=options, path_to_binary_state=path_to_binary_state
         )
         self._resolve_randomness()
-        self.last_score = 0.0
-        self.current_score = 0.0
+        self.last_score = [0.0 for p in range(self.num_players)]
+        self.current_score = [0.0 for p in range(self.num_players)]
 
     def step(self, action):
-        self.last_score = self.current_score
+        if self.is_terminating_episode:
+            current_player = self.players_final_turn[0]
+            self.last_score[current_player] = self.current_score[current_player]
+            self.current_score[current_player] = self.total_score(current_player)
+            self.players_final_turn.pop(0)
+            return self.step_score(current_player)
+        current_player = self.get_current_player()
+        self.last_score[current_player] = self.current_score[current_player]
         self.state.step(self.actions()[action])
         self._resolve_randomness()
-        self.current_score = self.total_score(0)
+        self.current_score[current_player] = self.total_score(current_player)
+        if self.is_done_underling():
+            self.players_final_turn = [i for i in range(self.num_players) if i != current_player]
+            self.is_terminating_episode = True
+        return self.step_score(current_player)
 
     def get_action_count(self):
         return self.num_actions
@@ -176,8 +195,14 @@ class SingleRLCEnvironment:
         ).astype(float)
         return vec
 
-    def is_done(self):
+    def is_done_underling(self):
         return self.state.state.resume_index == -1
+
+    def pretty_print(self):
+        self.state.pretty_print()
+
+    def is_done_for_everyone(self):
+        return self.state.state.resume_index == -1 and len(self.players_final_turn) == 0
 
 class RLCMultiEnv(Env):
     def __init__(self, program, num=1, seed=None, solve_randomess=True):
@@ -187,8 +212,10 @@ class RLCMultiEnv(Env):
         self.ob_space = types.TensorType(types.Real(), shape=(self.games[0].get_state_size(), 1, 1))
         self.ac_space = types.TensorType(types.Discrete(n=self.games[0].get_action_count()), shape=(1,))
 
+        self.first_for_all = np.ones(self.num, dtype=bool)
         self.done = np.ones(self.num, dtype=bool)
         self.rew = np.zeros(self.num, dtype=np.float32)
+        self.just_acted_players = None
 
         super().__init__(
             ob_space=self.ob_space,
@@ -196,8 +223,17 @@ class RLCMultiEnv(Env):
             num=self.num
         )
 
+    def get_num_players(self):
+        return self.games[0].num_players
+
     def action_mask(self):
         return np.array([g.get_action_mask() for g in self.games])
+
+    def current_player(self):
+        return np.array([g.get_current_player() for g in self.games])
+
+    def previous_players(self):
+        return self.just_acted_players
 
     def observe(self):
         obs = np.array([g.get_state() for g in self.games])
@@ -207,13 +243,20 @@ class RLCMultiEnv(Env):
         self.step(ac)
 
     def step(self, ac):
+        self.just_acted_players = self.current_player()
         for i, action in enumerate(ac):
             game = self.games[i]
-            game.step(action[0])
-            self.rew[i] = game.step_score(i)
-            self.done[i] = game.is_done()
-            if game.is_done():
+            self.rew[i] = game.step(action[0])
+            self.done[i] = game.is_done_underling()
+            self.first_for_all[i] = False
+            if game.is_done_for_everyone():
                 game.reset()
+                self.first_for_all[i] = True
 
         return self.observe()
 
+    def first_for_all_players(self, game_id):
+        return self.first_for_all[game_id]
+
+    def pretty_print(self, game_id):
+        self.games[game_id].pretty_print()

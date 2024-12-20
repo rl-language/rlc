@@ -76,15 +76,19 @@ act play() -> Game:
         board.next_turn()
 
 fun get_current_player(Game g) -> Int:
-    return 0 
+    return int(g.board.playerTurn)
 
 fun score(Game g, Int player_id) -> Float:
     if !g.is_done(): 
         return 0.0 
-    return float(g.score)
+    if g.board.three_in_a_line_player(player_id):
+        return 1.0
+    else if g.board.three_in_a_line_player(1-player_id):
+        return -1.0
+    return 0.0
 
 fun get_num_players() -> Int:
-    return 1
+    return 2
 
 fun fuzz(Vector<Byte> input):
     if input.size() == 0:

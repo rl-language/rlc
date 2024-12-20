@@ -4,7 +4,7 @@ from collections import deque, namedtuple
 import numpy as np
 import gym3
 
-Episode = namedtuple("Episode", ["ret", "len", "time", "info"])
+Episode = namedtuple("Episode", ["ret", "len", "time", "info", "player_ret"])
 
 
 class PostActProcessing(gym3.Wrapper):
@@ -25,6 +25,9 @@ class PostActProcessing(gym3.Wrapper):
     def action_mask(self):
         return self.env.action_mask()
 
+    def current_player(self):
+        return self.env.current_player()
+
     def act(self, ac):
         self.process_if_needed()
         self.env.act(ac)
@@ -36,6 +39,9 @@ class PostActProcessing(gym3.Wrapper):
 
     def process(self):
         raise NotImplementedError
+
+    def get_num_player(self):
+        self.env.get_num_players()
 
 
 class VecMonitor2(PostActProcessing):
@@ -67,17 +73,21 @@ class VecMonitor2(PostActProcessing):
         else:
             self.non_rolling_buf = None
         self.eprets = np.zeros(self.num, "f")
+        self.eprets_player = np.zeros((self.num, venv.get_num_players()), "f")
         self.eplens = np.zeros(self.num, "i")
 
     def process(self):
+        players_to_act = self.env.previous_players()
         lastrews, _obs, firsts = self.env.observe()
         infos = self.env.get_info()
         self.eprets += lastrews
+        for i, player in enumerate(players_to_act):
+            self.eprets_player[i, player] += lastrews[i]
         self.eplens += 1
         for i in range(self.num):
-            if firsts[i]:
+            if self.env.first_for_all_players(i):
                 timefromstart = round(time.time() - self.tstart, 6)
-                ep = Episode(self.eprets[i], self.eplens[i], timefromstart, infos[i])
+                ep = Episode(self.eprets[i], self.eplens[i], timefromstart, infos[i], np.copy(self.eprets_player[i]))
                 if self.ep_buf is not None:
                     self.ep_buf.append(ep)
                 if self.per_env_buf is not None:
@@ -87,6 +97,7 @@ class VecMonitor2(PostActProcessing):
                 self.epcount += 1
                 self.eprets[i] = 0
                 self.eplens[i] = 0
+                self.eprets_player[i] = np.zeros(self.env.get_num_players(), "f")
 
     def clear_episode_bufs(self):
         if self.ep_buf:

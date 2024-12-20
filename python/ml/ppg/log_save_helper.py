@@ -35,9 +35,11 @@ class LogSaveHelper:
         t0: "(float) override training start timestamp" = None,
         log_callbacks: "(list) extra callbacks to run before self.log()" = None,
         log_new_eps: "(bool) whether to log statistics for new episodes from non-rolling buffer" = False,
+        num_players = 1,
     ):
         assert(comm != None)
         self.comm = comm
+        self.num_players = num_players
         self.model = model
         self.ic_per_step = ic_per_step
         self.ic_per_save = ic_per_save
@@ -67,8 +69,10 @@ class LogSaveHelper:
 
     def gather_roller_stats(self, roller):
         self.roller_stats = {
-            "EpRewMean": self._nanmean([] if roller is None else roller.recent_eprets),
             "EpLenMean": self._nanmean([] if roller is None else roller.recent_eplens),
+            "EpRewMean": self._nanmean([] if roller is None else roller.recent_eprets),
+        } | {
+            f"EpRewMeanPlayer{p}": (self._nanmean([] if roller is None else roller.recent_eprets_player(p))) for p in range(self.num_players)
         }
         if roller is not None and self.log_new_eps:
             assert roller.has_non_rolling_eps, "roller needs keep_non_rolling"
