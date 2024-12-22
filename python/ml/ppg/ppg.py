@@ -32,7 +32,6 @@ class PpoModel(th.nn.Module):
         )
 
         ac = pd.sample()
-        # ToDo: handle invalid actions here
         logp = sum_nonbatch(pd.log_prob(ac))
         return (
             tree_util.tree_map(lambda x: x[:, 0], ac),
@@ -244,6 +243,9 @@ def learn(
     aux_state = th.optim.Adam(model.parameters(), lr=aux_lr)
     name2coef = name2coef or {}
 
+    callbacks = ppo_hps["callbacks"]
+    ppo_hps.pop("callbacks")
+
     while True:
         store_segs = n_pi != 0 and n_aux_epochs != 0
 
@@ -252,7 +254,7 @@ def learn(
             venv=venv,
             model=model,
             learn_state=ppo_state,
-            callbacks=[
+            callbacks=callbacks + [
                 lambda _l: n_pi > 0 and _l["curr_iteration"] >= n_pi,
             ],
             interacts_total=interacts_total,

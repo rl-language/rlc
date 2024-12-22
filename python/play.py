@@ -1,31 +1,58 @@
-import ray
-
-import os
-import sys
-import time
-from ml.raylib.environment import RLCEnvironment, exit_on_invalid_env
-from ray.rllib.env.multi_agent_env import make_multi_agent
-from ray.rllib.algorithms import ppo
-from ray.rllib.algorithms.algorithm import Algorithm
-from ray.rllib.algorithms.ppo import PPOConfig, PPO
-from ray.rllib.algorithms.ppo import PPOTorchPolicy
-from ray import train
-from ml.raylib.module_config import get_config
-from ml.raylib.environment import get_num_players
-
-from rlc import Program
 from command_line import load_program_from_args, make_rlc_argparse
+from rlc import Program
+import sys
 
+from ml.ppg.envs import RLCMultiEnv, exit_on_invalid_env, get_num_players
+
+from tensorboard.program import TensorBoard
+from ml.ppg.train import train, make_model
+import ml.ppg.torch_util as tu
+import ml.ppg.tree_util as tree_util
+
+def make_action(model, env, rnn_state):
+    game = env.games[0]
+    if game.get_current_player() == -1:
+        action_index = game.random_valid_action_index()
+        game.step(action_index)
+        action = game.actions()[action_index]
+        return action, rnn_state
+
+    lastrew, ob, first = tree_util.tree_map(tu.np2th, env.observe())
+    action_mask = tu.np2th(env.action_mask())
+    act, state_out, _ = model.act(ob, first, rnn_state, action_mask)
+    action_index = act[0, 0]
+    game.step(action_index)
+    action = game.actions()[action_index]
+
+    return action, state_out
+
+
+
+
+def play_out(program, env, model, print_scores, iterations, output, print_progress):
+    out = open(output, "w+") if output != "-" else sys.stdout
+    for i in range(iterations):
+        rnn_state = model.initial_state(env.num)
+        if print_progress:
+            print(f"iteration {i}/{iterations}")
+        out.write(f"# game: {i}\n")
+        while not env.games[0].is_done_underling():
+            action, state_out = make_action(model, env, rnn_state)
+            out.write(program.to_string(action) + "\n")
+        if print_scores:
+            out.write("# score: ")
+            out.write(str(env.current_score))
+            out.write("\n")
 
 def main():
-    parser = make_rlc_argparse("train", description="runs a action of the simulation")
+    parser = make_rlc_argparse("play", description="runs a action of the simulation")
     parser.add_argument(
         "--output",
         "-o",
         type=str,
         nargs="?",
         help="path where to write the output",
-        default="",
+        default="-",
     )
     parser.add_argument("checkpoint", type=str)
     parser.add_argument("--true-self-play", action="store_true", default=False)
@@ -35,37 +62,9 @@ def main():
 
     args = parser.parse_args()
     with load_program_from_args(args, optimize=True) as program:
-        exit_on_invalid_env(program)
-
-        ray.init(num_cpus=12, num_gpus=1, include_dashboard=False)
-
-        from ray import air, tune
-
-        module_path = os.path.abspath(program.module_path)
-        tune.register_env(
-            "rlc_env", lambda config: RLCEnvironment(program=Program(module_path))
-        )
-
-        num_agents = 1 if args.true_self_play else get_num_players(program.module)
-
-        model = Algorithm.from_checkpoint(args.checkpoint)
-        for i in range(num_agents):
-            model.workers.local_worker().module[f"p{i}"].load_state(
-                f"{args.checkpoint}/learner/net_p{i}/"
-            )
-        out = open(args.output, "w+") if args.output != "" else sys.stdout
-        for i in range(args.iterations):
-            if args.progress:
-                print(f"iteration {i}/{args.iterations}")
-            out.write(f"# game: {i}\n")
-            env = RLCEnvironment(program=program, solve_randomness=False)
-            while env.current_player != -4:
-                action = env.one_action_according_to_model(model, args.true_self_play)
-                out.write(program.to_string(action) + "\n")
-            if args.print_scores:
-                out.write("# score: ")
-                out.write(str(env.current_score))
-                out.write("\n")
+        env = RLCMultiEnv(program, solve_randomess=False)
+        model = make_model(env, path_to_weights=args.checkpoint)
+        play_out(program, env, model, args.print_scores, iterations=args.iterations, output=args.output, print_progress=args.progress)
 
 
 if __name__ == "__main__":

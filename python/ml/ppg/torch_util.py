@@ -109,7 +109,7 @@ def contextmanager_to_decorator(cm):
 
 def have_cuda():
     return (
-        th.has_cuda and th.cuda.is_available() and not os.getenv("RCALL_NUM_GPU") == "0"
+        th.backends.cuda.is_built() and not os.getenv("RCALL_NUM_GPU") == "0"
     )
 
 
