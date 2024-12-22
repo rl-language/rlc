@@ -292,6 +292,7 @@ def compile(
         rlc_compiler,
         *s,
         "--shared",
+        "--pylib",
         "-o",
         Path(tmp_dir) / Path(lib_name),
         "-O2" if optimized else "",
