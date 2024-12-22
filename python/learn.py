@@ -13,7 +13,7 @@ def hypersearch_params():
         for clip_param in [0.2, 0.002, 0.02]:
             for entropy in [0.5, 0.1, 0.01]:
                 for nstep in [500, 1000, 5000]:
-                    yield {"envs": num_envs, "lr": lr, "clip_param": clip_param, "entcoef": entropy, "nstep": nstep}
+                    yield {"lr": lr, "clip_param": clip_param, "entcoef": entropy, "nstep": nstep}
 
 def main():
     parser = make_rlc_argparse(
