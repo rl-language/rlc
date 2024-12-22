@@ -9,12 +9,11 @@ from tensorboard.program import TensorBoard
 from ml.ppg.train import train
 
 def hypersearch_params():
-    for num_envs in [1, 4, 8] :
-        for lr in [1e-3, 1e-4, 1e-5]:
-            for clip_param in [0.2, 0.002, 0.02]:
-                for entropy in [0.5, 0.1, 0.01]:
-                    for nstep in [500, 1000, 5000]:
-                        yield {"envs": num_envs, "lr": lr, "clip_param": clip_param, "entcoef": entropy, "nstep": nstep}
+    for lr in [1e-3, 1e-4, 1e-5]:
+        for clip_param in [0.2, 0.002, 0.02]:
+            for entropy in [0.5, 0.1, 0.01]:
+                for nstep in [500, 1000, 5000]:
+                    yield {"envs": num_envs, "lr": lr, "clip_param": clip_param, "entcoef": entropy, "nstep": nstep}
 
 def main():
     parser = make_rlc_argparse(

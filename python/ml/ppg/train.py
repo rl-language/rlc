@@ -75,7 +75,7 @@ def train_fn(
     gamma=0.999,
     aux_lr=5e-4,
     lr=2e-5,
-    nminibatch=10,
+    nminibatch=2,
     aux_mbsize=4,
     clip_param=0.002,
     kl_penalty=0.0,
@@ -143,12 +143,12 @@ def make_env(program_path, initial_states_path):
 
 def train(
     program,
-    lr=2e-5,
+    lr=1e-5,
     clip_param=0.002,
     entcoef=0.0015,
     total_steps=1000000000,
     envs=8,
-    nstep=500,
+    nstep=2000,
     path_to_weights="",
     output="",
     model_save_frequency=1000,
