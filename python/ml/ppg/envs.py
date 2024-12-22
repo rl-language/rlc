@@ -109,7 +109,34 @@ class SingleRLCEnvironment:
         self.current_score = [0.0 for p in range(self.num_players)]
         self.first_move = [True for p in range(self.num_players)]
 
+        self.user_defined_log_functions = self._collect_env_metrics_to_log()
 
+    def _collect_env_metrics_to_log(self):
+        to_return = {}
+        module = self.module
+        for name, overloads in module.wrappers.items():
+            if not name.startswith("log_"):
+                continue
+
+            for overload in overloads:
+                if (
+                    len(module.signatures[overload]) == 2
+                    and (
+                        module.signatures[overload][0] == float
+                        or module.signatures[overload][0] == int
+                    )
+                    and module.signatures[overload][1] == module.Game
+                ):
+                    to_return[name[4:]] = overload
+
+        return to_return
+
+    def log_extra_metrics(self, metric):
+        value = metric(self.state.state)
+        if isinstance(value, int):
+            return value
+        else:
+            return value.value
 
     def legal_actions(self):
         return self.state.legal_actions
@@ -248,6 +275,9 @@ class RLCMultiEnv(Env):
     def act(self, ac):
         self.step(ac)
 
+    def log_extra_metrics(self, metric):
+        return np.array([g.log_extra_metrics(metric) for g in self.games])
+
     def step(self, ac):
         self.just_acted_players = self.current_player()
         for i, action in enumerate(ac):
@@ -266,3 +296,6 @@ class RLCMultiEnv(Env):
 
     def pretty_print(self, game_id):
         self.games[game_id].pretty_print()
+
+    def get_user_defined_log_functions(self):
+        return self.games[0].user_defined_log_functions

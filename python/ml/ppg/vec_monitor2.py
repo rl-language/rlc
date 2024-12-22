@@ -113,3 +113,9 @@ class VecMonitor2(PostActProcessing):
     def clear_non_rolling_episode_buf(self):
         if self.non_rolling_buf:
             self.non_rolling_buf.clear()
+
+    def log_extra_metrics(self, metric):
+        return self.env.log_extra_metrics(metric)
+
+    def get_user_defined_log_functions(self):
+        return self.env.get_user_defined_log_functions()

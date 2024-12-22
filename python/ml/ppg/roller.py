@@ -309,5 +309,10 @@ class Roller:
     def get_state(self):
         return self._state
 
+    def log_extra_metrics(self, metric):
+        return self._venv.log_extra_metrics(metric)
+    def get_user_defined_log_functions(self):
+        return self._venv.get_user_defined_log_functions()
+
     def observe(self):
         return self._venv.observe()
