@@ -74,8 +74,8 @@ class LogSaveHelper:
         } | {
             f"EpRewMeanPlayer{p}": (self._nanmean([] if roller is None else roller.recent_eprets_player(p))) for p in range(self.num_players)
         }
-        for stat, fun in roller.get_user_defined_log_functions().items():
-            self.roller_stats[stat] = self._nanmean([] if roller is None else roller.log_extra_metrics(fun))
+        for i, stat in enumerate(roller.get_user_defined_log_functions()):
+            self.roller_stats[stat] = self._nanmean([] if roller is None else roller.recent_stats(i))
 
         if roller is not None and self.log_new_eps:
             assert roller.has_non_rolling_eps, "roller needs keep_non_rolling"

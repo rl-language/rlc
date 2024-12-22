@@ -249,6 +249,7 @@ class RLCMultiEnv(Env):
         self.first_move = np.ones(self.num, dtype=bool)
         self.rew = np.zeros(self.num, dtype=np.float32)
         self.just_acted_players = None
+        self.previous_game_custom_log_metrics = np.zeros((self.num, len(self.get_user_defined_log_functions())), dtype=np.float32)
 
         super().__init__(
             ob_space=self.ob_space,
@@ -275,8 +276,8 @@ class RLCMultiEnv(Env):
     def act(self, ac):
         self.step(ac)
 
-    def log_extra_metrics(self, metric):
-        return np.array([g.log_extra_metrics(metric) for g in self.games])
+    def is_done_for_everyone(self, game_id):
+        return self.games[game_id].is_done_for_everyone()
 
     def step(self, ac):
         self.just_acted_players = self.current_player()
@@ -285,6 +286,8 @@ class RLCMultiEnv(Env):
             self.rew[i] = game.step(action[0])
             self.first_for_all[i] = False
             if game.is_done_for_everyone():
+                for metric_id, metric in enumerate(self.get_user_defined_log_functions().values()):
+                    self.previous_game_custom_log_metrics[i, metric_id] = game.log_extra_metrics(metric)
                 game.reset()
                 self.first_for_all[i] = True
             self.first_move[i] = game.is_first_move(game.get_current_player())
@@ -299,3 +302,9 @@ class RLCMultiEnv(Env):
 
     def get_user_defined_log_functions(self):
         return self.games[0].user_defined_log_functions
+
+    def log_extra_metrics(self, game_id, metric):
+        return self.games[game_id].log_extra_metrics(metric)
+
+    def get_previous_episode_extra_metrics(self, game_id):
+        return self.previous_game_custom_log_metrics[game_id, :]

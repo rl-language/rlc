@@ -78,6 +78,9 @@ class Roller:
             return None
         return [ep.len for ep in self._venv.non_rolling_buf]
 
+    def recent_stats(self, stat_id) -> list:
+        return [ep.extra_metrics[stat_id] for ep in self._venv.ep_buf]
+
     @property
     def non_rolling_eprets(self) -> list:
         if self._venv.non_rolling_buf is None:
