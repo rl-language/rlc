@@ -1,5 +1,7 @@
 import numpy as np
 from gym3 import Env, types, Wrapper
+
+
 class TicTacToeGame:
     EMPTY = 0
     X = 1
@@ -11,7 +13,7 @@ class TicTacToeGame:
         self.reset()
 
     def reset(self):
-        self.board = [self.EMPTY]*9
+        self.board = [self.EMPTY] * 9
         self.current_player = self.X  # X always starts
 
     def get_state(self):
@@ -19,8 +21,9 @@ class TicTacToeGame:
         return np.array(self.board, dtype=np.int64).reshape((9, 1, 1))
 
     def action_mask(self):
-        return np.array([self.valid_move(i) for i in range(9)], dtype=np.int8).reshape((9))
-
+        return np.array([self.valid_move(i) for i in range(9)], dtype=np.int8).reshape(
+            (9)
+        )
 
     def valid_move(self, position):
         if position < 0 or position >= 9:
@@ -45,12 +48,21 @@ class TicTacToeGame:
 
     def check_winner(self, mark):
         wins = [
-            (0,1,2), (3,4,5), (6,7,8), # rows
-            (0,3,6), (1,4,7), (2,5,8), # cols
-            (0,4,8), (2,4,6)           # diagonals
+            (0, 1, 2),
+            (3, 4, 5),
+            (6, 7, 8),  # rows
+            (0, 3, 6),
+            (1, 4, 7),
+            (2, 5, 8),  # cols
+            (0, 4, 8),
+            (2, 4, 6),  # diagonals
         ]
-        for (a,b,c) in wins:
-            if self.board[a] == mark and self.board[b] == mark and self.board[c] == mark:
+        for a, b, c in wins:
+            if (
+                self.board[a] == mark
+                and self.board[b] == mark
+                and self.board[c] == mark
+            ):
                 return True
         return False
 
@@ -68,6 +80,7 @@ class TicTacToeGame:
             move = self.rng.choice(moves)
             self.board[move] = self.O
 
+
 class TicTacToeEnv(Env):
     def __init__(self, num=1, seed=None):
         self.num = num
@@ -80,11 +93,7 @@ class TicTacToeEnv(Env):
         self.done = np.ones(self.num, dtype=bool)
         self.rew = np.zeros(self.num, dtype=np.float32)
 
-        super().__init__(
-            ob_space=self.ob_space,
-            ac_space=self.ac_space,
-            num=self.num
-        )
+        super().__init__(ob_space=self.ob_space, ac_space=self.ac_space, num=self.num)
 
     def action_mask(self):
         return np.array([g.action_mask() for g in self.games])
@@ -119,6 +128,7 @@ class TicTacToeEnv(Env):
 
         return self.observe()
 
+
 if __name__ == "__main__":
     env = TicTacToeEnv(num=1)
     done = False
@@ -127,12 +137,12 @@ if __name__ == "__main__":
     # Example interaction:
     for _ in range(20):
         # Random actions for demonstration
-        action = env.games[0].rng.integers(0,9,size=(1,))
+        action = env.games[0].rng.integers(0, 9, size=(1,))
         rew, obs, done = env.step(action)
         print("Action:", action)
         print("Reward:", rew)
         print("Done:", done)
-        print("Board:\n", obs[0].reshape(3,3))
+        print("Board:\n", obs[0].reshape(3, 3))
         print("----")
         if done[0]:
             print("Episode finished, resetting...")

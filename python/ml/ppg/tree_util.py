@@ -36,6 +36,7 @@ def partial(fun, *args, **kwargs):
     wrapped._bound_args = args  # pylint: disable=protected-access
     return wrapped
 
+
 def concatenate(xs):
     return list(it.chain.from_iterable(xs))
 
@@ -43,15 +44,15 @@ def concatenate(xs):
 def tree_map(f, tree):
     """Map a function over a pytree to produce a new pytree.
 
-  Args:
-    f: function to be applied at each leaf.
-    tree: a pytree to be mapped over.
+    Args:
+      f: function to be applied at each leaf.
+      tree: a pytree to be mapped over.
 
-  Returns:
-    A new pytree with the same structure as `tree` but with the value at each
-    leaf given by `f(x)` where `x` is the value at the corresponding leaf in
-    `tree`.
-  """
+    Returns:
+      A new pytree with the same structure as `tree` but with the value at each
+      leaf given by `f(x)` where `x` is the value at the corresponding leaf in
+      `tree`.
+    """
     node_type = node_types.get(type(tree))
     if node_type:
         children, node_spec = node_type.to_iterable(tree)
@@ -64,18 +65,18 @@ def tree_map(f, tree):
 def tree_multimap(f, tree, *rest):
     """Map a multi-input function over pytree args to produce a new pytree.
 
-  Args:
-    f: function that takes `1 + len(rest)` arguments, to be applied at the
-      corresponding leaves of the pytrees.
-    tree: a pytree to be mapped over, with each leaf providing the first
-      positional argument to `f`.
-    *rest: a tuple of pytrees, each with the same structure as `tree`.
+    Args:
+      f: function that takes `1 + len(rest)` arguments, to be applied at the
+        corresponding leaves of the pytrees.
+      tree: a pytree to be mapped over, with each leaf providing the first
+        positional argument to `f`.
+      *rest: a tuple of pytrees, each with the same structure as `tree`.
 
-  Returns:
-    A new pytree with the same structure as `tree` but with the value at each
-    leaf given by `f(x, *xs)` where `x` is the value at the corresponding leaf
-    in `tree` and `xs` is the tuple of values at corresponding leaves in `rest`.
-  """
+    Returns:
+      A new pytree with the same structure as `tree` but with the value at each
+      leaf given by `f(x, *xs)` where `x` is the value at the corresponding leaf
+      in `tree` and `xs` is the tuple of values at corresponding leaves in `rest`.
+    """
     # equivalent to prefix_multimap(f, tree_structure(tree), tree, *rest)
     node_type = node_types.get(type(tree))
     if node_type:
@@ -100,9 +101,11 @@ def tree_reduce(f, tree):
     flat, _ = tree_flatten(tree)
     return functools.reduce(f, flat)
 
+
 def tree_all(tree):
     flat, _ = tree_flatten(tree)
     return all(flat)
+
 
 def walk_pytree(f_node, f_leaf, tree):
     node_type = node_types.get(type(tree))
@@ -116,7 +119,9 @@ def walk_pytree(f_node, f_leaf, tree):
     else:
         return f_leaf(tree), PyLeaf()
 
+
 tree_flatten = partial(walk_pytree, concatenate, lambda x: [x])
+
 
 class PyTreeDef(object):
     def __init__(self, node_type, node_data, children):

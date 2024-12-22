@@ -86,7 +86,12 @@ def validate_env(module, forced_one_player=False, needs_score=True):
 
 class RLCEnvironment(MultiAgentEnv):
     def __init__(
-        self, program: Program, dc="", solve_randomness=True, forced_one_player=False, initial_states=[]
+        self,
+        program: Program,
+        dc="",
+        solve_randomness=True,
+        forced_one_player=False,
+        initial_states=[],
     ):
         self.solve_randomess = solve_randomness
         self.program = program
@@ -103,11 +108,15 @@ class RLCEnvironment(MultiAgentEnv):
             self.num_agents = 1
         self._setup()
         self.metrics_to_log = self._collect_env_metrics_to_log()
-        self.valid_action_vector = program.module.functions.make_valid_actions_vector(self.state.raw_actions, self.state.state)
+        self.valid_action_vector = program.module.functions.make_valid_actions_vector(
+            self.state.raw_actions, self.state.state
+        )
 
     def set_initial_state(self):
         if len(self.initial_states) != 0:
-            self.program.functions.assign(self.state.state, self.initial_states[self.current_state])
+            self.program.functions.assign(
+                self.state.state, self.initial_states[self.current_state]
+            )
             self.current_state = (self.current_state + 1) % len(self.initial_states)
 
     def _setup(self):
@@ -188,9 +197,11 @@ class RLCEnvironment(MultiAgentEnv):
     def legal_action_mask(self):
         # Convert NumPy arrays to nested tuples to make them hashable.
 
-        self.program.module.functions.get_valid_actions(self.valid_action_vector, self.state.raw_actions, self.state.state)
+        self.program.module.functions.get_valid_actions(
+            self.valid_action_vector, self.state.raw_actions, self.state.state
+        )
         ptr = self.program.functions.get(self.valid_action_vector, 0)
-        data = np.ctypeslib.as_array(ptr, shape=(self.num_actions, ))
+        data = np.ctypeslib.as_array(ptr, shape=(self.num_actions,))
         return data
 
     @property

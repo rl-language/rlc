@@ -24,6 +24,7 @@ def rcm(start, stop, modulus, mode="[)"):
         (left_hit and mode[0] == "[") or (middle_hit) or (right_hit and mode[1] == "]")
     )
 
+
 class LogSaveHelper:
     def __init__(
         self,
@@ -35,9 +36,9 @@ class LogSaveHelper:
         t0: "(float) override training start timestamp" = None,
         log_callbacks: "(list) extra callbacks to run before self.log()" = None,
         log_new_eps: "(bool) whether to log statistics for new episodes from non-rolling buffer" = False,
-        num_players = 1,
+        num_players=1,
     ):
-        assert(comm != None)
+        assert comm != None
         self.comm = comm
         self.num_players = num_players
         self.model = model
@@ -72,10 +73,15 @@ class LogSaveHelper:
             "EpLenMean": self._nanmean([] if roller is None else roller.recent_eplens),
             "EpRewMean": self._nanmean([] if roller is None else roller.recent_eprets),
         } | {
-            f"EpRewMeanPlayer{p}": (self._nanmean([] if roller is None else roller.recent_eprets_player(p))) for p in range(self.num_players)
+            f"EpRewMeanPlayer{p}": (
+                self._nanmean([] if roller is None else roller.recent_eprets_player(p))
+            )
+            for p in range(self.num_players)
         }
         for i, stat in enumerate(roller.get_user_defined_log_functions()):
-            self.roller_stats[stat] = self._nanmean([] if roller is None else roller.recent_stats(i))
+            self.roller_stats[stat] = self._nanmean(
+                [] if roller is None else roller.recent_stats(i)
+            )
 
         if roller is not None and self.log_new_eps:
             assert roller.has_non_rolling_eps, "roller needs keep_non_rolling"

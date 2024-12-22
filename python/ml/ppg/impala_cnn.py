@@ -6,7 +6,9 @@ from torch.nn import functional as F
 
 from . import torch_util as tu
 from gym3.types import Real, TensorType
+
 REAL = Real()
+
 
 class Encoder(nn.Module):
     """
@@ -49,6 +51,7 @@ class Encoder(nn.Module):
             state_out: array or dict
         """
         raise NotImplementedError
+
 
 class CnnBasicBlock(nn.Module):
     """
@@ -185,12 +188,14 @@ class ImpalaEncoder(Encoder):
     def initial_state(self, batchsize):
         return tu.zeros(batchsize, 0)
 
+
 class FullyConnectedNN(nn.Module):
     """
     A simple MLP that takes in (B,T,features) and outputs (B,T,outsize).
 
     This replaces the ImpalaCNN for non-image inputs.
     """
+
     def __init__(self, in_size, out_size=256, hidden_sizes=(256, 256), scale_ob=1.0):
         super().__init__()
         self.scale_ob = scale_ob
@@ -208,19 +213,15 @@ class FullyConnectedNN(nn.Module):
         # x shape: (B,T,features)
         x = x.to(dtype=th.float32) / self.scale_ob
         B, T = x.shape[:2]
-        x = x.reshape(B*T, -1)
+        x = x.reshape(B * T, -1)
         x = self.net(x)
         x = x.reshape(B, T, self.outsize)
         return x
 
+
 class FullyConnectedEncoder(Encoder):
     def __init__(
-        self,
-        inshape,
-        outsize=256,
-        hidden_sizes=(256, 256),
-        scale_ob=1.0,
-        **kwargs
+        self, inshape, outsize=256, hidden_sizes=(256, 256), scale_ob=1.0, **kwargs
     ):
         """
         inshape: tuple of input dimensions, e.g. (features,)

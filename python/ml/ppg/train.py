@@ -11,6 +11,7 @@ import ml.ppg.logger as logger
 import torch
 from tensorboard.program import TensorBoard
 
+
 class ModelSaver:
     def __init__(self, model, output, frequency=100):
         self.iteration = 0
@@ -43,6 +44,7 @@ class MPIFakeObject:
     def gather(self, obj):
         return [obj]
 
+
 def make_model(venv, path_to_weights="", arch="shared"):
     enc_fn = lambda obtype: FullyConnectedEncoder(
         obtype.shape,
@@ -58,6 +60,7 @@ def make_model(venv, path_to_weights="", arch="shared"):
     model.to(tu.dev())
     return model
 
+
 def train_fn(
     program,
     distribution_mode="hard",
@@ -69,27 +72,30 @@ def train_fn(
     num_envs=10,
     n_epoch_pi=1,
     n_epoch_vf=1,
-    gamma=.999,
+    gamma=0.999,
     aux_lr=5e-4,
     lr=2e-5,
     nminibatch=10,
     aux_mbsize=4,
-    clip_param=.002,
+    clip_param=0.002,
     kl_penalty=0.0,
     n_aux_epochs=0,
     n_pi=32,
     beta_clone=1.0,
     vf_true_weight=1.0,
     model_save_frequency=1000,
-    log_dir='/tmp/ppg',
+    nstep=500,
+    entcoef=0.0015,
+    log_dir="/tmp/ppg",
     output="model.pt",
     path_to_weights="",
-    comm=MPIFakeObject()):
+    comm=MPIFakeObject(),
+):
     tu.setup_dist(comm=comm, should_init_process_group=False)
     tu.register_distributions_for_tree_util()
 
     if log_dir is not None:
-        format_strs = ['csv', 'stdout', "tensorboard"] if comm.Get_rank() == 0 else []
+        format_strs = ["csv", "stdout", "tensorboard"] if comm.Get_rank() == 0 else []
         logger.configure(comm=comm, dir=log_dir, format_strs=format_strs)
 
     venv = RLCMultiEnv(program, num=num_envs)
@@ -99,7 +105,6 @@ def train_fn(
     tu.sync_params(model.parameters())
 
     name2coef = {"pol_distance": beta_clone, "vf_true": vf_true_weight}
-
 
     ppg.learn(
         venv=venv,
@@ -115,7 +120,8 @@ def train_fn(
             clip_param=clip_param,
             kl_penalty=kl_penalty,
             log_save_opts={"save_mode": "last", "num_players": 2},
-            nstep=500,
+            nstep=nstep,
+            entcoef=entcoef,
             callbacks=[ModelSaver(model, output, model_save_frequency)],
         ),
         aux_lr=aux_lr,
@@ -129,10 +135,25 @@ def train_fn(
 
 def make_env(program_path, initial_states_path):
     program = Program(program_path)
-    return RLCEnvironment(program=program, initial_states=load_initial_states(program, initial_states_path))
+    return RLCEnvironment(
+        program=program,
+        initial_states=load_initial_states(program, initial_states_path),
+    )
 
 
-def train(program, total_steps=1000000000, envs=8, path_to_weights="", output="", model_save_frequency=1000):
+def train(
+    program,
+    lr=2e-5,
+    clip_param=0.002,
+    entcoef=0.0015,
+    total_steps=1000000000,
+    envs=8,
+    nstep=500,
+    path_to_weights="",
+    output="",
+    model_save_frequency=1000,
+    log_dir="/tmp/ppg",
+):
     if not program.functions.print_enumeration_errors(program.module.AnyGameAction()):
         exit(-1)
     program.functions.emit_observation_tensor_warnings(program.functions.play())
@@ -142,10 +163,19 @@ def train(program, total_steps=1000000000, envs=8, path_to_weights="", output=""
     # num_players = get_num_players(program.module)
     # num_agents = 1 if args.true_self_play else get_num_players(program.module)
 
-
     # initial_args_dir = args.initial_states if args.initial_states == "" else os.path.abspath(args.initial_states)
 
-    train_fn(program, interacts_total=total_steps, num_envs=envs, nminibatch=envs, path_to_weights=path_to_weights, output=output, model_save_frequency=model_save_frequency)
-
-
-
+    train_fn(
+        program,
+        interacts_total=total_steps,
+        num_envs=envs,
+        nminibatch=envs,
+        path_to_weights=path_to_weights,
+        output=output,
+        model_save_frequency=model_save_frequency,
+        log_dir=log_dir,
+        lr=lr,
+        clip_param=clip_param,
+        entcoef=entcoef,
+        nstep=nstep,
+    )

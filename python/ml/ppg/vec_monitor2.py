@@ -4,7 +4,9 @@ from collections import deque, namedtuple
 import numpy as np
 import gym3
 
-Episode = namedtuple("Episode", ["ret", "len", "time", "info", "player_ret", "extra_metrics"])
+Episode = namedtuple(
+    "Episode", ["ret", "len", "time", "info", "player_ret", "extra_metrics"]
+)
 
 
 class PostActProcessing(gym3.Wrapper):
@@ -87,7 +89,14 @@ class VecMonitor2(PostActProcessing):
         for i in range(self.num):
             if self.env.first_for_all_players(i):
                 timefromstart = round(time.time() - self.tstart, 6)
-                ep = Episode(self.eprets[i], self.eplens[i], timefromstart, infos[i], np.copy(self.eprets_player[i]), np.copy(self.env.get_previous_episode_extra_metrics(i)))
+                ep = Episode(
+                    self.eprets[i],
+                    self.eplens[i],
+                    timefromstart,
+                    infos[i],
+                    np.copy(self.eprets_player[i]),
+                    np.copy(self.env.get_previous_episode_extra_metrics(i)),
+                )
                 if self.ep_buf is not None:
                     self.ep_buf.append(ep)
                 if self.per_env_buf is not None:

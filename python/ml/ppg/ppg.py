@@ -10,12 +10,15 @@ from . import tree_util
 import operator
 import torch
 
+
 def sum_nonbatch(logprob_tree):
     """
     sums over nonbatch dimensions and over all leaves of the tree
     use with nested action spaces, which require Product distributions
     """
-    return tree_util.tree_reduce(operator.add, tree_util.tree_map(tu.sum_nonbatch, logprob_tree))
+    return tree_util.tree_reduce(
+        operator.add, tree_util.tree_map(tu.sum_nonbatch, logprob_tree)
+    )
 
 
 class PpoModel(th.nn.Module):
@@ -28,7 +31,7 @@ class PpoModel(th.nn.Module):
             ob=tree_util.tree_map(lambda x: x[:, None], ob),
             first=first[:, None],
             state_in=state_in,
-            action_mask=action_mask
+            action_mask=action_mask,
         )
 
         ac = pd.sample()
@@ -48,6 +51,7 @@ class PpoModel(th.nn.Module):
             action_mask=action_mask,
         )
         return vpred[:, 0]
+
 
 class PhasicModel(PpoModel):
     def forward(self, ob, first, state_in) -> "pd, vpred, aux, state_out":
@@ -165,6 +169,7 @@ class PhasicValueModel(PhasicModel):
     def aux_keys(self):
         return ["vtarg"]
 
+
 def make_minibatches(segs, mbsize):
     """
     Yield one epoch of minibatch over the dataset described by segs
@@ -184,11 +189,15 @@ def aux_train(*, model, segs, opt, mbsize, name2coef):
     """
     Train on auxiliary loss + policy KL + vf distance
     """
-    needed_keys = {"ob", "first", "state_in", "oldpd", "action_mask"}.union(model.aux_keys())
+    needed_keys = {"ob", "first", "state_in", "oldpd", "action_mask"}.union(
+        model.aux_keys()
+    )
     segs = [{k: seg[k] for k in needed_keys} for seg in segs]
     for mb in make_minibatches(segs, mbsize):
         mb = tree_util.tree_map(lambda x: x.to(tu.dev()), mb)
-        pd, _, aux, _state_out = model(mb["ob"], mb["first"], mb["state_in"], mb["action_mask"])
+        pd, _, aux, _state_out = model(
+            mb["ob"], mb["first"], mb["state_in"], mb["action_mask"]
+        )
         name2loss = {}
         name2loss["pol_distance"] = td.kl_divergence(mb["oldpd"], pd).mean()
         name2loss.update(model.compute_aux_loss(aux, mb))
@@ -210,12 +219,19 @@ def compute_presleep_outputs(
     *, model, segs, mbsize, pdkey="oldpd", vpredkey="oldvpred"
 ):
     def forward(ob, first, state_in, action_mask):
-        pd, vpred, _aux, _state_out = model.forward(ob.to(tu.dev()), first, state_in, action_mask=action_mask.to(tu.dev()))
+        pd, vpred, _aux, _state_out = model.forward(
+            ob.to(tu.dev()), first, state_in, action_mask=action_mask.to(tu.dev())
+        )
         return pd, vpred
 
     for seg in segs:
         seg[pdkey], seg[vpredkey] = tu.minibatched_call(
-            forward, mbsize, ob=seg["ob"], first=seg["first"], state_in=seg["state_in"], action_mask=seg["action_mask"]
+            forward,
+            mbsize,
+            ob=seg["ob"],
+            first=seg["first"],
+            state_in=seg["state_in"],
+            action_mask=seg["action_mask"],
         )
 
 
@@ -237,7 +253,7 @@ def learn(
     Run PPO for X iterations
     Then minimize aux loss + KL + value distance for X passes over data
     """
-    assert(comm != None)
+    assert comm != None
 
     ppo_state = None
     aux_state = th.optim.Adam(model.parameters(), lr=aux_lr)
@@ -254,7 +270,8 @@ def learn(
             venv=venv,
             model=model,
             learn_state=ppo_state,
-            callbacks=callbacks + [
+            callbacks=callbacks
+            + [
                 lambda _l: n_pi > 0 and _l["curr_iteration"] >= n_pi,
             ],
             interacts_total=interacts_total,

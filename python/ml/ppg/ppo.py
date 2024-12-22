@@ -16,13 +16,14 @@ import math
 
 INPUT_KEYS = {"ob", "ac", "first", "logp", "vtarg", "adv", "state_in", "action_mask"}
 
+
 def compute_gae(
     *,
     vpred: "(th.Tensor[1, float]) value predictions",
     reward: "(th.Tensor[1, float]) rewards",
     first: "(th.Tensor[1, bool]) mark beginning of episodes",
     γ: "(float)",
-    λ: "(float)"
+    λ: "(float)",
 ):
     orig_device = vpred.device
     assert orig_device == reward.device == first.device
@@ -42,6 +43,7 @@ def compute_gae(
     vtarg = vpred[:, :-1] + adv
     return adv.to(device=orig_device), vtarg.to(device=orig_device)
 
+
 def log_vf_stats(comm, **kwargs):
     logger.logkv(
         "VFStats/EV", tu.explained_variance(kwargs["vpred"], kwargs["vtarg"], comm)
@@ -49,6 +51,7 @@ def log_vf_stats(comm, **kwargs):
     for key in ["vpred", "vtarg", "adv"]:
         logger.logkv_mean(f"VFStats/{key.capitalize()}Mean", kwargs[key].mean())
         logger.logkv_mean(f"VFStats/{key.capitalize()}Std", kwargs[key].std())
+
 
 def compute_advantage(model, seg, γ, λ, comm=None):
     finalob, finalfirst, finalmask = seg["finalob"], seg["finalfirst"], seg["finalmask"]
@@ -67,6 +70,7 @@ def compute_advantage(model, seg, γ, λ, comm=None):
     adv_mean, adv_var = tu.mpi_moments(comm, adv)
     seg["adv"] = (adv - adv_mean) / (math.sqrt(adv_var) + 1e-8)
 
+
 def compute_losses(
     model,
     ob,
@@ -84,7 +88,9 @@ def compute_losses(
 ):
     losses = {}
     diags = {}
-    pd, vpred, aux, _state_out = model(ob=ob, first=first, state_in=state_in, action_mask=action_mask)
+    pd, vpred, aux, _state_out = model(
+        ob=ob, first=first, state_in=state_in, action_mask=action_mask
+    )
     newlogp = tu.sum_nonbatch(pd.log_prob(ac))
     # prob ratio for KL / clipping based on a (possibly) recomputed logp
     logratio = newlogp - logp
@@ -100,16 +106,17 @@ def compute_losses(
     diags["entropy"] = entropy = tu.sum_nonbatch(pd.entropy()).mean()
     diags["negent"] = -entropy * entcoef
     diags["pg"] = pg_losses.mean()
-    diags["pi_kl"] = kl_penalty * 0.5 * (logratio ** 2).mean()
+    diags["pi_kl"] = kl_penalty * 0.5 * (logratio**2).mean()
 
     losses["pi"] = diags["negent"] + diags["pg"] + diags["pi_kl"]
     losses["vf"] = vfcoef * ((vpred - vtarg) ** 2).mean()
 
     with th.no_grad():
         diags["clipfrac"] = (th.abs(ratio - 1) > clip_param).float().mean()
-        diags["approxkl"] = 0.5 * (logratio ** 2).mean()
+        diags["approxkl"] = 0.5 * (logratio**2).mean()
 
     return losses, diags
+
 
 def learn(
     *,
@@ -138,7 +145,7 @@ def learn(
     learn_state: "dict with optional keys {'opts', 'roller', 'lsh', 'reward_normalizer', 'curr_interact_count', 'seg_buf'}" = None,
 ):
 
-    assert(comm != None)
+    assert comm != None
     learn_state = learn_state or {}
     ic_per_step = venv.num * comm.size * nstep
 
@@ -147,14 +154,15 @@ def learn(
     )  # use separate optimizers when n_epoch_pi != n_epoch_vf
     params = list(model.parameters())
     opts = learn_state.get("opts") or {
-        k: th.optim.Adam(params, lr=lr)
-        for k in opt_keys
+        k: th.optim.Adam(params, lr=lr) for k in opt_keys
     }
 
     tu.sync_params(params)
 
     if rnorm:
-        reward_normalizer = learn_state.get("reward_normalizer") or rew_normalizer.RewardNormalizer(venv.num)
+        reward_normalizer = learn_state.get(
+            "reward_normalizer"
+        ) or rew_normalizer.RewardNormalizer(venv.num)
     else:
         reward_normalizer = None
 
@@ -241,7 +249,7 @@ def learn(
                 nepoch=n_epoch_pi,
                 verbose=verbose,
             )
-            for (k, v) in epoch_stats[-1].items():
+            for k, v in epoch_stats[-1].items():
                 logger.logkv("Opt/" + k, v)
 
         lsh()

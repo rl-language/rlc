@@ -89,7 +89,9 @@ class State:
         if not self.can_apply(action):
             self.module.functions.print(action)
             sys.stdout.flush()
-            assert len(self.legal_actions) != 0, "found a state with no valid actions, yet the game is not terminated"
+            assert (
+                len(self.legal_actions) != 0
+            ), "found a state with no valid actions, yet the game is not terminated"
             return
         self.program.functions.apply(action, self.state)
 
@@ -287,7 +289,11 @@ def compile(
         ).returncode
         == 0
     )
-    lib_name = "lib.dll" if os.name == "nt" else ("lib.dylib" if sys.platform == "darwin" else "lib.so")
+    lib_name = (
+        "lib.dll"
+        if os.name == "nt"
+        else ("lib.dylib" if sys.platform == "darwin" else "lib.so")
+    )
     args = [
         rlc_compiler,
         *s,

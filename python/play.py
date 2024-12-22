@@ -9,6 +9,7 @@ from ml.ppg.train import train, make_model
 import ml.ppg.torch_util as tu
 import ml.ppg.tree_util as tree_util
 
+
 def make_action(model, env, rnn_state):
     game = env.games[0]
     if game.get_current_player() == -1:
@@ -27,8 +28,6 @@ def make_action(model, env, rnn_state):
     return action, state_out
 
 
-
-
 def play_out(program, env, model, print_scores, iterations, output, print_progress):
     out = open(output, "w+") if output != "-" else sys.stdout
     for i in range(iterations):
@@ -43,6 +42,7 @@ def play_out(program, env, model, print_scores, iterations, output, print_progre
             out.write("# score: ")
             out.write(str(env.current_score))
             out.write("\n")
+
 
 def main():
     parser = make_rlc_argparse("play", description="runs a action of the simulation")
@@ -64,7 +64,15 @@ def main():
     with load_program_from_args(args, optimize=True) as program:
         env = RLCMultiEnv(program, solve_randomess=False)
         model = make_model(env, path_to_weights=args.checkpoint)
-        play_out(program, env, model, args.print_scores, iterations=args.iterations, output=args.output, print_progress=args.progress)
+        play_out(
+            program,
+            env,
+            model,
+            args.print_scores,
+            iterations=args.iterations,
+            output=args.output,
+            print_progress=args.progress,
+        )
 
 
 if __name__ == "__main__":
