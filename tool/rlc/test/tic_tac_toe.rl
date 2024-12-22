@@ -81,9 +81,9 @@ fun get_current_player(Game g) -> Int:
 fun score(Game g, Int player_id) -> Float:
     if !g.is_done(): 
         return 0.0 
-    if g.board.three_in_a_line_player(player_id):
+    if g.board.three_in_a_line_player(player_id + 1):
         return 1.0
-    else if g.board.three_in_a_line_player(1-player_id):
+    else if g.board.three_in_a_line_player(((player_id + 1)% 2) + 1):
         return -1.0
     return 0.0
 

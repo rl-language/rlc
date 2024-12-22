@@ -193,7 +193,7 @@ def learn(
         act_fn=model.act,
         venv=venv,
         initial_state=model.initial_state(venv.num),
-        keep_buf=100,
+        keep_buf=10000,
         keep_non_rolling=log_save_opts.get("log_new_eps", False),
     )
 

@@ -35,22 +35,22 @@ class MPIFakeObject:
 def train_fn(
     program,
     distribution_mode="hard",
-    arch="dual",  # 'shared', 'detach', or 'dual'
+    arch="shared",  # 'shared', 'detach', or 'dual'
     # 'shared' = shared policy and value networks
     # 'dual' = separate policy and value networks
     # 'detach' = shared policy and value networks, but with the value function gradient detached during the policy phase to avoid interference
     interacts_total=1000000000,
-    num_envs=6,
+    num_envs=10,
     n_epoch_pi=1,
     n_epoch_vf=1,
     gamma=.999,
     aux_lr=5e-4,
     lr=2e-5,
-    nminibatch=6,
+    nminibatch=10,
     aux_mbsize=4,
-    clip_param=.2,
+    clip_param=.002,
     kl_penalty=0.0,
-    n_aux_epochs=6,
+    n_aux_epochs=0,
     n_pi=32,
     beta_clone=1.0,
     vf_true_weight=1.0,

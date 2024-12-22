@@ -107,6 +107,7 @@ class SingleRLCEnvironment:
         self._resolve_randomness()
         self.last_score = [0.0 for p in range(self.num_players)]
         self.current_score = [0.0 for p in range(self.num_players)]
+        self.first_move = [True for p in range(self.num_players)]
 
 
 
@@ -158,6 +159,10 @@ class SingleRLCEnvironment:
         self._resolve_randomness()
         self.last_score = [0.0 for p in range(self.num_players)]
         self.current_score = [0.0 for p in range(self.num_players)]
+        self.first_move = [True for p in range(self.num_players)]
+
+    def is_first_move(self, player_id):
+        return self.first_move[player_id]
 
     def step(self, action):
         if self.is_terminating_episode:
@@ -167,6 +172,7 @@ class SingleRLCEnvironment:
             self.players_final_turn.pop(0)
             return self.step_score(current_player)
         current_player = self.get_current_player()
+        self.first_move[current_player] = False
         self.last_score[current_player] = self.current_score[current_player]
         self.state.step(self.actions()[action])
         self._resolve_randomness()
@@ -213,7 +219,7 @@ class RLCMultiEnv(Env):
         self.ac_space = types.TensorType(types.Discrete(n=self.games[0].get_action_count()), shape=(1,))
 
         self.first_for_all = np.ones(self.num, dtype=bool)
-        self.done = np.ones(self.num, dtype=bool)
+        self.first_move = np.ones(self.num, dtype=bool)
         self.rew = np.zeros(self.num, dtype=np.float32)
         self.just_acted_players = None
 
@@ -237,7 +243,7 @@ class RLCMultiEnv(Env):
 
     def observe(self):
         obs = np.array([g.get_state() for g in self.games])
-        return self.rew, obs, self.done
+        return self.rew, obs, self.first_move
 
     def act(self, ac):
         self.step(ac)
@@ -247,11 +253,11 @@ class RLCMultiEnv(Env):
         for i, action in enumerate(ac):
             game = self.games[i]
             self.rew[i] = game.step(action[0])
-            self.done[i] = game.is_done_underling()
             self.first_for_all[i] = False
             if game.is_done_for_everyone():
                 game.reset()
                 self.first_for_all[i] = True
+            self.first_move[i] = game.is_first_move(game.get_current_player())
 
         return self.observe()
 
