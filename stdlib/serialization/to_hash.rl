@@ -19,30 +19,58 @@ trait<T> Hashable:
 
 # Specialized implementations for basic types
 fun compute_hash(Int value) -> Int:
-    return value % 10
+    let x = value
+    x = ((x >> 16) ^ x) * 72955707
+    x = ((x >> 16) ^ x) * 72955707
+    x = (x >> 16) ^ x
+    return x & 9223372036854775807
 
 fun compute_hash(Float value) -> Int:
-    return 1  # TODO: proper float hash
+    let x = int(value * 1000000.0)
+    x = ((x >> 16) ^ x) * 72955703
+    x = ((x >> 16) ^ x) * 72955703
+    x = (x >> 16) ^ x
+    return x & 9223372036854775807
 
 fun compute_hash(Bool value) -> Int:
-    return 1
+    if value:
+        return 1321005721090711325
+    else:
+        return 2023011127830240574
 
 fun compute_hash(Byte value) -> Int:
-    return 1
+    let x = int(value) & 255
+    x = (x ^ (x << 16)) * 72955717
+    x = (x ^ (x >> 16)) * 72955717
+    x = (x ^ (x << 16)) * 72955717
+    return x & 9223372036854775807
 
 # Implementations for collections
 fun<T> compute_hash(Vector<T> vector) -> Int:
-    return 1  # TODO: proper vector hash
+    let hash = 1
+    for element of vector:
+        hash = (hash * 31 + compute_hash_of(element))
+    return hash & 9223372036854775807
 
 fun<T, Int N> compute_hash(T[N] array) -> Int:
-    return 1  # TODO: proper array hash
+    let hash = 1
+    for element of array:
+        hash = (hash * 31 + compute_hash_of(element))
+    return hash & 9223372036854775805
 
 # The implementation function that handles all cases
 fun<T> _hash_impl(T value) -> Int:
     if value is Hashable:
         return value.compute_hash()
     else if value is Alternative:
-        return 99  # TODO: proper alternative hash
+        let counter = 1
+        for field of value:
+            using Type = type(field)
+            if value is Type:
+                # Hash both which variant is active (counter) and its value
+                return _hash_impl(counter) * 31 + _hash_impl(value)
+            counter = counter + 1
+        return 0  # Should never reach here if alternative is valid
     else:
         # Handle struct fields directly like in to_byte_vector.rl
         let hash = 1

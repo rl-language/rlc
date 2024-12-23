@@ -2,17 +2,17 @@
 # RUN: %t%exeext
 
 import collections.dictionary
+import collections.vector
 import serialization.print
 import serialization.to_hash
 import none
 
 fun main() -> Int:
     let x: Dict<Int,Int>
+    x.insert(1, 1)
 
-    let result : Vector<Int>
-    print(compute_hash_of(4))
-    x.insert(4,0)
-    let counter = 1
-    let max = 0
-
-    return 1
+    if x.contains(1):
+        return 0
+    else:
+        return 1
+    

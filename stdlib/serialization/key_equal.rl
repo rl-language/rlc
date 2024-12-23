@@ -70,7 +70,24 @@ fun<T> _equal_impl(T value1, T value2) -> Bool:
                     return _equal_impl(actual_v1, actual_v2)
                 else:
                     return false
-    return true
+    else:
+        let counter1 = 0
+        for field1 of value1:
+            let counter2 = 0
+            for field2 of value2:
+                if counter1 == counter2:
+                    using Type = type(field1)
+                    let actual_field1 : Type
+                    let actual_field2 : Type
+                    actual_field1 = field1
+                    actual_field2 = field2
+                    if !_equal_impl(actual_field1, actual_field2):
+                        return false
+                counter2 = counter2 + 1
+            counter1 = counter1 + 1
+        return true
+    # TODO: Non void function requires to be terminated by a return statement
+    return false
 
 fun<T> compute_equal_of(T value1, T value2) -> Bool:
     return _equal_impl(value1, value2)
