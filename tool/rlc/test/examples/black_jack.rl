@@ -82,6 +82,7 @@ fun calculate_points(BoundedVector<Card, 20> hand) -> Int:
 # must return a Game, otherwise the machine
 # learning components will not know what
 # to look for.
+@classes
 act play() -> Game:
 
     # allocates a deck and initializes it
@@ -100,7 +101,7 @@ act play() -> Game:
 
     # shuffle the deck, we will see later 
     # how this is implemented
-    subaction*(deck) shuffling = shuffle(deck.value)
+    subaction*(deck.value) shuffling = shuffle(deck.value)
 
     # deal the initial cards
     deal(deck.value, player_hand)

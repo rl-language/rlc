@@ -4,6 +4,7 @@
 import string
 import serialization.print
 
+@classes
 act asd() -> Name:
     act veeeeeereey_looooong()
 

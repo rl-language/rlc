@@ -869,6 +869,21 @@ static bool unhandledType(mlir::Type t)
 	return t.isa<mlir::rlc::OwningPtrType>() or t.isa<mlir::rlc::ArrayType>();
 };
 
+llvm::StringRef godotVariantBuiltinTypesName(mlir::Type type)
+{
+	if (type.isa<mlir::rlc::StringLiteralType>())
+		return "godot::Variant::STRING";
+	if (type.isa<mlir::rlc::BoolType>())
+		return "godot::Variant::BOOL";
+	if (type.isa<mlir::rlc::IntegerType>())
+		return "godot::Variant::INT";
+	if (type.isa<mlir::rlc::FloatType>())
+		return "godot::Variant::FLOAT";
+
+	llvm_unreachable("no kwown type");
+	return "TYPEUNWKOWN";
+}
+
 static void emitGodotFunction(
 		llvm::ArrayRef<mlir::FunctionType> overloadTypes,
 		llvm::StringRef name,
@@ -903,10 +918,12 @@ static void emitGodotFunction(
 			if (type.isa<mlir::rlc::ClassType>() or
 					type.isa<mlir::rlc::AlternativeType>())
 				OS << " && godot::Object::cast_to<RLC"
-					 << typeToString(fType.getInput(I)) << ">(*((godot::Ref<RLC"
-					 << typeToString(fType.getInput(I)) << ">)(*(args[" << I << "]))))";
-			else if (type.isa<mlir::rlc::StringLiteralType>())
-				OS << " && (*(args[" << I << "])).get_type() == godot::Variant::STRING";
+					 << typeToString(fType.getInput(I), false) << ">(*((godot::Ref<RLC"
+					 << typeToString(fType.getInput(I), false) << ">)(*(args[" << I
+					 << "]))))";
+			else
+				OS << " && (*(args[" << I
+					 << "])).get_type() == " << godotVariantBuiltinTypesName(type);
 		}
 
 		OS << ") {\n";
@@ -928,7 +945,7 @@ static void emitGodotFunction(
 				continue;
 			}
 			OS << "auto arg" << I << "= ";
-			OS << "((" << typeToString(fType.getInput(I)) << ")(*(args[" << I
+			OS << "((" << typeToString(fType.getInput(I), false) << ")(*(args[" << I
 				 << "])));\n ";
 		}
 
@@ -937,18 +954,19 @@ static void emitGodotFunction(
 			if (fType.getResult(0).isa<mlir::rlc::ClassType>() or
 					fType.getResult(0).isa<mlir::rlc::AlternativeType>())
 			{
-				OS << typeToString(fType.getResult(0)) << "* mallocated = ("
-					 << typeToString(fType.getResult(0)) << "*) malloc(sizeof("
-					 << typeToString(fType.getResult(0)) << "));\n";
-				OS << "godot::Ref<RLC" << typeToString(fType.getResult(0))
+				OS << typeToString(fType.getResult(0), false) << "* mallocated = ("
+					 << typeToString(fType.getResult(0), false) << "*) malloc(sizeof("
+					 << typeToString(fType.getResult(0), false) << "));\n";
+				OS << "godot::Ref<RLC" << typeToString(fType.getResult(0), false)
 					 << "> to_return;\n";
 				OS << "to_return.instantiate();\n";
-				OS << "godot::Object::cast_to<RLC" << typeToString(fType.getResult(0))
+				OS << "godot::Object::cast_to<RLC"
+					 << typeToString(fType.getResult(0), false)
 					 << ">(*to_return)->setNonOwning(mallocated);\n";
 			}
 			else
 			{
-				OS << typeToString(fType.getResult(0)) << " to_return;\n";
+				OS << typeToString(fType.getResult(0), false) << " to_return;\n";
 			}
 		}
 
@@ -969,9 +987,10 @@ static void emitGodotFunction(
 			auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
 			if (type.isa<mlir::rlc::ClassType>() or
 					type.isa<mlir::rlc::AlternativeType>())
-				OS << "(godot::Object::cast_to<RLC" << typeToString(fType.getInput(I))
-					 << ">(*((godot::Ref<RLC" << typeToString(fType.getInput(I))
-					 << ">)(*(args[" << I << "]))))->content)";
+				OS << "(godot::Object::cast_to<RLC"
+					 << typeToString(fType.getInput(I), false) << ">(*((godot::Ref<RLC"
+					 << typeToString(fType.getInput(I), false) << ">)(*(args[" << I
+					 << "]))))->content)";
 			else
 				OS << "&arg" << I;
 			if (I + 1 < fType.getNumInputs())
@@ -994,10 +1013,10 @@ static void emitGodotFunction(
 			}
 			else
 			{
-				OS << "godot::Ref<RLC" << typeToString(underlying)
+				OS << "godot::Ref<RLC" << typeToString(underlying, false)
 					 << "> real_return;\n";
 				OS << "real_return.instantiate();\n";
-				OS << "godot::Object::cast_to<RLC" << typeToString(underlying)
+				OS << "godot::Object::cast_to<RLC" << typeToString(underlying, false)
 					 << ">(*real_return)->setNonOwning(to_return);\n";
 				OS << "return real_return;\n";
 			}
@@ -1034,7 +1053,7 @@ void rlc::rlcToGodot(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	{
 		if (not needsToBeEmitted(type) or type.isa<mlir::rlc::ReferenceType>())
 			continue;
-		auto wrapperNameString = "RLC" + nonArrayTypeToString(type);
+		auto wrapperNameString = "RLC" + nonArrayTypeToString(type, false);
 		const auto* wrapperName = wrapperNameString.c_str();
 		OS << llvm::format(
 				R"""""(
@@ -1063,19 +1082,26 @@ public:
 )""""",
 				wrapperName,
 				wrapperName,
-				nonArrayTypeToString(type).c_str(),
+				nonArrayTypeToString(type, false).c_str(),
 				wrapperName,
 				wrapperName,
 				wrapperName);
 
 		OS << "godot::ClassDB::bind_static_method(\"RLC"
-			 << nonArrayTypeToString(type).c_str()
+			 << nonArrayTypeToString(type, false).c_str()
 			 << "\",godot::D_METHOD(\"make\"), &" << wrapperName << "::make);\n";
 
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
 		{
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"get_member\"), &"
+				 << wrapperName << "::get_member);\n";
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"set_member\"), &"
+				 << wrapperName << "::set_member);\n";
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"members_count\"), &"
+				 << wrapperName << "::members_count);\n";
 			for (auto field : casted.getMembers())
 			{
+				auto type = field.getType();
 				auto name = field.getName();
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
@@ -1092,6 +1118,10 @@ public:
 		}
 		else if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
 		{
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"unwrap\"), &"
+				 << wrapperName << "::unwrap);\n";
+			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"assign\"), &"
+				 << wrapperName << "::assign);\n";
 			for (auto type : casted.getUnderlying())
 			{
 				if (unhandledType(type))
@@ -1115,9 +1145,9 @@ public:
 
 		OS << "godot::Ref<" << wrapperName << "> to_return;\n";
 		OS << "to_return.instantiate();\n";
-		OS << "godot::Object::cast_to<RLC" << typeToString(type)
-			 << ">(*to_return)->setOwning(new " << nonArrayTypeToString(type).c_str()
-			 << ");\n";
+		OS << "godot::Object::cast_to<RLC" << typeToString(type, false)
+			 << ">(*to_return)->setOwning(new "
+			 << nonArrayTypeToString(type, false).c_str() << ");\n";
 		OS << "return to_return;\n}\n";
 
 		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
@@ -1125,32 +1155,71 @@ public:
 			for (auto field : casted.getMembers())
 			{
 				auto name = field.getName();
+				auto type = field.getType();
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
 
 				if (type.isa<mlir::rlc::ClassType>() or
 						type.isa<mlir::rlc::AlternativeType>())
 				{
-					OS << "godot::Ref<RLC" << typeToString(type) << ">" << " get_" << name
-						 << "() {\n";
+					OS << "godot::Ref<RLC" << typeToString(type, false) << ">" << " get_"
+						 << name << "() {\n";
 
-					OS << "godot::Ref<RLC" << typeToString(type) << "> to_return;\n";
+					OS << "godot::Ref<RLC" << typeToString(type, false)
+						 << "> to_return;\n";
 					OS << "to_return.instantiate();\n";
-					OS << "godot::Object::cast_to<RLC" << typeToString(type)
+					OS << "godot::Object::cast_to<RLC" << typeToString(type, false)
 						 << ">(*to_return)->setNonOwning(&content->content." << name
 						 << ");\n";
 					OS << "return to_return;\n}\n";
 				}
 				else
 				{
-					OS << typeToString(type) << " get_" << name << "() {\n";
+					OS << typeToString(type, false) << " get_" << name << "() {\n";
 					OS << "return content->content." << name << ";\n}\n";
 
-					OS << "void set_" << name << "(" << typeToString(type)
+					OS << "void set_" << name << "(" << typeToString(type, false)
 						 << " newVal) {\n";
 					OS << "content->content." << name << " =newVal;\n}\n";
 				}
 			}
+
+			OS << "godot::Variant get_member(int64_t index) {\n";
+			for (auto pair : llvm::enumerate(casted.getMembers()))
+			{
+				auto type = pair.value().getType();
+				auto name = pair.value().getName();
+				if (unhandledType(type) or name.starts_with("_"))
+					continue;
+
+				OS << "if (index == " << pair.index() << ")\n";
+				OS << "return get_" << name << "();\n";
+			}
+			OS << "return nullptr;\n}\n";
+
+			OS << "godot::Variant members_count() {\n";
+			OS << "return " << casted.getMembers().size() << ";\n}\n";
+
+			OS << "void set_member(int64_t index, godot::Variant newVar) "
+						"{\n";
+			for (auto pair : llvm::enumerate(casted.getMembers()))
+			{
+				auto type = pair.value().getType();
+				auto name = pair.value().getName();
+				if (unhandledType(type) or name.starts_with("_"))
+					continue;
+
+				OS << "if (index == " << pair.index() << ")\n";
+
+				if (type.isa<mlir::rlc::ClassType>() or
+						type.isa<mlir::rlc::AlternativeType>())
+					OS << "content->content." << name << "= *(godot::Object::cast_to<RLC"
+						 << typeToString(type, false) << ">(newVar)->content);\n";
+				else
+					OS << "set_" << name << "((" << typeToString(type, false)
+						 << ")newVar);\n";
+			}
+			OS << "\n}\n";
 		}
 
 		if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
@@ -1170,9 +1239,10 @@ public:
 
 					OS << "if (content->active_index != " << index
 						 << ") return nullptr;\n";
-					OS << "godot::Ref<RLC" << typeToString(type) << "> to_return;\n";
+					OS << "godot::Ref<RLC" << typeToString(type, false)
+						 << "> to_return;\n";
 					OS << "to_return.instantiate();\n";
-					OS << "godot::Object::cast_to<RLC" << typeToString(type)
+					OS << "godot::Object::cast_to<RLC" << typeToString(type, false)
 						 << ">(*to_return)->setNonOwning(&content->content.field" << index
 						 << ");\n";
 					OS << "return to_return;\n}\n";
@@ -1185,12 +1255,52 @@ public:
 						 << ") return nullptr;\n";
 					OS << "return content->content.field" << index << ";\n}\n";
 
-					OS << "void set_" << name << "(" << typeToString(type)
+					OS << "void set_" << name << "(" << typeToString(type, false)
 						 << " newVal) {\n";
 					OS << "if (content->active_index == " << index << ") \n";
 					OS << "content->content.field" << index << " =newVal;\n}\n";
 				}
 			}
+
+			OS << "godot::Variant unwrap() {\n";
+			for (auto pair : llvm::enumerate(casted.getUnderlying()))
+			{
+				auto type = pair.value();
+				if (unhandledType(type))
+					continue;
+
+				auto name = mlir::rlc::typeToMangled(type);
+				OS << "if(auto candidate = get_" << name << "())\n";
+				OS << "return candidate;\n";
+			}
+			OS << "return nullptr;\n}\n";
+
+			OS << "void assign(godot::Variant other) {\n";
+			for (auto pair : llvm::enumerate(casted.getUnderlying()))
+			{
+				auto type = pair.value();
+				if (unhandledType(type))
+					continue;
+
+				auto isUserDefiend = type.isa<mlir::rlc::ClassType>() or
+														 type.isa<mlir::rlc::AlternativeType>();
+				auto name = mlir::rlc::typeToMangled(type);
+				if (isUserDefiend)
+				{
+					OS << "if(auto casted = godot::Object::cast_to<RLC" << name
+						 << ">(other)){\n";
+					OS << "*content = *((*casted).content);\n";
+				}
+				else
+				{
+					OS << " if (other.get_type() == "
+						 << godotVariantBuiltinTypesName(type);
+					OS << "){\n*content = (" << name << "&) other;\n";
+				}
+				OS << "return;}\n";
+			}
+			OS << "ERR_PRINT(\"could not assign, right hand side of assigment was "
+						"not a member of the alternative\");\n}\n";
 		}
 
 		OS << "};\n";
@@ -1210,6 +1320,8 @@ public:
 		if (pair.first().starts_with("_") or pair.first() == "main")
 			continue;
 		if (llvm::all_of(pair.second, [](mlir::Value v) {
+					if (v.getDefiningOp<mlir::rlc::ConstantGlobalOp>())
+						return true;
 					auto casted = v.getDefiningOp<mlir::rlc::FunctionOp>();
 					return casted and casted.isDeclaration();
 				}))
@@ -1256,6 +1368,8 @@ public:
 		llvm::SmallVector<mlir::FunctionType, 4> canOverloads;
 		for (auto overload : pair.second)
 		{
+			if (overload.getDefiningOp<mlir::rlc::ConstantGlobalOp>())
+				continue;
 			if (auto casted = overload.getDefiningOp<mlir::rlc::FunctionOp>();
 					casted and
 					(casted.isInternal() or casted.getUnmangledName() == "main" or
@@ -1263,6 +1377,7 @@ public:
 				continue;
 
 			memberFunctions.push_back(isMemberFunction(overload, builder));
+			overloads.push_back(overload.getType().cast<mlir::FunctionType>());
 			if (auto casted = overload.getDefiningOp<mlir::rlc::FunctionOp>();
 					casted and casted.getPrecondition().empty())
 			{
@@ -1274,7 +1389,6 @@ public:
 				canOverloads.push_back(nullptr);
 				continue;
 			}
-			overloads.push_back(overload.getType().cast<mlir::FunctionType>());
 			canOverloads.push_back(mlir::FunctionType::get(
 					ctx,
 					overloads.back().getInputs(),
@@ -1305,7 +1419,7 @@ static void godot_nativescript_init() {
 	for (auto type : postOrderTypes(Module))
 	{
 		if (needsToBeEmitted(type) and not type.isa<mlir::rlc::ReferenceType>())
-			OS << "godot::ClassDB::register_class<RLC" << typeToString(type)
+			OS << "godot::ClassDB::register_class<RLC" << typeToString(type, false)
 				 << ">();\n";
 	}
 

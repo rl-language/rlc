@@ -4,7 +4,7 @@
 
 # a_true  : invalid range (MIN > MAX)
 
-fun foo(Int a) -> Bool:
+fun foo(Int a) -> Bool {true}:
 	if a > 10:
         if a < 10:
             return true

@@ -181,7 +181,7 @@ This is exactly what `rlc` does: **it takes a procedural description of a simula
 
 The line`act play() -> TicTacToe:`declares an `action procedure`, which the compiler will translate into something that behaves like a class declaration for the class `TicTacToe`, and emits as well a function declaration `fun play() -> TicTackToe`.
 
-The line `act mark(Int x, Int y) {` is not an `action procedure`, it is instead an `action statement` because it appears within a function. What it does is declare 2 functions: one is `fun mark(Int x, Int y)  -> Void` and the second one is `fun can_mark(Int x, Int y) -> Book`.
+The line `act mark(Int x, Int y) {` is not an `action procedure`, it is instead an `action statement` because it appears within a function. What it does is declare 2 functions: one is `fun mark(Int x, Int y)  -> Void` and the second one is `fun can_mark(Int x, Int y) -> Bool`.
 
 Then the compiler inspects the rest of the `action procedure` and by powerful magic, it moves the content inside the just declared functions. At the end of the compilation, the library will look something like this:
 

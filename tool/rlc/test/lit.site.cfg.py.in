@@ -11,6 +11,10 @@ p = Path(__file__).with_name('runtime_lib_location.txt')
 with p.open('r') as f:
     config.rlc_runtime_lib = f.read()
 
+p = Path(__file__).with_name('pyrlc_lib_location.txt')
+with p.open('r') as f:
+    config.rlc_pyrlc_lib = f.read()
+
 config.host_triple = "@LLVM_HOST_TRIPLE@"
 config.target_triple = "@LLVM_TARGET_TRIPLE@"
 config.llvm_include_dirs = "@LLVM_INCLUDE_DIRS@"

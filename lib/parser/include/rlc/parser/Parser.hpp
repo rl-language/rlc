@@ -60,6 +60,8 @@ namespace rlc
 		llvm::Expected<mlir::Value> builtinToArray();
 		llvm::Expected<mlir::rlc::FreeOp> builtinFree();
 		llvm::Expected<mlir::Operation*> builtinDestroy();
+		llvm::Expected<mlir::Value> builtinMangledName();
+		llvm::Expected<mlir::Value> builtinAsPtr();
 		llvm::Expected<mlir::Operation*> builtinConstruct();
 		llvm::Expected<mlir::Value> expression();
 		llvm::Expected<mlir::Value> unaryExpression();

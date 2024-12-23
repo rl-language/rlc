@@ -240,16 +240,16 @@ namespace mlir::rlc
 				alreadDeclared.insert(decl.getType());
 				originalEntiDecl[decl.getName()] = decl;
 			}
+			mlir::rlc::ModuleBuilder builder(getOperation());
 
 			bool replacedAtLeastOne = true;
 			while (replacedAtLeastOne)
 			{
 				declareInstantiatedStructs(
 						originalEntiDecl, alreadDeclared, getOperation());
-				if (emitImplicitAssign(getOperation()).failed())
+				if (emitImplicitAssign(getOperation(), builder).failed())
 					return signalPassFailure();
-				emitImplicitInits(getOperation());
-				mlir::rlc::ModuleBuilder builder(getOperation());
+				emitImplicitInits(getOperation(), builder);
 				replacedAtLeastOne = false;
 				llvm::SmallVector<mlir::rlc::TemplateInstantiationOp, 4> ops;
 				getOperation().walk([&](mlir::rlc::TemplateInstantiationOp op) {

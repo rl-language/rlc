@@ -83,12 +83,18 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "KeywordSystem";
 		case Token::KeywordAssert:
 			return "KeywordAssert";
+		case Token::KeywordMangledName:
+			return "KeywordMangledName";
+		case Token::KeywordAsPtr:
+			return "KeywordAsPtr";
 		case Token::KeywordTrait:
 			return "KeywordTrait";
 		case Token::KeywordIs:
 			return "KeywordIs";
 		case Token::KeywordBitXor:
 			return "KeywordBitXor";
+		case Token::KeywordActionClass:
+			return "KeywordActionClass";
 		case Token::KeywordBitAnd:
 			return "KeywordBitAnd";
 		case Token::KeywordAnd:
@@ -207,6 +213,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Tilde";
 		case Token::Equal:
 			return "Equal";
+		case Token::AnnotationIntroducer:
+			return "AnnotationIntroducer";
 		case Token::Identifier:
 			return "Identifier";
 		case Token::String:
@@ -372,6 +380,8 @@ optional<Token> Lexer::eatSymbol()
 			return Token::Newline;
 		case '|':
 			return Token::VerticalPipe;
+		case '@':
+			return Token::AnnotationIntroducer;
 	}
 	return nullopt;
 }
@@ -463,6 +473,9 @@ Token Lexer::eatIdent()
 
 	if (name == "frm")
 		return Token::KeywordFrame;
+
+	if (name == "classes")
+		return Token::KeywordActionClass;
 
 	if (name == "ctx")
 		return Token::KeywordCtx;
@@ -556,6 +569,12 @@ Token Lexer::eatIdent()
 
 	if (name == "OwningPtr")
 		return Token::KeywordOwningPtr;
+
+	if (name == "__builtin_mangled_name")
+		return Token::KeywordMangledName;
+
+	if (name == "__builtin_as_ptr_do_not_use")
+		return Token::KeywordAsPtr;
 
 	lIdent = name;
 	return Token::Identifier;

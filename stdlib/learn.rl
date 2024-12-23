@@ -16,6 +16,7 @@
 
 import action
 
+
 fun gen_printer_parser():
     let state : Game
     let any_action :  AnyGameAction

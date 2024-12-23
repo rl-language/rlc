@@ -127,6 +127,8 @@ namespace mlir::rlc
 	};
 
 	mlir::LogicalResult isTemplateType(mlir::Type type);
+	mlir::LogicalResult isTemplateType(
+			mlir::Type type, mlir::DenseMap<mlir::Type, bool> &table);
 
 	mlir::Type decayCtxFrmType(mlir::Type);
 

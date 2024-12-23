@@ -2,7 +2,7 @@
 
 # CHECK: {a_F = "[10,11)", a_T = "[-9223372036854775808,9223372036854775807)", is_member_function = false}
 
-fun foo(Int a) -> Bool:
+fun foo(Int a) -> Bool {true}:
 	if a > 10:
 		return true
 	else if a < 10:

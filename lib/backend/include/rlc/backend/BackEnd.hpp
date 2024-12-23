@@ -36,6 +36,7 @@ namespace mlir::rlc
 		bool isShared() const;
 		bool isMacOS() const;
 		bool isWindows() const;
+		std::string tripleToString() const;
 		const llvm::DataLayout& getDataLayout() const;
 
 		TargetInfo(TargetInfo&& other): pimpl(other.pimpl)

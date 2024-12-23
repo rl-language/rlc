@@ -67,6 +67,12 @@ copy_binaries(
 )
 copy_binaries(
     os.path.join(
+        "..", "..", "rlc-release", "install", "lib", lib_prefix + "pyrlc" + lib_ext
+    ),
+    "lib",
+)
+copy_binaries(
+    os.path.join(
         "..", "..", "rlc-release", "install", "lib", lib_prefix + "runtime" + lib_ext
     ),
     "lib",
@@ -81,8 +87,13 @@ copy_binaries(
     os.path.join("..", "..", "rlc-release", "install", "lib", "rlc"),
     os.path.join("lib", "rlc"),
 )
+copy_binaries(
+    os.path.join("..", "..", "rlc-release", "install", "share"),
+    os.path.join("share"),
+)
 extra_files_bin = package_files([target_bin_dir], target_bin_dir)
 extra_files_lib = package_files(["lib"], "lib")
+extra_files_share = package_files(["share"], "share")
 
 site_packages_path = (
     target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
@@ -90,13 +101,14 @@ site_packages_path = (
 
 setup(
     name="rl_language",
-    version="0.1.41",
+    version="0.2.2",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
     include_package_data=True,
     data_files=extra_files_bin
     + extra_files_lib
+    + extra_files_share
     + [
         (
             os.path.join(site_packages_path, "impl"),

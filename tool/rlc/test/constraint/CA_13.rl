@@ -12,5 +12,5 @@
 	#						return true
 	#return false
 
-fun foo(Int a, Int b, Int c) -> Bool:
+fun foo(Int a, Int b, Int c) -> Bool {true}:
 	return a<11 and a>5 and b<10 and b>6 and c<9 and c>7

@@ -11,7 +11,7 @@
 # RUN: python %t/to_run.py 
 
 #--- source.rl
-fun to_invoke() -> Int:
+fun to_invoke() -> Int {true}:
   return 5
 
 #--- to_run.c

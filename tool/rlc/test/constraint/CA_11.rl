@@ -2,6 +2,6 @@
 
 # CHECK: {a_F = "[-9223372036854775808,9223372036854775807)", a_T = "[5,10)", is_member_function = false}
 
-fun foo(Int a) -> Bool:
+fun foo(Int a) -> Bool {true}:
 	a=a+1
 	return a<11 and a>5

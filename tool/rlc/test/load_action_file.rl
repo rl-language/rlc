@@ -7,6 +7,7 @@ import string
 import serialization.print
 import action
 
+@classes
 act example() -> Game:
     act asd(Int x)
     act asdy(Bool x)

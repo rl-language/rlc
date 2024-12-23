@@ -268,18 +268,6 @@ static void defineGetNameFunction(
 			false);
 
 	{
-		auto *preconditionBB = builder.getRewriter().createBlock(
-				&applyFunction.getPrecondition(), {}, types, locs);
-
-		builder.getRewriter().setInsertionPointToStart(preconditionBB);
-		auto trueValue = builder.getRewriter().create<mlir::rlc::Constant>(
-				statement.getLoc(), true);
-
-		builder.getRewriter().create<mlir::rlc::Yield>(
-				statement.getLoc(), mlir::ValueRange({ trueValue }));
-	}
-
-	{
 		auto *bodyBB = builder.getRewriter().createBlock(
 				&applyFunction.getBody(), {}, types, locs);
 
@@ -488,15 +476,13 @@ static mlir::LogicalResult declareActionTypes(
 		return mlir::success();
 
 	// declares a type that contains the alternative between all possible actions
-	mlir::Type alternative =
-			mlir::rlc::AlternativeType::get(function.getContext(), declaredTypes);
+	auto alternative = mlir::rlc::AlternativeType::get(
+			function.getContext(),
+			declaredTypes,
+			("Any" + function.getClassType().getName() + "Action").str());
 
 	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
-			function.getLoc(),
-			("Any" + function.getClassType().getName() + "Action").str(),
-			alternative,
-			nullptr,
-			nullptr);
+			function.getLoc(), alternative.getName(), alternative, nullptr, nullptr);
 
 	return mlir::success();
 }
@@ -504,6 +490,7 @@ static mlir::LogicalResult declareActionTypes(
 mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 		mlir::rlc::ActionFunction fun, mlir::rlc::ValueTable *parentSymbolTable)
 {
+	bool emitClasses = fun->hasAttr("emit_classes");
 	if (fun.getUnmangledName() == "init")
 	{
 		auto _ = logError(
@@ -558,10 +545,13 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 	if (not newF)
 		return nullptr;
 
-	mlir::rlc::ModuleBuilder builder2(
-			newF->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
-	if (declareActionTypes(newF, builder2).failed())
-		return nullptr;
+	if (emitClasses)
+	{
+		mlir::rlc::ModuleBuilder builder2(
+				newF->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
+		if (declareActionTypes(newF, builder2).failed())
+			return nullptr;
+	}
 
 	if (newF.getActions().empty())
 	{
@@ -657,6 +647,12 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 				builder.getConverter().shugarizedConvertType(getAliased());
 		assert(shugarized != nullptr);
 		this->setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarized));
+	}
+
+	if (auto casted = deducedType.dyn_cast<mlir::rlc::AlternativeType>())
+	{
+		deducedType = mlir::rlc::AlternativeType::get(
+				casted.getContext(), casted.getUnderlying(), getName());
 	}
 
 	builder.getConverter().registerType(getName(), deducedType);
@@ -763,30 +759,18 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 												.getDefiningOp<mlir::rlc::ActionFunction>();
 
 	mlir::IRRewriter &rewiter = builder.getRewriter();
-	rewiter.setInsertionPoint(*this);
 
-	mlir::Value decl = nullptr;
-	if (getName().empty())
+	if (not getName().empty())
 	{
-		auto terminator =
-				mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
-		while (not getBody().front().empty())
-			getBody().front().front().moveBefore(getOperation());
-
-		decl = terminator.getArguments()[0];
-		terminator.erase();
-	}
-	else
-	{
+		rewiter.setInsertionPoint(*this);
 		auto varDecl = rewiter.create<mlir::rlc::DeclarationStatement>(
 				getLoc(), mlir::rlc::FrameType::get(underlyingType), getName());
 		varDecl.getBody().takeBody(getBody());
 		builder.getSymbolTable().add(getName(), varDecl);
-		decl = varDecl;
+		rewiter.createBlock(&getBody());
+		rewiter.create<mlir::rlc::Yield>(getLoc(), mlir::ValueRange({ varDecl }));
 	}
-
-	frameVar = builder.getRewriter().create<mlir::rlc::StorageCast>(
-			getLoc(), underlyingType, decl);
+	rewiter.setInsertionPoint(*this);
 
 	llvm::SmallVector<mlir::Value, 2> actionValues = underlying.getActions();
 	if (actionValues.empty())
@@ -795,13 +779,29 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		return mlir::success();
 	}
 
+	const auto &make_frame_access = [this, &rewiter, underlyingType]() {
+		mlir::IRMapping mapping;
+		for (auto &op : llvm::drop_end(getBody().front().getOperations()))
+			rewiter.clone(op, mapping);
+
+		auto yielded =
+				mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator())
+						.getArguments()[0];
+		mlir::Value frame = mapping.getValueMap().contains(yielded)
+														? mapping.getValueMap().at(yielded)
+														: yielded;
+
+		return rewiter.create<mlir::rlc::StorageCast>(
+				getLoc(), underlyingType, frame);
+	};
+
 	if (not getRunOnce())
 	{
 		auto loop = rewiter.create<mlir::rlc::WhileStatement>(getLoc());
 		rewiter.createBlock(&loop.getCondition());
 
 		auto *call = builder.emitCall(
-				*this, true, "is_done", mlir::ValueRange({ frameVar }));
+				*this, true, "is_done", mlir::ValueRange({ make_frame_access() }));
 		assert(call);
 		auto isDone = call->getResult(0);
 
@@ -893,11 +893,23 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 		llvm::SmallVector<mlir::Value, 4> canArgs(
 				terminator.getArguments().begin(), terminator.getArguments().end());
+		for (auto [forwardedArg, toCallArg] :
+				 llvm::zip_first(canArgs, referred.getResultTypes()))
+		{
+			if (forwardedArg.getType() != decayCtxFrmType(toCallArg))
+			{
+				return logError(
+						*this,
+						"forwarded arg type missmatch, expected: " + prettyType(toCallArg) +
+								" got " + prettyType(decayCtxFrmType(forwardedArg.getType())));
+			}
+		}
 		terminator.erase();
 
 		for (auto arg : llvm::drop_begin(newBody->getArguments(), contextArgsCount))
 			canArgs.push_back(arg);
-		canArgs.insert(canArgs.begin(), frameVar);
+
+		canArgs.insert(canArgs.begin(), make_frame_access());
 
 		auto casted = rewiter.create<mlir::rlc::CanOp>(actions.getLoc(), toCall);
 		auto result = rewiter.create<mlir::rlc::CallOp>(
@@ -905,6 +917,13 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		rewiter.create<mlir::rlc::Yield>(
 				actions.getLoc(), mlir::ValueRange({ result.getResult(0) }));
 		rewiter.setInsertionPointAfter(fixed);
+		auto expression =
+				rewiter.create<mlir::rlc::ExpressionStatement>(fixed.getLoc());
+
+		// yield of the action statements
+		rewiter.create<mlir::rlc::Yield>(actions.getLoc());
+
+		rewiter.createBlock(&expression.getBody());
 
 		mlir::IRMapping mapping2;
 		for (auto &op : getForwardedArgs().front())
@@ -918,10 +937,11 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		for (auto result : llvm::drop_begin(fixed.getResults(), contextArgsCount))
 			args.push_back(result);
 
-		args.insert(args.begin(), frameVar);
+		args.insert(args.begin(), make_frame_access());
 
 		rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, false, args);
 
+		// yield for the expression statement
 		rewiter.create<mlir::rlc::Yield>(actions.getLoc());
 	}
 	rewiter.setInsertionPointAfter(*this);
@@ -1272,8 +1292,8 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 	rewriter.setInsertionPointAfter(*this);
 	auto op = rewriter.create<mlir::rlc::TraitDefinition>(getLoc(), type);
 
-	// replace the template parameters provided by the user with one prefixed with
-	// TraitType so that it does not clashes with regular names
+	// replace the template parameters provided by the user with one prefixed
+	// with TraitType so that it does not clashes with regular names
 	for (auto templateParameter : getTemplateParameterTypes())
 	{
 		mlir::AttrTypeReplacer replacer;
@@ -1330,13 +1350,29 @@ static void promoteArgumentOfIsOp(
 		return;
 	}
 
-	auto name = table.lookUpValue(isOp.getExpression());
+	mlir::Value isOperand = isOp.getExpression();
+	llvm::StringRef name = table.lookUpValue(isOperand);
+	if (auto casted = mlir::dyn_cast_or_null<mlir::rlc::StorageCast>(
+					isOperand.getDefiningOp()))
+	{
+		name = table.lookUpValue(casted.getOperand());
+		mlir::IRMapping mapping;
+		isOperand =
+				rewriter.clone(*isOperand.getDefiningOp(), mapping)->getResult(0);
+	}
+
 	if (name.empty())
 		return;
 
 	auto upcastedValue = rewriter.create<mlir::rlc::ValueUpcastOp>(
-			isOp.getLoc(), isOp.getTypeOrTrait(), isOp.getExpression());
+			isOp.getLoc(), isOp.getTypeOrTrait(), isOperand);
 	table.add(name, upcastedValue);
+}
+
+mlir::LogicalResult mlir::rlc::StorageCast::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
 }
 
 mlir::LogicalResult mlir::rlc::TemplateInstantiationOp::typeCheck(
@@ -1530,8 +1566,10 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 		return logError(
 				*this,
 				"Missmatched count between for induction variables and for "
-				"arguments. The number of induction varaibles must be exactly the same "
-				"as the number of expressions, or one more to capture the name of the "
+				"arguments. The number of induction varaibles must be exactly the "
+				"same "
+				"as the number of expressions, or one more to capture the name of "
+				"the "
 				"field");
 	}
 
@@ -2055,13 +2093,7 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 		return mlir::failure();
 	}
 
-	builder.getRewriter().setInsertionPoint(*this);
-	auto newVal = builder.getRewriter().create<mlir::rlc::InitializerListOp>(
-			getLoc(), type);
-
-	newVal.getBody().takeBody(getBody());
-
-	builder.getRewriter().replaceOp(*this, newVal);
+	getResult().setType(type);
 
 	return mlir::success();
 }
@@ -2108,6 +2140,18 @@ mlir::LogicalResult mlir::rlc::DestroyOp::typeCheck(
 }
 
 mlir::LogicalResult mlir::rlc::FreeOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::BuiltinMangledNameOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::BuiltinAsPtr::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	return mlir::success();

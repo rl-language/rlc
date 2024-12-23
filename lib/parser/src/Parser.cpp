@@ -179,6 +179,30 @@ llvm::Expected<mlir::Value> Parser::builtinToArray()
 			location, mlir::rlc::UnknownType::get(builder.getContext()), *size);
 }
 
+// builtinMangedName : "__builtin_mangled_name(" expression ")"
+Expected<mlir::Value> Parser::builtinMangledName()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordMangledName);
+	EXPECT(Token::LPar);
+	TRY(arg, expression());
+	EXPECT(Token::RPar);
+
+	return builder.create<mlir::rlc::BuiltinMangledNameOp>(location, *arg);
+}
+
+// builtinMangedName : "__builtin_as_ptr_do_no_use(" expression ")"
+Expected<mlir::Value> Parser::builtinAsPtr()
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordAsPtr);
+	EXPECT(Token::LPar);
+	TRY(arg, expression());
+	EXPECT(Token::RPar);
+
+	return builder.create<mlir::rlc::BuiltinAsPtr>(location, *arg);
+}
+
 // builtinMalloc : "__builtin_destroy_do_not_use(" expression ")"
 Expected<mlir::Operation*> Parser::builtinDestroy()
 {
@@ -281,6 +305,12 @@ Expected<mlir::Value> Parser::primaryExpression()
 
 	if (current == Token::KeywordFromArray)
 		return builtinFromArray();
+
+	if (current == Token::KeywordMangledName)
+		return builtinMangledName();
+
+	if (current == Token::KeywordAsPtr)
+		return builtinAsPtr();
 
 	if (current == Token::String)
 		return stringExpression();
@@ -562,8 +592,8 @@ Expected<mlir::Value> Parser::additiveExpression()
 }
 
 /**
- * orExpression : additiveExpression (('<' | '>' | '<=' | '>=')
- * additiveExpression)*
+ * orExpression : shiftExpression (('<' | '>' | '<=' | '>=')
+ * relationalExpression)*
  */
 Expected<mlir::Value> Parser::relationalExpression()
 {
@@ -572,11 +602,24 @@ Expected<mlir::Value> Parser::relationalExpression()
 	auto location = getCurrentSourcePos();
 	if (accept<Token::LAng>())
 	{
+		if (accept<Token::LAng>())
+		{
+			TRY(rhs, additiveExpression());
+			return builder.create<mlir::rlc::LeftShiftOp>(
+					location, unkType(), *exp, *rhs);
+		}
 		TRY(rhs, relationalExpression());
 		return builder.create<mlir::rlc::LessOp>(location, unkType(), *exp, *rhs);
 	}
 	if (accept<Token::RAng>())
 	{
+		if (accept<Token::RAng>())
+		{
+			TRY(rhs, additiveExpression());
+			return builder.create<mlir::rlc::RightShiftOp>(
+					location, unkType(), *exp, *rhs);
+		}
+
 		TRY(rhs, relationalExpression());
 		return builder.create<mlir::rlc::GreaterOp>(
 				location, unkType(), *exp, *rhs);
@@ -898,7 +941,7 @@ llvm::Expected<bool> Parser::requirementList()
 	if (!accept<Token::LBracket>())
 	{
 		builder.create<mlir::rlc::Yield>(getCurrentSourcePos());
-		return true;
+		return false;
 	}
 
 	mlir::rlc::ShortCircuitingAnd lastAnd = nullptr;
@@ -969,8 +1012,23 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 
 	llvm::SmallVector<mlir::Value, 3> expressions;
 	auto insertionPoint = builder.saveInsertionPoint();
-	mlir::Region region;
-	builder.createBlock(&region);
+
+	mlir::Region forwardedArgsRegion;
+	mlir::Region bodyRegion;
+	std::string name;
+
+	auto onExit = [&, this](bool success) -> mlir::rlc::SubActionStatement {
+		builder.restoreInsertionPoint(insertionPoint);
+		if (not success)
+			return nullptr;
+		auto operation =
+				builder.create<mlir::rlc::SubActionStatement>(location, name, runOnce);
+		operation.getBody().takeBody(bodyRegion);
+		operation.getForwardedArgs().takeBody(forwardedArgsRegion);
+		return operation;
+	};
+
+	builder.createBlock(&forwardedArgsRegion);
 	if (accept<Token::LPar>())
 	{
 		TRY(list, argumentExpressionList());
@@ -978,45 +1036,28 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 		EXPECT(Token::RPar);
 	}
 	builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), expressions);
-	builder.restoreInsertionPoint(insertionPoint);
-
-	std::string name;
-	accept(Token::Identifier);
-	name = lIdent;
-	// is we don't see a equal it means that the
-	// user has written `subaction name `
-	if (not accept(Token::Equal))
+	builder.createBlock(&bodyRegion);
+	TRY(exp, expression(), onExit(false));
+	auto maybeName =
+			mlir::dyn_cast<mlir::rlc::UnresolvedReference>(*exp->getDefiningOp());
+	if (!maybeName or not accept(Token::Equal))
 	{
-		auto operation =
-				builder.create<mlir::rlc::SubActionStatement>(location, "", runOnce);
-		operation.getForwardedArgs().takeBody(region);
-		builder.createBlock(&operation.getBody());
-		auto exp = builder.create<mlir::rlc::UnresolvedReference>(location, name);
-		builder.create<mlir::rlc::Yield>(
-				getCurrentSourcePos(), mlir::ValueRange(exp));
-		builder.setInsertionPointAfter(operation);
 		EXPECT(Token::Newline);
-		return operation;
+		builder.create<mlir::rlc::Yield>(
+				getCurrentSourcePos(), mlir::ValueRange(*exp));
+		return onExit(true);
 	}
 
-	auto operation =
-			builder.create<mlir::rlc::SubActionStatement>(location, name, runOnce);
-	operation.getForwardedArgs().takeBody(region);
-	builder.createBlock(&operation.getBody());
-	auto onExit = [&, this](mlir::Value exp) {
-		if (exp)
-			builder.create<mlir::rlc::Yield>(
-					getCurrentSourcePos(), mlir::ValueRange(exp));
-		builder.setInsertionPointAfter(operation);
-		if (not exp)
-			operation.erase();
-	};
+	name = maybeName.getName();
+	(*exp).getDefiningOp()->erase();
 
-	TRY(exp, expression(), onExit(nullptr));
-	EXPECT(Token::Newline, onExit(*exp));
-	onExit(*exp);
+	builder.setInsertionPointToStart(&bodyRegion.front());
+	TRY(body, expression(), onExit(false));
+	EXPECT(Token::Newline);
+	builder.create<mlir::rlc::Yield>(
+			getCurrentSourcePos(), mlir::ValueRange(*body));
 
-	return operation;
+	return onExit(true);
 }
 
 llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
@@ -1624,7 +1665,7 @@ Expected<mlir::rlc::ShugarizedTypeAttr> Parser::singleTypeUse()
 	return mlir::rlc::ShugarizedTypeAttr::get(
 			builder.getContext(),
 			mlir::rlc::SourceRangeAttr::get(typeBegin, typeEnd),
-			mlir::rlc::AlternativeType::get(ctx, seenTypes));
+			mlir::rlc::AlternativeType::get(ctx, seenTypes, ""));
 }
 
 Expected<mlir::rlc::FunctionArgumentAttr> Parser::argDeclaration()
@@ -1788,8 +1829,6 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 
 	auto* bodyB = builder.createBlock(
 			&fun->getBody(), {}, fun->getArgumentTypes(), argLocs);
-	auto* condB = builder.createBlock(
-			&fun->getPrecondition(), {}, fun->getArgumentTypes(), argLocs);
 
 	auto onExit = [&, this]() {
 		builder.setInsertionPointToEnd(bodyB);
@@ -1797,7 +1836,14 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 		builder.restoreInsertionPoint(pos);
 	};
 
+	// the precondition region is optional
+	mlir::Region region;
+	auto* condB =
+			builder.createBlock(&region, {}, fun->getArgumentTypes(), argLocs);
 	TRY(list, requirementList(), onExit());
+	if (*list)
+		fun->getPrecondition().takeBody(region);
+
 	EXPECT(Token::Colons, onExit());
 	EXPECT(Token::Newline, onExit());
 
@@ -2157,9 +2203,18 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 			continue;
 		}
 
+		bool emitClasses = false;
+		if (accept(Token::AnnotationIntroducer))
+		{
+			EXPECT(Token::KeywordActionClass);
+			EXPECT(Token::Newline);
+			emitClasses = true;
+		}
 		if (current == Token::KeywordAction)
 		{
 			TRY(f, actionDefinition());
+			if (emitClasses)
+				f->getOperation()->setAttr("emit_classes", builder.getBoolAttr(true));
 			setComment(*f, comment);
 			continue;
 		}

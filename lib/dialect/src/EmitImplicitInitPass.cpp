@@ -393,10 +393,9 @@ namespace mlir::rlc
 		}
 	}
 
-	void emitImplicitInits(mlir::ModuleOp op)
+	void emitImplicitInits(mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder)
 	{
 		declareImplicitInits(op);
-		mlir::rlc::ModuleBuilder builder(op);
 		emitImplicitInits(builder, op);
 	}
 
@@ -408,7 +407,11 @@ namespace mlir::rlc
 		using impl::EmitImplicitInitPassBase<
 				EmitImplicitInitPass>::EmitImplicitInitPassBase;
 
-		void runOnOperation() override { emitImplicitInits(getOperation()); }
+		void runOnOperation() override
+		{
+			mlir::rlc::ModuleBuilder builder(getOperation());
+			emitImplicitInits(getOperation(), builder);
+		}
 	};
 
 }	 // namespace mlir::rlc

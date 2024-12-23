@@ -499,6 +499,7 @@ act perform_action(ctx TowerDeck deck, ctx BoundedVector<Player, 2> players, ctx
                 is_building_4s = true
         
 
+@classes
 act play() -> Game:
     frm tower_deck = make_deck()
     frm players : BoundedVector<Player, 2> 

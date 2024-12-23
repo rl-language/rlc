@@ -13,6 +13,7 @@ cls TopLevel:
     Bool[3] c
     Vector<BInt<0, 3>> f
 
+@classes
 act play() -> Game:
     # CHECK: GameDoNothing.a is of type Int, which is not enumerable. Replace it instead with a BInt with appropriate bounds or specify yourself how to enumerate it.
     act do_nothing(Int a, Bool b)

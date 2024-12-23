@@ -120,6 +120,12 @@ static cl::opt<std::string> clangPath(
 		cl::init("clang"),
 		cl::cat(astDumperCategory));
 
+static cl::opt<std::string> abortSymbol(
+		"abort-symbol",
+		cl::desc("abort symbol called by assertions"),
+		cl::init(""),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpPythonAST(
 		"python-ast",
 		cl::desc("dumps the ast of python-ast and exits"),
@@ -243,6 +249,13 @@ static cl::opt<bool> ExpectFail(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<std::string> customTargetTriple(
+		"target",
+		cl::desc("specify a target triple, if empty the default target triple will "
+						 "be used instead"),
+		cl::init(""),
+		cl::cat(astDumperCategory));
+
 static cl::opt<std::string> customFuzzerLibPath(
 		"fuzzer-lib",
 		cl::desc("path to the fuzzer library."),
@@ -252,6 +265,12 @@ static cl::opt<std::string> customFuzzerLibPath(
 static cl::opt<bool> formatFile(
 		"format",
 		cl::desc("print the file formatted"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> generateDependecyFile(
+		"MD",
+		cl::desc("creates a dependency file called OUTPUT.dep"),
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
@@ -266,6 +285,24 @@ static cl::opt<bool> sanitize(
 		cl::desc("emit the sanitizer instrumentation"),
 		cl::init(false),
 		cl::cat(astDumperCategory));
+
+static cl::opt<bool> pylib(
+		"pylib",
+		cl::desc("link against python interpreter"),
+		cl::init(false),
+		cl::cat(astDumperCategory),
+		cl::callback([](const bool &value) {
+			abortSymbol.setInitialValue("rl_py_abort");
+		}));
+
+static cl::opt<std::string> customPythonLibPath(
+		"pyrlc-lib",
+		cl::desc("path to the pyrlc library."),
+		cl::init(""),
+		cl::cat(astDumperCategory),
+		cl::callback([](const std::string &value) {
+			pylib.setInitialValue(true);
+		}));
 
 static cl::opt<bool> emitFuzzer(
 		"fuzzer",
@@ -350,6 +387,18 @@ static mlir::rlc::Driver configureDriver(
 	}
 	includes.push_back(rlcDirectory);
 
+	if (pylib)
+	{
+		string pyrlcLibPath = customPythonLibPath.empty()
+															? llvm::sys::path::parent_path(pathToRlc).str() +
+																		"/../lib/" + PYRLC_LIBRARY_FILENAME
+															: customPythonLibPath.getValue();
+		pyrlcLibPath = toNative(pyrlcLibPath);
+
+		objectFiles.push_back(pyrlcLibPath);
+		RPath.addValue(llvm::sys::path::parent_path(pyrlcLibPath).str());
+	}
+
 	if (emitFuzzer)
 	{
 		string fuzzerLibPath = customFuzzerLibPath.empty()
@@ -379,6 +428,7 @@ static mlir::rlc::Driver configureDriver(
 	Driver driver(srcManager, inputs, outputFile, OS);
 	driver.setRequest(getRequest());
 	driver.setDebug(debugInfo);
+	driver.setEmitDependencyFile(generateDependecyFile);
 	driver.setHidePosition(hidePosition);
 	driver.setEmitPreconditionChecks(emitPreconditionChecks);
 	driver.setDumpIR(dumpIR);
@@ -391,6 +441,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setTargetInfo(&info);
 	driver.setEmitBoundChecks(emitBoundChecks);
 	driver.setVerbose(verbose);
+	driver.setAbortSymbol(abortSymbol);
 
 	return driver;
 }
@@ -402,6 +453,7 @@ static int run(
 		const mlir::rlc::TargetInfo &info)
 {
 	mlir::PassManager manager(&context);
+	manager.enableVerifier(isDebug);
 	driver.configurePassManager(manager);
 
 	if (timing)
@@ -460,6 +512,8 @@ int main(int argc, char *argv[])
 			mlir::DLTIDialect,
 			mlir::index::IndexDialect>();
 	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
+	if (customTargetTriple != "")
+		targetTriple = customTargetTriple;
 	mlir::rlc::TargetInfo targetInfo(targetTriple, shared, Optimize);
 
 	mlir::registerLLVMDialectTranslation(Registry);

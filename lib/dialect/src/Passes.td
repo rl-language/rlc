@@ -37,6 +37,8 @@ def LowerToLLVMPass : Pass<"rlc-lower-to-llvm", "mlir::ModuleOp"> {
   let options = [
     Option<"debug_info", "add debug info", "bool", /*default=*/"false",
            "add the debug info to the output module">,
+    Option<"abort_symbol", "abort will call the provided symbol instead of trap", "std::string", /*default=*/"\"\"",
+           "change the default behaviour of abort">,
   ];
 }
 
@@ -206,7 +208,9 @@ def ParseFilePass : Pass<"rlc-parse-file-pass", "mlir::ModuleOp"> {
     Option<"inputs", "input files", "llvm::ArrayRef<std::string>", /*default=*/"llvm::ArrayRef<std::string>{}",
            "input files">,
     Option<"srcManager", "source manager", "llvm::SourceMgr*", /*default=*/"nullptr",
-           "source manager">
+           "source manager">,
+    Option<"dependencyFile", "dependency file", "std::string", /*default=*/"\"\"",
+           "dependency file">
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

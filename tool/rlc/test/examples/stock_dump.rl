@@ -146,6 +146,7 @@ act remove_stock_from_player(ctx Player player, frm Int quantity) -> TakeStockFr
         player.cached_in[id.value] = player.cached_in[id.value] + 1
         i = i + 1
 
+@classes
 act play() -> Game:
     frm players : BoundedVector<Player, 8>
     frm stocks : BoundedVector<ExchangeCard, 8>

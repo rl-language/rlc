@@ -171,6 +171,7 @@ fun resolve_winner(Player[2] players):
         players[0].chips =  players[0].chips - players[1].current_bet
         players[1].chips =  players[1].chips + players[1].current_bet
 
+@classes
 act play() -> Game:
     frm players : Player[2] 
     players[0].chips = 100

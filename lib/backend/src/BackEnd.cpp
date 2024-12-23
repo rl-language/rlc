@@ -35,6 +35,7 @@ limitations under the License.
 #include "llvm/PassRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/Passes/StandardInstrumentations.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
@@ -125,6 +126,8 @@ class AddWindowsDLLExportPass: public PassInfoMixin<AddWindowsDLLExportPass>
 	};
 };
 
+static const bool printTimings = false;
+
 static void runOptimizer(
 		llvm::Module &M,
 		bool optimize,
@@ -132,6 +135,17 @@ static void runOptimizer(
 		bool linkAgainsFuzzer,
 		bool targetIsWindows)
 {
+	llvm::PassInstrumentationCallbacks PIC;
+	llvm::StandardInstrumentations SI(M.getContext(), /*DebugLogging=*/false);
+	SI.registerCallbacks(PIC, nullptr);
+
+	std::unique_ptr<llvm::TimePassesHandler> TimePasses =
+			std::make_unique<llvm::TimePassesHandler>(true);
+
+	TimePasses->setOutStream(llvm::errs());
+	if (printTimings)
+		TimePasses->registerCallbacks(PIC);
+
 	// Create the analysis managers.
 	LoopAnalysisManager LAM;
 	FunctionAnalysisManager FAM;
@@ -142,7 +156,7 @@ static void runOptimizer(
 	// Take a look at the PassBuilder constructor parameters for more
 	// customization, e.g. specifying a TargetMachine or various debugging
 	// options.
-	PassBuilder PB;
+	PassBuilder PB(nullptr, llvm::PipelineTuningOptions(), std::nullopt, &PIC);
 
 	// Register all the basic analyses with the managers.
 	PB.registerModuleAnalyses(MAM);
@@ -166,18 +180,7 @@ static void runOptimizer(
 			addFuzzerInstrumentationPass(passManager);
 		passManager.run(M, MAM);
 
-		PB.buildModuleSimplificationPipeline(
-					OptimizationLevel::O2, llvm::ThinOrFullLTOPhase::ThinLTOPreLink)
-				.run(M, MAM);
-		PB.buildModuleInlinerPipeline(
-					OptimizationLevel::O2, llvm::ThinOrFullLTOPhase::ThinLTOPreLink)
-				.run(M, MAM);
-		PB.buildModuleSimplificationPipeline(
-					OptimizationLevel::O2, llvm::ThinOrFullLTOPhase::ThinLTOPreLink)
-				.run(M, MAM);
-		PB.buildModuleOptimizationPipeline(
-					OptimizationLevel::O2, llvm::ThinOrFullLTOPhase::ThinLTOPreLink)
-				.run(M, MAM);
+		PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2).run(M, MAM);
 	}
 	else
 	{
@@ -189,6 +192,9 @@ static void runOptimizer(
 			addFuzzerInstrumentationPass(MPM);
 		MPM.run(M, MAM);
 	}
+
+	if (printTimings)
+		TimePasses->print();
 }
 
 struct mlir::rlc::TargetInfoImpl
@@ -255,6 +261,11 @@ bool mlir::rlc::TargetInfo::isMacOS() const
 bool mlir::rlc::TargetInfo::isWindows() const
 {
 	return pimpl->triple.isOSWindows();
+}
+
+std::string mlir::rlc::TargetInfo::tripleToString() const
+{
+	return pimpl->triple.getTriple();
 }
 
 const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
@@ -441,6 +452,7 @@ static int linkLibraries(
 	llvm::SmallVector<std::string, 4> argSource;
 	argSource.push_back("clang");
 	argSource.push_back(library.getFilename().str());
+	argSource.push_back("-target=" + info.tripleToString());
 	if (info.isWindows())
 	{
 		argSource.push_back("-fuse-ld=lld");
@@ -530,7 +542,7 @@ namespace mlir::rlc
 			auto Module = mlir::translateModuleToLLVMIR(
 					getOperation(), LLVMcontext, getOperation().getName().value());
 			assert(Module);
-			Module->setTargetTriple(llvm::sys::getDefaultTargetTriple());
+			Module->setTargetTriple(targetInfo->tripleToString());
 
 			runOptimizer(
 					*Module,

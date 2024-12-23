@@ -84,6 +84,7 @@ act single_attack(ctx AttackProfile source, ctx DefenseProfile target) -> Attack
         target.models = target.models - 1
         target.suffered_wounds = 0
 
+@classes
 act play() -> Game:
     frm target = make_target()
     frm source : AttackProfile 

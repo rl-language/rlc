@@ -212,8 +212,17 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 	{
 		auto sizeType = typeConverter->convertType(
 				mlir::rlc::ProxyType::get(op.getSize().getType()));
-		auto loadedCount =
+		mlir::Value loadedCount =
 				makeAlignedLoad(rewriter, sizeType, adaptor.getSize(), op.getLoc());
+
+		// if we are on a platform where the size_t type is 32 bits, trucate the
+		// number
+		if (loadedCount.getType() != malloc.getArgumentTypes().front())
+		{
+			loadedCount = rewriter.create<mlir::LLVM::TruncOp>(
+					op.getLoc(), malloc.getArgumentTypes().front(), loadedCount);
+		}
+
 		const auto& dl = mlir::DataLayout::closest(op);
 
 		auto baseType = typeConverter->convertType(mlir::rlc::ProxyType::get(
@@ -221,7 +230,7 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 
 		auto baseSize = rewriter.getI64IntegerAttr(dl.getTypeSize(baseType));
 		auto count = rewriter.create<mlir::LLVM::ConstantOp>(
-				op.getLoc(), rewriter.getI64Type(), baseSize);
+				op.getLoc(), malloc.getArgumentTypes().front(), baseSize);
 		auto loadedSizeAndOverflow =
 				rewriter.create<mlir::LLVM::UMulWithOverflowOp>(
 						op.getLoc(),
@@ -253,26 +262,26 @@ class LowerMalloc: public mlir::OpConversionPattern<mlir::rlc::MallocOp>
 static mlir::Value getOrCreateGlobalString(
 		mlir::Location loc,
 		mlir::OpBuilder& builder,
-		mlir::StringRef name,
+		mlir::StringRef maybeName,
 		mlir::StringRef value,
-		mlir::ModuleOp module)
+		mlir::ModuleOp module,
+		llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
 {
 	// Create the global at the entry of the module.
-	mlir::LLVM::GlobalOp global;
 	auto type = mlir::LLVM::LLVMArrayType::get(
 			mlir::IntegerType::get(builder.getContext(), 8), value.size());
 
-	std::string defaultName;
-	if (name == "")
-	{
-		defaultName =
-				(llvm::Twine("anon_") +
-				 llvm::Twine(module.getBodyRegion().front().getOperations().size()))
-						.str();
-		name = defaultName;
-	}
+	std::string name =
+			maybeName.empty()
+					? (llvm::Twine("str_") + llvm::Twine(stringsCache.size())).str()
+					: maybeName.str();
 
-	if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
+	mlir::LLVM::GlobalOp global;
+	if (auto iter = stringsCache.find(value); iter != stringsCache.end())
+	{
+		global = iter->second;
+	}
+	else
 	{
 		mlir::OpBuilder::InsertionGuard insertGuard(builder);
 		builder.setInsertionPointToStart(module.getBody());
@@ -284,6 +293,7 @@ static mlir::Value getOrCreateGlobalString(
 				name,
 				mlir::StringAttr::get(loc.getContext(), value),
 				/*alignment=*/0);
+		stringsCache[value] = global;
 	}
 
 	// Get the pointer to the first character in the global string.
@@ -309,64 +319,6 @@ class ClassDeclarationRewriter
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		auto pointerType = mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
-		auto i64Type = rewriter.getI64Type();
-		auto arrayType =
-				mlir::LLVM::LLVMArrayType::get(pointerType, op.getMembers().size());
-		auto structTest = ::mlir::LLVM::LLVMStructType::getNewIdentified(
-				op->getContext(),
-				"globalVariableType",
-				::mlir::ArrayRef<mlir::Type>({ pointerType, i64Type, arrayType }));
-
-		auto newOp = rewriter.create<mlir::LLVM::GlobalOp>(
-				op->getLoc(),
-				structTest,
-				true,
-				mlir::LLVM::Linkage::LinkonceODR,
-				op.getType().cast<mlir::rlc::ClassType>().mangledName(),
-				mlir::Attribute());
-
-		auto* block = rewriter.createBlock(&newOp.getInitializer());
-		rewriter.setInsertionPoint(block, block->begin());
-		mlir::Value structValue =
-				rewriter.create<mlir::LLVM::UndefOp>(op.getLoc(), structTest);
-
-		auto variableName = getOrCreateGlobalString(
-				op.getLoc(),
-				rewriter,
-				"__globalVariableName" +
-						op.getType().cast<mlir::rlc::ClassType>().mangledName(),
-				op.getName().str(),
-				newOp->getParentOfType<mlir::ModuleOp>());
-		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
-				op.getLoc(), structValue, variableName, mlir::ArrayRef<int64_t>({ 0 }));
-
-		auto numberOfFields = op.getMembers().size();
-		auto numberOfFieldsValue = rewriter.create<mlir::LLVM::ConstantOp>(
-				op.getLoc(), rewriter.getI64Type(), numberOfFields);
-		structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
-				op.getLoc(),
-				structValue,
-				numberOfFieldsValue,
-				mlir::ArrayRef<int64_t>({ 1 }));
-
-		for (unsigned i = 0, e = op.getMembers().size(); i < e; ++i)
-		{
-			auto variableName = getOrCreateGlobalString(
-					op.getLoc(),
-					rewriter,
-					op.getMemberField(i).getName(),
-					op.getMemberField(i).getName(),
-					newOp->getParentOfType<mlir::ModuleOp>());
-			structValue = rewriter.create<mlir::LLVM::InsertValueOp>(
-					op.getLoc(),
-					structValue,
-					variableName,
-					mlir::ArrayRef<int64_t>({ 2, i }));
-		}
-
-		rewriter.create<mlir::LLVM::ReturnOp>(
-				op->getLoc(), mlir::ValueRange({ structValue }));
 		rewriter.eraseOp(op);
 
 		return mlir::success();
@@ -875,6 +827,58 @@ class YieldReferenceRewriter
 	}
 };
 
+class RightShiftRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::RightShiftOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::RightShiftOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::RightShiftOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type =
+				typeConverter->convertType(mlir::rlc::ProxyType::get(op.getType()));
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+		auto operand1 =
+				makeAlignedLoad(rewriter, type, adaptor.getLhs(), op.getLoc());
+		auto operand2 =
+				makeAlignedLoad(rewriter, type, adaptor.getRhs(), op.getLoc());
+		auto result =
+				rewriter.create<mlir::LLVM::LShrOp>(op.getLoc(), operand1, operand2);
+		makeAlignedStore(rewriter, result, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
+class LeftShiftRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::LeftShiftOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::LeftShiftOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::LeftShiftOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto type =
+				typeConverter->convertType(mlir::rlc::ProxyType::get(op.getType()));
+		auto alloca = makeAlloca(rewriter, type, op.getLoc());
+		auto operand1 =
+				makeAlignedLoad(rewriter, type, adaptor.getLhs(), op.getLoc());
+		auto operand2 =
+				makeAlignedLoad(rewriter, type, adaptor.getRhs(), op.getLoc());
+		auto result =
+				rewriter.create<mlir::LLVM::ShlOp>(op.getLoc(), operand1, operand2);
+		makeAlignedStore(rewriter, result, alloca, op.getLoc());
+		rewriter.replaceOp(op, alloca);
+
+		return mlir::LogicalResult::success();
+	}
+};
+
 class BitAndRewriter: public mlir::OpConversionPattern<mlir::rlc::BitAndOp>
 {
 	using mlir::OpConversionPattern<mlir::rlc::BitAndOp>::OpConversionPattern;
@@ -1122,6 +1126,78 @@ static mlir::Value lowerLess(
 	return makeICMP(
 			rewriter, mlir::LLVM::ICmpPredicate::slt, lhs, rhs, op.getLoc());
 }
+static void replaceOpWithStringLiteral(
+		mlir::Operation* op,
+		mlir::ConversionPatternRewriter& rewriter,
+		llvm::StringRef content,
+		llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
+{
+	llvm::SmallVector<char, 4> out;
+	auto str = getOrCreateGlobalString(
+			op->getLoc(),
+			rewriter,
+			"",
+			(content + llvm::Twine('\0')).toNullTerminatedStringRef(out),
+			op->getParentOfType<mlir::ModuleOp>(),
+			stringsCache);
+
+	auto alloca = makeAlloca(
+			rewriter,
+			mlir::LLVM::LLVMPointerType::get(op->getContext()),
+			op->getLoc());
+
+	makeAlignedStore(rewriter, str, alloca, op->getLoc());
+
+	rewriter.replaceOp(op, alloca);
+}
+
+class BuiltinMangledNameRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::BuiltinMangledNameOp>
+{
+	public:
+	BuiltinMangledNameRewriter(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
+			: mlir::OpConversionPattern<mlir::rlc::BuiltinMangledNameOp>::
+						OpConversionPattern(converter, ctx),
+				stringsCache(&stringsCache)
+	{
+	}
+	llvm::StringMap<mlir::LLVM::GlobalOp>* stringsCache;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BuiltinMangledNameOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto name = mlir::rlc::typeToMangled(op.getValue().getType());
+		replaceOpWithStringLiteral(op, rewriter, name, *stringsCache);
+		return mlir::LogicalResult::success();
+	}
+};
+
+class BuiltinAsPtrRewriter
+		: public mlir::OpConversionPattern<mlir::rlc::BuiltinAsPtr>
+{
+	using mlir::OpConversionPattern<mlir::rlc::BuiltinAsPtr>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BuiltinAsPtr op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto alloca = makeAlloca(
+				rewriter,
+				mlir::LLVM::LLVMPointerType::get(op.getContext()),
+				op.getLoc());
+		auto casted = rewriter.create<mlir::LLVM::PtrToIntOp>(
+				op.getLoc(), rewriter.getI64Type(), adaptor.getValue());
+		makeAlignedStore(rewriter, casted, alloca, alloca.getLoc());
+		rewriter.replaceOp(op, alloca);
+		return mlir::LogicalResult::success();
+	}
+};
 
 class UninitializedConstructRewriter
 		: public mlir::OpConversionPattern<mlir::rlc::UninitializedConstruct>
@@ -1447,36 +1523,53 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 	AbortRewriter(
 			mlir::TypeConverter& converter,
 			mlir::MLIRContext* ctx,
-			mlir::LLVM::LLVMFuncOp puts)
+			mlir::LLVM::LLVMFuncOp puts,
+			llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache,
+			mlir::StringRef abort = "")
 			: mlir::OpConversionPattern<mlir::rlc::AbortOp>::OpConversionPattern(
 						converter, ctx),
-				puts(puts)
+				puts(puts),
+				stringsCache(&stringsCache),
+				abort(abort)
 	{
 	}
 	mutable mlir::LLVM::LLVMFuncOp puts;
+	llvm::StringMap<mlir::LLVM::GlobalOp>* stringsCache;
+	llvm::StringRef abort;
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::AbortOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		if (not op.getMessage().empty())
-		{
-			auto global = getOrCreateGlobalString(
-					op.getLoc(),
-					rewriter,
-					"",
-					op.getMessage(),
-					op->getParentOfType<mlir::ModuleOp>());
+		auto global = getOrCreateGlobalString(
+				op.getLoc(),
+				rewriter,
+				"",
+				op.getMessage(),
+				op->getParentOfType<mlir::ModuleOp>(),
+				*stringsCache);
 
-			rewriter.setInsertionPoint(op);
+		rewriter.setInsertionPoint(op);
+
+		if (not abort.empty())
+		{
 			rewriter.create<mlir::LLVM::CallOp>(
-					op.getLoc(),
-					mlir::TypeRange(),
-					puts.getSymName(),
-					mlir::ValueRange({ global }));
+					op.getLoc(), mlir::TypeRange(), abort, mlir::ValueRange({ global }));
 		}
-		rewriter.create<mlir::LLVM::Trap>(op.getLoc());
+		else
+		{
+			if (not op.getMessage().empty())
+			{
+				rewriter.create<mlir::LLVM::CallOp>(
+						op.getLoc(),
+						mlir::TypeRange(rewriter.getI32Type()),
+						puts.getSymName(),
+						mlir::ValueRange({ global }));
+			}
+			rewriter.create<mlir::LLVM::Trap>(op.getLoc());
+		}
+
 		rewriter.create<mlir::LLVM::ReturnOp>(op.getLoc(), mlir::ValueRange());
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -1560,30 +1653,24 @@ class GlobalArrayRewriter
 class LowerStringLiteral
 		: public mlir::OpConversionPattern<mlir::rlc::StringLiteralOp>
 {
-	using mlir::OpConversionPattern<
-			mlir::rlc::StringLiteralOp>::OpConversionPattern;
+	public:
+	LowerStringLiteral(
+			mlir::TypeConverter& converter,
+			mlir::MLIRContext* ctx,
+			llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache)
+			: mlir::OpConversionPattern<
+						mlir::rlc::StringLiteralOp>::OpConversionPattern(converter, ctx),
+				stringsCache(&stringsCache)
+	{
+	}
+	llvm::StringMap<mlir::LLVM::GlobalOp>* stringsCache;
 
 	mlir::LogicalResult matchAndRewrite(
 			mlir::rlc::StringLiteralOp op,
 			OpAdaptor adaptor,
 			mlir::ConversionPatternRewriter& rewriter) const final
 	{
-		llvm::SmallVector<char, 4> out;
-		auto str = getOrCreateGlobalString(
-				op.getLoc(),
-				rewriter,
-				"",
-				(op.getValue() + llvm::Twine('\0')).toNullTerminatedStringRef(out),
-				op->getParentOfType<mlir::ModuleOp>());
-
-		auto alloca = makeAlloca(
-				rewriter,
-				mlir::LLVM::LLVMPointerType::get(op.getContext()),
-				op.getLoc());
-
-		makeAlignedStore(rewriter, str, alloca, op.getLoc());
-
-		rewriter.replaceOp(op, alloca);
+		replaceOpWithStringLiteral(op, rewriter, op.getValue(), *stringsCache);
 		return mlir::LogicalResult::success();
 	}
 };
@@ -2058,21 +2145,39 @@ namespace mlir::rlc
 		using impl::LowerToLLVMPassBase<LowerToLLVMPass>::LowerToLLVMPassBase;
 		void runOnOperation() override
 		{
+			llvm::StringMap<mlir::LLVM::GlobalOp> stringsCache;
 			mlir::IRRewriter rewriter(&getContext());
 			rewriter.setInsertionPoint(
 					getOperation().getBody(0), getOperation().getBody(0)->begin());
+
+			mlir::TypeConverter realConverter;
+			mlir::rlc::registerConversions(realConverter, getOperation());
+			auto dl = mlir::DataLayout::closest(getOperation());
+			mlir::rlc::DebugInfoGenerator diGenerator(
+					getOperation(), rewriter, &realConverter, &dl);
+
+			auto ptrType = mlir::LLVM::LLVMPointerType::get(&getContext());
+
+			if (abort_symbol != "")
+				rewriter.create<mlir::LLVM::LLVMFuncOp>(
+						getOperation().getLoc(),
+						abort_symbol,
+						mlir::LLVM::LLVMFunctionType::get(
+								mlir::LLVM::LLVMVoidType::get(&getContext()),
+								{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
+
 			auto malloc = rewriter.create<mlir::LLVM::LLVMFuncOp>(
 					getOperation().getLoc(),
 					"malloc",
 					mlir::LLVM::LLVMFunctionType::get(
 							mlir::LLVM::LLVMPointerType::get(&getContext()),
-							{ rewriter.getI64Type() }));
+							{ rewriter.getIntegerType(dl.getTypeSizeInBits(ptrType)) }));
 
 			auto puts = rewriter.create<mlir::LLVM::LLVMFuncOp>(
 					getOperation().getLoc(),
 					"puts",
 					mlir::LLVM::LLVMFunctionType::get(
-							mlir::LLVM::LLVMVoidType::get(&getContext()),
+							rewriter.getI32Type(),
 							{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
 
 			auto free = rewriter.create<mlir::LLVM::LLVMFuncOp>(
@@ -2081,12 +2186,6 @@ namespace mlir::rlc
 					mlir::LLVM::LLVMFunctionType::get(
 							mlir::LLVM::LLVMVoidType::get(&getContext()),
 							{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
-
-			mlir::TypeConverter realConverter;
-			mlir::rlc::registerConversions(realConverter, getOperation());
-			auto dl = mlir::DataLayout::closest(getOperation());
-			mlir::rlc::DebugInfoGenerator diGenerator(
-					getOperation(), rewriter, &realConverter, &dl);
 
 			mlir::TypeConverter converter;
 			converter.addConversion([&](mlir::Type t) -> mlir::Type {
@@ -2129,7 +2228,7 @@ namespace mlir::rlc
 					.add<InitRewriter>(converter, &getContext())
 					.add<LowerMalloc>(converter, &getContext(), malloc)
 					.add<LowerFree>(converter, &getContext(), free)
-					.add<LowerStringLiteral>(converter, &getContext())
+					.add<LowerStringLiteral>(converter, &getContext(), stringsCache)
 					.add(makeArith(lowerLess, converter, &getContext()))
 					.add(makeArith(lowerLessEqual, converter, &getContext()))
 					.add(makeArith(lowerGreaterEqual, converter, &getContext()))
@@ -2150,6 +2249,8 @@ namespace mlir::rlc
 					.add<BitOrRewriter>(converter, &getContext())
 					.add<BitAndRewriter>(converter, &getContext())
 					.add<BitXorRewriter>(converter, &getContext())
+					.add<LeftShiftRewriter>(converter, &getContext())
+					.add<RightShiftRewriter>(converter, &getContext())
 					.add<YieldRewriter>(converter, &getContext())
 					.add<NullLowerer>(converter, &getContext())
 					.add<YieldReferenceRewriter>(converter, &getContext())
@@ -2157,13 +2258,17 @@ namespace mlir::rlc
 					.add<CopyRewriter>(converter, &getContext())
 					.add<ArrayAccessRewriter>(converter, &getContext())
 					.add<UninitializedConstructRewriter>(converter, &getContext())
+					.add<BuiltinMangledNameRewriter>(
+							converter, &getContext(), stringsCache)
 					.add<MemberAccessRewriter>(converter, &getContext())
 					.add<VarNameLowerer>(
 							converter, &getContext(), diGenerator, debug_info)
 					.add<ReferenceRewriter>(converter, &getContext())
+					.add<BuiltinAsPtrRewriter>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
-					.add<AbortRewriter>(converter, &getContext(), puts);
+					.add<AbortRewriter>(
+							converter, &getContext(), puts, stringsCache, abort_symbol);
 
 			if (failed(
 							applyFullConversion(getOperation(), target, std::move(patterns))))

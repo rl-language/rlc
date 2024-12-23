@@ -3,6 +3,7 @@
 
 import string 
 
+@classes
 act play() -> Name:
     act first()
     act second(Int asd)

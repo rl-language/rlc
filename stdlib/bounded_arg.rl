@@ -16,7 +16,8 @@ import string
 
 # A integer with a max and min, so that
 # enumerate will return the range of values
-# between the two.
+# between the two. Machine learning serialization
+# will serialize this class as a one-hot vector
 cls<Int min, Int max> BInt:
     Int value
 
@@ -172,4 +173,169 @@ fun<Int min, Int max> enumerate(BInt<min, max> to_add, Vector<BInt<min, max>> ou
         counter = counter + 1
 
 fun<Int min, Int max> tensorable_warning(BInt<min, max> x, String out):
+    return
+
+# A integer with a max and min, so that
+# enumerate will return the range of values
+# between the two, and machine learning serialization 
+# will serialize it as a single float with normalized value 
+# (real_value - ((max - min) / 2)) / (max - min). 
+# This class makes sense when it is used to rappresent
+# integers that appear with the same frequency for
+# each possible value.
+cls<Int min, Int max> LinearlyDistributedInt:
+    Int value
+
+    fun equal(Int other) -> Bool:
+        return self.value == other
+
+    fun equal(LinearlyDistributedInt<min, max> other) -> Bool:
+        return self.value == other.value
+
+    fun less(LinearlyDistributedInt<min, max> other) -> Bool:
+        return self.value < other.value
+
+    fun less(Int other) -> Bool:
+        return self.value < other
+
+    fun greater(LinearlyDistributedInt<min, max> other) -> Bool:
+        return self.value > other.value
+
+    fun greater(Int other) -> Bool:
+        return self.value > other
+
+    fun greater_equal(LinearlyDistributedInt<min, max> other) -> Bool:
+        return self.value >= other.value
+
+    fun greater_equal(Int other) -> Bool:
+        return self.value >= other
+
+    fun less_equal(LinearlyDistributedInt<min, max> other) -> Bool:
+        return self.value <= other.value
+
+    fun less_equal(Int other) -> Bool:
+        return self.value <= other
+
+    fun assign(Int other):
+        self.value = other
+        if self.value >= max:
+            self.value = max - 1 
+        if self.value < min:
+            self.value = min 
+
+    fun not_equal(Int other) -> Bool:
+        return self.value != other
+
+    fun not_equal(LinearlyDistributedInt<min, max> other) -> Bool:
+        return self.value != other.value
+
+    fun add(Int val) -> LinearlyDistributedInt<min, max>:
+        let other : LinearlyDistributedInt<min, max>
+        other.value = val
+        return self + other
+
+    fun add(LinearlyDistributedInt<min, max> other) -> LinearlyDistributedInt<min, max>:
+        let to_return : LinearlyDistributedInt<min, max>
+        to_return.value = self.value + other.value
+        if to_return.value >= max:
+            to_return.value = max - 1
+        if to_return.value < min:
+            to_return.value = min
+        return to_return
+
+    fun mul(LinearlyDistributedInt<min, max> other) -> LinearlyDistributedInt<min, max>:
+        let to_return : LinearlyDistributedInt<min, max>
+        to_return.value = self.value * other.value
+        if to_return.value >= max:
+            to_return.value = max - 1
+        if to_return.value < min:
+            to_return.value = min
+        return to_return
+
+    fun reminder(Int val) -> LinearlyDistributedInt<min, max>:
+        let to_return : LinearlyDistributedInt<min, max>
+        let value = self.value % val
+        to_return = value
+        return to_return 
+
+    fun reminder(LinearlyDistributedInt<min, max> val) -> LinearlyDistributedInt<min, max>:
+        let to_return : LinearlyDistributedInt<min, max>
+        let value = self.value % val.value
+        to_return = value
+        return to_return 
+
+    fun mul(Int val) -> LinearlyDistributedInt<min, max>:
+        let other : LinearlyDistributedInt<min, max>
+        other.value = val
+        return self * other
+
+    fun sub(LinearlyDistributedInt<min, max> other) -> LinearlyDistributedInt<min, max>:
+        let to_return : LinearlyDistributedInt<min, max>
+        to_return.value = self.value - other.value
+        if to_return.value >= max:
+            to_return.value = max - 1
+        if to_return.value < min:
+            to_return.value = min
+        return to_return
+
+    fun sub(Int val) -> LinearlyDistributedInt<min, max>:
+        let other : LinearlyDistributedInt<min, max>
+        other.value = val
+        return self - other
+
+
+fun<Int min, Int max> max(LinearlyDistributedInt<min, max> l, LinearlyDistributedInt<min, max> r) -> LinearlyDistributedInt<min, max>:
+  if l < r:
+    return r
+  return l
+
+
+fun<Int min, Int max> min(LinearlyDistributedInt<min, max> l, LinearlyDistributedInt<min, max> r) -> LinearlyDistributedInt<min, max>:
+  if r < l:
+    return r
+  return l
+
+fun<Int min, Int max> append_to_vector(LinearlyDistributedInt<min, max> to_add, Vector<Byte> output):
+    if max - min < 256:
+        let to_append = byte(to_add.value - min - 128)
+        append_to_vector(to_append, output)
+    else:
+        let to_append = to_add.value - min
+        append_to_vector(to_append, output)
+
+fun<Int min, Int max> parse_from_vector(LinearlyDistributedInt<min, max> to_add, Vector<Byte> output, Int index) -> Bool:
+    if max - min < 256:
+        let value : Byte 
+        if !parse_from_vector(value, output, index):
+            return false
+        let value_casted = int(value) + 128
+        value_casted = value_casted % (max - min)
+        to_add.value = int(value_casted) + min
+        return true
+    else:
+        let value : Int
+        if !parse_from_vector(value, output, index):
+            return false
+        to_add.value = (value % (max - min)) + min
+        return true
+
+fun<Int min, Int max> append_to_string(LinearlyDistributedInt<min, max> to_add, String output):
+    append_to_string(to_add.value, output)
+
+fun<Int min, Int max> parse_string(LinearlyDistributedInt<min, max> to_add, String input, Int index) -> Bool:
+    if !parse_string(to_add.value, input, index):
+        return false
+    if to_add.value < min or to_add.value >= max:
+        return false
+    return true
+
+fun<Int min, Int max> enumerate(LinearlyDistributedInt<min, max> to_add, Vector<LinearlyDistributedInt<min, max>> output):
+    let counter = min
+    while counter < max:
+        let x : LinearlyDistributedInt<min, max>
+        x.value = counter
+        output.append(x)
+        counter = counter + 1
+
+fun<Int min, Int max> tensorable_warning(LinearlyDistributedInt<min, max> x, String out):
     return

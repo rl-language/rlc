@@ -112,8 +112,9 @@ namespace mlir::rlc
 				.str();
 	}
 
-	mlir::LogicalResult emitImplicitAssign(mlir::ModuleOp op);
-	void emitImplicitInits(mlir::ModuleOp op);
+	mlir::LogicalResult emitImplicitAssign(
+			mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder);
+	void emitImplicitInits(mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder);
 	void lowerIsOperations(mlir::Operation* op, mlir::rlc::ValueTable& table);
 	void lowerConstructOps(
 			mlir::rlc::ModuleBuilder& builder, mlir::Operation* op);

@@ -16,7 +16,10 @@ namespace mlir::rlc
 		if (not skipParsing)
 		{
 			manager.addPass(mlir::rlc::createParseFilePass(
-					{ &includeDirs, inputFile, srcManager }));
+					{ &includeDirs,
+						inputFile,
+						srcManager,
+						emitDependencyFile ? outputFile : "" }));
 		}
 		if (request == Request::dumpUncheckedAST)
 		{
@@ -139,7 +142,7 @@ namespace mlir::rlc
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
 			return;
 		}
-		manager.addPass(mlir::rlc::createLowerToLLVMPass({ debug }));
+		manager.addPass(mlir::rlc::createLowerToLLVMPass({ debug, abortSymbol }));
 		manager.addPass(mlir::rlc::createRemoveUselessAllocaPass());
 		if (request == Request::executable and not emitFuzzer)
 			manager.addPass(mlir::rlc::createEmitMainPass({ debug }));

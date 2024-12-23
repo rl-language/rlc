@@ -243,7 +243,10 @@ namespace mlir::rlc
 			return nullptr;
 		}
 
+		bool isTemplateType(mlir::Type t);
+
 		private:
+		mlir::DenseMap<mlir::Type, bool> isTemplate;
 		mlir::ModuleOp op;
 		mlir::IRRewriter rewriter;
 		std::vector<std::unique_ptr<ValueTable>> values;

@@ -156,6 +156,7 @@ fun create_graph() -> Graph:
 
     return self 
 
+@classes
 act play() -> Game:
     frm graph = create_graph()
     frm are_we_done_generating = 1

@@ -10,7 +10,6 @@ import board
 import move
 import action
 
-
 act roll_melee(frm UnitKind kind) -> RollMelee:
   # ToDo: implement marine sergent
   act roll_dice(frm DiceRoll roll1)
@@ -172,7 +171,7 @@ act action_phase(ctx Board board, frm Faction current_faction) -> ActionPhase:
       act quit()
         return
 
-
+@classes
 act play() -> Game:
     frm board = make_board()
     frm index : BInt<0, 3>

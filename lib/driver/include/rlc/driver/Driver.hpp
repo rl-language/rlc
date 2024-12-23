@@ -40,6 +40,7 @@ namespace mlir::rlc
 
 		void setDumpIR(bool doDump) { dumpIR = doDump; }
 		void setClangPath(std::string newPath) { clangPath = newPath; }
+		void setAbortSymbol(std::string abortSym) { abortSymbol = abortSym; }
 		void setExtraObjectFile(std::vector<std::string> newExtraObjectFiles)
 		{
 			extraObjectFiles = newExtraObjectFiles;
@@ -60,6 +61,7 @@ namespace mlir::rlc
 
 		void setEmitBoundChecks(bool doEmit) { emitBoundChecks = doEmit; }
 		void setEmitSanitizer(bool doEmit) { emitSanitizer = doEmit; }
+		void setEmitDependencyFile(bool doEmit) { emitDependencyFile = doEmit; }
 
 		void setSkipParsing(bool doIt = true) { skipParsing = doIt; }
 		void setDebug(bool doIt = true) { debug = doIt; }
@@ -84,10 +86,13 @@ namespace mlir::rlc
 		bool emitBoundChecks = true;
 		bool emitFuzzer = false;
 		bool emitSanitizer = false;
+		bool emitDependencyFile = false;
 		bool skipParsing = false;
 		bool debug = false;
 
 		std::string clangPath = "clang";
+
+		std::string abortSymbol = "";
 
 		llvm::SourceMgr *srcManager;
 		llvm::SmallVector<std::string, 2> inputFile;

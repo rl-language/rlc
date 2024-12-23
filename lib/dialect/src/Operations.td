@@ -1358,6 +1358,8 @@ class RLC_BinaryBitwiseOp<string mnemonic, list<OpInterface> CA_Interface=[]> : 
 def RLC_BitOrOp : RLC_BinaryBitwiseOp<"bit_or"> {}
 def RLC_BitAndOp : RLC_BinaryBitwiseOp<"bit_and"> {}
 def RLC_BitXorOp : RLC_BinaryBitwiseOp<"bit_xor"> {}
+def RLC_LeftShiftOp : RLC_BinaryBitwiseOp<"left_shift"> {}
+def RLC_RightShiftOp : RLC_BinaryBitwiseOp<"right_shift"> {}
 
 def RLC_BitNotOp : RLC_Dialect<"bit_not", [TypeCheckable]> {
 
@@ -1630,6 +1632,48 @@ def RLC_ImplicitAssignOp : RLC_Dialect<"implicit_assign", [DeclareOpInterfaceMet
   let assemblyFormat = [{
 	 $lhs `:` type($lhs) `,` $rhs `:` type($rhs)  attr-dict
   }];
+}
+
+def RLC_BuiltinAsPtr : RLC_Dialect<"builtin_as_ptr", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value);
+
+  let results = (outs RLC_IntegerType:$result);
+
+  let assemblyFormat = [{
+	 $value`:` type($value) `->` type($result) attr-dict
+  }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$value), [{
+            build($_builder, $_state, mlir::rlc::IntegerType::getInt64($_builder.getContext()), value);
+    }]>];
+}
+
+def RLC_BuiltinMangledNameOp : RLC_Dialect<"builtin_mangled_name", [DeclareOpInterfaceMethods<TypeCheckable>]> {
+  let summary = "constant.";
+
+  let description = [{
+	expression.
+  }];
+
+  let arguments = (ins AnyType:$value);
+
+  let results = (outs RLC_StringLiteralType:$result);
+
+  let assemblyFormat = [{
+	 $value`:` type($value) `->` type($result) attr-dict
+  }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$value), [{
+            build($_builder, $_state, mlir::rlc::StringLiteralType::get($_builder.getContext()), value);
+    }]>];
 }
 
 def RLC_BuiltinAssignOp : RLC_Dialect<"builtin_assign", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<ConstraintsAnalyzable>]> {
@@ -1958,7 +2002,7 @@ def RLC_SelectBranch : RLC_Dialect<"switch", [Terminator, DeclareOpInterfaceMeth
   }];
 }
 
-def RLC_StorageCast : RLC_Dialect<"storage_cast"> {
+def RLC_StorageCast : RLC_Dialect<"storage_cast", [DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "Turns context and frame types into a regular type";
 
   let description = [{

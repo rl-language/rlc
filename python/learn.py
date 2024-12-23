@@ -189,7 +189,7 @@ def main():
     load_initial_states(program, args.initial_states)
     module_path = os.path.abspath(program.module_path)
 
-    ray.init(num_cpus=12, num_gpus=1, include_dashboard=False, log_to_driver=False)
+    ray.init(num_cpus=12, num_gpus=1, include_dashboard=True, log_to_driver=True)
     session_dir = ray.worker._global_node.get_session_dir_path()
     print(f"SESSION_DIR: {session_dir}")
     from ray import air, tune

@@ -4,6 +4,7 @@
 import serialization.print
 import string
 
+@classes
 act to_run() -> ToRun:
     act first(Bool asd)
     act second(Int tasd)

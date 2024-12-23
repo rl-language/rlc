@@ -83,10 +83,9 @@ namespace mlir::rlc
 		return fun;
 	}
 
-	static mlir::LogicalResult declareImplicitAssigns(mlir::ModuleOp op)
+	static mlir::LogicalResult declareImplicitAssigns(
+			mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder)
 	{
-		mlir::rlc::ModuleBuilder builder(op);
-
 		llvm::SmallVector<mlir::rlc::ImplicitAssignOp, 2> ops;
 		llvm::SmallVector<mlir::Type, 2> types;
 		op.walk([&](mlir::rlc::ImplicitAssignOp op) {
@@ -106,7 +105,7 @@ namespace mlir::rlc
 			const auto emitAllNeedSubtypes = [&](mlir::Type subtype) {
 				if (isBuiltinType(subtype) or
 						subtype.template isa<mlir::rlc::OwningPtrType>() or
-						isTemplateType(subtype).succeeded() or
+						builder.isTemplateType(subtype) or
 						subtype.template isa<mlir::rlc::IntegerLiteralType>() or
 						subtype.template isa<mlir::rlc::TraitMetaType>() or
 						subtype.template isa<mlir::rlc::VoidType>())
@@ -114,7 +113,7 @@ namespace mlir::rlc
 
 				auto toCall = declareImplicitAssign(
 						builder.getRewriter(), builder.getSymbolTable(), op, subtype);
-				if (isTemplateType(toCall.getType()).succeeded())
+				if (builder.isTemplateType(toCall.getType()))
 					builder.getRewriter().create<mlir::rlc::TemplateInstantiationOp>(
 							toCall.getLoc(),
 							mlir::FunctionType::get(
@@ -134,7 +133,7 @@ namespace mlir::rlc
 		{
 			assert(assign.getLhs().getType() != nullptr);
 			assert(assign.getRhs().getType() != nullptr);
-			if (isTemplateType(assign.getLhs().getType()).succeeded())
+			if (builder.isTemplateType(assign.getLhs().getType()))
 				continue;
 
 			if (isBuiltinType(assign.getLhs().getType()) and
@@ -164,11 +163,9 @@ namespace mlir::rlc
 		return mlir::success();
 	}
 
-	static void emitMemMove(
-			mlir::rlc::ModuleBuilder& builder, mlir::rlc::FunctionOp fun)
+	static void emitMemMove(mlir::IRRewriter& rewriter, mlir::rlc::FunctionOp fun)
 	{
 		auto resType = fun.getArgumentTypes().front();
-		auto& rewriter = builder.getRewriter();
 
 		auto* block = &fun.getBody().front();
 		rewriter.setInsertionPointToEnd(block);
@@ -280,7 +277,7 @@ namespace mlir::rlc
 					fun.getLoc(), toAssignType, block->getArgument(0));
 			auto contructed = rewriter.create<mlir::rlc::ConstructOp>(
 					fun.getLoc(), casted.getResult().getType());
-			assert(isTemplateType(contructed.getType()).failed());
+			assert(!builder.isTemplateType(contructed.getType()));
 			auto* call = builder.emitCall(
 					fun,
 					true,
@@ -409,7 +406,7 @@ namespace mlir::rlc
 		}
 		else if (isTriviallyCopiable(lhs))
 		{
-			emitMemMove(builder, fun);
+			emitMemMove(builder.getRewriter(), fun);
 		}
 		else if (auto arraytype = lhs.dyn_cast<mlir::rlc::ArrayType>())
 		{
@@ -433,9 +430,9 @@ namespace mlir::rlc
 		rewriter.create<mlir::rlc::Yield>(fun.getLoc(), mlir::ValueRange({}));
 	}
 
-	static void emitImplicitAssigments(mlir::ModuleOp op)
+	static void emitImplicitAssigments(
+			mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder)
 	{
-		mlir::rlc::ModuleBuilder builder(op);
 		mlir::IRRewriter& rewriter = builder.getRewriter();
 
 		for (auto decl : builder.getSymbolTable().get(
@@ -443,11 +440,12 @@ namespace mlir::rlc
 			emitImplicitAssign(builder, decl.getDefiningOp<mlir::rlc::FunctionOp>());
 	}
 
-	mlir::LogicalResult emitImplicitAssign(mlir::ModuleOp op)
+	mlir::LogicalResult emitImplicitAssign(
+			mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder)
 	{
-		if (declareImplicitAssigns(op).failed())
+		if (declareImplicitAssigns(op, builder).failed())
 			return mlir::failure();
-		emitImplicitAssigments(op);
+		emitImplicitAssigments(op, builder);
 		return mlir::success();
 	}
 
@@ -462,7 +460,8 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			if (emitImplicitAssign(getOperation()).failed())
+			mlir::rlc::ModuleBuilder builder(getOperation());
+			if (emitImplicitAssign(getOperation(), builder).failed())
 				signalPassFailure();
 		}
 	};

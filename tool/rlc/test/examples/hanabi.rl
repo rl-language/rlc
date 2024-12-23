@@ -74,6 +74,7 @@ fun other_player(Int current_player) -> Int:
         return 1
     return 0
 
+@classes
 act play() -> Game:
     # hanabi deck is secret to all players
     frm deck : Hidden<DeckType>

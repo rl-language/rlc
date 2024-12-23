@@ -47,7 +47,9 @@ namespace rlc
 			Parser parser(context, content.str(), fileName.str());
 			auto maybeAst = parser.system(module);
 			for (auto file : parser.getImportedFiles())
+			{
 				fileToLoad.push_back(file);
+			}
 			if (not maybeAst)
 				return maybeAst.takeError();
 			return llvm::Error::success();
@@ -102,6 +104,8 @@ namespace rlc
 				if (alreadyLoaded.contains(AbslutePath))
 					continue;
 
+				includedFiles.push_back(AbslutePath);
+
 				alreadyLoaded.insert(AbslutePath);
 				if (auto error = parseOneFile(
 								sourceManager->getMemoryBuffer(id)->getBuffer().str(),
@@ -133,10 +137,16 @@ namespace rlc
 			return module;
 		}
 
+		llvm::ArrayRef<std::string> getImportedFiles() const
+		{
+			return includedFiles;
+		}
+
 		private:
 		llvm::SourceMgr* sourceManager;
 		mlir::MLIRContext* context;
 		mlir::ModuleOp module;
+		llvm::SmallVector<std::string, 4> includedFiles;
 	};
 
 }	 // namespace rlc

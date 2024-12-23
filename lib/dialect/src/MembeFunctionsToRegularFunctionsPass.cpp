@@ -75,8 +75,9 @@ namespace mlir::rlc
 
 					if (not function.isDeclaration())
 					{
-						function.getPrecondition().insertArgument(
-								(unsigned int) 0, newArgs[0], function.getLoc());
+						if (not function.getPrecondition().empty())
+							function.getPrecondition().insertArgument(
+									(unsigned int) 0, newArgs[0], function.getLoc());
 						function.getBody().insertArgument(
 								(unsigned int) 0, newArgs[0], function.getLoc());
 					}

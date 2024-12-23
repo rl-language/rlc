@@ -12,6 +12,7 @@ import action
 cls Struct:
     Int field
 
+@classes
 act play() -> Game:
     act asd(Int x) {x == 4}
     act asd2(Struct y) {y.field == 5}
