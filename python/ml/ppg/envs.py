@@ -112,8 +112,8 @@ class SingleRLCEnvironment:
             self.ptr_to_valid_actions, shape=(self.num_actions,)
         )
 
-        rng = np.random.default_rng()
-        self.random_numbers = rng.integers(low=0, high=self.num_actions, size=1_000_000)
+        self.rng = np.random.default_rng()
+        self.random_numbers = self.rng.integers(low=0, high=self.num_actions, size=1_000_000)
         self.current_random_index = 0
 
         self.current_player_fn = (
@@ -212,6 +212,7 @@ class SingleRLCEnvironment:
         self.last_score = [0.0 for p in range(self.num_players)]
         self.current_score = [0.0 for p in range(self.num_players)]
         self.first_move = [True for p in range(self.num_players)]
+        self.random_numbers = self.rng.integers(low=0, high=self.num_actions, size=1_000_000)
 
     def is_first_move(self, player_id):
         return self.first_move[player_id]
