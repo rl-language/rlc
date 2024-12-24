@@ -48,8 +48,8 @@ class MPIFakeObject:
 def make_model(venv, path_to_weights="", arch="shared"):
     enc_fn = lambda obtype: FullyConnectedEncoder(
         obtype.shape,
-        outsize=obtype.shape[0],
-        hidden_sizes=(obtype.shape[0], obtype.shape[0]),
+        outsize=obtype.shape[0] if venv.num_actions < obtype.shape[0] else venv.num_actions,
+        hidden_sizes=(obtype.shape[0] if venv.num_actions < obtype.shape[0] else venv.num_actions, obtype.shape[0] if venv.num_actions < obtype.shape[0] else venv.num_actions),
     )
     model = ppg.PhasicValueModel(venv.ob_space, venv.ac_space, enc_fn, arch=arch)
 
@@ -64,7 +64,7 @@ def make_model(venv, path_to_weights="", arch="shared"):
 def train_fn(
     program,
     distribution_mode="hard",
-    arch="shared",  # 'shared', 'detach', or 'dual'
+    arch="dual",  # 'shared', 'detach', or 'dual'
     # 'shared' = shared policy and value networks
     # 'dual' = separate policy and value networks
     # 'detach' = shared policy and value networks, but with the value function gradient detached during the policy phase to avoid interference

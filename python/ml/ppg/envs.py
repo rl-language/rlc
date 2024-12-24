@@ -286,6 +286,7 @@ class RLCMultiEnv(Env):
         self.previous_game_custom_log_metrics = np.zeros(
             (self.num, len(self.get_user_defined_log_functions())), dtype=np.float32
         )
+        self.num_actions = self.games[0].num_actions
 
         super().__init__(ob_space=self.ob_space, ac_space=self.ac_space, num=self.num)
 
