@@ -29,6 +29,9 @@ def main():
     )
     parser.add_argument("--no-tensorboard", action="store_true", default=False)
     parser.add_argument("--total-steps", default=100000000, type=int)
+    parser.add_argument("--lr", default=1e-4, type=float)
+    parser.add_argument("--entropy-coeff", default=0.1, type=float)
+    parser.add_argument("--clip-param", default=0.0002, type=float)
     parser.add_argument("--load", default="", type=str)
     parser.add_argument("--hypersearch", default=False, action="store_true")
     parser.add_argument(
@@ -70,8 +73,12 @@ def main():
             total_steps=args.total_steps,
             envs=args.envs,
             path_to_weights=args.load,
+            clip_param=args.clip_param,
             output=args.output,
+            lr=args.lr,
             model_save_frequency=args.model_save_frequency,
+            entcoef=args.entropy_coeff,
+            nstep=5000,
             log_dir="/tmp/ppg"
         )
 

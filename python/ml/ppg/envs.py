@@ -178,7 +178,7 @@ class SingleRLCEnvironment:
         to_return = ones_indicies[
             self.random_numbers[self.current_random_index] % len(ones_indicies)
         ]
-        self.current_random_index = (self.current_random_index + 1) % 100_000_000
+        self.current_random_index = (self.current_random_index + 1) % 1_000_000
         return to_return
 
     def get_action_mask(self):

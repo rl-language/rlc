@@ -169,7 +169,7 @@ def train(
         program,
         interacts_total=total_steps,
         num_envs=envs,
-        nminibatch=envs,
+        nminibatch=2,
         path_to_weights=path_to_weights,
         output=output,
         model_save_frequency=model_save_frequency,
