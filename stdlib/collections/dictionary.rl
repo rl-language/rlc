@@ -15,7 +15,6 @@
 import serialization.to_hash
 import serialization.print
 import serialization.key_equal
-import none
 
 cls<KeyType, ValueType> Entry:
     Bool occupied
@@ -78,25 +77,24 @@ cls<KeyType, ValueType>Dict:
                 distance = distance + 1
                 index = (index + 1) % self._capacity
     
-    fun get(KeyType key) -> Nothing | ValueType:
+    fun get(KeyType key) -> ValueType:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let distance = 0
-        let to_return : Nothing | ValueType
-        to_return = none()
+        let to_return : ValueType
 
         while true:
             let entry = self._entries[index]
             
             if !entry.occupied:
-                break
+                assert(false, "key not found")
             else if entry.hash == hash and compute_equal_of(entry.key, key):
                 to_return = entry.value
                 break
             else:
                 let existing_entry_distance = (index + self._capacity - (entry.hash % self._capacity)) % self._capacity
                 if existing_entry_distance < distance:
-                    break
+                    assert(false, "key not found")
                 distance = distance + 1
                 index = (index + 1) % self._capacity
         return to_return
@@ -137,6 +135,7 @@ cls<KeyType, ValueType>Dict:
             else if entry.hash == hash and compute_equal_of(entry.key, key):
                 __builtin_destroy_do_not_use(self._entries[index])
                 __builtin_construct_do_not_use(self._entries[index])
+                self._size = self._size - 1
                 return true
             else:
                 let existing_entry_distance = (index + self._capacity - (entry.hash % self._capacity)) % self._capacity
