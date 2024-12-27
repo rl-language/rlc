@@ -181,19 +181,19 @@ class Roller:
         return out
 
     def _resolve_players(self):
-        i = 0
-        player = self.current_past_strategy_player % self._venv.get_num_player()
-        while self._venv.current_player_one(i) != player:
-            lastrew, ob, first =  tree_util.tree_map(tu.np2th, self._venv.observe_one(i))
-            action_mask = th.from_numpy(self._venv.one_action_mask(i)).to(device=tu.dev())
-            ac, newstate, other_outs = self.past_stragey_model.act(
-                ob=ob,
-                first=first,
-                state_in=self._state,
-                action_mask=action_mask,
-            )
+        for i in range(4):
+            player = (self.current_past_strategy_player + i) % self._venv.get_num_player()
+            while self._venv.current_player_one(i) != player:
+                lastrew, ob, first =  tree_util.tree_map(tu.np2th, self._venv.observe_one(i))
+                action_mask = th.from_numpy(self._venv.one_action_mask(i)).to(device=tu.dev())
+                ac, newstate, other_outs = self.past_stragey_model.act(
+                    ob=ob,
+                    first=first,
+                    state_in=self._state,
+                    action_mask=action_mask,
+                )
 
-            self._venv.step_one(i, ac[0])
+                self._venv.step_one(i, ac[0])
 
     def single_step(self, **act_kwargs) -> dict:
         """
