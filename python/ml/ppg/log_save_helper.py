@@ -79,8 +79,15 @@ class LogSaveHelper:
             for p in range(self.num_players)
         }
         for i, stat in enumerate(roller.get_user_defined_log_functions()):
+            mesurments = roller.recent_stats(i)
             self.roller_stats[stat] = self._nanmean(
-                [] if roller is None else roller.recent_stats(i)
+                [] if roller is None else mesurments
+            )
+            self.roller_stats[stat + "_max"] = self._nanmax(
+                [] if roller is None else mesurments
+            )
+            self.roller_stats[stat + "_min"] = self._nanmin(
+                [] if roller is None else mesurments
             )
 
         if roller is not None and self.log_new_eps:
@@ -152,6 +159,14 @@ class LogSaveHelper:
     def _nanmean(self, xs):
         xs = _flatten(self.comm.allgather(xs))
         return np.nan if len(xs) == 0 else np.mean(xs)
+
+    def _nanmax(self, xs):
+        xs = _flatten(self.comm.allgather(xs))
+        return np.nan if len(xs) == 0 else np.max(xs)
+
+    def _nanmin(self, xs):
+        xs = _flatten(self.comm.allgather(xs))
+        return np.nan if len(xs) == 0 else np.min(xs)
 
     def _nanmoments(self, xs, **kwargs):
         xs = _flatten(self.comm.allgather(xs))
