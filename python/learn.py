@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--entropy-coeff", default=0.1, type=float)
     parser.add_argument("--clip-param", default=0.0002, type=float)
     parser.add_argument("--load", default="", type=str)
+    parser.add_argument("--steps-per-env", default=5000, type=int)
     parser.add_argument("--hypersearch", default=False, action="store_true")
     parser.add_argument(
         "--model-save-frequency",
@@ -78,7 +79,7 @@ def main():
             lr=args.lr,
             model_save_frequency=args.model_save_frequency,
             entcoef=args.entropy_coeff,
-            nstep=5000,
+            nstep=args.steps_per_env,
             log_dir="/tmp/ppg"
         )
 

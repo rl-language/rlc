@@ -44,12 +44,14 @@ class MPIFakeObject:
     def gather(self, obj):
         return [obj]
 
+def _make_hidde_layers(size):
+    return (size, size, size)
 
 def make_model(venv, path_to_weights="", arch="shared"):
     enc_fn = lambda obtype: FullyConnectedEncoder(
         obtype.shape,
         outsize=obtype.shape[0] if venv.num_actions < obtype.shape[0] else venv.num_actions,
-        hidden_sizes=(obtype.shape[0] if venv.num_actions < obtype.shape[0] else venv.num_actions, obtype.shape[0] if venv.num_actions < obtype.shape[0] else venv.num_actions),
+        hidden_sizes=_make_hidde_layers(obtype.shape[0] if venv.num_actions < obtype.shape[0] else venv.num_actions),
     )
     model = ppg.PhasicValueModel(venv.ob_space, venv.ac_space, enc_fn, arch=arch)
 
