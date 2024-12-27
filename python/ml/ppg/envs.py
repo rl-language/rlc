@@ -282,7 +282,7 @@ class RLCMultiEnv(Env):
         self.first_for_all = np.ones(self.num, dtype=bool)
         self.first_move = np.ones(self.num, dtype=bool)
         self.rew = np.zeros(self.num, dtype=np.float32)
-        self.just_acted_players = None
+        self.just_acted_players = self.current_player()
         self.previous_game_custom_log_metrics = np.zeros(
             (self.num, len(self.get_user_defined_log_functions())), dtype=np.float32
         )
@@ -296,8 +296,14 @@ class RLCMultiEnv(Env):
     def action_mask(self):
         return np.array([g.get_action_mask() for g in self.games])
 
+    def one_action_mask(self, game_id):
+        return np.array([self.games[game_id].get_action_mask()])
+
     def current_player(self):
         return np.array([g.get_current_player() for g in self.games])
+
+    def current_player_one(self, index):
+        return self.games[index].get_current_player()
 
     def previous_players(self):
         return self.just_acted_players
@@ -306,28 +312,35 @@ class RLCMultiEnv(Env):
         obs = np.array([g.get_state() for g in self.games])
         return self.rew, obs, self.first_move
 
+    def observe_one(self, game_index):
+        obs = np.array([self.games[game_index].get_state()])
+        return self.rew[game_index:game_index+1], obs, self.first_move[game_index:game_index+1]
+
     def act(self, ac):
         self.step(ac)
 
     def is_done_for_everyone(self, game_id):
         return self.games[game_id].is_done_for_everyone()
 
+    def step_one(self, i, action):
+        game = self.games[i]
+        self.just_acted_players[i] = game.get_current_player()
+        self.rew[i] = game.step(action[0])
+        self.first_for_all[i] = False
+        if game.is_done_for_everyone():
+            for metric_id, metric in enumerate(
+                self.get_user_defined_log_functions().values()
+            ):
+                self.previous_game_custom_log_metrics[i, metric_id] = (
+                    game.log_extra_metrics(metric)
+                )
+            game.reset()
+            self.first_for_all[i] = True
+        self.first_move[i] = game.is_first_move(game.get_current_player())
+
     def step(self, ac):
-        self.just_acted_players = self.current_player()
         for i, action in enumerate(ac):
-            game = self.games[i]
-            self.rew[i] = game.step(action[0])
-            self.first_for_all[i] = False
-            if game.is_done_for_everyone():
-                for metric_id, metric in enumerate(
-                    self.get_user_defined_log_functions().values()
-                ):
-                    self.previous_game_custom_log_metrics[i, metric_id] = (
-                        game.log_extra_metrics(metric)
-                    )
-                game.reset()
-                self.first_for_all[i] = True
-            self.first_move[i] = game.is_first_move(game.get_current_player())
+            self.step_one(i, action)
 
         return self.observe()
 

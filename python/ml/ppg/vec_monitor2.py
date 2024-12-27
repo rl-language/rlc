@@ -43,7 +43,7 @@ class PostActProcessing(gym3.Wrapper):
         raise NotImplementedError
 
     def get_num_player(self):
-        self.env.get_num_players()
+        return self.env.get_num_players()
 
 
 class VecMonitor2(PostActProcessing):
@@ -125,6 +125,18 @@ class VecMonitor2(PostActProcessing):
 
     def log_extra_metrics(self, metric):
         return self.env.log_extra_metrics(metric)
+
+    def step_one(self, i, action):
+        return self.env.step_one(i, action)
+
+    def current_player_one(self, index):
+        return self.env.current_player_one(index)
+
+    def one_action_mask(self, game_id):
+        return  self.env.one_action_mask(game_id)
+
+    def observe_one(self, i):
+        return self.env.observe_one(i)
 
     def get_user_defined_log_functions(self):
         return self.env.get_user_defined_log_functions()

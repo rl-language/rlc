@@ -248,6 +248,7 @@ def learn(
     interacts_total=float("inf"),
     name2coef=None,
     comm=None,
+    path_to_league_play_dir="",
 ):
     """
     Run PPO for X iterations
@@ -277,11 +278,14 @@ def learn(
             interacts_total=interacts_total,
             store_segs=store_segs,
             comm=comm,
+            path_to_league_play_dir=path_to_league_play_dir,
             **ppo_hps,
         )
 
         if ppo_state["curr_interact_count"] >= interacts_total:
             break
+
+
 
         if n_aux_epochs > 0:
             segs = ppo_state["seg_buf"]

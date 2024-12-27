@@ -4,6 +4,7 @@ Mostly copied from ppo.py but with some extra options added that are relevant to
 
 import numpy as np
 import torch as th
+from copy import deepcopy
 from . import tree_util
 from . import torch_util as tu
 from . import log_save_helper
@@ -143,6 +144,7 @@ def learn(
     comm: "(MPI.Comm) MPI communicator" = None,
     callbacks: "(seq of function(dict)->bool) to run each update" = (),
     learn_state: "dict with optional keys {'opts', 'roller', 'lsh', 'reward_normalizer', 'curr_interact_count', 'seg_buf'}" = None,
+    path_to_league_play_dir="",
 ):
 
     assert comm != None
@@ -168,6 +170,22 @@ def learn(
 
     def get_weight(k):
         return default_loss_weights[k] if k in default_loss_weights else 1.0
+
+    def league_play_setup():
+        if path_to_league_play_dir == "":
+            return
+        interval_count = 50
+        if curr_iteration % interval_count == 0:
+            th.save(model.state_dict(), path_to_league_play_dir + "/net" + str(int(curr_iteration / interval_count)) + ".pt")
+
+        if 50 > curr_iteration:
+            return
+
+        if curr_iteration % 10 == 0:
+            to_load = path_to_league_play_dir + "/net" + str(curr_iteration % (int(curr_iteration / interval_count))) + ".pt"
+            content = th.load(to_load, weights_only=False)
+            roller.past_stragey_model.load_state_dict(content)
+            roller.current_past_strategy_player = roller.current_past_strategy_player + 1
 
     def train_with_losses_and_opt(loss_keys, opt, **arrays):
         losses, diags = compute_losses(
@@ -203,6 +221,7 @@ def learn(
         initial_state=model.initial_state(venv.num),
         keep_buf=10000,
         keep_non_rolling=log_save_opts.get("log_new_eps", False),
+        past_stragey_model=deepcopy(model),
     )
 
     lsh = learn_state.get("lsh") or log_save_helper.LogSaveHelper(
@@ -212,10 +231,11 @@ def learn(
     callback_exit = False  # Does callback say to exit loop?
 
     curr_interact_count = learn_state.get("curr_interact_count") or 0
-    curr_iteration = 0
+    curr_iteration = learn_state.get("curr_iteration") or 0
     seg_buf = learn_state.get("seg_buf") or []
 
     while curr_interact_count < interacts_total and not callback_exit:
+        league_play_setup()
         seg = roller.multi_step(nstep)
         lsh.gather_roller_stats(roller)
         if rnorm:
@@ -266,5 +286,6 @@ def learn(
         lsh=lsh,
         reward_normalizer=reward_normalizer,
         curr_interact_count=curr_interact_count,
+        curr_iteration=curr_iteration,
         seg_buf=seg_buf,
     )

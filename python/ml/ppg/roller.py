@@ -19,6 +19,7 @@ class Roller:
         keep_sep_eps: "keep buffer of per-env episodes in VecMonitor2" = False,
         keep_non_rolling: "also keep a non-rolling buffer of episode stats" = False,
         keep_cost: "keep per step costs and add to segment" = False,
+        past_stragey_model = None,
     ):
         """
         All outputs from public methods are torch arrays on default device
@@ -37,6 +38,8 @@ class Roller:
         self._infos = None
         self._keep_cost = keep_cost
         self.has_non_rolling_eps = keep_non_rolling
+        self.past_stragey_model = past_stragey_model
+        self.current_past_strategy_player = 0
 
     @property
     def interact_count(self) -> int:
@@ -177,10 +180,28 @@ class Roller:
         del out["lastrew"]
         return out
 
+    def _resolve_players(self):
+        i = 0
+        player = self.current_past_strategy_player % self._venv.get_num_player()
+        while self._venv.current_player_one(i) != player:
+            lastrew, ob, first =  tree_util.tree_map(tu.np2th, self._venv.observe_one(i))
+            action_mask = th.from_numpy(self._venv.one_action_mask(i)).to(device=tu.dev())
+            ac, newstate, other_outs = self.past_stragey_model.act(
+                ob=ob,
+                first=first,
+                state_in=self._state,
+                action_mask=action_mask,
+            )
+
+            self._venv.step_one(i, ac[0])
+
     def single_step(self, **act_kwargs) -> dict:
         """
         step vectorized environment once, return results
         """
+        if self.past_stragey_model != None:
+            self._resolve_players()
+
         out = {}
         lastrew, ob, first = tree_util.tree_map(tu.np2th, self._venv.observe())
         if self._keep_cost:
@@ -213,110 +234,6 @@ class Roller:
         self._step_count += 1
         return out
 
-    # def collect_steps(self, nstep, **act_kwargs) -> dict:
-    # """
-    # Collect steps for nstep timesteps without final environment observation.
-    # Returns a combined dictionary of data shaped (nenv, nstep, ...).
-    # """
-    # if self._venv.num == 0:
-    # self._step_count += nstep
-    # return {}
-
-    # state_in = self.get_state()
-    # singles = [self.single_step(**act_kwargs) for _ in range(nstep)]
-    # combined = self.singles_to_multi(singles)
-    # combined["state_in"] = state_in
-
-    # Convert lastrew into reward by shifting:
-    # In single-agent code, usually reward = cat(lastrew[:,1:], finalrew[:,None])
-    # Here we do not have a finalrew from observe at the end,
-    # so just treat lastrew as the reward at that step.
-    # reward for step t is lastrew at step t, there's no extra step after last step.
-    # So reward == lastrew is fine here.
-    # If needed, you can rename lastrew to reward for clarity.
-    # combined["reward"] = combined["lastrew"]
-    # if self._keep_cost:
-    # combined["cost"] = combined["lastcost"]
-
-    # return combined
-
-    # def split_player_data(self, combined: dict) -> dict:
-    # """
-    # After collecting steps, split by player.
-    # The finalstate, finalobs, finalmask, finalreward for each player is the last step they took.
-    # """
-    # player_id = combined["player_id"]  # shape (nenv, nstep)
-    # nenv, nstep = player_id.shape
-
-    # unique_players = th.unique(player_id)
-
-    # # For each player, we find the steps they acted in.
-    # # We'll keep data in (nenv, nstep) form and just mask it.
-    # per_player_out = {}
-
-    # # Identify keys that have a time dimension (like ob, ac, reward)
-    # # We'll assume all keys except "state_in" are time-based (since collected each step)
-    # time_based_keys = [k for k, v in combined.items() if k != "state_in" and k != "newstate" and v.dim() >= 2 and v.shape[1] == nstep]
-    # # Note: keys like player_id, ob, ac, reward, first, action_mask, newstate should all be (nenv, nstep, ...).
-
-    # for p in unique_players:
-    # p_id = p.item()
-    # # Create a mask for steps belonging to this player:
-    # mask = (player_id == p_id)  # (nenv, nstep) boolean
-
-    # # Extract all the steps for this player
-    # # Flatten them into a single list of steps (like a single-agent trajectory)
-    # # We'll gather along both env and time dimensions:
-    # idx = mask.nonzero(as_tuple=False)  # shape (X, 2) where X is number of steps for this player
-    # # idx[:,0] = env indices, idx[:,1] = step indices
-    # # Steps are collected in order, so sorting by env and time is stable
-    # # They should already be in order since we acted in steps in sequence.
-
-    # # Gather data for each key
-    # player_data = {}
-    # for k in time_based_keys:
-    # # shape: (nenv, nstep, ...)
-    # v = combined[k]
-    # # We gather using idx to get only the player's steps
-    # player_data[k] = v[idx[:, 0], idx[:, 1]].reshape(v.shape[0], -1)
-
-    # # Also store state_in for reference (same for all steps, if needed)
-    # player_data["state_in"] = combined["state_in"]
-
-    # # Now determine final step for this player: the last entry in idx
-    # if idx.shape[0] > 0:
-    # last_env = idx[-1, 0].item()
-    # last_t = idx[-1, 1].item()
-
-    # # finalobs: the observation at the last step they took
-    # # finalmask: the action_mask at the last step
-    # # finalreward: the reward at the last step
-    # # finalstate: the newstate at the last step
-
-    # player_data["finalob"] = combined["ob"][last_env, last_t].unsqueeze(0)
-    # player_data["finalmask"] = combined["action_mask"][last_env, last_t].unsqueeze(0)
-    # player_data["finalrew"] = combined["reward"][last_env, last_t].unsqueeze(0)
-    # player_data["finalstate"] = combined["newstate"]
-    # else:
-    # # This player had no steps in this segment
-    # # final arrays don't apply
-    # player_data["finalob"] = None
-    # player_data["finalmask"] = None
-    # player_data["finalrew"] = None
-    # player_data["finalstate"] = None
-
-    # per_player_out[p_id] = player_data
-
-    # return per_player_out
-
-    # def multi_step(self, nstep, **act_kwargs) -> dict:
-    # """
-    # Step vectorized environment nstep times, then split by players,
-    # using the last step a player took as their final state.
-    # """
-    # combined = self.collect_steps(nstep, **act_kwargs)
-    # per_player_data = self.split_player_data(combined)
-    # return per_player_data
 
     def get_state(self):
         return self._state

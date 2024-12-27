@@ -89,6 +89,7 @@ def train_fn(
     nstep=500,
     entcoef=0.0015,
     log_dir="/tmp/ppg",
+    league_play_dir="",
     output="model.pt",
     path_to_weights="",
     comm=MPIFakeObject(),
@@ -132,6 +133,7 @@ def train_fn(
         n_pi=n_pi,
         name2coef=name2coef,
         comm=comm,
+        path_to_league_play_dir=league_play_dir,
     )
 
 
@@ -155,6 +157,7 @@ def train(
     output="",
     model_save_frequency=1000,
     log_dir="/tmp/ppg",
+    league_play_dir="",
 ):
     if not program.functions.print_enumeration_errors(program.module.AnyGameAction()):
         exit(-1)
@@ -180,4 +183,5 @@ def train(
         clip_param=clip_param,
         entcoef=entcoef,
         nstep=nstep,
+        league_play_dir=league_play_dir,
     )

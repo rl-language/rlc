@@ -7,6 +7,7 @@ from ml.ppg.envs import RLCMultiEnv, exit_on_invalid_env, get_num_players
 
 from tensorboard.program import TensorBoard
 from ml.ppg.train import train
+from os import makedirs
 
 def hypersearch_params():
     for lr in [1e-3, 1e-4, 1e-5]:
@@ -32,6 +33,7 @@ def main():
     parser.add_argument("--lr", default=1e-4, type=float)
     parser.add_argument("--entropy-coeff", default=0.1, type=float)
     parser.add_argument("--clip-param", default=0.0002, type=float)
+    parser.add_argument("--league-play", default=False, action="store_true")
     parser.add_argument("--load", default="", type=str)
     parser.add_argument("--steps-per-env", default=5000, type=int)
     parser.add_argument("--hypersearch", default=False, action="store_true")
@@ -54,6 +56,8 @@ def main():
         tb = TensorBoard()
         tb.configure(argv=[None, "--logdir", "/tmp/ppg/"])
         url = tb.launch()
+    if args.league_play:
+       makedirs("/tmp/ppg/nets", exist_ok=True)
 
     if args.hypersearch:
         for num, params in enumerate(hypersearch_params()):
@@ -80,7 +84,8 @@ def main():
             model_save_frequency=args.model_save_frequency,
             entcoef=args.entropy_coeff,
             nstep=args.steps_per_env,
-            log_dir="/tmp/ppg"
+            log_dir="/tmp/ppg",
+            league_play_dir="" if not args.league_play else "/tmp/ppg/nets"
         )
 
     program.cleanup()
