@@ -84,6 +84,18 @@ cls String:
             val = val + 1
         self._data.append('\0')
 
+    fun append_quoted(String str):
+        self._data.pop()
+        self._data.append('"') 
+        let val = 0
+        while val < str.size():
+            if str[val] == '"':
+                self._data.append('\\') 
+            self._data.append(str.get(val)) 
+            val = val + 1
+        self._data.append('"') 
+        self._data.append('\0')
+
     # returns the concatenation of this
     # string and `other`, without modifying
     # this string.
@@ -213,6 +225,9 @@ ext fun load_file(String file_name, String out) -> Bool
 ext fun append_to_string(Int x, String output)
 ext fun append_to_string(Byte x, String output) 
 ext fun append_to_string(Float x, String output)
+
+fun append_to_string(String x, String output):
+    output.append_quoted(x)
 
 fun append_to_string(Bool x, String output):
     if x:
@@ -354,6 +369,34 @@ fun _consume_literal_token(String buffer, StringLiteral literal, Int index) -> B
     index = index + counter
 
     return true
+
+fun parse_string(String result, String buffer, Int index) -> Bool:
+    result = ""s
+    _consume_space(buffer, index)
+    if buffer.size() == index: 
+        return false
+
+    if buffer.substring_matches("\"", index):
+        index = index + 1
+    else:
+        return false
+
+    while index != buffer.size():
+        if buffer[index] == '"':
+            return true
+        if buffer[index] == '\\':
+            index = index + 1
+            if index == buffer.size():
+                return false
+            if buffer[index] == '"':
+                result.append('"')
+                index = index + 1
+                continue
+             
+        result.append(buffer[index])
+        index = index + 1
+
+    return false
 
 fun parse_string(Bool result, String buffer, Int index) -> Bool:
     _consume_space(buffer, index)

@@ -188,7 +188,10 @@ class SingleRLCEnvironment:
         return self.last_valid_action_mask
 
     def total_score(self, player_id):
-        return self.score_fn(self.state.state, player_id).value
+        score = self.score_fn(self.state.state, player_id)
+        if isinstance(score, float):
+            return score
+        return score.value
 
     def step_score(self, player_id):
         return self.current_score[player_id] - self.last_score[player_id]
@@ -260,6 +263,9 @@ class SingleRLCEnvironment:
 
     def pretty_print(self):
         self.state.pretty_print()
+
+    def print(self):
+        self.state.print()
 
     def is_done_for_everyone(self):
         return self.state.state.resume_index == -1 and len(self.players_final_turn) == 0
@@ -349,6 +355,9 @@ class RLCMultiEnv(Env):
 
     def pretty_print(self, game_id):
         self.games[game_id].pretty_print()
+
+    def print(self, game_id):
+        self.games[game_id].print()
 
     def get_user_defined_log_functions(self):
         return self.games[0].user_defined_log_functions

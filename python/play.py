@@ -55,7 +55,6 @@ def main():
         default="-",
     )
     parser.add_argument("checkpoint", type=str)
-    parser.add_argument("--true-self-play", action="store_true", default=False)
     parser.add_argument("--print-scores", action="store_true", default=False)
     parser.add_argument("--iterations", default=1, type=int)
     parser.add_argument("--progress", action="store_true", default=False)

@@ -7,7 +7,8 @@ from ml.ppg.envs import RLCMultiEnv, exit_on_invalid_env, get_num_players
 
 from tensorboard.program import TensorBoard
 from ml.ppg.train import train
-from os import makedirs
+from os import makedirs, path
+import tempfile
 
 def hypersearch_params():
     for lr in [1e-3, 1e-4, 1e-5]:
@@ -52,12 +53,15 @@ def main():
     args = parser.parse_args()
     program = load_program_from_args(args, True)
 
+    tmp_dir = path.join(tempfile.gettempdir(), "ppg")
+    league_play_nets_dir = path.join(tmp_dir, "nets")
+
     if not args.no_tensorboard:
         tb = TensorBoard()
-        tb.configure(argv=[None, "--logdir", "/tmp/ppg/"])
+        tb.configure(argv=[None, "--logdir", tmp_dir])
         url = tb.launch()
     if args.league_play:
-       makedirs("/tmp/ppg/nets", exist_ok=True)
+       makedirs(league_play_nets_dir, exist_ok=True)
 
     if args.hypersearch:
         for num, params in enumerate(hypersearch_params()):
@@ -69,7 +73,7 @@ def main():
                 path_to_weights=args.load,
                 output=args.output,
                 model_save_frequency=args.model_save_frequency,
-                log_dir=f"/tmp/ppg/{num}_{hypers}/",
+                log_dir=path.join(tmp_dir, f"{num}_{hypers}"),
                 **params
             )
     else:
@@ -84,8 +88,8 @@ def main():
             model_save_frequency=args.model_save_frequency,
             entcoef=args.entropy_coeff,
             nstep=args.steps_per_env,
-            log_dir="/tmp/ppg",
-            league_play_dir="" if not args.league_play else "/tmp/ppg/nets"
+            log_dir=tmp_dir,
+            league_play_dir="" if not args.league_play else league_play_nets_dir
         )
 
     program.cleanup()

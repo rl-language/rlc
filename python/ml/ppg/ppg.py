@@ -26,6 +26,17 @@ class PpoModel(th.nn.Module):
         raise NotImplementedError
 
     @tu.no_grad
+    def act_logp(self, ob, first, state_in, action_mask):
+        pd, vpred, _, state_out = self(
+            ob=tree_util.tree_map(lambda x: x[:, None], ob),
+            first=first[:, None],
+            state_in=state_in,
+            action_mask=action_mask,
+        )
+
+        return pd
+
+    @tu.no_grad
     def act(self, ob, first, state_in, action_mask):
         pd, vpred, _, state_out = self(
             ob=tree_util.tree_map(lambda x: x[:, None], ob),

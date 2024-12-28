@@ -25,8 +25,8 @@ def tensor_distr_builder(ac_space):
     """
     assert isinstance(ac_space, TensorType)
     eltype = ac_space.eltype
-    if eltype == Discrete(2):
-        return (ac_space.size, partial(_make_bernoulli, shape=ac_space.shape))
+    # if eltype == Discrete(2):
+        # return (ac_space.size, partial(_make_bernoulli, shape=ac_space.shape))
     if isinstance(eltype, Discrete):
         return (
             eltype.n * ac_space.size,

@@ -389,6 +389,10 @@ static mlir::rlc::Driver configureDriver(
 
 	if (pylib)
 	{
+		auto envVal = llvm::sys::Process::GetEnv("RLC_PYTHON_LIB_PATH");
+		if (envVal.has_value() and customPythonLibPath.empty())
+			customPythonLibPath = *envVal;
+
 		string pyrlcLibPath = customPythonLibPath.empty()
 															? llvm::sys::path::parent_path(pathToRlc).str() +
 																		"/../lib/" + PYRLC_LIBRARY_FILENAME

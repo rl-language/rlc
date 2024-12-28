@@ -12,7 +12,7 @@ import random
 import sys
 from rlc import Program, compile, State
 from shutil import which
-from ml.raylib.environment import exit_on_invalid_env
+from ml.ppg.envs import exit_on_invalid_env
 from command_line import load_program_from_args, make_rlc_argparse
 
 

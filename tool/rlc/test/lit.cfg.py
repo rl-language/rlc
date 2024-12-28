@@ -60,4 +60,5 @@ ld_library_path = os.path.pathsep.join((
     config.environment.get("LD_LIBRARY_PATH", "")))
 
 config.environment["LD_LIBRARY_PATH"] = ld_library_path
+config.environment["RLC_PYTHON_LIB_PATH"] = config.rlc_pyrlc_lib
 config.environment["RLC_RUNTIME_LIB_PATH"] = config.rlc_runtime_lib

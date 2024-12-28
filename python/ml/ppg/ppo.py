@@ -221,7 +221,7 @@ def learn(
         initial_state=model.initial_state(venv.num),
         keep_buf=10000,
         keep_non_rolling=log_save_opts.get("log_new_eps", False),
-        past_stragey_model=deepcopy(model),
+        past_stragey_model=deepcopy(model) if path_to_league_play_dir != "" else None,
     )
 
     lsh = learn_state.get("lsh") or log_save_helper.LogSaveHelper(
