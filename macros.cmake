@@ -139,7 +139,16 @@ macro(rlcAddBenchmark target)
 	ADD_EXECUTABLE(${target}Benchmark src/${target}Benchmark.cpp) 
 	ADD_EXECUTABLE(rlc::${target}Benchmark ALIAS ${target}Benchmark)
 
-	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE benchmark::benchmark ${ARGN})
+	include(FetchContent)
+	FetchContent_Declare(
+  		abseil
+  		GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  		GIT_TAG        20240722.0
+	)
+	FetchContent_MakeAvailable(abseil)
+
+	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE benchmark::benchmark)
+	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE absl::flat_hash_map)
 	TARGET_INCLUDE_DIRECTORIES(${target}Benchmark PUBLIC include PRIVATE src)
 	TARGET_COMPILE_FEATURES(${target}Benchmark PUBLIC cxx_std_20)
 
