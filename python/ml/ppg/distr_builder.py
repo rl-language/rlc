@@ -44,8 +44,7 @@ class Categorical:
         return log_pmf.gather(-1, value).squeeze(-1)
 
     def entropy(self):
-        min_real = th.finfo(self.logits.dtype).min
-        logits = th.clamp(self.logits, min=min_real)
+        logits = th.clamp(self.logits, min=-20, max=0)
         p_log_p = logits * self.probs
         return -p_log_p.sum(-1)
 
