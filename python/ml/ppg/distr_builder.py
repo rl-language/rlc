@@ -3,7 +3,7 @@ from functools import partial
 import torch as th
 import torch.distributions as dis
 from gym3.types import Discrete, Real, TensorType
-from torch.distributions.utils import probs_to_logits
+from torch.distributions.utils import probs_to_logits, logits_to_probs
 
 class Categorical:
     def __init__(self, probs_shape):
@@ -27,8 +27,8 @@ class Categorical:
         self.logits = probs_to_logits(self.probs)
 
     def set_logits(self, logits):
-        self.probs = th.softmax(logits, -1)
-        self.logits = logits
+        self.logits = logits - logits.logsumexp(dim=-1, keepdim=True)
+        self.probs = logits_to_probs(self.logits)
 
     def sample(self, sample_shape=th.Size()):
         if not isinstance(sample_shape, th.Size):
@@ -44,9 +44,11 @@ class Categorical:
         return log_pmf.gather(-1, value).squeeze(-1)
 
     def entropy(self):
-        logits = th.clamp(self.logits, min=-20, max=20)
+        min_real = th.finfo(self.logits.dtype).min
+        logits = th.clamp(self.logits, min=min_real)
         p_log_p = logits * self.probs
         return -p_log_p.sum(-1)
+
 
 
 
