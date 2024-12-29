@@ -1,4 +1,4 @@
-# RUN: rlc %s -o %t -i %stdlib
+# RUN: rlc %s -o %t -i %stdlib --sanitize
 # RUN: %t%exeext
 
 import collections.dictionary

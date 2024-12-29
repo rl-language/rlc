@@ -181,11 +181,20 @@ cls<KeyType, ValueType>Dict:
 
     # erases all the elements
     # of the dictionary
-    fun clear():        
-        while !self.empty():
-            self._size = self._size - 1
-            __builtin_destroy_do_not_use(self._entries[self._size])
-            __builtin_construct_do_not_use(self._entries[self._size])
+    fun clear():
+        let counter = 0
+        while counter < self._capacity:
+            __builtin_destroy_do_not_use(self._entries[counter])
+            counter = counter + 1
+        __builtin_free_do_not_use(self._entries)
+
+        self._capacity = 4
+        self._size = 0
+        self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(self._capacity)
+        let counter = 0
+        while counter < self._capacity:
+            __builtin_construct_do_not_use(self._entries[counter])
+            counter = counter + 1
 
     fun _grow():
         self._capacity = self._capacity * 2
@@ -207,5 +216,21 @@ cls<KeyType, ValueType>Dict:
                 counter = counter + 1
             index = index + 1
         
+        counter = 0
+        while counter < self._capacity / 2:  # Old capacity
+            __builtin_destroy_do_not_use(self._entries[counter])
+            counter = counter + 1
+        
+        __builtin_free_do_not_use(self._entries)
         self._entries = new_entries
         return
+
+    fun drop():
+        let counter = 0
+        while counter < self._capacity:
+            __builtin_destroy_do_not_use(self._entries[counter])
+            counter = counter + 1
+        if self._capacity != 0:
+            __builtin_free_do_not_use(self._entries)
+        self._size = 0
+        self._capacity = 0
