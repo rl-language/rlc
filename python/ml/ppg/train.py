@@ -45,7 +45,7 @@ class MPIFakeObject:
         return [obj]
 
 def _make_hidde_layers(size):
-    return (size, size, size)
+    return (size, size, size, size)
 
 def make_model(venv, path_to_weights="", arch="shared"):
     enc_fn = lambda obtype: FullyConnectedEncoder(
@@ -66,7 +66,7 @@ def make_model(venv, path_to_weights="", arch="shared"):
 def train_fn(
     program,
     distribution_mode="hard",
-    arch="dual",  # 'shared', 'detach', or 'dual'
+    arch="shared",  # 'shared', 'detach', or 'dual'
     # 'shared' = shared policy and value networks
     # 'dual' = separate policy and value networks
     # 'detach' = shared policy and value networks, but with the value function gradient detached during the policy phase to avoid interference

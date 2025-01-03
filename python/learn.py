@@ -71,9 +71,12 @@ def main():
                 program,
                 total_steps=args.total_steps,
                 path_to_weights=args.load,
+                envs=args.envs,
                 output=args.output,
                 model_save_frequency=args.model_save_frequency,
                 log_dir=path.join(tmp_dir, f"{num}_{hypers}"),
+                nstep=args.steps_per_env,
+                league_play_dir="" if not args.league_play else league_play_nets_dir,
                 **params
             )
     else:
