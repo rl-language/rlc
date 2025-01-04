@@ -2301,8 +2301,20 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 		return mlir::failure();
 	}
 	assert(deducedType.isa<mlir::FunctionType>());
+	auto fType = deducedType.cast<mlir::FunctionType>();
+	for (auto type : fType.getInputs())
+	{
+		if (type.isa<mlir::rlc::FrameType>() or type.isa<mlir::rlc::ContextType>())
+			return mlir::rlc::logError(
+					*this, "Only types in action functions can be marked as ctx or frm.");
+	}
+	if (fType.getNumResults() != 0 and
+			(fType.getResult(0).isa<mlir::rlc::FrameType>() or
+			 fType.getResult(0).isa<mlir::rlc::ContextType>()))
+		return mlir::rlc::logError(
+				*this, "Only types in action functions can be marked as ctx or frm.");
 
-	getResult().setType(deducedType.cast<mlir::FunctionType>());
+	getResult().setType(fType);
 	setInfoAttr(getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
 	setTemplateParametersAttr(
 			rewriter.getTypeArrayAttr(checkedTemplateParameters));

@@ -62,7 +62,7 @@ def main():
     args = parser.parse_args()
     with load_program_from_args(args, optimize=True) as program:
         env = RLCMultiEnv(program, solve_randomess=False)
-        model = make_model(env, path_to_weights=args.checkpoint, arch="dual")
+        model = make_model(env, path_to_weights=args.checkpoint, arch="shared")
         play_out(
             program,
             env,

@@ -51,7 +51,7 @@ def main():
     with load_program_from_args(args, optimize=True) as program:
         exit_on_invalid_env(program)
         env = RLCMultiEnv(program, solve_randomess=False)
-        model = make_model(env, path_to_weights=args.checkpoint, arch="dual")
+        model = make_model(env, path_to_weights=args.checkpoint, arch="shared")
 
         os.system("cls||clear")
         for iteration in range(args.iterations):

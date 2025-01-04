@@ -199,7 +199,7 @@ class BatchNormSkippingNN(nn.Module):
         b = x.shape[0]
         if b == 1:
             return x
-        
+
         return self.net(x)
 
 class FullyConnectedNN(nn.Module):
