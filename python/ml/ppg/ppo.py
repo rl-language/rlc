@@ -128,7 +128,7 @@ def learn(
     γ: "(float) discount" = 0.99,
     λ: "(float) GAE parameter" = 0.95,
     clip_param: "(float) PPO parameter for clipping prob ratio" = 0.2,
-    vfcoef: "(float) value function coefficient" = 0.5,
+    vfcoef: "(float) value function coefficient" = 2,
     entcoef: "(float) entropy coefficient" = 0.0015,
     nminibatch: "(int) number of minibatches to break epoch of data into" = 4,
     n_epoch_vf: "(int) number of epochs to use when training the value function" = 1,
