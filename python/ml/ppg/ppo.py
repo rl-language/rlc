@@ -14,6 +14,7 @@ from . import reward_normalizer as rew_normalizer
 from . import logger
 
 import math
+import random
 
 INPUT_KEYS = {"ob", "ac", "first", "logp", "vtarg", "adv", "state_in", "action_mask"}
 
@@ -178,14 +179,10 @@ def learn(
         if curr_iteration % interval_count == 0:
             th.save(model.state_dict(), path_to_league_play_dir + "/net" + str(int(curr_iteration / interval_count)) + ".pt")
 
-        if 50 > curr_iteration:
-            return
-
-        if curr_iteration % 10 == 0:
-            to_load = path_to_league_play_dir + "/net" + str(curr_iteration % (int(curr_iteration / interval_count))) + ".pt"
-            content = th.load(to_load, weights_only=False)
-            roller.past_stragey_model.load_state_dict(content)
-            roller.current_past_strategy_player = roller.current_past_strategy_player + 1
+        to_load = path_to_league_play_dir + "/net" + str(random.randint(0, int(curr_iteration / interval_count))) + ".pt"
+        content = th.load(to_load, weights_only=False)
+        roller.past_stragey_model.load_state_dict(content)
+        roller.current_past_strategy_player = roller.current_past_strategy_player + 1
 
     def train_with_losses_and_opt(loss_keys, opt, **arrays):
         losses, diags = compute_losses(
