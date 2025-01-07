@@ -7,6 +7,7 @@ At the moment we provide binaries only for linux x64 and windows x64.
 ```
 # file.rl
 
+@classes
 act play() -> Game:
     frm score = 0.0
     act win(Bool do_it)
@@ -16,8 +17,7 @@ act play() -> Game:
 
 ```
 pip install rl_language
-rlc-fix-ray
-rlc-learn file.rl -o net # ctrl+c to interrupt after a while
+rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
 rlc-probs file.rl net
 ```
 It will to learn pass true to `win` to maximize `score`, as reported by the second command.

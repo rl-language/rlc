@@ -75,18 +75,14 @@ def main():
                         action = select_action(program, model, env)
                 else:
                     action = select_action(program, model, env)
-                print(action)
+                print(program.to_string(env.games[0].actions()[action]))
 
                 env.step_one(0, action)
                 i = i + 1
                 if env.first_move[0]:
                     break
 
-            if args.pretty_print:
-                env.pretty_print(0)
-            else:
-                env.print(0)
-
+            print("final rewards:", env.rew)
 
 if __name__ == "__main__":
     main()
