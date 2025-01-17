@@ -126,8 +126,9 @@ def RLC_ShortCircuitingAnd : RLC_Dialect<"short_circuiting_and", [DeclareOpInter
     }]>];
 }
 
+
 def RLC_IfStatement : RLC_Dialect<"if", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
-  let summary = "expression.";
+  let summary = "if statement.";
 
   let description = [{
 	expression.
@@ -187,7 +188,7 @@ def RLC_WhileStatement : RLC_Dialect<"while", [DeclareOpInterfaceMethods<TypeChe
   let summary = "while.";
 
   let description = [{
-	expression.
+	while statement.
   }];
 
   let regions = (region

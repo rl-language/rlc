@@ -38,6 +38,13 @@ def make_rlc_argparse(name, description):
         default=None,
     )
     parser.add_argument(
+        "--pyrlc",
+        type=str,
+        nargs="?",
+        help="path to pyrlc lib",
+        default=None,
+    )
+    parser.add_argument(
         "--rlc",
         "-c",
         type=str,
@@ -76,5 +83,6 @@ def load_program_from_args(
             args.runtime,
             optimized=optimize,
             stdlib=args.stdlib,
+            pyrlc_runtime_lib=args.pyrlc,
             gen_python_methods=gen_python_methods,
         )
