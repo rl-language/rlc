@@ -463,6 +463,11 @@ static int linkLibraries(
 	}
 	else if (not info.isMacOS())
 		argSource.push_back("-lm");
+	else
+	{
+		argSource.push_back("-undefined");
+		argSource.push_back("suppress");
+	}
 
 	argSource.push_back("-o");
 	if (shared)
