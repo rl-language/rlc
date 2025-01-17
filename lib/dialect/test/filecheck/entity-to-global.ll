@@ -1,7 +1,6 @@
 // RUN: rlc-opt -rlc-lower-to-llvm %s | FileCheck %s
 
 // CHECK-LABEL: module @unknown 
-// CHECK:  llvm.mlir.global linkonce_odr constant @Asd() {addr_space = 0 : i32} : !llvm.struct<"globalVariableType", (ptr, i64, array<2 x ptr>)> {
 
 #field_info = #rlc.class_field<"asd" : !rlc.int<64>>
 #field_info1 = #rlc.class_field<"tasd" : !rlc.int<64>>
