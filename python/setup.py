@@ -101,7 +101,7 @@ site_packages_path = (
 
 setup(
     name="rl_language",
-    version="0.2.5",
+    version="0.2.6",
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),

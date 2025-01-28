@@ -50,7 +50,7 @@ def main():
     args = parser.parse_args()
     with load_program_from_args(args, optimize=True) as program:
         exit_on_invalid_env(program)
-        env = RLCMultiEnv(program, solve_randomess=False)
+        env = RLCMultiEnv(program)
         model = make_model(env, path_to_weights=args.checkpoint, arch="shared")
 
         os.system("cls||clear")
