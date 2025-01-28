@@ -40,7 +40,7 @@ def main():
     parser.add_argument("--hypersearch", default=False, action="store_true")
     parser.add_argument(
         "--model-save-frequency",
-        default=100,
+        default=20,
         type=int,
         help="number of iterations before a model is saved",
     )
