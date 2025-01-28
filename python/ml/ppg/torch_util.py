@@ -114,7 +114,7 @@ def contextmanager_to_decorator(cm):
 
 
 def have_cuda():
-    return th.backends.cuda.is_built() and not os.getenv("RCALL_NUM_GPU") == "0"
+    return th.backends.cuda.is_built() and not os.getenv("RCALL_NUM_GPU") == "0" and th.cuda.device_count() > 0
 
 
 def default_device_type():
@@ -229,7 +229,7 @@ def torch_setup(device_type=None, gpu_offset=0):
     import torch
 
     if device_type is None:
-        device_type = "cuda" if torch.cuda.is_available() else "cpu"
+        device_type = "cuda" if (torch.cuda.is_available() and torch.cuda.device_count() > 0) else "cpu"
 
     # ToDo correctly handle MPI
     # local_rank, local_size = _get_local_rank_size(MPI.COMM_WORLD)

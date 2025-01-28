@@ -36,7 +36,7 @@ def main():
     parser.add_argument("--clip-param", default=0.0001, type=float)
     parser.add_argument("--league-play", default=False, action="store_true")
     parser.add_argument("--load", default="", type=str)
-    parser.add_argument("--steps-per-env", default=5000, type=int)
+    parser.add_argument("--steps-per-env", default=100, type=int)
     parser.add_argument("--hypersearch", default=False, action="store_true")
     parser.add_argument(
         "--model-save-frequency",

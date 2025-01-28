@@ -45,7 +45,7 @@ class MPIFakeObject:
         return [obj]
 
 def _make_hidde_layers(size):
-    return (size, size, size, size, size, size)
+    return (size, size, size)
 
 def make_model(venv, path_to_weights="", arch="shared"):
     enc_fn = lambda obtype: FullyConnectedEncoder(
