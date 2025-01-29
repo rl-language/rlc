@@ -1,63 +1,23 @@
 # RLC
 
-### Try it!
-
-At the moment we provide binaries only for linux x64 and windows x64.
-
-```
-# file.rl
-
-@classes
-act play() -> Game:
-    frm score = 0.0
-    act win(Bool do_it)
-    if do_it:
-        score = 1.0
-```
-
-```
-pip install rl_language
-rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
-rlc-probs file.rl net
-```
-It will to learn pass true to `win` to maximize `score`, as reported by the second command.
-```
----------- 0 : p0 ------------
-{resume_index: 1, score: 0.000000}
---------- probs --------------
-0: win {do_it: true}  98.9385 %
-1: win {do_it: false}  1.0615 %
-------------------------------
-{resume_index: -1, score: 1.000000}
-```
-
-Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
-Language reference and stdlib documentation [here](https://github.com/rl-language/rlc-stdlib-doc/tree/master).
-
-
-![RLC Logo](./imgs/RLC_logo.png)
-> ReLiC, the rlc dragon
-
 
 ### RL and RLC
-The RuleBook Compiler (`RLC`) is an MLIR-based compiler for a domain-specific language aimed at simplifying the complexity of developing multiagent simulations at all stages of development.
+> **Rulebook is the programming language to write rules in the age of machine learning.**
 
-The elevator pitch description of the `RL` is:
-> **A language that turns a easy-to-write procedural description of a simulation into a easy-to-use and easy-to-reuse efficient library**.
+![RLC Logo](./imgs/generation.png)
+
+From a single simple description, generate all tools you may need. Test your rules with fuzzers, generate machine learning agents, use it C or python, embed it in graphical engines and on the web. All automatically.
+
 
 Read the project rationale [here](./docs/where_we_are_going.md)
 Read the language rationale [here](./docs/rationale.md)
 Read how we analyzed a off the shelf game [here](./docs/space_hulk_level_design.md)
 Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
 
-At the moment `RLC` is a proof of concept, and is released to gather feedback on the features of the language. Until version 1.0 syntax and semantics may change at any point.
 
-Before version 1.0 we want for users to be able to produce:
-* a compiled library implementing such simulation (DONE)
-* a serialization and deserialization mechanism both in textual and binary format (DONE)
-* a fuzzer able to find bugs in the simulation (DONE)
-* machine learning algorithms able to analyze the simulation. (development started)
-* a simple network protocol able to run the simulation remotely (not yet started)
+![RLC Logo](./imgs/RLC_logo.png)
+> ReLiC, the rlc dragon
+
 
 ### Example: tic tac toe
 ```
@@ -69,6 +29,7 @@ cls Board:
 	Int[9] slots
 	Bool playerTurn
 
+@classes
 act play() -> TicTacToe:
 	# allocates and initializes a board of type Board
 	let board : Board
@@ -124,6 +85,40 @@ fun main() -> Int:
 	# had three marks in a line
 	return int(game.board.three_in_a_line())
 ```
+
+### Try it!
+
+```
+# file.rl
+
+@classes
+act play() -> Game:
+    frm score = 0.0
+    act win(Bool do_it)
+    if do_it:
+        score = 1.0
+```
+
+```
+pip install rl_language
+rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
+rlc-probs file.rl net
+```
+It will to learn pass true to `win` to maximize `score`, as reported by the second command.
+```
+---------- 0 : p0 ------------
+{resume_index: 1, score: 0.000000}
+--------- probs --------------
+0: win {do_it: true}  98.9385 %
+1: win {do_it: false}  1.0615 %
+------------------------------
+{resume_index: -1, score: 1.000000}
+```
+
+Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
+Language reference and stdlib documentation [here](https://github.com/rl-language/rlc-stdlib-doc/tree/master).
+
+
 
 ### Dependencies
 Base:
@@ -207,15 +202,13 @@ If you use some whacky shell of your own or you did not followed the default set
 
 The intent of this workflow is so that reviewrs can use the review feature of github pull requests to have persistent comment threads.
 
-### Roadmap
-
-#### machine learning
-* improve ray performances
-* figure out how to not duplicate the state at every action and thus allow true self play [Blocked by rai]
+### Roadmap for 1.0
 
 #### language
 * better debug support
-* inline initializers
+* inline inline initializers
+* better ranged based loops
+* better cast guards
 
 #### standard lib
 * dictionary library
