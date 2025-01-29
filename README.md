@@ -6,7 +6,7 @@
 
 ![RLC Logo](./imgs/generation.png)
 
-From a single simple description, generate all tools you may need. Test your rules with fuzzers, generate machine learning agents, use it C or python, embed it in graphical engines and on the web. All automatically.
+From a single simple description, generate all tools you may need. Test your rules with fuzzers, generate machine learning agents, use it in C or python, embed it in graphical engines and on the web. All automatically.
 
 
 Read the project rationale [here](./docs/where_we_are_going.md)
