@@ -16,8 +16,6 @@ Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
 
 
 ![RLC Logo](./imgs/RLC_logo.png)
-> ReLiC, the rlc dragon
-
 
 ### Example: tic tac toe
 ```
@@ -86,8 +84,9 @@ fun main() -> Int:
 	return int(game.board.three_in_a_line())
 ```
 
-### Try it!
+### Installation
 
+Create a file to test it is working, and fill it with the following content.
 ```
 # file.rl
 
@@ -99,6 +98,7 @@ act play() -> Game:
         score = 1.0
 ```
 
+Install rlc and test it with:
 ```
 pip install rl_language
 rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
@@ -137,7 +137,8 @@ Extra dependecies used by the setup script:
 We wish for `RLC` to be usable by all as a compiler, for both commercial and non-commercial purposes, so it is released under apache license.
 
 
-### Installation for developers
+### Installation for compiler developers developers
+Stop reading if you don't want to work on the compiler.
 
 We provide a setup script that downloads the rlc repository and a setup script that will download and compile `LLVM` as well as `RLC`. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM. This is only required when building from sources, pypi packages are much less than 1gb on each operating system.
 
