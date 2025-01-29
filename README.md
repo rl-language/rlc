@@ -8,6 +8,8 @@
 
 From a single simple description, generate all tools you may need. Test your rules with fuzzers, generate machine learning agents, use it in C or python, embed it in graphical engines and on the web. All automatically.
 
+Furthermore, using Rulebook mathematically guarantees asymptotically less complex managment of rules with respect implementations in other languages.
+
 
 Read the project rationale [here](./docs/where_we_are_going.md)
 Read the language rationale [here](./docs/rationale.md)
