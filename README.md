@@ -14,6 +14,7 @@ The following table compares the number of lines of code required to implement a
 ![RLC Logo](./imgs/lines_of_code.png)
 
 Furthermore, we have performances comparable to CPP implementations.
+The following is the time required to play out 1024 game traces generated ahead of time, thus only measuiring the time required construct a game and to apply actions.
 ![RLC Logo](./imgs/performance.png)
 
 
