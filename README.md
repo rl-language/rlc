@@ -10,6 +10,12 @@ From a single simple description, generate all tools you may need. Test your rul
 
 Rulebook is not a mere scripting language designed with some syntactic shugar to simplify common patters. Rulebook contains unique mechanisms that cannot be implemented in mainstream languages such as c, cpp and python. Furthermore mathematically guarantees asymptotically less complex managment of rules with respect to other implementations.
 
+The following table compares the number of lines of code required to implement a given game in Rulebook and CPP, excluding their header files.
+![RLC Logo](./imgs/lines_of_code.png)
+
+Furthermore, we have performances comparable to CPP implementations.
+![RLC Logo](./imgs/performance.png)
+
 
 Read the project rationale [here](./docs/where_we_are_going.md)
 Read the language rationale [here](./docs/rationale.md)
