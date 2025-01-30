@@ -18,9 +18,13 @@ Furthermore, we have performances comparable to CPP implementations.
 
 
 Read the project rationale [here](./docs/where_we_are_going.md)
+
 Read the language rationale [here](./docs/rationale.md)
+
 Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
+
 Read how we analyzed a off the shelf game [here](./docs/space_hulk_level_design.md)
+
 Language reference and stdlib documentation [here](https://github.com/rl-language/rlc-stdlib-doc/tree/master)
 
 
