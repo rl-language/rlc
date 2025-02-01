@@ -51,6 +51,7 @@ namespace mlir::rlc
 			return;
 		}
 		manager.addPass(mlir::createCanonicalizerPass());
+		manager.addPass(mlir::rlc::createLowerForLoopsPass());
 		manager.addPass(mlir::rlc::createLowerInitializerListsPass());
 
 		manager.addPass(mlir::rlc::createEmitImplicitDestructorInvocationsPass());

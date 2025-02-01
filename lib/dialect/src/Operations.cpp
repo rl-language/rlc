@@ -611,11 +611,13 @@ void mlir::rlc::ExplicitConstructOp::setCalleeFromCallable(
 mlir::LogicalResult mlir::rlc::ContinueStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>())
+	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>() and
+			not getOperation()->getParentOfType<mlir::rlc::ForLoopStatement>())
 	{
 		return mlir::rlc::logError(
 				*this,
-				"Continue statement cannot be used outside of a while statement");
+				"Continue statement cannot be used outside of a while or for "
+				"statement");
 	}
 	return mlir::success();
 }
@@ -623,10 +625,12 @@ mlir::LogicalResult mlir::rlc::ContinueStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::BreakStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>())
+	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>() and
+			not getOperation()->getParentOfType<mlir::rlc::ForLoopStatement>())
 	{
 		return mlir::rlc::logError(
-				*this, "Break statement cannot be used outside of a while statement");
+				*this,
+				"Break statement cannot be used outside of a while or for statement");
 	}
 	return mlir::success();
 }
@@ -1625,6 +1629,89 @@ mlir::LogicalResult mlir::rlc::ActionsStatement::typeCheck(
 				*this, "Actions statement must have at least 1 sub action statement");
 	}
 
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::ForLoopStatement::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	bool foundOne = false;
+	walk([&](ActionStatement statement) { foundOne = true; });
+	if (foundOne)
+	{
+		return logError(
+				*this,
+				"At the moment actions inside for loops are not allowed, rewrite it as "
+				"a while loop. In the future they will be supported");
+	}
+
+	auto &rewriter = builder.getRewriter();
+
+	mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), nullptr);
+
+	auto maybeSizeFunction = resolver.findOverload(
+			getLoc(), true, "size", { getExpression().getType() });
+	if (!maybeSizeFunction or
+			maybeSizeFunction.getType().cast<mlir::FunctionType>().getResult(0) !=
+					mlir::rlc::IntegerType::getInt64(getContext()))
+	{
+		return logError(
+				*this,
+				"For loop argument expression of type " +
+						prettyType(getExpression().getType()) +
+						" has no method size() -> Int");
+	}
+
+	auto maybeGetFunction = resolver.findOverload(
+			getLoc(),
+			true,
+			"get",
+			{ getExpression().getType(),
+				mlir::rlc::IntegerType::getInt64(getContext()) });
+	if (!maybeGetFunction or
+			maybeGetFunction.getType().cast<mlir::FunctionType>().getResult(0) ==
+					mlir::rlc::VoidType::get(getContext()))
+	{
+		return logError(
+				*this,
+				"For loop argument expression of type " +
+						prettyType(getExpression().getType()) +
+						" has no method get(Int index) that returns a non void type");
+	}
+
+	auto _ = builder.addSymbolTable();
+	for (auto *op : ops(getBody()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::ForLoopVarDeclOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getRewriter().setInsertionPointAfter(*this);
+	mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), nullptr);
+	auto parent = getOperation()->getParentOfType<mlir::rlc::ForLoopStatement>();
+	if (not parent)
+		return logError(*this, "for loop var decl found outside of for loop");
+
+	auto maybeGetFunction = resolver.instantiateOverload(
+			builder.getRewriter(),
+			true,
+			getLoc(),
+			"get",
+			{ parent.getExpression().getType(),
+				mlir::rlc::IntegerType::getInt64(getContext()) });
+	auto type =
+			maybeGetFunction.getType().cast<mlir::FunctionType>().getResults()[0];
+	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())
+		type = casted.getUnderlying();
+
+	getResult().setType(type);
+	mlir::Value value = getResult();
+
+	builder.getSymbolTable().add(getName(), value);
 	return mlir::success();
 }
 
@@ -2715,6 +2802,32 @@ void mlir::rlc::SubActionStatement::getSuccessorRegions(
 
 	if (not succ.isParent())
 	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+}
+
+void mlir::rlc::ForLoopStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the body any amount of time
+	invocationBounds.push_back(mlir::InvocationBounds(0, std::nullopt));
+}
+
+void mlir::rlc::ForLoopStatement::getSuccessorRegions(
+		mlir::RegionBranchPoint succ,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a for statement you jump into the expression
+	if (succ.isParent())
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	// from the condition, you can jump out or to the body
+	if (succ.getRegionOrNull() == &getBody())
+	{
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
 		regions.push_back(mlir::RegionSuccessor({}));
 	}
 }

@@ -94,7 +94,9 @@ namespace rlc
 		llvm::Expected<bool> statementList();
 		llvm::Expected<bool> requirementList();
 		llvm::Expected<mlir::rlc::WhileStatement> whileStatement();
-		llvm::Expected<mlir::rlc::ForFieldStatement> forFieldStatement();
+		llvm::Expected<mlir::rlc::ForLoopStatement> forLoopStatement(
+				llvm::StringRef varName);
+		llvm::Expected<mlir::Operation*> forFieldStatement();
 		llvm::Expected<mlir::rlc::ReturnStatement> returnStatement();
 		llvm::Expected<mlir::rlc::BreakStatement> breakStatement();
 		llvm::Expected<mlir::rlc::ContinueStatement> continueStatement();
