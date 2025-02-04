@@ -471,6 +471,20 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 	{
 		if (fun.isDeclaration())
 			continue;
+
+		for (auto overload : builder.getSymbolTable().get(fun.getUnmangledName()))
+		{
+			if (overload.getType() == fun.getType() and overload != fun)
+			{
+				auto _ = mlir::rlc::logError(
+						fun, "Multiple definitions of function " + fun.getUnmangledName());
+				auto _2 = mlir::rlc::logRemark(
+						overload.getDefiningOp(), "Previous definition here.");
+
+				return mlir::failure();
+			}
+		}
+
 		auto _ = builder.addSymbolTable();
 		for (auto templateParameter : fun.getTemplateParameters())
 		{

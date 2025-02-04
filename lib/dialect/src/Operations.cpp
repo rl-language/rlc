@@ -1122,6 +1122,13 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 	newOne.getBody().takeBody(getBody());
 	rewriter.eraseOp(*this);
 
+	if (newOne->getBlock()->getTerminator() != newOne)
+	{
+		return mlir::rlc::logError(
+				newOne,
+				"Return statement should be the last statement of its code block.");
+	}
+
 	if (auto parentFunction = newOne->getParentOfType<mlir::rlc::FunctionOp>())
 	{
 		mlir::Type returnType =
