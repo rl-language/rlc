@@ -3,3 +3,4 @@ numpy < 2.0.0
 gym3
 tensorboard
 matplotlib
+standard-imghdr; python_version >= '3.13'
