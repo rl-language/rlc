@@ -970,27 +970,25 @@ mlir::LogicalResult mlir::rlc::ExpressionStatement::typeCheck(
 	return mlir::success();
 }
 
-bool mlir::rlc::DeclarationStatement::isReference()
+static bool expressionIsReference(mlir::Value val)
 {
-	auto initializer = getBody().front().getTerminator()->getOperand(0);
-
-	if (initializer.getDefiningOp<mlir::rlc::MemberAccess>())
+	if (val.getDefiningOp<mlir::rlc::MemberAccess>())
 		return true;
 
-	if (initializer.getDefiningOp<mlir::rlc::ArrayAccess>())
+	if (val.getDefiningOp<mlir::rlc::ArrayAccess>())
 		return true;
 
-	if (initializer.getDefiningOp<mlir::rlc::DeclarationStatement>())
+	if (val.getDefiningOp<mlir::rlc::DeclarationStatement>())
 		return true;
 
-	if (initializer.getDefiningOp<mlir::rlc::ActionStatement>())
+	if (val.getDefiningOp<mlir::rlc::ActionStatement>())
 		return true;
 
 	// true if it is a function argument
-	if (initializer.getDefiningOp() == nullptr)
+	if (val.getDefiningOp() == nullptr)
 		return true;
 
-	if (auto casted = initializer.getDefiningOp<mlir::rlc::CallOp>())
+	if (auto casted = val.getDefiningOp<mlir::rlc::CallOp>())
 	{
 		auto resultsType =
 				casted.getCallee().getType().cast<mlir::FunctionType>().getResults();
@@ -1000,6 +998,12 @@ bool mlir::rlc::DeclarationStatement::isReference()
 		return resultsType[0].isa<mlir::rlc::ReferenceType>();
 	}
 	return false;
+}
+
+bool mlir::rlc::DeclarationStatement::isReference()
+{
+	auto initializer = getBody().front().getTerminator()->getOperand(0);
+	return expressionIsReference(initializer);
 }
 
 mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
@@ -1113,12 +1117,15 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 			return mlir::failure();
 	}
 	rewriter.setInsertionPoint(*this);
-	auto *yield = getBody().front().getTerminator();
+	auto yield =
+			mlir::dyn_cast<mlir::rlc::Yield>(getBody().front().getTerminator());
+
+	const bool returnsValue = yield->getNumOperands() != 0;
 
 	auto newOne = rewriter.create<mlir::rlc::ReturnStatement>(
 			getLoc(),
-			yield->getNumOperands() != 0 ? yield->getOpOperand(0).get().getType()
-																	 : mlir::rlc::VoidType::get(getContext()));
+			returnsValue ? yield->getOpOperand(0).get().getType()
+									 : mlir::rlc::VoidType::get(getContext()));
 	newOne.getBody().takeBody(getBody());
 	rewriter.eraseOp(*this);
 
@@ -1135,6 +1142,7 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 				(parentFunction.getType().getNumResults() != 0
 						 ? parentFunction.getResultTypes()[0]
 						 : mlir::rlc::VoidType::get(getContext()));
+
 		if (not isReturnTypeCompatible(newOne.getResult(), returnType))
 		{
 			auto _ = mlir::rlc::logError(
@@ -1148,6 +1156,21 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 					parentFunction,
 					"Function return type is " +
 							prettyType(parentFunction.getResultTypes()[0]));
+		}
+
+		// if we are returning something, and the thing we are returning is a
+		// reference, and our parent function returns a non reference type, then
+		// make a copy of the returned value
+		if (returnsValue and expressionIsReference(yield->getOperand(0)) and
+				not returnType.isa<mlir::rlc::ReferenceType>())
+		{
+			rewriter.setInsertionPoint(yield);
+
+			auto construct = rewriter.create<mlir::rlc::ConstructOp>(
+					getLoc(), yield.getArguments()[0].getType());
+			rewriter.create<mlir::rlc::ImplicitAssignOp>(
+					getLoc(), construct, yield.getArguments()[0]);
+			yield->setOperand(0, construct);
 		}
 	}
 
