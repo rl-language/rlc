@@ -45,6 +45,7 @@ fun<T> compute_equal(Vector<T> vector1, Vector<T> vector2) -> Bool:
     while counter < vector1.size():
         if !(compute_equal_of(vector1[counter], vector2[counter])):
             return false
+        counter = counter + 1
     return true
 
 fun<T, Int N> compute_equal(T[N] array1, T[N] array2) -> Bool:
