@@ -578,17 +578,21 @@ Expected<mlir::Value> Parser::additiveExpression()
 	TRY(exp, multyplicativeExpression());
 
 	auto location = getCurrentSourcePos();
-	if (accept<Token::Plus>())
+	while (true)
 	{
-		TRY(rhs, additiveExpression());
-		return builder.create<mlir::rlc::AddOp>(location, unkType(), *exp, *rhs);
+		if (accept<Token::Plus>())
+		{
+			TRY(rhs, multyplicativeExpression());
+			*exp = builder.create<mlir::rlc::AddOp>(location, unkType(), *exp, *rhs);
+		}
+		else if (accept<Token::Minus>())
+		{
+			TRY(rhs, multyplicativeExpression());
+			*exp = builder.create<mlir::rlc::SubOp>(location, unkType(), *exp, *rhs);
+		}
+		else
+			return std::move(*exp);
 	}
-	if (accept<Token::Minus>())
-	{
-		TRY(rhs, additiveExpression());
-		return builder.create<mlir::rlc::SubOp>(location, unkType(), *exp, *rhs);
-	}
-	return std::move(*exp);
 }
 
 /**

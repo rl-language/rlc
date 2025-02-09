@@ -271,6 +271,8 @@ namespace mlir::rlc
 	{
 		auto classBody = rewriter.createBlock(&classOp.getBody());
 		llvm::SmallVector<mlir::Operation*> toMoveOut;
+		if (declaration.getBody().empty())
+			return;
 		for (mlir::Operation& decl : declaration.getBody().front())
 			if (not mlir::isa<mlir::rlc::EnumFieldDeclarationOp>(decl))
 				toMoveOut.push_back(&decl);
@@ -358,6 +360,12 @@ namespace mlir::rlc
 													.front()
 													.getOps<mlir::rlc::EnumFieldDeclarationOp>())
 		{
+			if (field.getRegion().empty())
+			{
+				return emitError(
+						field.getLoc(),
+						"Enum field expected to have a enum field declarations");
+			}
 			std::set<llvm::StringRef> seenNames;
 			for (auto expression :
 					 field.getRegion().front().getOps<mlir::rlc::EnumFieldExpressionOp>())
