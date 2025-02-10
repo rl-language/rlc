@@ -1343,7 +1343,7 @@ def RLC_ConstructOp : RLC_Dialect<"construct", [DeclareOpInterfaceMethods<TypeCh
 
    let builders = [
         OpBuilder<(ins "mlir::Type":$type), [{
-			build($_builder, $_state, type, nullptr);
+			build($_builder, $_state, type, std::nullopt);
     }]>];
 
 }
