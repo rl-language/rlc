@@ -15,4 +15,4 @@ fun main() -> Int:
     let counter = 1
     let max = 0
 
-    return 1
+    return 0
