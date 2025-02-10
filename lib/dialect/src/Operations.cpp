@@ -1120,6 +1120,7 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 	auto yield =
 			mlir::dyn_cast<mlir::rlc::Yield>(getBody().front().getTerminator());
 
+	assert(yield);
 	const bool returnsValue = yield->getNumOperands() != 0;
 
 	auto newOne = rewriter.create<mlir::rlc::ReturnStatement>(
@@ -1161,15 +1162,16 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 		// if we are returning something, and the thing we are returning is a
 		// reference, and our parent function returns a non reference type, then
 		// make a copy of the returned value
-		if (returnsValue and expressionIsReference(yield->getOperand(0)) and
+		if (not yield.getArguments().empty() and
+				expressionIsReference(yield.getArguments()[0]) and
 				not returnType.isa<mlir::rlc::ReferenceType>())
 		{
 			rewriter.setInsertionPoint(yield);
 
 			auto construct = rewriter.create<mlir::rlc::ConstructOp>(
-					getLoc(), yield.getArguments()[0].getType());
+					yield.getLoc(), yield.getArguments()[0].getType());
 			rewriter.create<mlir::rlc::ImplicitAssignOp>(
-					getLoc(), construct, yield.getArguments()[0]);
+					yield.getLoc(), construct, yield.getArguments()[0]);
 			yield->setOperand(0, construct);
 		}
 	}
