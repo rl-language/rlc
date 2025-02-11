@@ -9,6 +9,7 @@ from tensorboard.program import TensorBoard
 from ml.ppg.train import train
 from os import makedirs, path
 import tempfile
+from datetime import datetime
 
 def hypersearch_params():
     for lr in [1e-3, 1e-4, 1e-5]:
@@ -53,7 +54,7 @@ def main():
     args = parser.parse_args()
     program = load_program_from_args(args, True)
 
-    tmp_dir = path.join(tempfile.gettempdir(), "ppg")
+    tmp_dir = path.join(tempfile.gettempdir(), "ppg", str(datetime.now().strftime("%d_%m_%Y_%H_%M_%S")))
     league_play_nets_dir = path.join(tmp_dir, "nets")
 
     if not args.no_tensorboard:
