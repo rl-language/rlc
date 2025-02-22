@@ -14,19 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#define RLC_GET_FUNCTION_DECLS
+#define RLC_GET_TYPE_DECLS
+#define RLC_GET_TYPE_DEFS
+#include <random>
+#include <utility>
+#include <cstdint>
+#include <unordered_map>
+#include <map>
+
 #include <benchmark/benchmark.h>
 
 #include <algorithm> // For std::shuffle
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <map>
 #include <string>
 #include <iostream>
-#include <utility>
-#include <random>
 
-#include "absl/container/flat_hash_map.h"
+#include "RLDictWrapper.hpp"
 
 std::random_device rd;
 std::mt19937 gen(rd());
@@ -34,30 +39,50 @@ std::mt19937 gen(rd());
 constexpr size_t minRange = 1 << 2;
 constexpr size_t maxRange = 1 << 10;
 
-class LargeKey  {
+// C++ LargeKey for std containers
+class CPPLargeKey {
 public:
-  int content;
-  int dont_care[10];
-  LargeKey(int key) : content(key) {}
-// Define operator ==
-bool operator==(const LargeKey& other) const {
-    return content == other.content;
-}
-
-// Define operator <
-bool operator<(const LargeKey& other) const {
-    return content < other.content;
-}
+    int content;
+    int dont_care[10];
+    CPPLargeKey(int key) : content(key) {}
+    // Define operator ==
+    bool operator==(const CPPLargeKey& other) const {
+        return content == other.content;
+    }
+    // Define operator <
+    bool operator<(const CPPLargeKey& other) const {
+        return content < other.content;
+    }
 };
 
-// Specialize std::hash for LargeKey
+// Specialize std::hash for CPPLargeKey
 namespace std {
     template <>
-    struct hash<LargeKey> {
-        std::size_t operator()(const LargeKey& key) const {
-            return std::hash<int>()(key.content); // Hash only the 'content' field
+    struct hash<CPPLargeKey> {
+        std::size_t operator()(const CPPLargeKey& key) const {
+            return std::hash<int>()(key.content);
         }
     };
+}
+
+// Helper function to create a LargeKey from int for RL
+inline void init_large_key(LargeKey* key, int value) {
+    rl_m_init__LargeKey(key);
+    key->content.content = value;
+}
+
+// Helper function to convert int to the appropriate key type
+template<typename T>
+T make_key(int value) {
+    if constexpr (std::is_same_v<T, int>) {
+        return value;
+    } else if constexpr (std::is_same_v<T, CPPLargeKey>) {
+        return CPPLargeKey(value);
+    } else {
+        LargeKey key;
+        init_large_key(&key, value);
+        return key;
+    }
 }
 
 std::vector<int> GenerateNRandomIntegers(int n){
@@ -82,7 +107,7 @@ static void BM_SubsciptOperatorInsert(benchmark::State& state) {
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			dictionary[KeyType(i)] = i;
+ 			dictionary[make_key<KeyType>(i)] = i;
     }
     state.SetComplexityN(state.range(0));
 }
@@ -94,7 +119,7 @@ static void BM_SubsciptOperatorInsertRandom(benchmark::State& state) {
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			dictionary[KeyType(unique_numbers[i])] = i;
+ 			dictionary[make_key<KeyType>(unique_numbers[i])] = i;
     }
     state.SetComplexityN(state.range(0));
 }
@@ -105,7 +130,7 @@ static void BM_Insert(benchmark::State& state) {
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary.insert(std::make_pair(KeyType(i),i)));
+ 			benchmark::DoNotOptimize(dictionary.insert(std::make_pair(make_key<KeyType>(i),i)));
     }
     state.SetComplexityN(state.range(0));
 }
@@ -117,7 +142,7 @@ static void BM_InsertRandom(benchmark::State& state) {
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary.insert(std::make_pair(KeyType(unique_numbers[i]),i)));
+ 			benchmark::DoNotOptimize(dictionary.insert(std::make_pair(make_key<KeyType>(unique_numbers[i]),i)));
     }
     state.SetComplexityN(state.range(0));
 }
@@ -127,12 +152,12 @@ static void BM_SubscriptOperatorFind(benchmark::State& state) {
     PassedType dictionary;
     // Setup the dictionary
     for (int i = 0; i < state.range(0); ++i) {
-        dictionary[KeyType(i)] = i;
+        dictionary[make_key<KeyType>(i)] = i;
     }
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary[KeyType(i)]);
+ 			benchmark::DoNotOptimize(dictionary[make_key<KeyType>(i)]);
     }
     state.SetComplexityN(state.range(0));
 }
@@ -144,14 +169,14 @@ static void BM_SubscriptOperatorFindRandom(benchmark::State& state) {
 
     // Setup the dictionary
     for (int i = 0; i < state.range(0); ++i) {
-        dictionary[KeyType(unique_numbers[i])] = i;
+        dictionary[make_key<KeyType>(unique_numbers[i])] = i;
     }
 
     std::shuffle(unique_numbers.begin(), unique_numbers.end(), gen);
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary[KeyType(unique_numbers[i])]);
+ 			benchmark::DoNotOptimize(dictionary[make_key<KeyType>(unique_numbers[i])]);
     }
     state.SetComplexityN(state.range(0));
 }
@@ -161,12 +186,12 @@ static void BM_Find(benchmark::State& state) {
     PassedType dictionary;
     // Setup the dictionary
     for (int i = 0; i < state.range(0); ++i) {
-        dictionary[KeyType(i)] = i;
+        dictionary[make_key<KeyType>(i)] = i;
     }
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary.find(KeyType(i)));
+ 			benchmark::DoNotOptimize(dictionary.find(make_key<KeyType>(i)));
     }
     state.SetComplexityN(state.range(0));
 }
@@ -178,14 +203,14 @@ static void BM_FindRandom(benchmark::State& state) {
 
     // Setup the dictionary
     for (int i = 0; i < state.range(0); ++i) {
-        dictionary[KeyType(unique_numbers[i])] = i;
+        dictionary[make_key<KeyType>(unique_numbers[i])] = i;
     }
 
     std::shuffle(unique_numbers.begin(), unique_numbers.end(), gen);
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary.find(KeyType(unique_numbers[i])));
+ 			benchmark::DoNotOptimize(dictionary.find(make_key<KeyType>(unique_numbers[i])));
     }
     state.SetComplexityN(state.range(0));
 }
@@ -195,12 +220,12 @@ static void BM_Erase(benchmark::State& state) {
     PassedType dictionary;
     // Setup the dictionary
     for (int i = 0; i < state.range(0); ++i) {
-        dictionary[KeyType(i)] = i;
+        dictionary[make_key<KeyType>(i)] = i;
     }
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary.erase(KeyType(i)));
+ 			benchmark::DoNotOptimize(dictionary.erase(make_key<KeyType>(i)));
     }
     state.SetComplexityN(state.range(0));
 }
@@ -212,14 +237,14 @@ static void BM_EraseRandom(benchmark::State& state) {
 
     // Setup the dictionary
     for (int i = 0; i < state.range(0); ++i) {
-        dictionary[KeyType(unique_numbers[i])] = i;
+        dictionary[make_key<KeyType>(unique_numbers[i])] = i;
     }
 
     std::shuffle(unique_numbers.begin(), unique_numbers.end(), gen);
 
     for (auto _ : state) {
 		for (int i = 0; i < state.range(); i++)
- 			benchmark::DoNotOptimize(dictionary.erase(KeyType(unique_numbers[i])));
+ 			benchmark::DoNotOptimize(dictionary.erase(make_key<KeyType>(unique_numbers[i])));
     }
     state.SetComplexityN(state.range(0));
 }
@@ -230,33 +255,33 @@ static void BM_EraseRandom(benchmark::State& state) {
         ->Name(#BenchmarkFunction "_" NameSuffix)                           \
         ->RangeMultiplier(2)                                                \
         ->Range(minRange, maxRange)                                         \
-        ->Complexity();
+        ->Complexity()
 
-#define REGISTER_BENCHMARK_SUITE(DictType, KeyType, NameSuffix)        \
-    REGISTER_BENCHMARK(BM_Insert, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_InsertRandom, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_SubsciptOperatorInsert, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_SubsciptOperatorInsertRandom, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_SubscriptOperatorFind, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_SubscriptOperatorFindRandom, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_Find, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_FindRandom, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_Erase, DictType, KeyType, NameSuffix) \
-    REGISTER_BENCHMARK(BM_EraseRandom, DictType, KeyType, NameSuffix) \
+#define REGISTER_BENCHMARK_SUITE(DictType, KeyType, NameSuffix)             \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsert, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_SubsciptOperatorInsertRandom, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_Insert, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_InsertRandom, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_SubscriptOperatorFind, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_SubscriptOperatorFindRandom, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_Find, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_FindRandom, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_Erase, DictType, KeyType, NameSuffix); \
+    REGISTER_BENCHMARK(BM_EraseRandom, DictType, KeyType, NameSuffix)
 
 using UnorderedMapIntInt = std::unordered_map<int, int>;
-using UnorderedMapLargeKeyInt = std::unordered_map<LargeKey, int>;
+using UnorderedMapLargeKeyInt = std::unordered_map<CPPLargeKey, int>;
 using MapIntInt = std::map<int, int>;
-using MapLargeKeyInt = std::map<LargeKey, int>;
-using FlatHashMapIntInt = absl::flat_hash_map<int, int>;
-using FlatHashMapLargeKeyInt = absl::flat_hash_map<LargeKey, int>;
+using MapLargeKeyInt = std::map<CPPLargeKey, int>;
 
 // Register benchmark suites
-REGISTER_BENCHMARK_SUITE(UnorderedMapIntInt, int, "UnorderedMap_Small")
-REGISTER_BENCHMARK_SUITE(UnorderedMapLargeKeyInt, LargeKey, "UnorderedMap_Large")
-REGISTER_BENCHMARK_SUITE(MapIntInt, int, "Map_Small")
-REGISTER_BENCHMARK_SUITE(MapLargeKeyInt, LargeKey, "Map_Large")
-REGISTER_BENCHMARK_SUITE(FlatHashMapIntInt, int, "FlatHashMap_Small")
-REGISTER_BENCHMARK_SUITE(FlatHashMapLargeKeyInt, LargeKey, "FlatHashMap_Large")
+REGISTER_BENCHMARK_SUITE(UnorderedMapIntInt, int, "UnorderedMap_Small");
+REGISTER_BENCHMARK_SUITE(UnorderedMapLargeKeyInt, CPPLargeKey, "UnorderedMap_Large");
+REGISTER_BENCHMARK_SUITE(MapIntInt, int, "Map_Small");
+REGISTER_BENCHMARK_SUITE(MapLargeKeyInt, CPPLargeKey, "Map_Large");
+
+// Register RLDict benchmarks
+REGISTER_BENCHMARK_SUITE(RLDictWrapper<int, int>, int, "RLDict_Small");
+REGISTER_BENCHMARK_SUITE(RLDictWrapper<LargeKey, int>, LargeKey, "RLDict_Large");
 
 BENCHMARK_MAIN();
