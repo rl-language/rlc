@@ -54,6 +54,7 @@ fun<T, Int N> compute_equal(T[N] array1, T[N] array2) -> Bool:
     while counter < N:
         if !(compute_equal_of(array1[counter], array2[counter])):
             return false
+        counter = counter + 1
     return true
 
 fun<T> _equal_impl(T value1, T value2) -> Bool:
@@ -72,20 +73,19 @@ fun<T> _equal_impl(T value1, T value2) -> Bool:
                 else:
                     return false
     else:
-        let counter1 = 0
-        for field1 of value1:
-            let counter2 = 0
-            for field2 of value2:
-                if counter1 == counter2:
-                    using Type = type(field1)
-                    let actual_field1 : Type
-                    let actual_field2 : Type
-                    actual_field1 = field1
-                    actual_field2 = field2
-                    if !_equal_impl(actual_field1, actual_field2):
-                        return false
-                counter2 = counter2 + 1
-            counter1 = counter1 + 1
+        using TypeT = type(value1)
+        if !(value2 is TypeT):
+            return false
+        for field1, field2 of value1, value2:
+            using FieldType = type(field1)
+            if !(field2 is FieldType):
+                return false
+            let actual_field1: FieldType
+            actual_field1 = field1
+            let actual_field2: FieldType
+            actual_field2 = field2
+            if !_equal_impl(actual_field1, actual_field2):
+                return false
         return true
     # TODO: Non void function requires to be terminated by a return statement
     return false

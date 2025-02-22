@@ -22,7 +22,7 @@ cls<KeyType, ValueType> Entry:
     KeyType key
     ValueType value
 
-cls<KeyType, ValueType>Dict:
+cls<KeyType, ValueType> Dict:
     OwningPtr<Entry<KeyType, ValueType>> _entries
     Int _size
     Int _capacity
@@ -38,12 +38,13 @@ cls<KeyType, ValueType>Dict:
             __builtin_construct_do_not_use(self._entries[counter])
             counter = counter + 1
     
-    fun insert(KeyType key, ValueType value):
+    fun insert(KeyType key, ValueType value) -> Bool:
         let load_factor : Float
         load_factor = float(self._size + 1) / float(self._capacity)
         if load_factor > self._max_load_factor:
             self._grow()
         self._insert(self._entries, key, value)
+        return true
     
     fun _insert(OwningPtr<Entry<KeyType, ValueType>> entries, KeyType key, ValueType value):
         let hash = compute_hash_of(key)
