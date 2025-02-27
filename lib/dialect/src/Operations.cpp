@@ -131,7 +131,7 @@ mlir::rlc::ActionFunction::getFrameLists()
 	};
 
 	for (auto pair :
-			 llvm::zip(getInfo().getArgs(), getBody().front().getArguments()))
+			 llvm::zip(getInfo().getArguments(), getBody().front().getArguments()))
 	{
 		auto name = std::get<0>(pair).getName();
 		auto arg = std::get<1>(pair);
@@ -147,7 +147,7 @@ mlir::rlc::ActionFunction::getFrameLists()
 		else if (auto casted = llvm::dyn_cast<mlir::rlc::ActionStatement>(op))
 		{
 			for (auto pair :
-					 llvm::zip(casted.getInfo().getArgs(), casted.getResults()))
+					 llvm::zip(casted.getInfo().getArguments(), casted.getResults()))
 			{
 				auto name = std::get<0>(pair).getName();
 				auto arg = std::get<1>(pair);
@@ -869,8 +869,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			resultLoc.push_back(actions.getLoc());
 		}
 
-		for (auto arg :
-				 llvm::drop_begin(referred.getInfo().getArgs(), forwardedArgsCount()))
+		for (auto arg : llvm::drop_begin(
+						 referred.getInfo().getArguments(), forwardedArgsCount()))
 		{
 			nameAttrs.push_back(arg);
 		}
@@ -1870,7 +1870,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	for (auto result : getResults())
 		newResultTypes.push_back(result.getType());
 
-	for (auto arg : getInfo().getArgs())
+	for (auto arg : getInfo().getArguments())
 	{
 		auto deduced = builder.getConverter().shugarizedConvertType(
 				arg.getShugarizedType().getType());
@@ -2031,7 +2031,7 @@ mlir::rlc::ActionFunction::getShugarizedTypes()
 {
 	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
@@ -2042,7 +2042,7 @@ mlir::rlc::ActionStatement::getShugarizedTypes()
 {
 	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
@@ -2056,7 +2056,7 @@ mlir::rlc::FlatFunctionOp::getShugarizedTypes()
 	if (getInfo().getShugarizedReturnType() != nullptr)
 		toReturn.push_back(getInfo().getShugarizedReturnType());
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
@@ -2070,7 +2070,7 @@ mlir::rlc::FunctionOp::getShugarizedTypes()
 	if (getInfo().getShugarizedReturnType() != nullptr)
 		toReturn.push_back(getInfo().getShugarizedReturnType());
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;

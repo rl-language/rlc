@@ -583,12 +583,12 @@ Expected<mlir::Value> Parser::additiveExpression()
 		if (accept<Token::Plus>())
 		{
 			TRY(rhs, multyplicativeExpression());
-			*exp = builder.create<mlir::rlc::AddOp>(location, unkType(), *exp, *rhs);
+			*exp = builder.create<mlir::rlc::AddOp>(location, *exp, *rhs);
 		}
 		else if (accept<Token::Minus>())
 		{
 			TRY(rhs, multyplicativeExpression());
-			*exp = builder.create<mlir::rlc::SubOp>(location, unkType(), *exp, *rhs);
+			*exp = builder.create<mlir::rlc::SubOp>(location, *exp, *rhs);
 		}
 		else
 			return std::move(*exp);
@@ -1873,7 +1873,7 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
 	llvm::SmallVector<mlir::Location, 2> argLocs;
-	for (auto arg : fun->getInfo().getArgs())
+	for (auto arg : fun->getInfo().getArguments())
 		argLocs.push_back(arg.getNameLocation().getStart());
 
 	auto* bodyB = builder.createBlock(

@@ -882,7 +882,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 
         llvm::SmallVector<llvm::StringRef, 4> getArgNames() {
             llvm::SmallVector<llvm::StringRef, 4> names;
-            for (auto arg : getInfo().getArgs()) 
+            for (auto arg : getInfo().getArguments()) 
                 names.push_back(arg.getName());
             return names;
         }
@@ -892,7 +892,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
         }
 	
 		mlir::LogicalResult addToSymbolTable(mlir::rlc::SymbolTable<mlir::Value>& table) {
-			for (const auto& [field, argument] : llvm::zip(getInfo().getArgs(), llvm::make_range(this->args_begin(), this->args_end()))) {
+			for (const auto& [field, argument] : llvm::zip(getInfo().getArguments(), llvm::make_range(this->args_begin(), this->args_end()))) {
 				table.add(field.getName().str(), argument);
 			}
 			return mlir::success();
@@ -911,7 +911,7 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 				for (auto& operation : region->getOps())
 					ops.push_back(&operation);
 
-				for (const auto& [operand, field]: llvm::zip(region->front().getArguments(), getInfo().getArgs()))
+				for (const auto& [operand, field]: llvm::zip(region->front().getArguments(), getInfo().getArguments()))
 				{
 					auto converted = builder.getConverter().convertType(operand.getType());
                      
@@ -1174,7 +1174,7 @@ def RLC_ActionStatement : RLC_Dialect<"action", [DeclareOpInterfaceMethods<TypeC
   let extraClassDeclaration = [{
       llvm::SmallVector<llvm::StringRef, 4> getDeclaredNames() {
         llvm::SmallVector<llvm::StringRef, 4> names;
-        for (auto args : getInfo().getArgs()) {
+        for (auto args : getInfo().getArguments()) {
             names.push_back(args.getName());
         }
 
@@ -1482,10 +1482,10 @@ class RLC_BoolExp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable]> {
 }
 
 def RLC_AddOp : RLC_InternalOp<"add", [DeclareOpInterfaceMethods<ConstraintsAnalyzable>]> {
-  let summary = "constant.";
+  let summary = "add expression.";
 
   let description = [{
-	expression.
+	add expression.
   }];
 
   let arguments = (ins AnyRLCScalarType:$lhs, AnyRLCScalarType:$rhs);

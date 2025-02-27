@@ -85,9 +85,9 @@ def RLC_FunctionInfoAttr : RLC_Attr<"FunctionInfo", "function_info"> {
   let summary = "AST infos about a function";
 
 
-  let parameters = (ins ArrayRefParameter<"mlir::rlc::FunctionArgumentAttr">:$args, OptionalParameter<"mlir::rlc::ShugarizedTypeAttr">:$shugarized_return_type);
+  let parameters = (ins OptionalArrayRefParameter<"mlir::rlc::FunctionArgumentAttr">:$arguments, OptionalParameter<"mlir::rlc::ShugarizedTypeAttr">:$shugarized_return_type);
 
-  let assemblyFormat = "`<`  `args` `=` $args (`shugarized_return_type` `=` $shugarized_return_type^ )? `>`";
+  let assemblyFormat = "`<` ( `[` $arguments^ `]` )?  (`shugarized_return_type` `=` $shugarized_return_type^ )? `>`";
 
   let builders = [
 	  AttrBuilder<(ins "llvm::ArrayRef<llvm::StringRef>":$arg_names),[{
@@ -109,7 +109,7 @@ def RLC_FunctionInfoAttr : RLC_Attr<"FunctionInfo", "function_info"> {
       mlir::rlc::FunctionInfoAttr addSelfArgument() {
 		llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 4> args;
         args.push_back(mlir::rlc::FunctionArgumentAttr::get(getContext(), "self", nullptr, nullptr));
-		for (const auto& arg : getArgs())
+		for (const auto& arg : getArguments())
         {
 			args.push_back(arg);
         }
@@ -118,7 +118,7 @@ def RLC_FunctionInfoAttr : RLC_Attr<"FunctionInfo", "function_info"> {
 
       mlir::rlc::FunctionInfoAttr replaceTypes(mlir::FunctionType shugarizedNewType) const {
             llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 2> newArgs; 
-          for (auto [arg, new_type] : llvm::zip(getArgs(), shugarizedNewType.getInputs())) 
+          for (auto [arg, new_type] : llvm::zip(getArguments(), shugarizedNewType.getInputs())) 
             newArgs.push_back(arg.replaceType(new_type));
 
           mlir::rlc::ShugarizedTypeAttr attr = nullptr;

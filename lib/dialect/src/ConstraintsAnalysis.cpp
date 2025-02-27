@@ -1022,7 +1022,7 @@ namespace mlir::rlc
 								mlir::StringAttr::get(
 										fun->getContext(),
 
-										fun.getInfo().getArgs()[arg.getArgNumber()].getName() +
+										fun.getInfo().getArguments()[arg.getArgNumber()].getName() +
 												"_T"),
 								mlir::StringAttr::get(
 										fun->getContext(),

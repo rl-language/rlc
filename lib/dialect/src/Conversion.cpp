@@ -1812,7 +1812,7 @@ class FunctionRewriter
 
 			rewriter.setInsertionPointToStart(&newF.getBody().front());
 			for (auto [argument, value, newValue] : llvm::zip(
-							 op.getInfo().getArgs(),
+							 op.getInfo().getArguments(),
 							 op.getBody().front().getArguments(),
 							 newF.getBody().front().getArguments()))
 			{

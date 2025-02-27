@@ -594,7 +594,7 @@ class ActionDeclToTNothing
 
 			llvm::SmallVector<llvm::StringRef, 2> arrayAttr;
 			arrayAttr.push_back("frame");
-			for (const auto& attr : casted.getInfo().getArgs())
+			for (const auto& attr : casted.getInfo().getArguments())
 				arrayAttr.push_back(attr.getName());
 
 			auto castedType = type.getType().cast<mlir::FunctionType>();
