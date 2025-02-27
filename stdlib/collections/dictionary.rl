@@ -50,30 +50,44 @@ cls<KeyType, ValueType> Dict:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let distance = 0
+        let probe_count = 0  # Add safety counter
+        
+        # Create local copies of key and value to avoid modifying the input parameters
+        let current_key = key
+        let current_value = value
+        let current_hash = hash
 
         while true:
+            # Add safety check to prevent infinite loops
+            if probe_count >= self._capacity:
+                assert(false, "Maximum probe count exceeded - likely an implementation bug")
+                return
+            probe_count = probe_count + 1
+            
             let entry = entries[index]
             if !entry.occupied:
                 entry.occupied = true
-                entry.hash = hash
-                entry.key = key
-                entry.value = value
+                entry.hash = current_hash
+                entry.key = current_key
+                entry.value = current_value
                 entries[index] = entry  # Update the actual entry in entries
                 self._size = self._size + 1
                 return
-            else if entry.hash == hash and compute_equal_of(entry.key, key):
-                entry.value = value
+            else if entry.hash == current_hash and compute_equal_of(entry.key, current_key):
+                entry.value = current_value
+                entries[index] = entry  # Update the actual entry in entries
                 return
             else:
                 let existing_entry_distance = (index + self._capacity - (entry.hash % self._capacity)) % self._capacity
                 if existing_entry_distance < distance:
                     let temp_entry = entry
-                    entry.hash = hash
-                    entry.key = key
-                    entry.value = value
-                    hash = temp_entry.hash
-                    key = temp_entry.key
-                    value = temp_entry.value
+                    entry.hash = current_hash
+                    entry.key = current_key
+                    entry.value = current_value
+                    entries[index] = entry  # Update the swapped entry
+                    current_hash = temp_entry.hash
+                    current_key = temp_entry.key
+                    current_value = temp_entry.value
                     distance = existing_entry_distance
                 distance = distance + 1
                 index = (index + 1) % self._capacity
@@ -82,9 +96,15 @@ cls<KeyType, ValueType> Dict:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let distance = 0
+        let probe_count = 0  # Add safety counter
         let to_return : ValueType
 
         while true:
+            # Add safety check to prevent infinite loops
+            if probe_count >= self._capacity:
+                assert(false, "GET: Maximum probe count exceeded - likely an implementation bug")
+            probe_count = probe_count + 1
+            
             let entry = self._entries[index]
             
             if !entry.occupied:
@@ -104,10 +124,16 @@ cls<KeyType, ValueType> Dict:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let distance = 0
+        let probe_count = 0  # Add safety counter
         let to_return : Bool
         to_return = false
 
         while true:
+            # Add safety check to prevent infinite loops
+            if probe_count >= self._capacity:
+                assert(false, "CONTAINS: Maximum probe count exceeded - likely an implementation bug")
+            probe_count = probe_count + 1
+            
             let entry = self._entries[index]
             
             if !entry.occupied:
@@ -127,8 +153,14 @@ cls<KeyType, ValueType> Dict:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let distance = 0
+        let probe_count = 0  # Add safety counter
 
         while true:
+            # Add safety check to prevent infinite loops
+            if probe_count >= self._capacity:
+                assert(false, "REMOVE: Maximum probe count exceeded - likely an implementation bug")
+            probe_count = probe_count + 1
+            
             let entry = self._entries[index]
             
             if !entry.occupied:
@@ -198,32 +230,36 @@ cls<KeyType, ValueType> Dict:
             counter = counter + 1
 
     fun _grow():
+        let old_capacity = self._capacity
+        let old_entries = self._entries
+        let old_size = self._size
+        
+        # Create new, larger entries array
         self._capacity = self._capacity * 2
-
-        let new_entries : OwningPtr<Entry<KeyType, ValueType>>
-        new_entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(self._capacity)
+        self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(self._capacity)
+        self._size = 0
+        
+        # Initialize new entries
         let counter = 0
         while counter < self._capacity:
-            __builtin_construct_do_not_use(new_entries[counter])
+            __builtin_construct_do_not_use(self._entries[counter])
             counter = counter + 1
 
+        # Copy old entries to new array, but only scan up to old_capacity
         counter = 0
-        let index = 0
-        let elements_to_copy = self._size
-        self._size = 0
-        while counter < elements_to_copy:
-            if self._entries[index].occupied:
-                self._insert(new_entries, self._entries[index].key, self._entries[index].value)
-                counter = counter + 1
-            index = index + 1
-        
-        counter = 0
-        while counter < self._capacity / 2:  # Old capacity
-            __builtin_destroy_do_not_use(self._entries[counter])
+        while counter < old_capacity:
+            if old_entries[counter].occupied:
+                # Insert directly without triggering another growth
+                self._insert(self._entries, old_entries[counter].key, old_entries[counter].value)
             counter = counter + 1
         
-        __builtin_free_do_not_use(self._entries)
-        self._entries = new_entries
+        # Clean up old entries
+        counter = 0
+        while counter < old_capacity:
+            __builtin_destroy_do_not_use(old_entries[counter])
+            counter = counter + 1
+        
+        __builtin_free_do_not_use(old_entries)
         return
 
     fun drop():
