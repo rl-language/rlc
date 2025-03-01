@@ -3,9 +3,6 @@ import collections.dictionary
 cls DictIntInt:
     Dict<Int, Int> dict
     
-    fun init():
-        self.dict.init()
-        
     fun insert(Int key, Int value) -> Bool:
         return self.dict.insert(key, value)
         

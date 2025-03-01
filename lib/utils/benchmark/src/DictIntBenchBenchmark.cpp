@@ -17,6 +17,7 @@ limitations under the License.
 #define RLC_GET_FUNCTION_DECLS
 #define RLC_GET_TYPE_DECLS
 #define RLC_GET_TYPE_DEFS
+#include <cstddef>
 #include <cstdint>
 #include "DictIntBench.h"
 
@@ -25,19 +26,29 @@ limitations under the License.
 #include <unordered_set>
 #include <vector>
 
-std::random_device rd;
-std::mt19937 gen(rd());
+static std::random_device rd;
+static std::mt19937 gen(rd());
 
-constexpr size_t minRange = 1 << 2;
-constexpr size_t maxRange = 1 << 10;
+constexpr std::size_t minRange = 1 << 2;
+constexpr std::size_t maxRange = 1 << 10;
 
 // Helper function to generate random unique integers
-std::vector<int64_t> GenerateRandomIntegers(int n) {
+static std::vector<int64_t> GenerateRandomIntegers(int n) {
     std::uniform_int_distribution<int64_t> distrib(-n, n);
     std::unordered_set<int64_t> unique_numbers;
     
-    while (unique_numbers.size() < static_cast<size_t>(n)) {
+    int attempts = 0;
+    const int maxAttempts = n * 10;
+    
+    while (unique_numbers.size() < static_cast<size_t>(n) && attempts < maxAttempts) {
         unique_numbers.insert(distrib(gen));
+        attempts++;
+    }
+    
+    if (unique_numbers.size() < static_cast<size_t>(n)) {
+        for (int i = 0; unique_numbers.size() < static_cast<size_t>(n); ++i) {
+            unique_numbers.insert(n * 2 + i);
+        }
     }
     
     return std::vector<int64_t>(unique_numbers.begin(), unique_numbers.end());
@@ -59,13 +70,13 @@ static void BM_DictIntInt_Insert_Sequential(benchmark::State& state) {
 
 // Random insert benchmark
 static void BM_DictIntInt_Insert_Random(benchmark::State& state) {
-    std::vector<int64_t> numbers = GenerateRandomIntegers(state.range());
+    std::vector<int64_t> numbers = GenerateRandomIntegers(state.range(0));
     DictIntInt dict;
     
     for (auto _ : state) {
 
         
-        for (int64_t i = 0; i < state.range(); i++) {
+        for (int64_t i = 0; i < state.range(0); i++) {
             int64_t key = numbers[i];
             int64_t value = i;
             benchmark::DoNotOptimize(dict.insert(key, value));
@@ -76,13 +87,16 @@ static void BM_DictIntInt_Insert_Random(benchmark::State& state) {
 
 // Sequential get benchmark
 static void BM_DictIntInt_Get_Sequential(benchmark::State& state) {
+    const auto n = state.range(0);
+    
+    // Setup dictionary once outside the benchmark loop
     DictIntInt dict;
-    for (int64_t i = 0; i < state.range(); i++) {
+    for (int64_t i = 0; i < n; i++) {
         dict.insert(i, i);
     }
     
     for (auto _ : state) {
-        for (int64_t i = 0; i < state.range(); i++) {
+        for (int64_t i = 0; i < n; i++) {
             benchmark::DoNotOptimize(dict.get(i));
         }
     }
@@ -90,16 +104,19 @@ static void BM_DictIntInt_Get_Sequential(benchmark::State& state) {
 }
 
 // Random get benchmark
-static void BM_DictIntInt_Get_Random(benchmark::State& state) {
-    std::vector<int64_t> numbers = GenerateRandomIntegers(state.range());
+static void BM_DictIntInt_Get_Random(benchmark::State& state) { 
+    const auto n = state.range(0);
+    
+    // Setup dictionary and generate random numbers once outside the benchmark loop
+    std::vector<int64_t> numbers = GenerateRandomIntegers(n);
     DictIntInt dict;
-    for (int64_t i = 0; i < state.range(); i++) {
+    for (int64_t i = 0; i < n; i++) {
         dict.insert(numbers[i], i);
     }
     
     for (auto _ : state) {
-        for (const auto& num : numbers) {
-            int64_t key = num;
+        for (size_t i = 0; i < numbers.size(); i++) {
+            int64_t key = numbers[i];
             benchmark::DoNotOptimize(dict.get(key));
         }
     }
@@ -108,13 +125,16 @@ static void BM_DictIntInt_Get_Random(benchmark::State& state) {
 
 // Sequential contains benchmark
 static void BM_DictIntInt_Contains_Sequential(benchmark::State& state) {
+    const auto n = state.range(0);
+    
+    // Setup dictionary once outside the benchmark loop
     DictIntInt dict;
-    for (int64_t i = 0; i < state.range(); i++) {
+    for (int64_t i = 0; i < n; i++) {
         dict.insert(i, i);
     }
     
     for (auto _ : state) {
-        for (int64_t i = 0; i < state.range(); i++) {
+        for (int64_t i = 0; i < n; i++) {
             benchmark::DoNotOptimize(dict.contains(i));
         }
     }
@@ -123,15 +143,18 @@ static void BM_DictIntInt_Contains_Sequential(benchmark::State& state) {
 
 // Random contains benchmark
 static void BM_DictIntInt_Contains_Random(benchmark::State& state) {
-    std::vector<int64_t> numbers = GenerateRandomIntegers(state.range());
+    const auto n = state.range(0);
+    
+    // Setup dictionary and generate random numbers once outside the benchmark loop
+    std::vector<int64_t> numbers = GenerateRandomIntegers(n);
     DictIntInt dict;
-    for (int64_t i = 0; i < state.range(); i++) {
+    for (int64_t i = 0; i < n; i++) {
         dict.insert(numbers[i], i);
     }
     
     for (auto _ : state) {
-        for (const auto& num : numbers) {
-            int64_t key = num;
+        for (size_t i = 0; i < numbers.size(); i++) {
+            int64_t key = numbers[i];
             benchmark::DoNotOptimize(dict.contains(key));
         }
     }
@@ -140,15 +163,14 @@ static void BM_DictIntInt_Contains_Random(benchmark::State& state) {
 
 // Sequential remove benchmark
 static void BM_DictIntInt_Remove_Sequential(benchmark::State& state) {
+    const auto n = state.range(0);
+    DictIntInt dict;
+    for (int64_t i = 0; i < n; i++) {
+        dict.insert(i, i);
+    }
+    
     for (auto _ : state) {
-        state.PauseTiming();
-        DictIntInt dict;
-        for (int64_t i = 0; i < state.range(); i++) {
-            dict.insert(i, i);
-        }
-        state.ResumeTiming();
-        
-        for (int64_t i = 0; i < state.range(); i++) {
+        for (int64_t i = 0; i < n; i++) {
             benchmark::DoNotOptimize(dict.remove(i));
         }
     }
@@ -157,18 +179,17 @@ static void BM_DictIntInt_Remove_Sequential(benchmark::State& state) {
 
 // Random remove benchmark
 static void BM_DictIntInt_Remove_Random(benchmark::State& state) {
-    std::vector<int64_t> numbers = GenerateRandomIntegers(state.range());
+    const auto n = state.range(0);
+    
+    std::vector<int64_t> numbers = GenerateRandomIntegers(n);
+    DictIntInt dict;
+    for (int64_t i = 0; i < n; i++) {
+        dict.insert(numbers[i], i);
+    }
     
     for (auto _ : state) {
-        state.PauseTiming();
-        DictIntInt dict;
-        for (int64_t i = 0; i < state.range(); i++) {
-            dict.insert(numbers[i], i);
-        }
-        state.ResumeTiming();
-        
-        for (const auto& num : numbers) {
-            int64_t key = num;
+        for (size_t i = 0; i < numbers.size(); i++) {
+            int64_t key = numbers[i];
             benchmark::DoNotOptimize(dict.remove(key));
         }
     }

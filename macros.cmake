@@ -149,6 +149,7 @@ macro(rlcAddBenchmark target)
 
 	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE benchmark::benchmark)
 	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE absl::flat_hash_map)
+	TARGET_LINK_LIBRARIES(${target}Benchmark PRIVATE ${ARGN})
 	TARGET_INCLUDE_DIRECTORIES(${target}Benchmark PUBLIC include PRIVATE src)
 	TARGET_COMPILE_FEATURES(${target}Benchmark PUBLIC cxx_std_20)
 
