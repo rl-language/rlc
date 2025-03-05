@@ -1,5 +1,27 @@
 # RLC
 
+- [RLC](#rlc)
+    + [RL and RLC](#rl-and-rlc)
+    + [Example: tic tac toe](#example--tic-tac-toe)
+    + [FAQ:](#faq-)
+      - [I am a reinforcement learning engineer, what do I gain from using this?](#i-am-a-reinforcement-learning-engineer--what-do-i-gain-from-using-this-)
+      - [I am a graphic engine programmer/game programmer, what do I gain from using this?](#i-am-a-graphic-engine-programmer-game-programmer--what-do-i-gain-from-using-this-)
+      - [I can write the same tic tac toe example in python using python yields, what is the difference?](#i-can-write-the-same-tic-tac-toe-example-in-python-using-python-yields--what-is-the-difference-)
+      - [I have a previously existing code base, can I use this project?](#i-have-a-previously-existing-code-base--can-i-use-this-project-)
+      - [I have performance constraints, is this fast?](#i-have-performance-constraints--is-this-fast-)
+      - [In practice, what happens to a project that wants to include Rulebook components?](#in-practice--what-happens-to-a-project-that-wants-to-include-rulebook-components-)
+    + [Installation](#installation)
+  * [Info for compiler developers.](#info-for-compiler-developers)
+    + [Dependencies](#dependencies)
+    + [License](#license)
+    + [Installation for compiler developers](#installation-for-compiler-developers)
+      - [What do if run out of space or memory](#what-do-if-run-out-of-space-or-memory)
+      - [Using a custom LLVM](#using-a-custom-llvm)
+    + [environment.sh](#environmentsh)
+    + [Contacts](#contacts)
+    + [How to contribute for developers](#how-to-contribute-for-developers)
+    + [Roadmap for 1.0](#roadmap-for-10)
+
 
 ### RL and RLC
 > **Rulebook is the programming language to write rules in the age of machine learning.**
@@ -18,15 +40,10 @@ The following is the time required to play out 1024 game traces generated ahead 
 ![RLC Logo](./imgs/performance.png)
 
 
-Read the project rationale [here](./docs/where_we_are_going.md)
-
-Read the language rationale [here](./docs/rationale.md)
-
-Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
-
-Read how we analyzed a off the shelf game [here](./docs/space_hulk_level_design.md)
-
-Language reference and stdlib documentation [here](https://github.com/rl-language/rlc-stdlib-doc/tree/master)
+[Project Rationale](./docs/where_we_are_going.md)
+[Language Rationale](./docs/rationale.md)
+[Tutorial](./docs/tutorial.md)
+[Language reference and stdlib documentation](https://github.com/rl-language/rlc-stdlib-doc/tree/master)
 
 
 ![RLC Logo](./imgs/RLC_logo.png)
@@ -98,7 +115,54 @@ fun main() -> Int:
 	return int(game.board.three_in_a_line())
 ```
 
+### FAQ:
+#### I am a reinforcement learning engineer, what do I gain from using this?
+By using RLC to write your environments, or to wrap previously existing environments, you obtain:
+* the ability of automatically test those environments.
+* configurable automatic serialization and deserialization textual and binary for those environments.
+* configurable automatic serialization and deserialization textual and binary for sequences of actions instead of the state.
+* configurable automatic serialization of the state to something that can be sent to the GPU for learning.
+* the ability to reuse the environment code of the environment in production with no modification.
+
+You can read more about the tutorial here [Tutorial](./docs/tutorial.md).
+
+#### I am a graphic engine programmer/game programmer, what do I gain from using this?
+By writing state and state evolution code (not graphical code) in Rulebook you obtain:
+* the ability of automatically serialize the state to disk both in textual and binary form.
+* the ability to automatically test and stress code witouth running the whole engine and thus testing it in isolation.
+* the ability to reuse state code indipendetly from the engine.
+* retain the ability of writing graphical code however you wish.
+
+You can checkout a example where RLC is made interoperable with Godot [here](https://github.com/drblallo/skirmish).
+
+#### I can write the same tic tac toe example in python using python yields, what is the difference?
+The difference is that when written in python:
+* python coroutines lack a mechanism to express multiple possible resumption points.
+* python coroutines allocate the coroutine state on the heap, RLC does not.
+* you lose the ability to serialize and restore the execution of tic tac toe between player actions.
+* you must use some special convention to extract the state of the board from the active coroutine, such as saving the reference to the board somewhere else.
+* you must use special convention must be followed to express somewhere which values of x and y are valid and which are not, and such requirements cannot be expressed inline in the coroutine, defeating the advantage of using the coroutine.
+* you must manually specify how to encode the suspended coroutine to something that can be delivered to machine learning components.
+
+RLC does all of this automatically. You can read more about it [Here](./docs/rationale.md).
+
+
+#### I have a previously existing code base, can I use this project?
+Yes, at the moment Rulebook is compatible with python and C. You can use RLC as build only tool for testing purposes and not affect in any way your users.
+
+#### I have performance constraints, is this fast?
+We have performances comparable with C. Furthermore you can write C code and invoke it from Rulebook if you need ever more controll on performances.
+
+#### In practice, what happens to a project that wants to include Rulebook components?
+Everything about Rulebook will be turned into a single native library that you will link into or deploy along with your previously existing artifacts. Nothing else.
+
+
 ### Installation
+
+Install rlc with:
+```
+pip install rl_language
+```
 
 Create a file to test it is working, and fill it with the following content.
 ```
@@ -112,9 +176,9 @@ act play() -> Game:
         score = 1.0
 ```
 
-Install rlc and test it with:
+Then run with:
+
 ```
-pip install rl_language
 rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
 rlc-probs file.rl net
 ```
@@ -132,6 +196,7 @@ It will to learn pass true to `win` to maximize `score`, as reported by the seco
 Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
 
 
+## Info for compiler developers.
 
 ### Dependencies
 Base:
@@ -150,7 +215,7 @@ Extra dependecies used by the setup script:
 We wish for `RLC` to be usable by all as a compiler, for both commercial and non-commercial purposes, so it is released under apache license.
 
 
-### Installation for compiler developers developers
+### Installation for compiler developers
 Stop reading if you don't want to work on the compiler.
 
 We provide a setup script that downloads the rlc repository and a setup script that will download and compile `LLVM` as well as `RLC`. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM. This is only required when building from sources, pypi packages are much less than 1gb on each operating system.
@@ -220,8 +285,7 @@ The intent of this workflow is so that reviewrs can use the review feature of gi
 
 #### language
 * better debug support
-* inline inline initializers
-* better ranged based loops
+* inline initializers
 * better cast guards
 
 #### standard lib
