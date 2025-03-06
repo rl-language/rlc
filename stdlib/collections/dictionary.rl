@@ -93,6 +93,10 @@ cls<KeyType, ValueType> Dict:
                 index = (index + 1) % self._capacity
     
     fun get(KeyType key) -> ValueType:
+        # Quick return for empty dictionary
+        if self._size == 0:
+            assert(false, "key not found in empty dictionary")
+        
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let distance = 0
@@ -121,6 +125,10 @@ cls<KeyType, ValueType> Dict:
         return to_return
     
     fun contains(KeyType key) -> Bool:
+        # Quick return for empty dictionary
+        if self._size == 0:
+            return false
+        
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let distance = 0
@@ -159,6 +167,7 @@ cls<KeyType, ValueType> Dict:
             # Add safety check to prevent infinite loops
             if probe_count >= self._capacity:
                 assert(false, "REMOVE: Maximum probe count exceeded - likely an implementation bug")
+                return false
             probe_count = probe_count + 1
             
             let entry = self._entries[index]
@@ -166,9 +175,39 @@ cls<KeyType, ValueType> Dict:
             if !entry.occupied:
                 break
             else if entry.hash == hash and compute_equal_of(entry.key, key):
+                # Mark this entry as unoccupied
                 __builtin_destroy_do_not_use(self._entries[index])
                 __builtin_construct_do_not_use(self._entries[index])
                 self._size = self._size - 1
+                
+                # Perform backward-shift operation
+                let next_index = (index + 1) % self._capacity
+                let current_index = index
+                
+                # Shift elements until we find an empty slot or an element with probe distance 0
+                while true:
+                    let next_entry = self._entries[next_index]
+                    if !next_entry.occupied:
+                        break
+                    
+                    # Calculate probe distance of the next element
+                    let next_probe_distance = (next_index + self._capacity - (next_entry.hash % self._capacity)) % self._capacity
+                    
+                    # If probe distance is 0, it's already at its ideal position
+                    if next_probe_distance == 0:
+                        break
+                    
+                    # Move the element back
+                    self._entries[current_index] = next_entry
+                    
+                    # Mark the next slot as unoccupied (temporarily)
+                    __builtin_destroy_do_not_use(self._entries[next_index])
+                    __builtin_construct_do_not_use(self._entries[next_index])
+                    
+                    # Move to next positions
+                    current_index = next_index
+                    next_index = (next_index + 1) % self._capacity
+                
                 return true
             else:
                 let existing_entry_distance = (index + self._capacity - (entry.hash % self._capacity)) % self._capacity
@@ -235,7 +274,7 @@ cls<KeyType, ValueType> Dict:
         let old_size = self._size
         
         # Create new, larger entries array
-        self._capacity = self._capacity * 2
+        self._capacity = self._next_power_of_2(self._capacity + 1)  # Ensures growth by at least 1
         self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(self._capacity)
         self._size = 0
         
@@ -271,3 +310,10 @@ cls<KeyType, ValueType> Dict:
             __builtin_free_do_not_use(self._entries)
         self._size = 0
         self._capacity = 0
+
+    # Private utility to find next power of 2
+    fun _next_power_of_2(Int value) -> Int:
+        let result = 1
+        while result < value:
+            result = result * 2
+        return result

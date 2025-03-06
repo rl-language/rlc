@@ -29,6 +29,7 @@ fun _equal_bytes(Byte[8] bytes1, Byte[8] bytes2) -> Bool:
     while counter < 8:
         if !compute_equal(bytes1[counter], bytes2[counter]):
             return false
+        counter = counter + 1
     return true
 
 fun compute_equal(Bool value1, Bool value2) -> Bool:

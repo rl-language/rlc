@@ -19,17 +19,26 @@ trait<T> Hashable:
 
 # Specialized implementations for basic types
 fun compute_hash(Int value) -> Int:
+    # Improved integer hash function based on MurmurHash3
     let x = value
-    x = ((x >> 16) ^ x) * 72955707
-    x = ((x >> 16) ^ x) * 72955707
-    x = (x >> 16) ^ x
-    return x & 9223372036854775807
+    x = x ^ (x >> 33)
+    x = x * 1099511628211  # Smaller prime, still effective for hashing
+    x = x ^ (x >> 33)
+    x = x * 16777619  # Another effective hash multiplier
+    x = x ^ (x >> 33)
+    return x & 9223372036854775807  # Ensure positive value (mask with INT64_MAX)
 
 fun compute_hash(Float value) -> Int:
+    # Improved float hash using bit representation
+    # First convert to bits, then hash those bits as an integer
+    # For simplicity, we're still using the multiplication approach
+    # A better implementation would use IEEE 754 bit representation
     let x = int(value * 1000000.0)
-    x = ((x >> 16) ^ x) * 72955703
-    x = ((x >> 16) ^ x) * 72955703
-    x = (x >> 16) ^ x
+    x = x ^ (x >> 33)
+    x = x * 1099511628211
+    x = x ^ (x >> 33)
+    x = x * 16777619
+    x = x ^ (x >> 33)
     return x & 9223372036854775807
 
 fun compute_hash(Bool value) -> Int:
@@ -45,18 +54,35 @@ fun compute_hash(Byte value) -> Int:
     x = (x ^ (x << 16)) * 72955717
     return x & 9223372036854775807
 
+# Add String hashing - assuming a String type exists
+# Using FNV-1a hash algorithm which is fast and has good distribution
+fun compute_hash(String str) -> Int:
+    let hash = 2166136261  # Smaller FNV offset basis to avoid issues with large constants
+    let fnv_prime = 16777619  # Smaller FNV prime
+    
+    let i = 0
+    while i < str.size():
+        let char_value = int(str[i])
+        hash = hash ^ char_value
+        hash = (hash * fnv_prime) & 9223372036854775807
+        i = i + 1
+    
+    return hash
+
 # Implementations for collections
 fun<T> compute_hash(Vector<T> vector) -> Int:
     let hash = 1
     for element of vector:
-        hash = (hash * 31 + compute_hash_of(element))
-    return hash & 9223372036854775807
+        # Improved combination formula
+        hash = (hash * 31 + compute_hash_of(element)) & 9223372036854775807
+    return hash
 
 fun<T, Int N> compute_hash(T[N] array) -> Int:
     let hash = 1
     for element of array:
-        hash = (hash * 31 + compute_hash_of(element))
-    return hash & 9223372036854775805
+        # Improved combination formula
+        hash = (hash * 31 + compute_hash_of(element)) & 9223372036854775807
+    return hash
 
 # The implementation function that handles all cases
 fun<T> _hash_impl(T value) -> Int:
@@ -68,14 +94,14 @@ fun<T> _hash_impl(T value) -> Int:
             using Type = type(field)
             if value is Type:
                 # Hash both which variant is active (counter) and its value
-                return _hash_impl(counter) * 31 + _hash_impl(value)
+                return (_hash_impl(counter) * 31 + _hash_impl(value)) & 9223372036854775807
             counter = counter + 1
         return 0  # Should never reach here if alternative is valid
     else:
         # Handle struct fields directly like in to_byte_vector.rl
         let hash = 1
         for field of value:
-            hash = hash * 31 + _hash_impl(field)
+            hash = (hash * 31 + _hash_impl(field)) & 9223372036854775807
         return hash
 
 # The public interface
