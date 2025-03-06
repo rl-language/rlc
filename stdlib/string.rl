@@ -383,6 +383,7 @@ fun parse_string(String result, String buffer, Int index) -> Bool:
 
     while index != buffer.size():
         if buffer[index] == '"':
+            index = index + 1
             return true
         if buffer[index] == '\\':
             index = index + 1

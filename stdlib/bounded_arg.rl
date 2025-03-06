@@ -21,6 +21,9 @@ import string
 cls<Int min, Int max> BInt:
     Int value
 
+    fun init():
+        self.value = min
+
     fun equal(Int other) -> Bool:
         return self.value == other
 
@@ -185,6 +188,9 @@ fun<Int min, Int max> tensorable_warning(BInt<min, max> x, String out):
 # each possible value.
 cls<Int min, Int max> LinearlyDistributedInt:
     Int value
+
+    fun init():
+        self.value = min
 
     fun equal(Int other) -> Bool:
         return self.value == other
