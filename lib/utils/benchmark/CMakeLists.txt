@@ -22,7 +22,7 @@ endMacro(makeDataStructureBenchmark)
 
 # Generate dictionary benchmark
 makeDataStructureBenchmark(DictIntBench ${CMAKE_SOURCE_DIR}/tool/rlc/test/dict_int_bench.rl)
-
+makeDataStructureBenchmark(DictLargeKeyBench ${CMAKE_SOURCE_DIR}/tool/rlc/test/dict_largekey_bench.rl)
 # Game benchmarks
 macro(makeProgramBenchmark name file)
     set(INS ${file} ${CMAKE_SOURCE_DIR}/stdlib/learn.rl)
