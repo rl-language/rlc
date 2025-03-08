@@ -98,10 +98,24 @@ fun<T> _hash_impl(T value) -> Int:
             counter = counter + 1
         return 0  # Should never reach here if alternative is valid
     else:
-        # Handle struct fields directly like in to_byte_vector.rl
-        let hash = 1
+        # Improved struct hashing that's more resilient across platforms
+        let hash = 17  # Start with a prime number
+        let field_count = 0
+        
         for field of value:
-            hash = (hash * 31 + _hash_impl(field)) & 9223372036854775807
+            # Use a prime number multiplier for better distribution
+            # and limit to a reasonable number of fields to avoid excessive computation
+            field_count = field_count + 1
+            if field_count > 100:  # Safeguard against structs with too many fields
+                return hash  # Early return instead of break
+                
+            # Mix the field hash more carefully to avoid bits canceling each other
+            let field_hash = _hash_impl(field)
+            # Rotate the hash a bit to spread influence of each field
+            hash = ((hash << 5) + hash) ^ field_hash
+            # Ensure we stay in positive range
+            hash = hash & 9223372036854775807
+        
         return hash
 
 # The public interface

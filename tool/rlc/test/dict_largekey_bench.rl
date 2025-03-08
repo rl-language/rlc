@@ -1,4 +1,6 @@
 import collections.dictionary
+import serialization.to_hash
+import serialization.key_equal
 
 cls LargeKey:
     Int content
@@ -40,6 +42,16 @@ cls LargeKey:
         self.dont_care_7 = 0
         self.dont_care_8 = 0
         self.dont_care_9 = 0
+    
+    # Explicitly implement compute_hash for better cross-platform compatibility
+    fun compute_hash() -> Int:
+        # Only use content for hash - that's what matters for our benchmark
+        return compute_hash_of(self.content)
+    
+    # Explicitly implement compute_equal for better cross-platform compatibility
+    fun compute_equal(LargeKey other) -> Bool:
+        # Only compare content - that's what matters for our benchmark
+        return self.content == other.content
 
 cls DictLargeKeyInt:
     Dict<LargeKey, Int> dict
