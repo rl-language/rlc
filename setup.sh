@@ -30,7 +30,6 @@ deactivate
 
 cd rlc
 source ./rlc/environment.sh
-cd rlc
 git submodule init 
 git submodule update --recursive  
 cd ..

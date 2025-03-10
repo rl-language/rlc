@@ -249,6 +249,11 @@ def LowerAssertsPass : Pass<"rlc-lower-asserts", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def LowerForLoopsPass : Pass<"rlc-lower-for-loops", "mlir::ModuleOp"> {
+  let summary = "Lower for loops";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def AddPreconditionsCheckPass : Pass<"rlc-add-preconditions-check", "mlir::ModuleOp"> {
   let summary = "add bound checks for action preconditions";
   let dependentDialects = ["rlc::RLCDialect"];

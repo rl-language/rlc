@@ -578,17 +578,21 @@ Expected<mlir::Value> Parser::additiveExpression()
 	TRY(exp, multyplicativeExpression());
 
 	auto location = getCurrentSourcePos();
-	if (accept<Token::Plus>())
+	while (true)
 	{
-		TRY(rhs, additiveExpression());
-		return builder.create<mlir::rlc::AddOp>(location, unkType(), *exp, *rhs);
+		if (accept<Token::Plus>())
+		{
+			TRY(rhs, multyplicativeExpression());
+			*exp = builder.create<mlir::rlc::AddOp>(location, *exp, *rhs);
+		}
+		else if (accept<Token::Minus>())
+		{
+			TRY(rhs, multyplicativeExpression());
+			*exp = builder.create<mlir::rlc::SubOp>(location, *exp, *rhs);
+		}
+		else
+			return std::move(*exp);
 	}
-	if (accept<Token::Minus>())
-	{
-		TRY(rhs, additiveExpression());
-		return builder.create<mlir::rlc::SubOp>(location, unkType(), *exp, *rhs);
-	}
-	return std::move(*exp);
 }
 
 /**
@@ -1201,10 +1205,42 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 }
 
 /**
+ * forFieldStatment:  `in` expression ':\n' statementList
+ */
+Expected<mlir::rlc::ForLoopStatement> Parser::forLoopStatement(
+		llvm::StringRef varName)
+{
+	auto location = getCurrentSourcePos();
+	EXPECT(Token::KeywordIn);
+	TRY(exp, expression());
+
+	EXPECT(Token::Colons);
+	EXPECT(Token::Newline);
+
+	mlir::Region region;
+	auto pos = builder.saveInsertionPoint();
+	auto* block = builder.createBlock(&region, region.begin());
+	builder.setInsertionPointToStart(block);
+
+	TRY(list, statementList());
+	builder.restoreInsertionPoint(pos);
+	auto forLoop = builder.createForLoopStatement(location, *exp);
+	forLoop.getBody().takeBody(region);
+	builder.setInsertionPointToEnd(&forLoop.getBody().front());
+
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({}));
+	builder.setInsertionPointToStart(&forLoop.getBody().front());
+	builder.createForLoopVarDeclOp(
+			location, mlir::rlc::UnknownType::get(builder.getContext()), varName);
+	builder.setInsertionPointAfter(forLoop);
+	return forLoop;
+}
+
+/**
  * forFieldStatment: `for` ident (`,` ident)* `of` expression (`,` expression)*
  * ':\n' statementList
  */
-Expected<mlir::rlc::ForFieldStatement> Parser::forFieldStatement()
+Expected<mlir::Operation*> Parser::forFieldStatement()
 {
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordFor);
@@ -1221,6 +1257,19 @@ Expected<mlir::rlc::ForFieldStatement> Parser::forFieldStatement()
 
 	for (auto& name : names)
 		namesRef.push_back(name);
+
+	if (current == Token::KeywordIn)
+	{
+		if (names.size() != 1)
+		{
+			return make_error<RlcError>(
+					"For loops can only declare a single induction variable",
+					RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
+					location);
+		}
+		TRY(forLoop, forLoopStatement(names[0]));
+		return *forLoop;
+	}
 
 	EXPECT(Token::KeywordOf);
 
@@ -1824,7 +1873,7 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
 	llvm::SmallVector<mlir::Location, 2> argLocs;
-	for (auto arg : fun->getInfo().getArgs())
+	for (auto arg : fun->getInfo().getArguments())
 		argLocs.push_back(arg.getNameLocation().getStart());
 
 	auto* bodyB = builder.createBlock(

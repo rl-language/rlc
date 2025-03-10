@@ -23,7 +23,7 @@ add_subdirectory(googletest)
 #set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=memory -fsanitize-ignorelist=/home/massimo/Documents/example_rlc/rlc-infrastructure/rlc-debug/ignorelist.txt -fsanitize-recover=all")
 #set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=undefined")
 #set (CMAKE_CXX_FLAGS "-fsanitize=fuzzer-no-link -O0 -g")
-set (CMAKE_CXX_FLAGS "-g")
+#set (CMAKE_CXX_FLAGS "-g")
 ##############################
 ###        benchmarks      ###
 ##############################

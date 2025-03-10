@@ -95,7 +95,7 @@ namespace mlir::rlc
 		if (auto maybeType = t.dyn_cast<mlir::rlc::python::CTypesPointerType>())
 		{
 			OS << "POINTER(";
-			writeTypeName(OS, maybeType.getUnderlying(), ctypesSyntax);
+			writeTypeName(OS, maybeType.getUnderlying(), true);
 			OS << ")";
 			return;
 		}

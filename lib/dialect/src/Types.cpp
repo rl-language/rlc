@@ -657,10 +657,10 @@ std::string mlir::rlc::prettyPrintFunctionTypeWithNameArgs(
 {
 	std::string toReturn = "(";
 	size_t current = 0;
-	if (fType.getNumInputs() != attr.getArgs().size())
+	if (fType.getNumInputs() != attr.getArguments().size())
 		return mlir::rlc::prettyType(fType);
 
-	for (auto [type, arg] : llvm::zip(fType.getInputs(), attr.getArgs()))
+	for (auto [type, arg] : llvm::zip(fType.getInputs(), attr.getArguments()))
 	{
 		toReturn += mlir::rlc::prettyType(type);
 		toReturn += " ";

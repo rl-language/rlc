@@ -95,10 +95,9 @@ namespace mlir::rlc
 		return fun;
 	}
 
-	static void declareImplicitInits(mlir::ModuleOp op)
+	static void declareImplicitInits(
+			mlir::ModuleOp op, mlir::rlc::ValueTable& table)
 	{
-		auto table = mlir::rlc::makeValueTable(op);
-
 		mlir::IRRewriter rewriter(op.getContext());
 		rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
 
@@ -395,7 +394,7 @@ namespace mlir::rlc
 
 	void emitImplicitInits(mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder)
 	{
-		declareImplicitInits(op);
+		declareImplicitInits(op, builder.getRootTable());
 		emitImplicitInits(builder, op);
 	}
 

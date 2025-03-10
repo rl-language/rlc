@@ -56,6 +56,10 @@ class State:
         self.state = self.program.functions.play()
 
     @property
+    def raw_actions(self):
+        return self._actions
+
+    @property
     def module(self):
         return self.program.module
 
@@ -85,7 +89,9 @@ class State:
         if not self.can_apply(action):
             self.module.functions.print(action)
             sys.stdout.flush()
-            assert len(self.legal_actions) != 0, "found a state with no valid actions, yet the game is not terminated"
+            assert (
+                len(self.legal_actions) != 0
+            ), "found a state with no valid actions, yet the game is not terminated"
             return
         self.program.functions.apply(action, self.state)
 
@@ -252,6 +258,7 @@ def compile(
     rlc_compiler="rlc",
     rlc_includes=[],
     rlc_runtime_lib="",
+    pyrlc_runtime_lib=None,
     optimized=True,
     gen_python_methods=True,
     stdlib=None,
@@ -283,16 +290,23 @@ def compile(
         ).returncode
         == 0
     )
-    lib_name = "lib.dll" if os.name == "nt" else ("lib.dylib" if sys.platform == "darwin" else "lib.so")
+    lib_name = (
+        "lib.dll"
+        if os.name == "nt"
+        else ("lib.dylib" if sys.platform == "darwin" else "lib.so")
+    )
     args = [
         rlc_compiler,
         *s,
         "--shared",
+        "--pylib",
         "-o",
         Path(tmp_dir) / Path(lib_name),
         "-O2" if optimized else "",
     ]
     if rlc_runtime_lib != "":
         args = args + ["--runtime-lib", rlc_runtime_lib]
+    if pyrlc_runtime_lib != None:
+        args = args + ["--pyrlc-lib", pyrlc_runtime_lib]
     assert run(args + include_args).returncode == 0
     return Program(str(Path(tmp_dir) / Path("wrapper.py")), tmp_dir)

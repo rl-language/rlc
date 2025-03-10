@@ -131,7 +131,7 @@ mlir::rlc::ActionFunction::getFrameLists()
 	};
 
 	for (auto pair :
-			 llvm::zip(getInfo().getArgs(), getBody().front().getArguments()))
+			 llvm::zip(getInfo().getArguments(), getBody().front().getArguments()))
 	{
 		auto name = std::get<0>(pair).getName();
 		auto arg = std::get<1>(pair);
@@ -147,7 +147,7 @@ mlir::rlc::ActionFunction::getFrameLists()
 		else if (auto casted = llvm::dyn_cast<mlir::rlc::ActionStatement>(op))
 		{
 			for (auto pair :
-					 llvm::zip(casted.getInfo().getArgs(), casted.getResults()))
+					 llvm::zip(casted.getInfo().getArguments(), casted.getResults()))
 			{
 				auto name = std::get<0>(pair).getName();
 				auto arg = std::get<1>(pair);
@@ -611,11 +611,13 @@ void mlir::rlc::ExplicitConstructOp::setCalleeFromCallable(
 mlir::LogicalResult mlir::rlc::ContinueStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>())
+	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>() and
+			not getOperation()->getParentOfType<mlir::rlc::ForLoopStatement>())
 	{
 		return mlir::rlc::logError(
 				*this,
-				"Continue statement cannot be used outside of a while statement");
+				"Continue statement cannot be used outside of a while or for "
+				"statement");
 	}
 	return mlir::success();
 }
@@ -623,10 +625,12 @@ mlir::LogicalResult mlir::rlc::ContinueStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::BreakStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>())
+	if (not getOperation()->getParentOfType<mlir::rlc::WhileStatement>() and
+			not getOperation()->getParentOfType<mlir::rlc::ForLoopStatement>())
 	{
 		return mlir::rlc::logError(
-				*this, "Break statement cannot be used outside of a while statement");
+				*this,
+				"Break statement cannot be used outside of a while or for statement");
 	}
 	return mlir::success();
 }
@@ -865,8 +869,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			resultLoc.push_back(actions.getLoc());
 		}
 
-		for (auto arg :
-				 llvm::drop_begin(referred.getInfo().getArgs(), forwardedArgsCount()))
+		for (auto arg : llvm::drop_begin(
+						 referred.getInfo().getArguments(), forwardedArgsCount()))
 		{
 			nameAttrs.push_back(arg);
 		}
@@ -966,27 +970,25 @@ mlir::LogicalResult mlir::rlc::ExpressionStatement::typeCheck(
 	return mlir::success();
 }
 
-bool mlir::rlc::DeclarationStatement::isReference()
+static bool expressionIsReference(mlir::Value val)
 {
-	auto initializer = getBody().front().getTerminator()->getOperand(0);
-
-	if (initializer.getDefiningOp<mlir::rlc::MemberAccess>())
+	if (val.getDefiningOp<mlir::rlc::MemberAccess>())
 		return true;
 
-	if (initializer.getDefiningOp<mlir::rlc::ArrayAccess>())
+	if (val.getDefiningOp<mlir::rlc::ArrayAccess>())
 		return true;
 
-	if (initializer.getDefiningOp<mlir::rlc::DeclarationStatement>())
+	if (val.getDefiningOp<mlir::rlc::DeclarationStatement>())
 		return true;
 
-	if (initializer.getDefiningOp<mlir::rlc::ActionStatement>())
+	if (val.getDefiningOp<mlir::rlc::ActionStatement>())
 		return true;
 
 	// true if it is a function argument
-	if (initializer.getDefiningOp() == nullptr)
+	if (val.getDefiningOp() == nullptr)
 		return true;
 
-	if (auto casted = initializer.getDefiningOp<mlir::rlc::CallOp>())
+	if (auto casted = val.getDefiningOp<mlir::rlc::CallOp>())
 	{
 		auto resultsType =
 				casted.getCallee().getType().cast<mlir::FunctionType>().getResults();
@@ -996,6 +998,12 @@ bool mlir::rlc::DeclarationStatement::isReference()
 		return resultsType[0].isa<mlir::rlc::ReferenceType>();
 	}
 	return false;
+}
+
+bool mlir::rlc::DeclarationStatement::isReference()
+{
+	auto initializer = getBody().front().getTerminator()->getOperand(0);
+	return expressionIsReference(initializer);
 }
 
 mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
@@ -1109,14 +1117,25 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 			return mlir::failure();
 	}
 	rewriter.setInsertionPoint(*this);
-	auto *yield = getBody().front().getTerminator();
+	auto yield =
+			mlir::dyn_cast<mlir::rlc::Yield>(getBody().front().getTerminator());
+
+	assert(yield);
+	const bool returnsValue = yield->getNumOperands() != 0;
 
 	auto newOne = rewriter.create<mlir::rlc::ReturnStatement>(
 			getLoc(),
-			yield->getNumOperands() != 0 ? yield->getOpOperand(0).get().getType()
-																	 : mlir::rlc::VoidType::get(getContext()));
+			returnsValue ? yield->getOpOperand(0).get().getType()
+									 : mlir::rlc::VoidType::get(getContext()));
 	newOne.getBody().takeBody(getBody());
 	rewriter.eraseOp(*this);
+
+	if (newOne->getBlock()->getTerminator() != newOne)
+	{
+		return mlir::rlc::logError(
+				newOne,
+				"Return statement should be the last statement of its code block.");
+	}
 
 	if (auto parentFunction = newOne->getParentOfType<mlir::rlc::FunctionOp>())
 	{
@@ -1124,6 +1143,7 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 				(parentFunction.getType().getNumResults() != 0
 						 ? parentFunction.getResultTypes()[0]
 						 : mlir::rlc::VoidType::get(getContext()));
+
 		if (not isReturnTypeCompatible(newOne.getResult(), returnType))
 		{
 			auto _ = mlir::rlc::logError(
@@ -1137,6 +1157,22 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 					parentFunction,
 					"Function return type is " +
 							prettyType(parentFunction.getResultTypes()[0]));
+		}
+
+		// if we are returning something, and the thing we are returning is a
+		// reference, and our parent function returns a non reference type, then
+		// make a copy of the returned value
+		if (not yield.getArguments().empty() and
+				expressionIsReference(yield.getArguments()[0]) and
+				not returnType.isa<mlir::rlc::ReferenceType>())
+		{
+			rewriter.setInsertionPoint(yield);
+
+			auto construct = rewriter.create<mlir::rlc::ConstructOp>(
+					yield.getLoc(), yield.getArguments()[0].getType());
+			rewriter.create<mlir::rlc::ImplicitAssignOp>(
+					yield.getLoc(), construct, yield.getArguments()[0]);
+			yield->setOperand(0, construct);
 		}
 	}
 
@@ -1628,6 +1664,89 @@ mlir::LogicalResult mlir::rlc::ActionsStatement::typeCheck(
 	return mlir::success();
 }
 
+mlir::LogicalResult mlir::rlc::ForLoopStatement::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	bool foundOne = false;
+	walk([&](ActionStatement statement) { foundOne = true; });
+	if (foundOne)
+	{
+		return logError(
+				*this,
+				"At the moment actions inside for loops are not allowed, rewrite it as "
+				"a while loop. In the future they will be supported");
+	}
+
+	auto &rewriter = builder.getRewriter();
+
+	mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), nullptr);
+
+	auto maybeSizeFunction = resolver.findOverload(
+			getLoc(), true, "size", { getExpression().getType() });
+	if (!maybeSizeFunction or
+			maybeSizeFunction.getType().cast<mlir::FunctionType>().getResult(0) !=
+					mlir::rlc::IntegerType::getInt64(getContext()))
+	{
+		return logError(
+				*this,
+				"For loop argument expression of type " +
+						prettyType(getExpression().getType()) +
+						" has no method size() -> Int");
+	}
+
+	auto maybeGetFunction = resolver.findOverload(
+			getLoc(),
+			true,
+			"get",
+			{ getExpression().getType(),
+				mlir::rlc::IntegerType::getInt64(getContext()) });
+	if (!maybeGetFunction or
+			maybeGetFunction.getType().cast<mlir::FunctionType>().getResult(0) ==
+					mlir::rlc::VoidType::get(getContext()))
+	{
+		return logError(
+				*this,
+				"For loop argument expression of type " +
+						prettyType(getExpression().getType()) +
+						" has no method get(Int index) that returns a non void type");
+	}
+
+	auto _ = builder.addSymbolTable();
+	for (auto *op : ops(getBody()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::ForLoopVarDeclOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	builder.getRewriter().setInsertionPointAfter(*this);
+	mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), nullptr);
+	auto parent = getOperation()->getParentOfType<mlir::rlc::ForLoopStatement>();
+	if (not parent)
+		return logError(*this, "for loop var decl found outside of for loop");
+
+	auto maybeGetFunction = resolver.instantiateOverload(
+			builder.getRewriter(),
+			true,
+			getLoc(),
+			"get",
+			{ parent.getExpression().getType(),
+				mlir::rlc::IntegerType::getInt64(getContext()) });
+	auto type =
+			maybeGetFunction.getType().cast<mlir::FunctionType>().getResults()[0];
+	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())
+		type = casted.getUnderlying();
+
+	getResult().setType(type);
+	mlir::Value value = getResult();
+
+	builder.getSymbolTable().add(getName(), value);
+	return mlir::success();
+}
+
 mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
@@ -1751,7 +1870,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	for (auto result : getResults())
 		newResultTypes.push_back(result.getType());
 
-	for (auto arg : getInfo().getArgs())
+	for (auto arg : getInfo().getArguments())
 	{
 		auto deduced = builder.getConverter().shugarizedConvertType(
 				arg.getShugarizedType().getType());
@@ -1912,7 +2031,7 @@ mlir::rlc::ActionFunction::getShugarizedTypes()
 {
 	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
@@ -1923,7 +2042,7 @@ mlir::rlc::ActionStatement::getShugarizedTypes()
 {
 	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
@@ -1937,7 +2056,7 @@ mlir::rlc::FlatFunctionOp::getShugarizedTypes()
 	if (getInfo().getShugarizedReturnType() != nullptr)
 		toReturn.push_back(getInfo().getShugarizedReturnType());
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
@@ -1951,7 +2070,7 @@ mlir::rlc::FunctionOp::getShugarizedTypes()
 	if (getInfo().getShugarizedReturnType() != nullptr)
 		toReturn.push_back(getInfo().getShugarizedReturnType());
 
-	for (auto parameter : getInfo().getArgs())
+	for (auto parameter : getInfo().getArguments())
 		if (parameter.getShugarizedType() != nullptr)
 			toReturn.push_back(parameter.getShugarizedType());
 	return toReturn;
@@ -2301,8 +2420,20 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 		return mlir::failure();
 	}
 	assert(deducedType.isa<mlir::FunctionType>());
+	auto fType = deducedType.cast<mlir::FunctionType>();
+	for (auto type : fType.getInputs())
+	{
+		if (type.isa<mlir::rlc::FrameType>() or type.isa<mlir::rlc::ContextType>())
+			return mlir::rlc::logError(
+					*this, "Only types in action functions can be marked as ctx or frm.");
+	}
+	if (fType.getNumResults() != 0 and
+			(fType.getResult(0).isa<mlir::rlc::FrameType>() or
+			 fType.getResult(0).isa<mlir::rlc::ContextType>()))
+		return mlir::rlc::logError(
+				*this, "Only types in action functions can be marked as ctx or frm.");
 
-	getResult().setType(deducedType.cast<mlir::FunctionType>());
+	getResult().setType(fType);
 	setInfoAttr(getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
 	setTemplateParametersAttr(
 			rewriter.getTypeArrayAttr(checkedTemplateParameters));
@@ -2703,6 +2834,32 @@ void mlir::rlc::SubActionStatement::getSuccessorRegions(
 
 	if (not succ.isParent())
 	{
+		regions.push_back(mlir::RegionSuccessor({}));
+	}
+}
+
+void mlir::rlc::ForLoopStatement::getRegionInvocationBounds(
+		llvm::ArrayRef<mlir::Attribute> operands,
+		llvm::SmallVectorImpl<mlir::InvocationBounds> &invocationBounds)
+{
+	// executes the body any amount of time
+	invocationBounds.push_back(mlir::InvocationBounds(0, std::nullopt));
+}
+
+void mlir::rlc::ForLoopStatement::getSuccessorRegions(
+		mlir::RegionBranchPoint succ,
+		llvm::SmallVectorImpl<::mlir::RegionSuccessor> &regions)
+{
+	// When you hit a for statement you jump into the expression
+	if (succ.isParent())
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
+
+	// from the condition, you can jump out or to the body
+	if (succ.getRegionOrNull() == &getBody())
+	{
+		regions.push_back(
+				mlir::RegionSuccessor(&getBody(), getBody().front().getArguments()));
 		regions.push_back(mlir::RegionSuccessor({}));
 	}
 }
