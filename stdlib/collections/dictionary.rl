@@ -35,7 +35,7 @@ cls<KeyType, ValueType> Dict:
         self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(self._capacity)
         let counter = 0
         while counter < self._capacity:
-            __builtin_construct_do_not_use(self._entries[counter])
+            self._entries[counter].occupied = false
             counter = counter + 1
     
     fun insert(KeyType key, ValueType value) -> Bool:
@@ -64,8 +64,10 @@ cls<KeyType, ValueType> Dict:
                 return
             probe_count = probe_count + 1
             
-            let entry = entries[index]
-            if !entry.occupied:
+            
+            if !entries[index].occupied:
+                __builtin_construct_do_not_use(entries[index])
+                let entry = entries[index]
                 entry.occupied = true
                 entry.hash = current_hash
                 entry.key = current_key
@@ -73,11 +75,13 @@ cls<KeyType, ValueType> Dict:
                 entries[index] = entry  # Update the actual entry in entries
                 self._size = self._size + 1
                 return
-            else if entry.hash == current_hash and compute_equal_of(entry.key, current_key):
+            else if entries[index].hash == current_hash and compute_equal_of(entries[index].key, current_key):
+                ref entry = entries[index]
                 entry.value = current_value
                 entries[index] = entry  # Update the actual entry in entries
                 return
             else:
+                ref entry = entries[index]
                 let existing_entry_distance = (index + self._capacity - (entry.hash % self._capacity)) % self._capacity
                 if existing_entry_distance < distance:
                     let temp_entry = entry
@@ -109,7 +113,7 @@ cls<KeyType, ValueType> Dict:
                 assert(false, "GET: Maximum probe count exceeded - likely an implementation bug")
             probe_count = probe_count + 1
             
-            let entry = self._entries[index]
+            ref entry = self._entries[index]
             
             if !entry.occupied:
                 assert(false, "key not found")
@@ -142,7 +146,7 @@ cls<KeyType, ValueType> Dict:
                 assert(false, "CONTAINS: Maximum probe count exceeded - likely an implementation bug")
             probe_count = probe_count + 1
             
-            let entry = self._entries[index]
+            ref entry = self._entries[index]
             
             if !entry.occupied:
                 break
@@ -170,14 +174,11 @@ cls<KeyType, ValueType> Dict:
                 return false
             probe_count = probe_count + 1
             
-            let entry = self._entries[index]
+            ref entry = self._entries[index]
             
             if !entry.occupied:
                 break
             else if entry.hash == hash and compute_equal_of(entry.key, key):
-                # Mark this entry as unoccupied
-                __builtin_destroy_do_not_use(self._entries[index])
-                __builtin_construct_do_not_use(self._entries[index])
                 self._size = self._size - 1
                 
                 # Perform backward-shift operation
@@ -188,6 +189,7 @@ cls<KeyType, ValueType> Dict:
                 while true:
                     let next_entry = self._entries[next_index]
                     if !next_entry.occupied:
+                        self._entries[current_index].occupied = false
                         break
                     
                     # Calculate probe distance of the next element
@@ -195,14 +197,11 @@ cls<KeyType, ValueType> Dict:
                     
                     # If probe distance is 0, it's already at its ideal position
                     if next_probe_distance == 0:
+                        self._entries[current_index].occupied = false
                         break
                     
                     # Move the element back
                     self._entries[current_index] = next_entry
-                    
-                    # Mark the next slot as unoccupied (temporarily)
-                    __builtin_destroy_do_not_use(self._entries[next_index])
-                    __builtin_construct_do_not_use(self._entries[next_index])
                     
                     # Move to next positions
                     current_index = next_index
@@ -265,7 +264,7 @@ cls<KeyType, ValueType> Dict:
         self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(self._capacity)
         let counter = 0
         while counter < self._capacity:
-            __builtin_construct_do_not_use(self._entries[counter])
+            self._entries[counter].occupied = false
             counter = counter + 1
 
     fun _grow():
@@ -281,7 +280,7 @@ cls<KeyType, ValueType> Dict:
         # Initialize new entries
         let counter = 0
         while counter < self._capacity:
-            __builtin_construct_do_not_use(self._entries[counter])
+            self._entries[counter].occupied = false
             counter = counter + 1
 
         # Copy old entries to new array, but only scan up to old_capacity
