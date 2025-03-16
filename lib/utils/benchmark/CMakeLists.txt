@@ -12,7 +12,7 @@ macro(makeDataStructureBenchmark name file)
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${name}.h
         COMMAND rlc::rlc ${INS} -o ${CMAKE_CURRENT_BINARY_DIR}/${name}.h --header -O2 -i ${CMAKE_SOURCE_DIR}/stdlib
         DEPENDS rlc::rlc ${INS})
-    add_custom_target(${name}_lib ALL DEPENDS 
+    add_custom_target(${name}_lib ALL DEPENDS
         ${CMAKE_CURRENT_BINARY_DIR}/${name}${CMAKE_STATIC_LIBRARY_SUFFIX} ${CMAKE_CURRENT_BINARY_DIR}/${name}.h)
 
     rlcAddBenchmark(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}${CMAKE_STATIC_LIBRARY_SUFFIX} rlc::runtime)
@@ -22,7 +22,7 @@ endMacro(makeDataStructureBenchmark)
 
 # Generate dictionary benchmark
 makeDataStructureBenchmark(DictIntBench ${CMAKE_SOURCE_DIR}/tool/rlc/test/dict_int_bench.rl)
-makeDataStructureBenchmark(DictLargeKeyBench ${CMAKE_SOURCE_DIR}/tool/rlc/test/dict_largekey_bench.rl)
+
 # Game benchmarks
 macro(makeProgramBenchmark name file)
     set(INS ${file} ${CMAKE_SOURCE_DIR}/stdlib/learn.rl)

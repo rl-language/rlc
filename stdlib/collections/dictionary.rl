@@ -15,6 +15,7 @@
 import serialization.to_hash
 import serialization.print
 import serialization.key_equal
+import collections.vector
 
 cls<KeyType, ValueType> Entry:
     Bool occupied
@@ -105,7 +106,6 @@ cls<KeyType, ValueType> Dict:
         let index = hash % self._capacity
         let distance = 0
         let probe_count = 0  # Add safety counter
-        let to_return : ValueType
 
         while true:
             # Add safety check to prevent infinite loops
@@ -118,15 +118,14 @@ cls<KeyType, ValueType> Dict:
             if !entry.occupied:
                 assert(false, "key not found")
             else if entry.hash == hash and compute_equal_of(entry.key, key):
-                to_return = entry.value
-                break
+                return entry.value
             else:
                 let existing_entry_distance = (index + self._capacity - (entry.hash % self._capacity)) % self._capacity
                 if existing_entry_distance < distance:
                     assert(false, "key not found")
                 distance = distance + 1
                 index = (index + 1) % self._capacity
-        return to_return
+        return self._entries[index].value
     
     fun contains(KeyType key) -> Bool:
         # Quick return for empty dictionary
