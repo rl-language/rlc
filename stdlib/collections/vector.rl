@@ -127,12 +127,6 @@ cls<T> Vector:
     fun empty() -> Bool:
         return self._size == 0
     
-    # returns true if the
-    # size of the vector is equal
-    # to zero
-    fun size() -> Int:
-        return self._size
-
     # erases all the elements
     # of the vector
     fun clear():
