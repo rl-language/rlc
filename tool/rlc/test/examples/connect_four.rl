@@ -110,8 +110,9 @@ cls Board:
         while col < kCols:
             let row = 0
             while row < kRows:
-                if self.cell_at(row, col) == cell_state and self.has_line_from(player, row, col):
-                    return true
+                if self.cell_at(row, col) == cell_state:
+                    if self.has_line_from(player, row, col):
+                        return true
                 row = row + 1
             col = col + 1
         return false
