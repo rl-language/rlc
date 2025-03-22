@@ -39,16 +39,8 @@ enum Outcome:
 # Board representation
 cls Board:
     CellState[kNumCells] cells
-    Int current_player
+    BInt<0, 1> current_player
     Outcome outcome
-
-    fun init():
-        self.current_player = 0
-        self.outcome = Outcome::Unknown
-        let i = 0
-        while i < kNumCells:
-            self.cells[i] = CellState::Empty
-            i = i + 1
 
     # Get cell state at specific row and column
     fun cell_at(Int row, Int col) -> CellState:
@@ -81,13 +73,13 @@ cls Board:
         return -1  # Column is full
 
     # Convert player number to cell state
-    fun player_to_state(Int player) -> CellState:
-        if player == 0:
+    fun player_to_state(BInt<0, 1> player) -> CellState:
+        if player.value == 0:
             return CellState::Cross
         return CellState::Nought
 
     # Check if there's a line from a specific position in a specific direction
-    fun has_line_from_in_direction(Int player, Int row, Int col, Int drow, Int dcol) -> Bool:
+    fun has_line_from_in_direction(BInt<0, 1> player, Int row, Int col, Int drow, Int dcol) -> Bool:
         if row + 3 * drow >= kRows or row + 3 * drow < 0 or col + 3 * dcol >= kCols or col + 3 * dcol < 0:
             return false
         
@@ -100,11 +92,11 @@ cls Board:
         return true
 
     # Check if player has a line from a specific position
-    fun has_line_from(Int player, Int row, Int col) -> Bool:
+    fun has_line_from(BInt<0, 1> player, Int row, Int col) -> Bool:
         return self.has_line_from_in_direction(player, row, col, 0, 1) or self.has_line_from_in_direction(player, row, col, 1, 0) or self.has_line_from_in_direction(player, row, col, 1, 1) or self.has_line_from_in_direction(player, row, col, 1, -1)
 
     # Check if player has a line anywhere on the board
-    fun has_line(Int player) -> Bool:
+    fun has_line(BInt<0, 1> player) -> Bool:
         let cell_state = self.player_to_state(player)
         let col = 0
         while col < kCols:
@@ -137,7 +129,10 @@ cls Board:
 
     # Switch to the next player
     fun next_player():
-        self.current_player = 1 - self.current_player
+        if self.current_player.value == 0:
+            self.current_player.value = 1
+        else:
+            self.current_player.value = 0
 
 # The main Connect Four game
 @classes
@@ -146,7 +141,7 @@ act play() -> Game:
     board.outcome = Outcome::Unknown
     
     while board.outcome == Outcome::Unknown:
-        act drop(BInt<0, 7> col) {
+        act select(BInt<0, 7> col) {
             col.value >= 0,
             col.value < kCols,
             !board.is_column_full(col.value)
@@ -160,7 +155,7 @@ act play() -> Game:
         
         # Check for win
         if board.has_line(board.current_player):
-            if board.current_player == 0:
+            if board.current_player.value == 0:
                 board.outcome = Outcome::Player1Win
             else:
                 board.outcome = Outcome::Player2Win
@@ -183,49 +178,49 @@ fun main() -> Int:
     # Player 1 (X) drops in the middle
     let col3 : BInt<0, 7>
     col3.value = 3
-    game.drop(col3)
+    game.select(col3)
     print("After Player 1 drops in column 3:"s)
     print(game.board.to_string())
     
     # Player 2 (O) drops in column 2
     let col2 : BInt<0, 7>
     col2.value = 2
-    game.drop(col2)
+    game.select(col2)
     print("After Player 2 drops in column 2:"s)
     print(game.board.to_string())
     
     # Player 1 drops in column 4
     let col4 : BInt<0, 7>
     col4.value = 4
-    game.drop(col4)
+    game.select(col4)
     print("After Player 1 drops in column 4:"s)
     print(game.board.to_string())
     
     # Player 2 drops in column 1
     let col1 : BInt<0, 7>
     col1.value = 1
-    game.drop(col1)
+    game.select(col1)
     print("After Player 2 drops in column 1:"s)
     print(game.board.to_string())
     
     # Player 1 drops in column 5
     let col5 : BInt<0, 7>
     col5.value = 5
-    game.drop(col5)
+    game.select(col5)
     print("After Player 1 drops in column 5:"s)
     print(game.board.to_string())
     
     # Player 2 drops in column 0
     let col0 : BInt<0, 7>
     col0.value = 0
-    game.drop(col0)
+    game.select(col0)
     print("After Player 2 drops in column 0:"s)
     print(game.board.to_string())
     
     # Player 1 drops in column 6 to win with a diagonal
     let col6 : BInt<0, 7>
     col6.value = 6
-    game.drop(col6)
+    game.select(col6)
     print("After Player 1 drops in column 6:"s)
     print(game.board.to_string())
     
@@ -254,7 +249,7 @@ fun pretty_print(Game game):
     
     # Print current state information
     if game.board.outcome == Outcome::Unknown:
-        print("Current player: "s + to_string(game.board.current_player + 1))
+        print("Current player: "s + to_string(game.board.current_player.value + 1))
     else if game.board.outcome == Outcome::Player1Win:
         print("Player 1 wins!"s)
     else if game.board.outcome == Outcome::Player2Win:
@@ -266,7 +261,7 @@ fun pretty_print(Game game):
 fun get_current_player(Game g) -> Int:
     if g.is_done():
         return -4
-    return g.board.current_player
+    return g.board.current_player.value
 
 # Return score for ML training
 fun score(Game g, Int player_id) -> Float:
