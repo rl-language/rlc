@@ -146,7 +146,6 @@ fun pretty_print(Game game):
     else:
         print("Game in progress. Ball at row "s + to_string(game.board.ball_row) + ", column "s + to_string(game.board.ball_col))
         print("Paddle at column "s + to_string(game.board.paddle_col))
-        print("Use 0 for LEFT, 1 for STAY, 2 for RIGHT"s)
 
 # Return current player or special value if game is done
 fun get_current_player(Game g) -> Int:
