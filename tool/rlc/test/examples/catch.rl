@@ -22,65 +22,43 @@ enum CellState:
     fun not_equal(CellState other) -> Bool:
         return !(self.value == other.value)
 
-# Outcome of the game
-enum Outcome:
-    Unknown
-    Win
-    Loss
-
-    fun equal(Outcome other) -> Bool:
-        return self.value == other.value
-
-    fun not_equal(Outcome other) -> Bool:
-        return !(self.value == other.value)
-
 # Board representation
 cls Board:
-    Int num_rows
-    Int num_cols
-    Int ball_row
-    Int ball_col
-    Int paddle_col
-    Bool initialized
-    Outcome outcome
+    BInt<2,99> num_rows
+    BInt<2,99> num_cols
+    BInt<0,98> ball_row
+    BInt<0,98> ball_col
+    BInt<0,98> paddle_col
 
     fun init():
-        self.num_rows = kDefaultRows
-        self.num_cols = kDefaultCols
-        self.ball_row = 0
-        self.ball_col = 0
-        self.paddle_col = kDefaultCols / 2
-        self.initialized = false
-        self.outcome = Outcome::Unknown
+        self.num_rows.value = kDefaultRows
+        self.num_cols.value = kDefaultCols
+        self.paddle_col.value = kDefaultCols / 2
+    
+    fun init(Int rows, Int cols):
+        self.num_rows.value = rows
+        self.num_cols.value = cols
+        self.paddle_col.value = cols / 2
 
     # Get cell state at specific row and column
     fun cell_at(Int row, Int col) -> CellState:
-        if row == self.num_rows - 1 and col == self.paddle_col:
+        if row == self.num_rows.value - 1 and col == self.paddle_col.value:
             return CellState::Paddle
-        else if row == self.ball_row and col == self.ball_col:
+        else if row == self.ball_row.value and col == self.ball_col.value:
             return CellState::Ball
         return CellState::Empty
 
     # Check if the game is terminal
     fun is_terminal() -> Bool:
-        return self.initialized and self.ball_row >= self.num_rows - 1
-
-    # Get the current returns (rewards)
-    fun returns() -> Float:
-        if !self.is_terminal():
-            return 0.0
-        else if self.ball_col == self.paddle_col:
-            return 1.0
-        else:
-            return -1.0
+        return self.ball_row.value >= self.num_rows.value - 1
 
     # Generate string representation of the board
     fun to_string() -> String:
         let result = ""s
         let row = 0
-        while row < self.num_rows:
+        while row < self.num_rows.value:
             let col = 0
-            while col < self.num_cols:
+            while col < self.num_cols.value:
                 if self.cell_at(row, col) == CellState::Empty:
                     result = result + "."s
                 else if self.cell_at(row, col) == CellState::Paddle:
@@ -92,14 +70,6 @@ cls Board:
             row = row + 1
         return result
 
-    # Update outcome based on current game state
-    fun update_outcome():
-        if self.is_terminal():
-            if self.ball_col == self.paddle_col:
-                self.outcome = Outcome::Win
-            else:
-                self.outcome = Outcome::Loss
-
 # The main Catch game
 @classes
 act play() -> Game:
@@ -107,31 +77,29 @@ act play() -> Game:
     
     # Initialization - chance player selects starting ball column
     act initialize(BInt<0, kDefaultCols> col) {
-        !board.initialized
+        col.value >= 0,
+        col.value < kDefaultCols
     }
-    board.ball_col = col.value
-    board.initialized = true
+    board.ball_col.value = col.value
     
     # Game loop - player makes moves until ball reaches bottom
     while !board.is_terminal():
         act move(BInt<0, 2> direction) {
-            board.initialized
+            direction >= 0,
+            direction < 3
         }
         
         # Move the ball down one row
-        board.ball_row = board.ball_row + 1
+        board.ball_row.value = board.ball_row.value + 1
         
         # Move the paddle based on player's direction
         # 0 = left, 1 = stay, 2 = right
         let actual_direction = direction.value - 1  # Convert to -1, 0, 1
-        let new_paddle_pos = board.paddle_col + actual_direction
+        let new_paddle_pos = board.paddle_col.value + actual_direction
         
         # Ensure paddle stays within bounds
-        if new_paddle_pos >= 0 and new_paddle_pos < board.num_cols:
-            board.paddle_col = new_paddle_pos
-    
-    # Game is now terminal, update outcome
-    board.update_outcome()
+        if new_paddle_pos >= 0 and new_paddle_pos < board.num_cols.value:
+            board.paddle_col.value = new_paddle_pos
 
 # Function for machine learning components to display the game state
 fun pretty_print(Game game):
@@ -139,7 +107,7 @@ fun pretty_print(Game game):
     
     # Print game status
     if game.is_done():
-        if game.board.outcome == Outcome::Win:
+        if score(game, 0) == 1.0:
             print("You win! You caught the ball."s)
         else:
             print("You lose! You missed the ball."s)
@@ -149,8 +117,6 @@ fun pretty_print(Game game):
 
 # Return current player or special value if game is done
 fun get_current_player(Game g) -> Int:
-    if !g.board.initialized:
-        return -1  # Chance player
     if g.is_done():
         return -4  # Terminal state
     return 0  # Player 0 (the only player)
@@ -159,7 +125,7 @@ fun get_current_player(Game g) -> Int:
 fun score(Game g, Int player_id) -> Float:
     if !g.is_done(): 
         return 0.0
-    if g.board.outcome == Outcome::Win:
+    if g.board.paddle_col == g.board.ball_col:
         return 1.0
     else:
         return -1.0
