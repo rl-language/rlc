@@ -46,3 +46,4 @@ makeProgramBenchmark(Hanabi ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/hanabi.rl
 makeProgramBenchmark(Battleship ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/battleship.rl)
 makeProgramBenchmark(Checkers ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/checkers.rl)
 makeProgramBenchmark(ConnectFour ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/connect_four.rl)
+makeProgramBenchmark(Catch ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/catch.rl)
