@@ -63,6 +63,10 @@ namespace mlir::rlc::lsp
 				const mlir::lsp::Position &completePos,
 				mlir::lsp::CompletionList &list) const;
 
+		mlir::LogicalResult getCompleteEnum(
+				const mlir::lsp::Position &completePos,
+				mlir::lsp::CompletionList &list) const;
+
 		mlir::LogicalResult getCompleteFunction(
 				const mlir::lsp::Position &completePos,
 				mlir::lsp::CompletionList &list) const;

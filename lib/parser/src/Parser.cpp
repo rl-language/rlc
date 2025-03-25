@@ -276,13 +276,20 @@ Expected<mlir::Value> Parser::primaryExpression()
 			return builder.create<mlir::rlc::UnresolvedReference>(location, lIdent);
 
 		auto enumName = lIdent;
-		EXPECT(Token::Identifier);
-		auto enumField = lIdent;
-		return builder.create<mlir::rlc::UncheckedEnumUse>(
+		std::string enumField = "";
+		if (accept(Token::Identifier))
+		{
+			enumField = lIdent;
+		}
+
+		auto toReturn = builder.create<mlir::rlc::UncheckedEnumUse>(
 				location,
 				mlir::rlc::UnknownType::get(builder.getContext()),
 				enumName,
 				enumField);
+		if (enumField.empty())
+			EXPECT(Token::Identifier);
+		return toReturn;
 	}
 
 	if (accept<Token::Double>())
@@ -1165,7 +1172,8 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 		if (condExp == nullptr)
 			condExp =
 					builder.create<mlir::rlc::Constant>(getCurrentSourcePos(), false);
-		builder.create<mlir::rlc::Yield>(location, mlir::ValueRange(condExp));
+		auto yieldLoc = getCurrentSourcePos();
+		builder.create<mlir::rlc::Yield>(yieldLoc, mlir::ValueRange(condExp));
 
 		builder.setInsertionPointToEnd(trueB);
 		emitYieldIfNeeded(getCurrentSourcePos());
@@ -1342,7 +1350,8 @@ Expected<mlir::rlc::WhileStatement> Parser::whileStatement()
 		builder.setInsertionPointToEnd(condB);
 		if (exp == nullptr)
 			exp = builder.create<mlir::rlc::Constant>(getCurrentSourcePos(), false);
-		builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ exp }));
+		auto yieldLocation = getCurrentSourcePos();
+		builder.create<mlir::rlc::Yield>(yieldLocation, mlir::ValueRange({ exp }));
 		builder.setInsertionPointToEnd(bodyB);
 		emitYieldIfNeeded(getCurrentSourcePos());
 		builder.restoreInsertionPoint(pos);

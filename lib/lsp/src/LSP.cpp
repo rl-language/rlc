@@ -38,7 +38,6 @@ static mlir::lsp::Position locToPos(mlir::Location location)
 static llvm::Expected<mlir::lsp::Location> locToLoc(mlir::Location location)
 {
 	auto castedBegin = location.cast<mlir::FileLineColLoc>();
-	llvm::errs() << castedBegin.getFilename().str();
 	auto uri = mlir::lsp::URIForFile::fromFile(castedBegin.getFilename().str());
 	if (not uri)
 	{
@@ -52,6 +51,10 @@ static llvm::Expected<mlir::lsp::Location> locToLoc(mlir::Location location)
 static mlir::lsp::Range locsToRange(mlir::Location begin, mlir::Location end)
 {
 	auto toReturn = mlir::lsp::Range(locToPos(begin), locToPos(end));
+	// if the range goes backward, say that it is a one character wide range
+	// starting from the known start
+	if (toReturn.end.character < toReturn.start.character)
+		toReturn.end.character = toReturn.start.character + 1;
 	return toReturn;
 }
 
@@ -167,6 +170,15 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			declarations.emplace_back(
 					locsToRange(loc, firstInstructionLoc), decl.getOperation());
 		});
+		module.walk([this](mlir::rlc::UncheckedEnumUse enumUse) {
+			if (enumUse->getNextNode() == nullptr)
+				return;
+			auto firstInstructionLoc =
+					enumUse->getNextNode()->getLoc().cast<mlir::FileLineColLoc>();
+			auto loc = enumUse.getLoc().cast<mlir::FileLineColLoc>();
+			enumUses.emplace_back(locsToRange(loc, firstInstructionLoc), enumUse);
+			enumUses.back().first.end.character++;
+		});
 		module.walk([this](mlir::rlc::CallOp decl) {
 			if (decl->getNextNode() == nullptr)
 				return;
@@ -207,6 +219,17 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	{
 		for (const auto &pair :
 				 llvm::make_range(declarations.rbegin(), declarations.rend()))
+		{
+			if (pair.first.contains(pos) and opIsInSameFile(pair.second))
+				return pair.second;
+		}
+		return nullptr;
+	}
+
+	mlir::rlc::UncheckedEnumUse getNearestEnumUse(const mlir::lsp::Position &pos)
+	{
+		for (const auto &pair :
+				 llvm::make_range(enumUses.rbegin(), enumUses.rend()))
 		{
 			if (pair.first.contains(pos) and opIsInSameFile(pair.second))
 				return pair.second;
@@ -509,6 +532,35 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return mlir::success();
 	}
 
+	mlir::LogicalResult getCompleteEnum(
+			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
+	{
+		auto enumUse = getNearestEnumUse(completePos);
+		if (enumUse == nullptr)
+		{
+			return mlir::failure();
+		}
+
+		for (auto enumDecl : module.getOps<mlir::rlc::EnumDeclarationOp>())
+		{
+			if (enumDecl.getName() != enumUse.getEnumName())
+				continue;
+
+			using KeyType = std::pair<std::string, const void *>;
+			std::set<KeyType> alreadyEmitted;
+			for (auto field :
+					 enumDecl.getBody().getOps<mlir::rlc::EnumFieldDeclarationOp>())
+			{
+				mlir::lsp::CompletionItem item;
+				item.label = field.getName();
+				item.kind = mlir::lsp::CompletionItemKind::Function;
+				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
+				list.items.push_back(item);
+			}
+		}
+		return mlir::success();
+	}
+
 	mlir::LogicalResult getCompleteAccessMember(
 			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
 	{
@@ -707,6 +759,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
 			functionAndActionFunctions;
 
+	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::rlc::UncheckedEnumUse>>
+			enumUses;
+
 	llvm::SmallVector<mlir::rlc::lsp::Diagnostic> diagnostics;
 	mlir::DialectRegistry Registry;
 	mlir::MLIRContext context;
@@ -742,6 +797,13 @@ mlir::LogicalResult LSPModuleInfo::getCompleteAccessMember(
 		mlir::lsp::CompletionList &list) const
 {
 	return impl->getCompleteAccessMember(completePos, list);
+}
+
+mlir::LogicalResult LSPModuleInfo::getCompleteEnum(
+		const mlir::lsp::Position &completePos,
+		mlir::lsp::CompletionList &list) const
+{
+	return impl->getCompleteEnum(completePos, list);
 }
 
 mlir::LogicalResult LSPModuleInfo::getCompleteType(
@@ -912,6 +974,11 @@ mlir::lsp::CompletionList RLCServer::getCodeCompletion(
 	}
 
 	if (maybeInfo->getCompleteImport(completePos, list).succeeded())
+	{
+		return list;
+	}
+
+	if (maybeInfo->getCompleteEnum(completePos, list).succeeded())
 	{
 		return list;
 	}
