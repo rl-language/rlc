@@ -1,0 +1,255 @@
+--- !Missed
+Pass:            inline
+Name:            NoDefinition
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - Callee:          puts
+  - String:          ' will not be inlined into '
+  - Caller:          rl_something__int64_t_4_int64_t
+  - String:          ' because its definition is unavailable'
+...
+--- !Missed
+Pass:            licm
+Name:            LoadWithLoopInvariantAddressInvalidated
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          failed to move load with loop-invariant address because the loop may invalidate its value
+...
+--- !Missed
+Pass:            licm
+Name:            LoadWithLoopInvariantAddressCondExecuted
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          failed to hoist load with loop-invariant address because load is conditionally executed
+...
+--- !Missed
+Pass:            licm
+Name:            LoadWithLoopInvariantAddressInvalidated
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          failed to move load with loop-invariant address because the loop may invalidate its value
+...
+--- !Missed
+Pass:            licm
+Name:            LoadWithLoopInvariantAddressCondExecuted
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          failed to hoist load with loop-invariant address because load is conditionally executed
+...
+--- !Passed
+Pass:            loop-unroll
+Name:            FullyUnrolled
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'completely unrolled loop with '
+  - UnrollCount:     '4'
+  - String:          ' iterations'
+...
+--- !Passed
+Pass:            gvn
+Name:            LoadElim
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' eliminated'
+  - String:          ' in favor of '
+  - InfavorOfValue:  '0'
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Passed
+Pass:            gvn
+Name:            LoadElim
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' eliminated'
+  - String:          ' in favor of '
+  - InfavorOfValue:  load
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Passed
+Pass:            gvn
+Name:            LoadElim
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' eliminated'
+  - String:          ' in favor of '
+  - InfavorOfValue:  add
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Passed
+Pass:            gvn
+Name:            LoadElim
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' eliminated'
+  - String:          ' in favor of '
+  - InfavorOfValue:  add
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+Function:        rl_something__int64_t_4_int64_t
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+...
+--- !Passed
+Pass:            inline
+Name:            Inlined
+Function:        rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+Args:
+  - String:          ''''
+  - Callee:          rl_m_init__int64_t_10
+  - String:          ''' inlined into '''
+  - Caller:          rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+  - String:          ''''
+  - String:          ' with '
+  - String:          '(cost='
+  - Cost:            '-30'
+  - String:          ', threshold='
+  - Threshold:       '375'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-unroll
+Name:            FullyUnrolled
+Function:        rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+Args:
+  - String:          'completely unrolled loop with '
+  - UnrollCount:     '10'
+  - String:          ' iterations'
+...
+--- !Passed
+Pass:            slp-vectorizer
+Name:            StoresVectorized
+Function:        rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+Args:
+  - String:          'Stores SLP vectorized with cost '
+  - Cost:            '-4'
+  - String:          ' and with tree size '
+  - TreeSize:        '4'
+...
+--- !Passed
+Pass:            slp-vectorizer
+Name:            StoresVectorized
+Function:        rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+Args:
+  - String:          'Stores SLP vectorized with cost '
+  - Cost:            '-4'
+  - String:          ' and with tree size '
+  - TreeSize:        '4'
+...
+--- !Passed
+Pass:            slp-vectorizer
+Name:            StoresVectorized
+Function:        rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+Args:
+  - String:          'Stores SLP vectorized with cost '
+  - Cost:            '-4'
+  - String:          ' and with tree size '
+  - TreeSize:        '4'
+...
+--- !Passed
+Pass:            slp-vectorizer
+Name:            StoresVectorized
+Function:        rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+Args:
+  - String:          'Stores SLP vectorized with cost '
+  - Cost:            '-4'
+  - String:          ' and with tree size '
+  - TreeSize:        '4'
+...
+--- !Passed
+Pass:            slp-vectorizer
+Name:            StoresVectorized
+Function:        rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10
+Args:
+  - String:          'Stores SLP vectorized with cost '
+  - Cost:            '-4'
+  - String:          ' and with tree size '
+  - TreeSize:        '4'
+...
