@@ -26,7 +26,7 @@ void something_32_void(int a[4], int *b){
 void something_64_void(long a[4], long *b){
     *b = 0;
     for(int i = 0; i != 4; i++){
-        b += a[i];
+        *b += a[i];
     }   
 }
 

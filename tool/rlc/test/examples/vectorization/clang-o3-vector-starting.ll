@@ -37,9 +37,23 @@ define dso_local void @something_32_void(ptr nocapture noundef readonly %0, ptr 
   ret void
 }
 
-; Function Attrs: mustprogress nofree norecurse nosync nounwind sspstrong willreturn memory(argmem: write) uwtable
-define dso_local void @something_64_void(ptr nocapture noundef readnone %0, ptr nocapture noundef writeonly %1) local_unnamed_addr #2 {
+; Function Attrs: mustprogress nofree norecurse nosync nounwind sspstrong willreturn memory(argmem: readwrite) uwtable
+define dso_local void @something_64_void(ptr nocapture noundef readonly %0, ptr nocapture noundef writeonly %1) local_unnamed_addr #1 {
   store i64 0, ptr %1, align 8, !tbaa !9
+  %3 = load i64, ptr %0, align 8, !tbaa !9
+  store i64 %3, ptr %1, align 8, !tbaa !9
+  %4 = getelementptr inbounds i8, ptr %0, i64 8
+  %5 = load i64, ptr %4, align 8, !tbaa !9
+  %6 = add nsw i64 %3, %5
+  store i64 %6, ptr %1, align 8, !tbaa !9
+  %7 = getelementptr inbounds i8, ptr %0, i64 16
+  %8 = load i64, ptr %7, align 8, !tbaa !9
+  %9 = add nsw i64 %6, %8
+  store i64 %9, ptr %1, align 8, !tbaa !9
+  %10 = getelementptr inbounds i8, ptr %0, i64 24
+  %11 = load i64, ptr %10, align 8, !tbaa !9
+  %12 = add nsw i64 %9, %11
+  store i64 %12, ptr %1, align 8, !tbaa !9
   ret void
 }
 
@@ -139,15 +153,14 @@ define dso_local void @vector_sum_restrict(ptr noalias nocapture noundef readonl
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
-declare i32 @llvm.vector.reduce.add.v4i32(<4 x i32>) #3
+declare i32 @llvm.vector.reduce.add.v4i32(<4 x i32>) #2
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
-declare i64 @llvm.vector.reduce.add.v4i64(<4 x i64>) #3
+declare i64 @llvm.vector.reduce.add.v4i64(<4 x i64>) #2
 
 attributes #0 = { mustprogress nofree norecurse nosync nounwind sspstrong willreturn memory(argmem: read) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { mustprogress nofree norecurse nosync nounwind sspstrong willreturn memory(argmem: readwrite) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #2 = { mustprogress nofree norecurse nosync nounwind sspstrong willreturn memory(argmem: write) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #3 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+attributes #2 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
 
 !llvm.module.flags = !{!0, !1, !2, !3}
 !llvm.ident = !{!4}
