@@ -1,11 +1,15 @@
 ; ModuleID = 'vector_starting.rl'
 source_filename = "vector_starting.rl"
-target datalayout = "e-S128-i16:16-i8:8-i32:32-f128:128-f16:16-p270:32:32:32:32-f64:64-p271:32:32:32:32-p272:64:64:64:64-i64:64-i128:128-f80:128-i1:8-p0:64:64:64:64"
+target datalayout = "S128-e-i1:8-p0:64:64:64:64-f80:128-i128:128-i64:64-p271:32:32:32:32-p272:64:64:64:64-f128:128-f16:16-p270:32:32:32:32-f64:64-i32:32-i16:16-i8:8"
 target triple = "x86_64-unknown-linux-gnu"
 
-@str_3 = internal constant [60 x i8] c"vector_starting.rl:13:24 error: Out of bounds array access.\0A"
-@str_2 = internal constant [60 x i8] c"vector_starting.rl:13:17 error: Out of bounds array access.\0A"
-@str_1 = internal constant [60 x i8] c"vector_starting.rl:13:10 error: Out of bounds array access.\0A"
+@str_7 = internal constant [60 x i8] c"vector_starting.rl:28:24 error: Out of bounds array access.\0A"
+@str_6 = internal constant [60 x i8] c"vector_starting.rl:28:17 error: Out of bounds array access.\0A"
+@str_5 = internal constant [60 x i8] c"vector_starting.rl:28:10 error: Out of bounds array access.\0A"
+@str_4 = internal constant [60 x i8] c"vector_starting.rl:21:24 error: Out of bounds array access.\0A"
+@str_3 = internal constant [60 x i8] c"vector_starting.rl:21:17 error: Out of bounds array access.\0A"
+@str_2 = internal constant [60 x i8] c"vector_starting.rl:21:10 error: Out of bounds array access.\0A"
+@str_1 = internal constant [60 x i8] c"vector_starting.rl:12:18 error: Out of bounds array access.\0A"
 @str_0 = internal constant [59 x i8] c"vector_starting.rl:5:18 error: Out of bounds array access.\0A"
 
 declare ptr @malloc(i64)
@@ -19,7 +23,7 @@ define void @rl_m_init__int64_t_10(ptr %0) {
   ret void
 }
 
-define void @rl_something__int64_t_4_int64_t(ptr %0, ptr %1) {
+define void @rl_red_void__int64_t_4_int64_t(ptr %0, ptr %1) {
   %3 = alloca i64, i64 1, align 8
   store i64 0, ptr %1, align 8
   store i64 0, ptr %3, align 8
@@ -66,6 +70,55 @@ define void @rl_something__int64_t_4_int64_t(ptr %0, ptr %1) {
   ret void
 }
 
+define void @rl_red__int64_t_4_r_int64_t(ptr %0, ptr %1) {
+  %3 = alloca i64, i64 1, align 8
+  %4 = alloca i64, i64 1, align 8
+  store i64 0, ptr %4, align 8
+  store i64 0, ptr %3, align 8
+  br label %5
+
+5:                                                ; preds = %23, %2
+  %6 = load i64, ptr %3, align 8
+  %7 = icmp ne i64 %6, 4
+  %8 = zext i1 %7 to i8
+  %9 = icmp ne i8 %8, 0
+  br i1 %9, label %10, label %31
+
+10:                                               ; preds = %5
+  %11 = load i64, ptr %3, align 8
+  %12 = icmp sge i64 %11, 4
+  %13 = zext i1 %12 to i8
+  %14 = load i64, ptr %3, align 8
+  %15 = icmp slt i64 %14, 0
+  %16 = zext i1 %15 to i8
+  %17 = or i8 %13, %16
+  %18 = icmp eq i8 %17, 0
+  %19 = zext i1 %18 to i8
+  %20 = icmp ne i8 %19, 0
+  br i1 %20, label %23, label %21
+
+21:                                               ; preds = %10
+  %22 = call i32 @puts(ptr @str_1)
+  call void @llvm.trap()
+  ret void
+
+23:                                               ; preds = %10
+  %24 = load i64, ptr %3, align 8
+  %25 = getelementptr [4 x i64], ptr %1, i32 0, i64 %24
+  %26 = load i64, ptr %4, align 8
+  %27 = load i64, ptr %25, align 8
+  %28 = add i64 %26, %27
+  store i64 %28, ptr %4, align 8
+  %29 = load i64, ptr %3, align 8
+  %30 = add i64 %29, 1
+  store i64 %30, ptr %3, align 8
+  br label %5
+
+31:                                               ; preds = %5
+  call void @llvm.memcpy.p0.p0.i64(ptr %0, ptr %4, i64 8, i1 false)
+  ret void
+}
+
 define void @rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10(ptr %0, ptr %1, ptr %2) {
   %4 = alloca i64, i64 1, align 8
   %5 = alloca [10 x i64], i64 1, align 8
@@ -94,7 +147,7 @@ define void @rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10(ptr %0, ptr %1, p
   br i1 %21, label %24, label %22
 
 22:                                               ; preds = %11
-  %23 = call i32 @puts(ptr @str_1)
+  %23 = call i32 @puts(ptr @str_2)
   call void @llvm.trap()
   ret void
 
@@ -114,7 +167,7 @@ define void @rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10(ptr %0, ptr %1, p
   br i1 %36, label %39, label %37
 
 37:                                               ; preds = %24
-  %38 = call i32 @puts(ptr @str_2)
+  %38 = call i32 @puts(ptr @str_3)
   call void @llvm.trap()
   ret void
 
@@ -134,7 +187,7 @@ define void @rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10(ptr %0, ptr %1, p
   br i1 %51, label %54, label %52
 
 52:                                               ; preds = %39
-  %53 = call i32 @puts(ptr @str_3)
+  %53 = call i32 @puts(ptr @str_4)
   call void @llvm.trap()
   ret void
 
@@ -152,6 +205,92 @@ define void @rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10(ptr %0, ptr %1, p
 
 62:                                               ; preds = %6
   call void @llvm.memcpy.p0.p0.i64(ptr %0, ptr %5, i64 80, i1 false)
+  ret void
+}
+
+define void @rl_vector_sum_void__int64_t_10_int64_t_10_int64_t_10(ptr %0, ptr %1, ptr %2) {
+  %4 = alloca i64, i64 1, align 8
+  store i64 0, ptr %4, align 8
+  br label %5
+
+5:                                                ; preds = %53, %3
+  %6 = load i64, ptr %4, align 8
+  %7 = icmp slt i64 %6, 10
+  %8 = zext i1 %7 to i8
+  %9 = icmp ne i8 %8, 0
+  br i1 %9, label %10, label %61
+
+10:                                               ; preds = %5
+  %11 = load i64, ptr %4, align 8
+  %12 = icmp sge i64 %11, 10
+  %13 = zext i1 %12 to i8
+  %14 = load i64, ptr %4, align 8
+  %15 = icmp slt i64 %14, 0
+  %16 = zext i1 %15 to i8
+  %17 = or i8 %13, %16
+  %18 = icmp eq i8 %17, 0
+  %19 = zext i1 %18 to i8
+  %20 = icmp ne i8 %19, 0
+  br i1 %20, label %23, label %21
+
+21:                                               ; preds = %10
+  %22 = call i32 @puts(ptr @str_5)
+  call void @llvm.trap()
+  ret void
+
+23:                                               ; preds = %10
+  %24 = load i64, ptr %4, align 8
+  %25 = getelementptr [10 x i64], ptr %2, i32 0, i64 %24
+  %26 = load i64, ptr %4, align 8
+  %27 = icmp sge i64 %26, 10
+  %28 = zext i1 %27 to i8
+  %29 = load i64, ptr %4, align 8
+  %30 = icmp slt i64 %29, 0
+  %31 = zext i1 %30 to i8
+  %32 = or i8 %28, %31
+  %33 = icmp eq i8 %32, 0
+  %34 = zext i1 %33 to i8
+  %35 = icmp ne i8 %34, 0
+  br i1 %35, label %38, label %36
+
+36:                                               ; preds = %23
+  %37 = call i32 @puts(ptr @str_6)
+  call void @llvm.trap()
+  ret void
+
+38:                                               ; preds = %23
+  %39 = load i64, ptr %4, align 8
+  %40 = getelementptr [10 x i64], ptr %0, i32 0, i64 %39
+  %41 = load i64, ptr %4, align 8
+  %42 = icmp sge i64 %41, 10
+  %43 = zext i1 %42 to i8
+  %44 = load i64, ptr %4, align 8
+  %45 = icmp slt i64 %44, 0
+  %46 = zext i1 %45 to i8
+  %47 = or i8 %43, %46
+  %48 = icmp eq i8 %47, 0
+  %49 = zext i1 %48 to i8
+  %50 = icmp ne i8 %49, 0
+  br i1 %50, label %53, label %51
+
+51:                                               ; preds = %38
+  %52 = call i32 @puts(ptr @str_7)
+  call void @llvm.trap()
+  ret void
+
+53:                                               ; preds = %38
+  %54 = load i64, ptr %4, align 8
+  %55 = getelementptr [10 x i64], ptr %1, i32 0, i64 %54
+  %56 = load i64, ptr %40, align 8
+  %57 = load i64, ptr %55, align 8
+  %58 = add i64 %56, %57
+  store i64 %58, ptr %25, align 8
+  %59 = load i64, ptr %4, align 8
+  %60 = add i64 %59, 1
+  store i64 %60, ptr %4, align 8
+  br label %5
+
+61:                                               ; preds = %5
   ret void
 }
 

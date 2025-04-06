@@ -96,13 +96,83 @@ Args:
   - ClobberedBy:     store
     DebugLoc:        { File: vector_starting.c, Line: 22, Column: 12 }
 ...
+--- !Missed
+Pass:            licm
+Name:            LoadWithLoopInvariantAddressInvalidated
+DebugLoc:        { File: vector_starting.c, Line: 29, Column: 12 }
+Function:        something_64_void
+Args:
+  - String:          failed to move load with loop-invariant address because the loop may invalidate its value
+...
 --- !Passed
-Pass:            loop-delete
-Name:            Invariant
+Pass:            licm
+Name:            PromoteLoopAccessesToScalar
+DebugLoc:        { File: vector_starting.c, Line: 29, Column: 12 }
+Function:        something_64_void
+Args:
+  - String:          Moving accesses to memory location out of the loop
+...
+--- !Passed
+Pass:            loop-unroll
+Name:            FullyUnrolled
 DebugLoc:        { File: vector_starting.c, Line: 28, Column: 5 }
 Function:        something_64_void
 Args:
-  - String:          Loop deleted because it is invariant
+  - String:          'completely unrolled loop with '
+  - UnrollCount:     '4'
+  - String:          ' iterations'
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+DebugLoc:        { File: vector_starting.c, Line: 29, Column: 15 }
+Function:        something_64_void
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+    DebugLoc:        { File: vector_starting.c, Line: 27, Column: 8 }
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+DebugLoc:        { File: vector_starting.c, Line: 29, Column: 15 }
+Function:        something_64_void
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+    DebugLoc:        { File: vector_starting.c, Line: 29, Column: 12 }
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+DebugLoc:        { File: vector_starting.c, Line: 29, Column: 15 }
+Function:        something_64_void
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+    DebugLoc:        { File: vector_starting.c, Line: 29, Column: 12 }
+...
+--- !Missed
+Pass:            gvn
+Name:            LoadClobbered
+DebugLoc:        { File: vector_starting.c, Line: 29, Column: 15 }
+Function:        something_64_void
+Args:
+  - String:          'load of type '
+  - Type:            i64
+  - String:          ' not eliminated'
+  - String:          ' because it is clobbered by '
+  - ClobberedBy:     store
+    DebugLoc:        { File: vector_starting.c, Line: 29, Column: 12 }
 ...
 --- !Passed
 Pass:            loop-unroll
