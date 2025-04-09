@@ -87,6 +87,12 @@ namespace mlir::rlc
 			return;
 		}
 
+		if (request == Request::dumpCSharp)
+		{
+			manager.addPass(mlir::rlc::createPrintCSharpPass({ OS }));
+			return;
+		}
+
 		if (request == Request::dumpGodotWrapper)
 		{
 			manager.addPass(mlir::rlc::createPrintGodotPass({ OS }));

@@ -156,6 +156,12 @@ static cl::opt<bool> dumpCWrapper(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpCSharpWrapper(
+		"c-sharp",
+		cl::desc("dumps the c sharp wrapper and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpPythonWrapper(
 		"python",
 		cl::desc("dumps the ast of python and exits"),
@@ -326,6 +332,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpCheckedAST;
 	if (dumpCWrapper)
 		return Driver::Request::dumpCWrapper;
+	if (dumpCSharpWrapper)
+		return Driver::Request::dumpCSharp;
 	if (dumpGodotWrapper)
 		return Driver::Request::dumpGodotWrapper;
 	if (dumpPythonAST)
