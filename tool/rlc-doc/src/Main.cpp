@@ -53,12 +53,10 @@ static void printTemplateParameter(mlir::Attribute attr, llvm::raw_ostream& OS)
 	}
 }
 
-static void writeComment(
-		mlir::Operation* op, llvm::raw_ostream& OS, size_t indentation = 0)
+static void writeComment(mlir::Operation* op, llvm::raw_ostream& OS)
 {
 	if (op->hasAttr("comment"))
 	{
-		OS.indent(indentation * 4);
 		auto comment = op->getAttr("comment").cast<mlir::StringAttr>();
 		OS << "```\n" << comment.strref();
 		OS << "```\n";
@@ -105,7 +103,7 @@ static void printActionFuntion(
 				OS << ", ";
 		}
 		OS << ")`\n\n";
-		writeComment(action, OS, 2);
+		writeComment(action, OS);
 	});
 }
 
