@@ -56,17 +56,6 @@ Args:
   - String:          ' in favor of '
   - InfavorOfValue:  '0'
 ...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
-...
 --- !Passed
 Pass:            gvn
 Name:            LoadElim
@@ -78,17 +67,6 @@ Args:
   - String:          ' in favor of '
   - InfavorOfValue:  load
 ...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
-...
 --- !Passed
 Pass:            gvn
 Name:            LoadElim
@@ -100,17 +78,6 @@ Args:
   - String:          ' in favor of '
   - InfavorOfValue:  add
 ...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
-...
 --- !Passed
 Pass:            gvn
 Name:            LoadElim
@@ -121,61 +88,6 @@ Args:
   - String:          ' eliminated'
   - String:          ' in favor of '
   - InfavorOfValue:  add
-...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
-...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
-...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
-...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
-...
---- !Missed
-Pass:            gvn
-Name:            LoadClobbered
-Function:        rl_red_void__int64_t_4_int64_t
-Args:
-  - String:          'load of type '
-  - Type:            i64
-  - String:          ' not eliminated'
-  - String:          ' because it is clobbered by '
-  - ClobberedBy:     store
 ...
 --- !Missed
 Pass:            inline
@@ -210,7 +122,7 @@ Args:
   - String:          '(cost='
   - Cost:            '-30'
   - String:          ', threshold='
-  - Threshold:       '375'
+  - Threshold:       '337'
   - String:          ')'
 ...
 --- !Passed
@@ -428,6 +340,16 @@ Args:
   - String:          ' not eliminated'
   - String:          ' because it is clobbered by '
   - ClobberedBy:     store
+...
+--- !Passed
+Pass:            slp-vectorizer
+Name:            VectorizedHorizontalReduction
+Function:        rl_red_void__int64_t_4_int64_t
+Args:
+  - String:          'Vectorized horizontal reduction with cost '
+  - Cost:            '-2'
+  - String:          ' and with tree size '
+  - TreeSize:        '1'
 ...
 --- !Passed
 Pass:            slp-vectorizer
