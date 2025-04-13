@@ -150,11 +150,15 @@ static void runOptimizer(
 	CGSCCAnalysisManager CGAM;
 	ModuleAnalysisManager MAM;
 
+	PipelineTuningOptions PTO;
+	// If !optimize this will be discarded 
+	PTO.SLPVectorization = true; 
+
 	// Create the new pass manager builder.
 	// Take a look at the PassBuilder constructor parameters for more
 	// customization, e.g. specifying a TargetMachine or various debugging
 	// options.
-	PassBuilder PB(nullptr, llvm::PipelineTuningOptions(), std::nullopt, &PIC);
+	PassBuilder PB(nullptr, PTO, std::nullopt, &PIC);
 
 	// Register all the basic analyses with the managers.
 	PB.registerModuleAnalyses(MAM);
@@ -178,7 +182,13 @@ static void runOptimizer(
 			addFuzzerInstrumentationPass(passManager);
 		passManager.run(M, MAM);
 
-		PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2).run(M, MAM);
+		ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+		MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
+			auto PassName = PIC.getPassNameForClassName(ClassName);
+			return PassName.empty() ? ClassName : PassName;
+		  });
+		outs() << "\n";
+		MPM.run(M, MAM);
 	}
 	else
 	{
@@ -188,6 +198,11 @@ static void runOptimizer(
 			MPM.addPass(createModuleToFunctionPassAdaptor(AddWindowsDLLExportPass()));
 		if (emitSanitizerInstrumentation and not targetIsWindows)
 			addFuzzerInstrumentationPass(MPM);
+		// MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
+		// 	auto PassName = PIC.getPassNameForClassName(ClassName);
+		// 	return PassName.empty() ? ClassName : PassName;
+		// 	});
+		// outs() << "\n";
 		MPM.run(M, MAM);
 	}
 

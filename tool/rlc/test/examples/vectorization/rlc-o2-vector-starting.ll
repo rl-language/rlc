@@ -1,11 +1,17 @@
 ; ModuleID = 'vector_starting.rl'
 source_filename = "vector_starting.rl"
-target datalayout = "e-S128-p271:32:32:32:32-p272:64:64:64:64-f128:128-f16:16-p270:32:32:32:32-f64:64-i32:32-i16:16-i8:8-i1:8-p0:64:64:64:64-f80:128-i128:128-i64:64"
+target datalayout = "S128-e-f80:128-p0:64:64:64:64-i1:8-i64:64-i128:128-f16:16-f128:128-p270:32:32:32:32-f64:64-p271:32:32:32:32-p272:64:64:64:64-i8:8-i16:16-i32:32"
 target triple = "x86_64-unknown-linux-gnu"
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write)
 define void @rl_m_init__int64_t_10(ptr nocapture writeonly %0) local_unnamed_addr #0 {
   tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 1 dereferenceable(80) %0, i8 0, i64 80, i1 false)
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite)
+define void @rl_m_assign__int64_t_10_int64_t_10(ptr nocapture writeonly %0, ptr nocapture readonly %1) local_unnamed_addr #1 {
+  tail call void @llvm.memmove.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(80) %0, ptr noundef nonnull align 1 dereferenceable(80) %1, i64 80, i1 false)
   ret void
 }
 
@@ -31,17 +37,9 @@ define void @rl_red_void__int64_t_4_int64_t(ptr nocapture readonly %0, ptr nocap
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite)
 define void @rl_red__int64_t_4_r_int64_t(ptr nocapture writeonly %0, ptr nocapture readonly %1) local_unnamed_addr #1 {
-  %3 = load i64, ptr %1, align 8
-  %4 = getelementptr i8, ptr %1, i64 8
-  %5 = load i64, ptr %4, align 8
-  %6 = add i64 %5, %3
-  %7 = getelementptr i8, ptr %1, i64 16
-  %8 = load i64, ptr %7, align 8
-  %9 = add i64 %8, %6
-  %10 = getelementptr i8, ptr %1, i64 24
-  %11 = load i64, ptr %10, align 8
-  %12 = add i64 %11, %9
-  store i64 %12, ptr %0, align 1
+  %3 = load <4 x i64>, ptr %1, align 8
+  %4 = tail call i64 @llvm.vector.reduce.add.v4i64(<4 x i64> %3)
+  store i64 %4, ptr %0, align 1
   ret void
 }
 
@@ -96,24 +94,24 @@ define void @rl_vector_sum__int64_t_10_int64_t_10_r_int64_t_10(ptr nocapture wri
   %50 = load i64, ptr %48, align 8
   %51 = add i64 %50, %49
   store i64 %6, ptr %0, align 1
-  %.sroa.3.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 8
-  store i64 %11, ptr %.sroa.3.0..sroa_idx, align 1
-  %.sroa.4.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 16
-  store i64 %16, ptr %.sroa.4.0..sroa_idx, align 1
-  %.sroa.5.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 24
-  store i64 %21, ptr %.sroa.5.0..sroa_idx, align 1
-  %.sroa.6.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 32
-  store i64 %26, ptr %.sroa.6.0..sroa_idx, align 1
-  %.sroa.7.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 40
-  store i64 %31, ptr %.sroa.7.0..sroa_idx, align 1
-  %.sroa.8.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 48
-  store i64 %36, ptr %.sroa.8.0..sroa_idx, align 1
-  %.sroa.9.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 56
-  store i64 %41, ptr %.sroa.9.0..sroa_idx, align 1
-  %.sroa.10.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 64
-  store i64 %46, ptr %.sroa.10.0..sroa_idx, align 1
-  %.sroa.11.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 72
-  store i64 %51, ptr %.sroa.11.0..sroa_idx, align 1
+  %.sroa.33.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 8
+  store i64 %11, ptr %.sroa.33.0..sroa_idx, align 1
+  %.sroa.44.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 16
+  store i64 %16, ptr %.sroa.44.0..sroa_idx, align 1
+  %.sroa.55.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 24
+  store i64 %21, ptr %.sroa.55.0..sroa_idx, align 1
+  %.sroa.66.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 32
+  store i64 %26, ptr %.sroa.66.0..sroa_idx, align 1
+  %.sroa.77.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 40
+  store i64 %31, ptr %.sroa.77.0..sroa_idx, align 1
+  %.sroa.88.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 48
+  store i64 %36, ptr %.sroa.88.0..sroa_idx, align 1
+  %.sroa.99.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 56
+  store i64 %41, ptr %.sroa.99.0..sroa_idx, align 1
+  %.sroa.1010.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 64
+  store i64 %46, ptr %.sroa.1010.0..sroa_idx, align 1
+  %.sroa.1111.0..sroa_idx = getelementptr inbounds i8, ptr %0, i64 72
+  store i64 %51, ptr %.sroa.1111.0..sroa_idx, align 1
   ret void
 }
 
@@ -192,9 +190,17 @@ define void @rl_vector_sum_void__int64_t_10_int64_t_10_int64_t_10(ptr nocapture 
 ; Function Attrs: mustprogress nocallback nofree nounwind willreturn memory(argmem: write)
 declare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg) #2
 
+; Function Attrs: mustprogress nocallback nofree nounwind willreturn memory(argmem: readwrite)
+declare void @llvm.memmove.p0.p0.i64(ptr nocapture writeonly, ptr nocapture readonly, i64, i1 immarg) #3
+
+; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare i64 @llvm.vector.reduce.add.v4i64(<4 x i64>) #4
+
 attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write) }
 attributes #1 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite) }
 attributes #2 = { mustprogress nocallback nofree nounwind willreturn memory(argmem: write) }
+attributes #3 = { mustprogress nocallback nofree nounwind willreturn memory(argmem: readwrite) }
+attributes #4 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
 
 !llvm.module.flags = !{!0}
 
