@@ -13,6 +13,7 @@ target_link_libraries(backend
 	LLVMMC
 	LLVMTransformUtils
 	LLVMPasses
+	LLVMOption
 	LLVMInstrumentation
 	LLVMAggressiveInstCombine
 	MLIRLLVMToLLVMIRTranslation
@@ -22,6 +23,7 @@ target_link_libraries(backend
 	MLIRSPIRVDialect
 	lldCOFF
     clangDriver
+	clangBasic
 	${dialect_libs}
 	${translation_libs}
 	${llvm_libs}
