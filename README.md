@@ -1,30 +1,5 @@
 # RLC
 
-- [RLC](#rlc)
-    + [RL and RLC](#rl-and-rlc)
-    + [Example: tic tac toe](#example--tic-tac-toe)
-    + [FAQ:](#faq-)
-      - [I am a reinforcement learning engineer, what do I gain from using this?](#i-am-a-reinforcement-learning-engineer--what-do-i-gain-from-using-this-)
-      - [I am a graphic engine programmer/game programmer, what do I gain from using this?](#i-am-a-graphic-engine-programmer-game-programmer--what-do-i-gain-from-using-this-)
-      - [I can write the same tic tac toe example in python using python yields, what is the difference?](#i-can-write-the-same-tic-tac-toe-example-in-python-using-python-yields--what-is-the-difference-)
-      - [I have a previously existing code base, can I use this project?](#i-have-a-previously-existing-code-base--can-i-use-this-project-)
-      - [I have performance constraints, is this fast?](#i-have-performance-constraints--is-this-fast-)
-      - [In practice, what happens to a project that wants to include Rulebook components?](#in-practice--what-happens-to-a-project-that-wants-to-include-rulebook-components-)
-    + [Installation](#installation)
-  * [Info for compiler developers.](#info-for-compiler-developers)
-    + [Dependencies](#dependencies)
-    + [License](#license)
-    + [Installation for compiler developers](#installation-for-compiler-developers)
-      - [What do if run out of space or memory](#what-do-if-run-out-of-space-or-memory)
-      - [Using a custom LLVM](#using-a-custom-llvm)
-    + [environment.sh](#environmentsh)
-    + [Contacts](#contacts)
-    + [How to contribute for developers](#how-to-contribute-for-developers)
-    + [Roadmap for 1.0](#roadmap-for-10)
-
-
-### RL and RLC
-> **Rulebook is the programming language to write rules in the age of machine learning.**
 
 ![RLC Logo](./imgs/generation.png)
 
@@ -39,11 +14,63 @@ Furthermore, we have performances comparable to CPP implementations.
 The following is the time required to play out 1024 game traces generated ahead of time, thus only measuiring the time required construct a game and to apply actions.
 ![RLC Logo](./imgs/performance.png)
 
+### Installation
+
+Install rlc with:
+```
+pip install rl_language
+```
+
+Create a file to test it is working, and fill it with the following content.
+```
+# file.rl
+
+@classes
+act play() -> Game:
+    frm score = 0.0
+    act win(Bool do_it)
+    if do_it:
+        score = 1.0
+```
+
+Then run with:
+
+```
+rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
+rlc-probs file.rl net
+```
+It will to learn pass true to `win` to maximize `score`, as reported by the second command.
+
 
 [Project Rationale](./docs/where_we_are_going.md)
+
 [Language Rationale](./docs/rationale.md)
+
 [Tutorial](./docs/tutorial.md)
+
 [Language reference and stdlib documentation](https://github.com/rl-language/rlc-stdlib-doc/tree/master)
+
+- [RLC](#rlc)
+    + [Installation](#installation)
+    + [Example: tic tac toe](#example--tic-tac-toe)
+    + [FAQ:](#faq-)
+      - [I am a reinforcement learning engineer, what do I gain from using this?](#i-am-a-reinforcement-learning-engineer--what-do-i-gain-from-using-this-)
+      - [I am a graphic engine programmer/game programmer, what do I gain from using this?](#i-am-a-graphic-engine-programmer-game-programmer--what-do-i-gain-from-using-this-)
+      - [I can write the same tic tac toe example in python using python yields, what is the difference?](#i-can-write-the-same-tic-tac-toe-example-in-python-using-python-yields--what-is-the-difference-)
+      - [I have a previously existing code base, can I use this project?](#i-have-a-previously-existing-code-base--can-i-use-this-project-)
+      - [I have performance constraints, is this fast?](#i-have-performance-constraints--is-this-fast-)
+      - [In practice, what happens to a project that wants to include Rulebook components?](#in-practice--what-happens-to-a-project-that-wants-to-include-rulebook-components-)
+  * [Info for compiler developers.](#info-for-compiler-developers)
+    + [Dependencies](#dependencies)
+    + [License](#license)
+    + [Installation for compiler developers](#installation-for-compiler-developers)
+      - [What do if run out of space or memory](#what-do-if-run-out-of-space-or-memory)
+      - [Using a custom LLVM](#using-a-custom-llvm)
+    + [environment.sh](#environmentsh)
+    + [Contacts](#contacts)
+    + [How to contribute for developers](#how-to-contribute-for-developers)
+    + [Roadmap for 1.0](#roadmap-for-10)
+
 
 
 ![RLC Logo](./imgs/RLC_logo.png)
@@ -157,32 +184,6 @@ We have performances comparable with C. Furthermore you can write C code and inv
 Everything about Rulebook will be turned into a single native library that you will link into or deploy along with your previously existing artifacts. Nothing else.
 
 
-### Installation
-
-Install rlc with:
-```
-pip install rl_language
-```
-
-Create a file to test it is working, and fill it with the following content.
-```
-# file.rl
-
-@classes
-act play() -> Game:
-    frm score = 0.0
-    act win(Bool do_it)
-    if do_it:
-        score = 1.0
-```
-
-Then run with:
-
-```
-rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
-rlc-probs file.rl net
-```
-It will to learn pass true to `win` to maximize `score`, as reported by the second command.
 ```
 ---------- 0 : p0 ------------
 {resume_index: 1, score: 0.000000}
