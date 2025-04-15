@@ -36,6 +36,7 @@ act play() -> Game:
 Then run with:
 
 ```
+# On mac only run: export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 rlc-learn file.rl --steps-per-env 100 -o net # ctrl+c to interrupt after a while
 rlc-probs file.rl net
 ```
