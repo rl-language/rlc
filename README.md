@@ -42,6 +42,7 @@ rlc-probs file.rl net
 ```
 It will to learn pass true to `win` to maximize `score`, as reported by the second command.
 
+##
 
 [Project Rationale](./docs/where_we_are_going.md)
 
@@ -51,26 +52,12 @@ It will to learn pass true to `win` to maximize `score`, as reported by the seco
 
 [Language reference and stdlib documentation](https://github.com/rl-language/rlc-stdlib-doc/tree/master)
 
-- [RLC](#rlc)
-    + [Installation](#installation)
-    + [Example: tic tac toe](#example--tic-tac-toe)
-    + [FAQ:](#faq-)
-      - [I am a reinforcement learning engineer, what do I gain from using this?](#i-am-a-reinforcement-learning-engineer--what-do-i-gain-from-using-this-)
-      - [I am a graphic engine programmer/game programmer, what do I gain from using this?](#i-am-a-graphic-engine-programmer-game-programmer--what-do-i-gain-from-using-this-)
-      - [I can write the same tic tac toe example in python using python yields, what is the difference?](#i-can-write-the-same-tic-tac-toe-example-in-python-using-python-yields--what-is-the-difference-)
-      - [I have a previously existing code base, can I use this project?](#i-have-a-previously-existing-code-base--can-i-use-this-project-)
-      - [I have performance constraints, is this fast?](#i-have-performance-constraints--is-this-fast-)
-      - [In practice, what happens to a project that wants to include Rulebook components?](#in-practice--what-happens-to-a-project-that-wants-to-include-rulebook-components-)
-  * [Info for compiler developers.](#info-for-compiler-developers)
-    + [Dependencies](#dependencies)
-    + [License](#license)
-    + [Installation for compiler developers](#installation-for-compiler-developers)
-      - [What do if run out of space or memory](#what-do-if-run-out-of-space-or-memory)
-      - [Using a custom LLVM](#using-a-custom-llvm)
-    + [environment.sh](#environmentsh)
-    + [Contacts](#contacts)
-    + [How to contribute for developers](#how-to-contribute-for-developers)
-    + [Roadmap for 1.0](#roadmap-for-10)
+### Contacts
+
+[Discord](https://discord.gg/saSEj9PAt3)
+[Twitter](https://twitter.com/RulebookL3873)
+[Youtube](https://www.youtube.com/watch?v=tMnBo3TGIbU)
+Or mail us at massimo.fioravanti@polimi.it
 
 
 
@@ -268,12 +255,6 @@ python python/solve.py ./tool/rlc/test/tic_tac_toe.rl
 If it does not crashes, then you are good to go.
 
 If you use some whacky shell of your own or you did not followed the default setup, you are on your own.
-
-### Contacts
-
-[Discord](https://discord.gg/saSEj9PAt3)
-[Twitter](https://twitter.com/RulebookL3873)
-[Youtube](https://www.youtube.com/watch?v=tMnBo3TGIbU)
 
 
 ### How to contribute for developers
