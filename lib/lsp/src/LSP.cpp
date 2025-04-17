@@ -474,9 +474,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		int i = 0;
 		while (copy.line != 0)
 		{
-			while (strRef[i] != '\n' and strRef[i] != '\0')
+			while (size_t(i) != strRef.size() and strRef[i] != '\n')
 				i++;
-			if (strRef[i] != '\0')
+			if (size_t(i) != strRef.size() and strRef[i] != '\0')
 				i++;
 			copy.line -= 1;
 		}

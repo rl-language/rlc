@@ -561,8 +561,10 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 	mlir::rlc::ModuleBuilder builder(op);
 	llvm::SmallVector<mlir::rlc::ActionFunction, 4> funs(
 			op.getOps<mlir::rlc::ActionFunction>());
+
 	for (auto fun : funs)
 	{
+		builder.getConverter().setErrorLocation(fun.getLoc());
 		auto funType = builder.typeOfAction(fun);
 		if (funType == nullptr)
 		{

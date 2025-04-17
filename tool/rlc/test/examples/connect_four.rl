@@ -142,8 +142,6 @@ act play() -> Game:
     
     while board.outcome == Outcome::Unknown:
         act select(BInt<0, 7> col) {
-            col.value >= 0,
-            col.value < kCols,
             !board.is_column_full(col.value)
         }
         

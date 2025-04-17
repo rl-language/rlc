@@ -958,6 +958,7 @@ llvm::Expected<bool> Parser::requirementList()
 	mlir::rlc::ShortCircuitingAnd lastAnd = nullptr;
 
 	auto location = getCurrentSourcePos();
+	auto insertionPoint = builder.saveInsertionPoint();
 	auto onExit = [&]() {
 		mlir::rlc::Yield lastAndYield = nullptr;
 
@@ -984,6 +985,7 @@ llvm::Expected<bool> Parser::requirementList()
 			lastAnd.getLhs().front().front().moveBefore(lastAnd);
 
 		lastAnd.erase();
+		builder.restoreInsertionPoint(insertionPoint);
 	};
 
 	// constructs a patter such as (and x, (and y, (and z, <empty>))) and then it

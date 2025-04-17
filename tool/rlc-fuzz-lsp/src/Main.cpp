@@ -25,50 +25,52 @@ limitations under the License.
 #include "mlir/InitAllTranslations.h"
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Tools/lsp-server-support/Transport.h"
-#include "rlc/backend/BackEnd.hpp"
 #include "rlc/dialect/Dialect.h"
-#include "rlc/driver/Driver.hpp"
+#include "rlc/lsp/LSP.hpp"
 #include "rlc/parser/MultiFileParser.hpp"
 
 #define DEBUG_TYPE "rlc-lsp-server"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 {
-	mlir::registerAllTranslations();
-	mlir::MLIRContext context(mlir::MLIRContext::Threading::DISABLED);
-	llvm::SourceMgr sourceManager;
-	mlir::DialectRegistry Registry;
-	Registry.insert<
-			mlir::BuiltinDialect,
-			mlir::memref::MemRefDialect,
-			mlir::rlc::RLCDialect,
-			mlir::DLTIDialect,
-			mlir::index::IndexDialect>();
+	mlir::rlc::lsp::LSPContext context;
+	mlir::rlc::lsp::RLCServer server(context);
 
-	context.appendDialectRegistry(Registry);
-	context.loadAllAvailableDialects();
+	auto uri = llvm::cantFail(mlir::lsp::URIForFile::fromFile("/dev/null"));
 
-	std::string s;
-	llvm::raw_string_ostream OS(s);
-	mlir::rlc::Driver driver(sourceManager, { "-" }, "-", OS);
-	driver.setRequest(mlir::rlc::Driver::Request::dumpMLIR);
-	driver.setEmitPreconditionChecks(true);
-	driver.setSkipParsing();
+	std::vector<mlir::lsp::Diagnostic> diagnostics;
+	server.addOrUpdateDocument(
+			uri, llvm::StringRef((char *) Data, Size), 0, diagnostics);
 
-	auto module = mlir::ModuleOp::create(
-			mlir::FileLineColLoc::get(&context, "-", 0, 0), "-");
+	for (auto diag : diagnostics)
+	{
+		auto okMsg = diag.range.start.character != -1 and
+								 diag.range.start.line != -1 and
+								 diag.range.end.character != -1 and diag.range.end.line != -1;
+		if (not okMsg)
+		{
+			llvm::outs() << diag.message;
+			abort();
+		}
+	}
 
-	::rlc::MultiFileParser parser(&context, {}, &sourceManager, module);
-	auto res = parser.parseFromBuffer(llvm::StringRef((char *) Data, Size), "-");
-	if (not res)
-		llvm::consumeError(res.takeError());
+	mlir::lsp::Position position;
 
-	mlir::PassManager manager(&context);
-	driver.configurePassManager(manager);
-	auto _ = manager.run(module);
+	position.character = 0;
+	position.line = 0;
 
-	if (module.verify().failed())
-		abort();
-
+	for (size_t i = 0; i != Size; i++)
+	{
+		position.character++;
+		if (((char *) Data)[i] == '\n')
+		{
+			position.character = 1;
+			position.line++;
+		}
+		server.getCodeCompletion(uri, position);
+		server.findHover(uri, position);
+		std::vector<mlir::lsp::Location> locs;
+		server.getLocationsOf(uri, position, locs);
+	}
 	return 0;
 }

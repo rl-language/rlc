@@ -1240,6 +1240,7 @@ mlir::LogicalResult mlir::rlc::UncheckedIsOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	auto &rewriter = builder.getRewriter();
+	builder.getConverter().setErrorLocation(getLoc());
 	auto deducedType = builder.getConverter().convertType(getTypeOrTrait());
 	auto shugarizedType =
 			builder.getConverter().shugarizedConvertType(getTypeOrTrait());
@@ -1851,6 +1852,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	for (auto &operand : getPrecondition().front().getArguments())
 	{
+		builder.getConverter().setErrorLocation(operand.getLoc());
 		auto converted = builder.getConverter().convertType(operand.getType());
 		if (not converted)
 		{
@@ -1861,6 +1863,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 
 	for (auto result : getResults())
 	{
+		builder.getConverter().setErrorLocation(getLoc());
 		auto deduced = builder.getConverter().convertType(result.getType());
 		if (deduced == nullptr)
 			return mlir::failure();
@@ -1959,6 +1962,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 				*this, "builtin from_byte_array argument must be a byte array");
 	}
 
+	builder.getConverter().setErrorLocation(getLoc());
 	auto converted = builder.getConverter().convertType(getResult().getType());
 
 	if (not converted)
@@ -2228,6 +2232,7 @@ mlir::LogicalResult mlir::rlc::ImplicitAssignOp::typeCheck(
 mlir::LogicalResult mlir::rlc::MallocOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
+	builder.getConverter().setErrorLocation(getLoc());
 	auto converted = builder.getConverter().convertType(getResult().getType());
 	auto shugarized = builder.getConverter().shugarizedConvertType(
 			getShugarizedType().getType());

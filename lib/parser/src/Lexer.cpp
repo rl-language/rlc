@@ -49,7 +49,7 @@ char Lexer::eatChar()
 	}
 
 	in++;
-	if (*in == '\r')
+	if (c != '\0' and *in == '\r')
 		in++;
 	return c;
 }
@@ -619,6 +619,8 @@ Token Lexer::eatString()
 {
 	lString = "";
 	eatChar();
+	if (*in == '\0')
+		return Token::Error;
 	nestedParentesys++;
 	parsingString = true;
 	while (*in != '\"' and *in != '\0')
@@ -641,6 +643,9 @@ char Lexer::eatCharLiteral()
 		eatChar();
 		switch (*in)
 		{
+			case '\0':
+				toReturn = '\\';
+				return toReturn;
 			case '0':
 				toReturn = '\0';
 				break;
