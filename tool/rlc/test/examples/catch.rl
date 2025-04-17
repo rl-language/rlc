@@ -1,4 +1,4 @@
-# RUN: rlc %s -o %t -i %stdlib
+# RUN: rlc %s -o %t -i %stdlib --shared
 
 import serialization.print
 import range
