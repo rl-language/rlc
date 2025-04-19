@@ -66,15 +66,21 @@ def build_rlc(
         "-DLLVM_DIR={}/lib/cmake/llvm".format(llvm_install_dir),
         "-DClang_DIR={}/lib/cmake/clang".format(llvm_install_dir),
         "-DLLD_DIR={}/lib/cmake/lld".format(llvm_install_dir),
-        f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}" + (".exe" if is_windows else ""),
-        f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++" + (".exe" if is_windows else ""),
+        f"-DCMAKE_C_COMPILER={path.abspath(clang_path)}"
+        + (".exe" if is_windows else ""),
+        f"-DCMAKE_CXX_COMPILER={path.abspath(clang_path)}++"
+        + (".exe" if is_windows else ""),
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
         "-DCMAKE_BUILD_WITH_INSTALL_RPATH={}".format("OFF" if build_shared else "ON"),
         "-DHAVE_STD_REGEX=ON",
         "-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument",
         "-DRUN_HAVE_STD_REGEX=1",
         "-DPython3_EXECUTABLE:FILEPATH={}".format("./.venv/bin/python"),
-        "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++" if build_type == "Release" and not is_windows and not is_mac else "",
+        (
+            "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++"
+            if build_type == "Release" and not is_windows and not is_mac
+            else ""
+        ),
     )
 
 
@@ -102,7 +108,11 @@ def build_llvm(
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
-        "-DLLVM_ENABLE_RUNTIMES=libcxx" + ";libcxxabi;libunwind" if not is_windows else "",
+        (
+            "-DLLVM_ENABLE_RUNTIMES=libcxx" + ";libcxxabi;libunwind"
+            if not is_windows
+            else ""
+        ),
         "-G",
         "Ninja",
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
@@ -269,20 +279,20 @@ def main():
 
     # build debug
     if not args.no_debug_rlc:
-      build_rlc(
-        execution_dir=rlc_build_dir,
-        cmake_path=cmake,
-        rlc_source_dir=rlc_dir,
-        install_dir="./install",
-        build_shared=build_shared,
-        build_type="Debug",
-        llvm_install_dir=llvm_dir,
-        clang_path=f"{llvm_install_release_dir}/bin/clang",
-        python_path=python,
-        is_windows=is_windows,
-        is_mac=is_mac,
-      )
-      install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
+        build_rlc(
+            execution_dir=rlc_build_dir,
+            cmake_path=cmake,
+            rlc_source_dir=rlc_dir,
+            install_dir="./install",
+            build_shared=build_shared,
+            build_type="Debug",
+            llvm_install_dir=llvm_dir,
+            clang_path=f"{llvm_install_release_dir}/bin/clang",
+            python_path=python,
+            is_windows=is_windows,
+            is_mac=is_mac,
+        )
+        install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
 
     build_rlc(
         execution_dir=rlc_release_dir,
