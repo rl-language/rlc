@@ -9,7 +9,7 @@
 #
 from shutil import which
 import argparse
-from rlc import Program, State, compile
+from rlc import Program, State, compile, get_included_contents
 import pickle
 import torch
 import pathlib
@@ -69,6 +69,16 @@ def make_rlc_argparse(name, description):
         help="extra args to send to rlc",
     )
     return parser
+
+
+def get_included_conents_from_args(args):
+    return get_included_contents(
+        rl_file=args.source_file,
+        exclude_stdlib=True,
+        rlc_compiler=args.rlc,
+        rlc_includes=[include for include in args.include],
+        stdlib=args.stdlib,
+    )
 
 
 def load_program_from_args(

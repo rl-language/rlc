@@ -10,4 +10,5 @@
 from .utils import (
     make_rlc_argparse,
     load_program_from_args,
+    get_included_conents_from_args,
 )

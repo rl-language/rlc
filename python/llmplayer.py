@@ -1,5 +1,5 @@
-from command_line import load_program_from_args, make_rlc_argparse
-from rlc import State, Program, get_included_contents
+from command_line import load_program_from_args, make_rlc_argparse, get_included_conents_from_args
+from rlc import State, Program
 from sys import stdout
 from random import choice
 
@@ -148,7 +148,7 @@ def main():
     trace_output = open(args.trace_output, "w+") if args.trace_output != "-" else stdout
     with load_program_from_args(args, optimize=True) as program:
         num_players = program.functions.get_num_players()
-        rules = get_included_contents(rl_file=args.source_file)
+        rules = get_included_conents_from_args(args)
         state = program.start()
         solve_randomness(program, state, trace_output)
         llm = make_llm(args, program)
