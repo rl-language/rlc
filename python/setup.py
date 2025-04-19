@@ -121,6 +121,7 @@ setup(
                 "probs.py",
                 "fix_ray.py",
                 "make_report.py",
+                "llmplayer.py",
             ],
         )
     ],
@@ -135,6 +136,7 @@ setup(
             "rlc-probs=impl.probs:main",
             "rlc-fix-ray=impl.fix_ray:main",
             "rlc-make-report=impl.make_report:main",
+            "rlc-llmplayer=impl.llmplayer:main",
         ],
     },
     classifiers=[
