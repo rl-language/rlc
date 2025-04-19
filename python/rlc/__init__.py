@@ -8,3 +8,4 @@
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
 from .program import Program, compile, State, get_included_contents
+from .llm_runner import make_llm, run_game, Ollama, Gemini, GeminiStateless
