@@ -19,7 +19,7 @@ class Roller:
         keep_sep_eps: "keep buffer of per-env episodes in VecMonitor2" = False,
         keep_non_rolling: "also keep a non-rolling buffer of episode stats" = False,
         keep_cost: "keep per step costs and add to segment" = False,
-        past_stragey_model = None,
+        past_stragey_model=None,
     ):
         """
         All outputs from public methods are torch arrays on default device
@@ -182,10 +182,16 @@ class Roller:
 
     def _resolve_players(self):
         for i in range(4):
-            player = (self.current_past_strategy_player + i) % self._venv.get_num_player()
+            player = (
+                self.current_past_strategy_player + i
+            ) % self._venv.get_num_player()
             while self._venv.current_player_one(i) != player:
-                lastrew, ob, first =  tree_util.tree_map(tu.np2th, self._venv.observe_one(i))
-                action_mask = th.from_numpy(self._venv.one_action_mask(i)).to(device=tu.dev())
+                lastrew, ob, first = tree_util.tree_map(
+                    tu.np2th, self._venv.observe_one(i)
+                )
+                action_mask = th.from_numpy(self._venv.one_action_mask(i)).to(
+                    device=tu.dev()
+                )
                 ac, newstate, other_outs = self.past_stragey_model.act(
                     ob=ob,
                     first=first,
@@ -233,7 +239,6 @@ class Roller:
             out[k] = v
         self._step_count += 1
         return out
-
 
     def get_state(self):
         return self._state

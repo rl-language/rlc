@@ -177,9 +177,20 @@ def learn(
             return
         interval_count = 50
         if curr_iteration % interval_count == 0:
-            th.save(model.state_dict(), path_to_league_play_dir + "/net" + str(int(curr_iteration / interval_count)) + ".pt")
+            th.save(
+                model.state_dict(),
+                path_to_league_play_dir
+                + "/net"
+                + str(int(curr_iteration / interval_count))
+                + ".pt",
+            )
 
-        to_load = path_to_league_play_dir + "/net" + str(random.randint(0, int(curr_iteration / interval_count))) + ".pt"
+        to_load = (
+            path_to_league_play_dir
+            + "/net"
+            + str(random.randint(0, int(curr_iteration / interval_count)))
+            + ".pt"
+        )
         content = th.load(to_load, weights_only=False)
         roller.past_stragey_model.load_state_dict(content)
         roller.current_past_strategy_player = roller.current_past_strategy_player + 1

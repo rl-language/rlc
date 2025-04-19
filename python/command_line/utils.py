@@ -60,6 +60,14 @@ def make_rlc_argparse(name, description):
         nargs="?",
         help="path to runtime library",
     )
+    parser.add_argument(
+        "--extra-rlc-args",
+        "-args",
+        type=str,
+        default="",
+        nargs="?",
+        help="extra args to send to rlc",
+    )
     return parser
 
 
@@ -85,4 +93,5 @@ def load_program_from_args(
             stdlib=args.stdlib,
             pyrlc_runtime_lib=args.pyrlc,
             gen_python_methods=gen_python_methods,
+            extra_rlc_args=args.extra_rlc_args.split(" "),
         )

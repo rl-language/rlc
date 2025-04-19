@@ -56,7 +56,11 @@ class RLCMultiEnv(Env):
 
     def observe_one(self, game_index):
         obs = np.array([self.games[game_index].get_state()])
-        return self.rew[game_index:game_index+1], obs, self.first_move[game_index:game_index+1]
+        return (
+            self.rew[game_index : game_index + 1],
+            obs,
+            self.first_move[game_index : game_index + 1],
+        )
 
     def act(self, ac):
         self.step(ac)

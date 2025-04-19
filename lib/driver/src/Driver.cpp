@@ -21,6 +21,12 @@ namespace mlir::rlc
 						srcManager,
 						emitDependencyFile ? outputFile : "" }));
 		}
+		if (request == Request::printIncludedFiles)
+		{
+			manager.addPass(mlir::rlc::createPrintIncludedFilesPass(
+					{ &includeDirs, inputFile, srcManager, OS }));
+			return;
+		}
 		if (request == Request::dumpUncheckedAST)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));

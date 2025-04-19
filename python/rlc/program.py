@@ -253,6 +253,40 @@ def stdlib_file(file, rlc="rlc", stdlib=None):
     return stdlib_location(rlc) / file
 
 
+def get_included_contents(
+    rl_file: str,
+    exclude_stdlib: bool = True,
+    rlc_compiler="rlc",
+    rlc_includes=[],
+    stdlib=None,
+) -> str:
+    # Returns the content of the provided rl file,
+    # and the contents of each recursivelly imported file.
+    # Returns None if the program could not parse. The content of the file otherwise.
+    include_args = []
+    for arg in rlc_includes:
+        include_args.append("-i")
+        include_args.append(arg)
+    if stdlib != None:
+        include_args.append("-i")
+        include_args.append(stdlib)
+    result = run(
+        [
+            rlc_compiler,
+            "--print-included-files",
+            f"--hide-standard-lib-files={exclude_stdlib}",
+            rl_file,
+        ]
+        + include_args,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(result.stdout)
+        return None
+    return result.stdout
+
+
 def compile(
     sources=[],
     rlc_compiler="rlc",
@@ -262,6 +296,7 @@ def compile(
     optimized=True,
     gen_python_methods=True,
     stdlib=None,
+    extra_rlc_args=[],
 ) -> Program:
     s = [source for source in sources]
     if gen_python_methods:
@@ -287,6 +322,7 @@ def compile(
                 "-O2" if optimized else "",
             ]
             + include_args
+            + extra_rlc_args
         ).returncode
         == 0
     )

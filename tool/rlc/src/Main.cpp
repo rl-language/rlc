@@ -198,6 +198,20 @@ static cl::opt<bool> debugInfo(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> hideStandardLibFiles(
+		"hide-standard-lib-files",
+		cl::desc("When using --print-included-files , hide the ones from the "
+						 "standard library"),
+		cl::init(true),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> printIncludedFiles(
+		"print-included-files",
+		cl::desc("Instead of compiling, print the content of every file included "
+						 "by the compilation process"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpMLIR(
 		"mlir",
 		cl::desc("dumps the mlir and exits"),
@@ -354,6 +368,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpBeforeTemplate;
 	if (formatFile)
 		return Driver::Request::format;
+	if (printIncludedFiles)
+		return Driver::Request::printIncludedFiles;
 	return Driver::Request::executable;
 }
 
@@ -454,6 +470,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setEmitBoundChecks(emitBoundChecks);
 	driver.setVerbose(verbose);
 	driver.setAbortSymbol(abortSymbol);
+	driver.setHideStandardLibFiles(hideStandardLibFiles);
 
 	return driver;
 }

@@ -11,12 +11,19 @@ from os import makedirs, path
 import tempfile
 from datetime import datetime
 
+
 def hypersearch_params():
     for lr in [1e-3, 1e-4, 1e-5]:
         for clip_param in [0.2, 0.002, 0.02]:
             for entropy in [0.5, 0.1, 0.01]:
                 for nstep in [500, 1000, 5000]:
-                    yield {"lr": lr, "clip_param": clip_param, "entcoef": entropy, "nstep": nstep}
+                    yield {
+                        "lr": lr,
+                        "clip_param": clip_param,
+                        "entcoef": entropy,
+                        "nstep": nstep,
+                    }
+
 
 def main():
     parser = make_rlc_argparse(
@@ -54,7 +61,9 @@ def main():
     args = parser.parse_args()
     program = load_program_from_args(args, True)
 
-    tmp_dir = path.join(tempfile.gettempdir(), "ppg", str(datetime.now().strftime("%d_%m_%Y_%H_%M_%S")))
+    tmp_dir = path.join(
+        tempfile.gettempdir(), "ppg", str(datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
+    )
     league_play_nets_dir = path.join(tmp_dir, "nets")
 
     if not args.no_tensorboard:
@@ -62,7 +71,7 @@ def main():
         tb.configure(argv=[None, "--logdir", tmp_dir])
         url = tb.launch()
     if args.league_play:
-       makedirs(league_play_nets_dir, exist_ok=True)
+        makedirs(league_play_nets_dir, exist_ok=True)
 
     if args.hypersearch:
         for num, params in enumerate(hypersearch_params()):
@@ -78,7 +87,7 @@ def main():
                 log_dir=path.join(tmp_dir, f"{num}_{hypers}"),
                 nstep=args.steps_per_env,
                 league_play_dir="" if not args.league_play else league_play_nets_dir,
-                **params
+                **params,
             )
     else:
         train(
@@ -93,7 +102,7 @@ def main():
             entcoef=args.entropy_coeff,
             nstep=args.steps_per_env,
             log_dir=tmp_dir,
-            league_play_dir="" if not args.league_play else league_play_nets_dir
+            league_play_dir="" if not args.league_play else league_play_nets_dir,
         )
 
     program.cleanup()

@@ -46,7 +46,7 @@ def main():
     parser.add_argument("--show-actions", "-a", action="store_true", default=False)
 
     args = parser.parse_args()
-    with load_program_from_args(args) as program:
+    with load_program_from_args(args, optimize=True) as program:
 
         if args.show_actions:
             program.dump()

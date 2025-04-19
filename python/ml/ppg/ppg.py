@@ -296,8 +296,6 @@ def learn(
         if ppo_state["curr_interact_count"] >= interacts_total:
             break
 
-
-
         if n_aux_epochs > 0:
             segs = ppo_state["seg_buf"]
             compute_presleep_outputs(model=model, segs=segs, mbsize=aux_mbsize)

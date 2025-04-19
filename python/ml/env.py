@@ -2,6 +2,7 @@ import numpy as np
 import ctypes
 import random
 
+
 def exit_on_invalid_env(sim, forced_one_player=False, needs_score=True):
     errors = validate_env(
         sim, forced_one_player=forced_one_player, needs_score=needs_score
@@ -109,7 +110,9 @@ class SingleRLCEnvironment:
         )
 
         self.rng = np.random.default_rng()
-        self.random_numbers = self.rng.integers(low=0, high=self.num_actions, size=1_000_000)
+        self.random_numbers = self.rng.integers(
+            low=0, high=self.num_actions, size=1_000_000
+        )
         self.current_random_index = 0
 
         self.current_player_fn = (
@@ -214,7 +217,9 @@ class SingleRLCEnvironment:
         self.last_score = [0.0 for p in range(self.num_players)]
         self.current_score = [0.0 for p in range(self.num_players)]
         self.first_move = [True for p in range(self.num_players)]
-        self.random_numbers = self.rng.integers(low=0, high=self.num_actions, size=1_000_000)
+        self.random_numbers = self.rng.integers(
+            low=0, high=self.num_actions, size=1_000_000
+        )
 
     def is_first_move(self, player_id):
         return self.first_move[player_id]
@@ -271,4 +276,3 @@ class SingleRLCEnvironment:
 
     def is_done_for_everyone(self):
         return self.state.state.resume_index == -1 and len(self.players_final_turn) == 0
-

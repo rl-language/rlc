@@ -11,6 +11,7 @@ import ml.ppg.torch_util as tu
 import ml.ppg.tree_util as tree_util
 import torch
 
+
 def print_probs(program, model, env):
     print("--------- probs --------------")
     rnn_state = model.initial_state(env.num)
@@ -28,6 +29,7 @@ def print_probs(program, model, env):
 
     print("------------------------------")
     return indicies
+
 
 def select_action(program, model, env):
     rnn_state = model.initial_state(env.num)
@@ -70,7 +72,7 @@ def main():
                 if args.pretty_print:
                     user_input = input()
                     if user_input.isnumeric():
-                        action = actions[int(user_input):int(user_input)+1]
+                        action = actions[int(user_input) : int(user_input) + 1]
                     else:
                         action = select_action(program, model, env)
                 else:
@@ -83,6 +85,7 @@ def main():
                     break
 
             print("final rewards:", env.rew)
+
 
 if __name__ == "__main__":
     main()

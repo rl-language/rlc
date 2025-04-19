@@ -224,6 +224,21 @@ def ParseFilePass : Pass<"rlc-parse-file-pass", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def PrintIncludedFilesPass : Pass<"rlc-print-included-files-pass", "mlir::ModuleOp"> {
+  let summary = "print the file that got recursivelly included by the current one, including the current one";
+  let options = [
+    Option<"includeDirs", "include dirs", "const llvm::SmallVector<std::string, 4>*", /*default=*/"nullptr",
+           "include dirs">,
+    Option<"inputs", "input files", "llvm::ArrayRef<std::string>", /*default=*/"llvm::ArrayRef<std::string>{}",
+           "input files">,
+    Option<"srcManager", "source manager", "llvm::SourceMgr*", /*default=*/"nullptr",
+           "source manager">,
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "output stream">,
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
   let summary = "parse file";
   let options = [

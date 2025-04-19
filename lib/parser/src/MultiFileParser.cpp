@@ -27,6 +27,33 @@ limitations under the License.
 
 namespace mlir::rlc
 {
+
+	static bool handleErrors(
+			mlir::MLIRContext& ctx, llvm::Expected<mlir::ModuleOp>& maybeAst)
+	{
+		if (not maybeAst)
+		{
+			llvm::handleAllErrors(
+					maybeAst.takeError(),
+					[&](const ::rlc::RlcError& e) {
+						ctx.getDiagEngine().emit(
+								e.getPosition(), mlir::DiagnosticSeverity::Error)
+								<< e.getText();
+					},
+					[&](const llvm::ErrorInfoBase& e) {
+						std::string toPrint;
+						llvm::raw_string_ostream stream(toPrint);
+						e.log(stream);
+						stream.flush();
+						ctx.getDiagEngine().emit(
+								mlir::UnknownLoc::get(&ctx), mlir::DiagnosticSeverity::Error)
+								<< toPrint;
+					});
+			return false;
+		}
+		return true;
+	}
+
 #define GEN_PASS_DEF_PARSEFILEPASS
 #include "rlc/dialect/Passes.inc"
 
@@ -41,25 +68,8 @@ namespace mlir::rlc
 					&getContext(), *includeDirs, srcManager, getOperation());
 
 			auto maybeAst = parser.parse(inputs);
-			if (not maybeAst)
+			if (not handleErrors(getContext(), maybeAst))
 			{
-				llvm::handleAllErrors(
-						maybeAst.takeError(),
-						[&](const ::rlc::RlcError& e) {
-							getContext().getDiagEngine().emit(
-									e.getPosition(), mlir::DiagnosticSeverity::Error)
-									<< e.getText();
-						},
-						[&](const llvm::ErrorInfoBase& e) {
-							std::string toPrint;
-							llvm::raw_string_ostream stream(toPrint);
-							e.log(stream);
-							stream.flush();
-							getContext().getDiagEngine().emit(
-									mlir::UnknownLoc::get(&getContext()),
-									mlir::DiagnosticSeverity::Error)
-									<< toPrint;
-						});
 				signalPassFailure();
 				return;
 			}
@@ -88,6 +98,48 @@ namespace mlir::rlc
 				library.os() << "\n";
 
 				library.keep();
+			}
+		}
+	};
+
+#define GEN_PASS_DEF_PRINTINCLUDEDFILESPASS
+#include "rlc/dialect/Passes.inc"
+
+	struct PrintIncludedFilesPass
+			: impl::PrintIncludedFilesPassBase<PrintIncludedFilesPass>
+	{
+		using impl::PrintIncludedFilesPassBase<
+				PrintIncludedFilesPass>::PrintIncludedFilesPassBase;
+
+		void runOnOperation() override
+		{
+			assert(srcManager != nullptr);
+			::rlc::MultiFileParser parser(
+					&getContext(), *includeDirs, srcManager, getOperation());
+
+			auto maybeAst = parser.parse(inputs);
+			if (not handleErrors(getContext(), maybeAst))
+			{
+				signalPassFailure();
+				return;
+			}
+
+			for (auto included : llvm::reverse(parser.getImportedFiles()))
+			{
+				if (included.find("stdlib") != std::string::npos)
+					continue;
+
+				auto MemoryBuffer = llvm::errorOrToExpected(
+						llvm::MemoryBuffer::getFileOrSTDIN(included, true));
+				if (not MemoryBuffer)
+				{
+					getContext().getDiagEngine().emit(
+							mlir::UnknownLoc::get(&getContext()),
+							mlir::DiagnosticSeverity::Error)
+							<< "Could not load file " << included;
+				}
+
+				(*OS) << (**MemoryBuffer).getBufferStart();
 			}
 		}
 	};

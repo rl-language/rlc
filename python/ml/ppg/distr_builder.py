@@ -5,6 +5,7 @@ import torch.distributions as dis
 from gym3.types import Discrete, Real, TensorType
 from torch.distributions.utils import probs_to_logits, logits_to_probs
 
+
 class Categorical:
     def __init__(self, probs_shape):
         # NOTE: probs_shape is supposed to be
@@ -16,7 +17,7 @@ class Categorical:
         self.probs_shape = probs_shape
         self._num_events = probs_shape[-1]
         self._batch_shape = probs_shape[:-1] if self.probs_dim > 1 else th.Size()
-        self._event_shape=th.Size()
+        self._event_shape = th.Size()
 
     def set_probs_(self, probs):
         self.probs = probs
@@ -50,8 +51,6 @@ class Categorical:
         return -p_log_p.sum(-1)
 
 
-
-
 def _make_categorical(x, ncat, shape):
     x = x.reshape((*x.shape[:-1], *shape, ncat))
     cat = Categorical(x.shape)
@@ -75,7 +74,7 @@ def tensor_distr_builder(ac_space):
     assert isinstance(ac_space, TensorType)
     eltype = ac_space.eltype
     # if eltype == Discrete(2):
-        # return (ac_space.size, partial(_make_bernoulli, shape=ac_space.shape))
+    # return (ac_space.size, partial(_make_bernoulli, shape=ac_space.shape))
     if isinstance(eltype, Discrete):
         return (
             eltype.n * ac_space.size,

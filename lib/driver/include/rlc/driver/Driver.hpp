@@ -11,6 +11,7 @@ namespace mlir::rlc
 		public:
 		enum class Request
 		{
+			printIncludedFiles,
 			dumpUncheckedAST,
 			dumpDot,
 			dumpCheckedAST,
@@ -67,6 +68,10 @@ namespace mlir::rlc
 		void setSkipParsing(bool doIt = true) { skipParsing = doIt; }
 		void setDebug(bool doIt = true) { debug = doIt; }
 		void setVerbose(bool doIt = true) { verbose = doIt; }
+		void setHideStandardLibFiles(bool doIt = true)
+		{
+			hideStandardLibFiles = doIt;
+		}
 
 		Driver(
 				llvm::SourceMgr &srcManager,
@@ -85,6 +90,7 @@ namespace mlir::rlc
 		Request request = Request::executable;
 		bool emitPreconditionChecks = true;
 		bool emitBoundChecks = true;
+		bool hideStandardLibFiles = true;
 		bool emitFuzzer = false;
 		bool emitSanitizer = false;
 		bool emitDependencyFile = false;

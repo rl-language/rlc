@@ -133,7 +133,7 @@ class VecMonitor2(PostActProcessing):
         return self.env.current_player_one(index)
 
     def one_action_mask(self, game_id):
-        return  self.env.one_action_mask(game_id)
+        return self.env.one_action_mask(game_id)
 
     def observe_one(self, i):
         return self.env.observe_one(i)

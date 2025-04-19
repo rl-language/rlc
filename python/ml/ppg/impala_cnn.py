@@ -188,12 +188,13 @@ class ImpalaEncoder(Encoder):
     def initial_state(self, batchsize):
         return tu.zeros(batchsize, 0)
 
+
 class BatchNormSkippingNN(nn.Module):
     def __init__(self, h):
-            super().__init__()
-            layers = []
-            layers.append(nn.BatchNorm1d(h))
-            self.net = nn.Sequential(*layers)
+        super().__init__()
+        layers = []
+        layers.append(nn.BatchNorm1d(h))
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x):
         b = x.shape[0]
@@ -201,6 +202,7 @@ class BatchNormSkippingNN(nn.Module):
             return x
 
         return self.net(x)
+
 
 class FullyConnectedNN(nn.Module):
     """
