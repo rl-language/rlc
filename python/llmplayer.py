@@ -20,6 +20,7 @@ from command_line import (
 )
 from rlc import State, Program, make_llm, run_game
 from sys import stdout
+from os import devnull
 
 
 def main():
@@ -50,8 +51,8 @@ def main():
 
     args = parser.parse_args()
 
-    output = open(args.output, "w+") if args.output != "-" else stdout
-    trace_output = open(args.trace_output, "w+") if args.trace_output != "-" else stdout
+    output = open(args.output, "w+") if args.output != "-" else open(devnull, "w")
+    trace_output = open(args.trace_output, "w+") if args.trace_output != "-" else open(devnull, "w")
     rules = get_included_conents_from_args(args)
     with load_program_from_args(args, optimize=True) as program:
         llm = make_llm(args, program)

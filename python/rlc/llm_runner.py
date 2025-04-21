@@ -19,11 +19,11 @@ class Ollama:
 
 
 class Gemini:
-    def __init__(self, program: Program):
+    def __init__(self, program: Program, model="gemini-2.0-flash"):
         from google import genai
 
         self.client = genai.Client()
-        self.model = "gemini-2.0-flash"
+        self.model = model
         self.chats = [
             self.client.chats.create(
                 model=self.model,
@@ -43,25 +43,34 @@ class Gemini:
 
 
 class GeminiStateless:
-    def __init__(self, program: Program):
+    def __init__(self, program: Program, model="gemini-2.0-flash"):
         from google import genai
 
         self.client = genai.Client()
-        self.model = "gemini-2.0-flash"
+        self.model = model
         self.chats = [
             {
                 "system_instruction": f"You are a player of reinforcement learning enviroments, you will recieve the rules of the environment, your player id is {x}, the state of the environment, and the actions you take in the game. The game rules are correct, if you think there is a error, it is because you made a mistake in reading the code. You are player {x}. Notice the game code may imply that your id is mapped onto other numbers in the game state. "
             }
             for x in range(program.functions.get_num_players())
         ]
+        self.first_messages = [None for x in range(program.functions.get_num_players())]
 
     def chat(self, message: str, player_id: int) -> str:
         from google import genai
+        if self.first_messages[player_id] == None:
+            self.first_messages[player_id] = message
 
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=message,
-        )
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=message,
+            )
+        else:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=self.first_messages[player_id] + "\n" + message,
+            )
+
         return response.text
 
 
