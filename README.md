@@ -148,7 +148,7 @@ By writing state and state evolution code (not graphical code) in Rulebook you o
 * the ability to reuse state code indipendetly from the engine.
 * retain the ability of writing graphical code however you wish.
 
-You can checkout a example where RLC is made interoperable with Godot [here](https://github.com/drblallo/skirmish).
+You can checkout a example where RLC is made interoperable with Godot [here](https://github.com/rl-language/4Hammer).
 
 #### I can write the same tic tac toe example in python using python yields, what is the difference?
 The difference is that when written in python:
@@ -184,8 +184,13 @@ Everything about Rulebook will be turned into a single native library that you w
 
 Read a tutorial explaining how to play black jack [here](./docs/tutorial.md)
 
+### License
+
+We wish for `RLC` to be usable by all as a compiler, for both commercial and non-commercial purposes, so it is released under apache license.
+
 
 ## Info for compiler developers.
+This section is dedicated to those that whish to build RLC itself from source, not to those that wish to use RLC as a off-the-shelf tool. At the moment we do not provide a off-the-shelf way of building RLC on windows due.
 
 ### Dependencies
 Base:
@@ -199,15 +204,11 @@ Extra dependecies used by the setup script:
 * virtualenv
 * lld
 
-### License
-
-We wish for `RLC` to be usable by all as a compiler, for both commercial and non-commercial purposes, so it is released under apache license.
-
 
 ### Installation for compiler developers
 Stop reading if you don't want to work on the compiler.
 
-We provide a setup script that downloads the rlc repository and a setup script that will download and compile `LLVM` as well as `RLC`. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM. This is only required when building from sources, pypi packages are much less than 1gb on each operating system.
+We provide a setup script that downloads the rlc repository and a setup script that will download and compile `LLVM` as well as `RLC`. As long as the dependencies written before are met you should just be able to run the following commands and everything should work. Installing and building llvm debug will take ~100 gigabytes of hard drive space and will require a large amount of time and RAM. This is only required when building from sources, pypi packages are less than 100mb on each OS.
 
 Hard drive space can be reclaimed by deleting `LLVM` build directory after it has been fully built.
 
@@ -224,6 +225,14 @@ python rlc/build.py --no-use-lld
 ```
 
 If that script terminates successfully, you are fully set up to start working on `RLC`.
+
+
+#### Building the pip packages
+
+You can create a pip package in BUILDDIR/dist/ by running
+```
+ninja pip_package
+```
 
 #### What do if run out of space or memory
 Instead of the previous command python, you can run. This will only build the release LLVM version and save a great deal of space.
