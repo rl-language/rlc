@@ -243,9 +243,6 @@ cls<KeyType, ValueType> Dict:
     fun empty() -> Bool:
         return self._size == 0
     
-    # returns true if the
-    # size of the dictionary is equal
-    # to zero
     fun size() -> Int:
         return self._size
 
