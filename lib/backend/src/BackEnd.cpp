@@ -340,8 +340,21 @@ static mlir::LogicalResult getLinkerInvocation(
 	driver.ResourceDir =
 			llvm::StringRef(clangResourceDir.data(), clangResourceDir.size());
 	if (targetMac and not llvm::sys::Process::GetEnv("SDKROOT"))
-		driver.SysRoot = "/Applications/Xcode.app/Contents/Developer/Platforms/"
-										 "MacOSX.platform/Developer/SDKs/MacOSX.sdk";
+	{
+		if (llvm::sys::fs::exists(
+						"/Applications/Xcode.app/Contents/Developer/Platforms/"
+						"MacOSX.platform/Developer/SDKs/MacOSX.sdk"))
+			driver.SysRoot = "/Applications/Xcode.app/Contents/Developer/Platforms/"
+											 "MacOSX.platform/Developer/SDKs/MacOSX.sdk";
+		else if (llvm::sys::fs::exists(
+								 "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"))
+			driver.SysRoot = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+		else
+		{
+			llvm::errs() << "could not find SDKROOT, set it with export "
+											"SDKROOT=$(xcrun --sdk macosx --show-sdk-path)";
+		}
+	}
 
 	std::unique_ptr<clang::driver::Compilation> C(driver.BuildCompilation(args));
 	if (!C)
@@ -465,7 +478,7 @@ static int linkLibraries(
 	else
 	{
 		argSource.push_back("-undefined");
-		argSource.push_back("suppress");
+		argSource.push_back("dynamic_lookup");
 	}
 
 	argSource.push_back("-o");
