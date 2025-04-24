@@ -158,7 +158,7 @@ mlir::rlc::ActionFunction::getFrameLists()
 	return { std::move(explicitFrame), std::move(hiddenFrame) };
 }
 
-static void setFramesBody(mlir::rlc::ActionFunction fun)
+static mlir::LogicalResult setFramesBody(mlir::rlc::ActionFunction fun)
 {
 	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> fields;
 
@@ -185,6 +185,18 @@ static void setFramesBody(mlir::rlc::ActionFunction fun)
 				entry.second.str(), mlir::rlc::ReferenceType::get(t)));
 	}
 
+	for (auto field : fields)
+	{
+		bool foundRecursiveUse = false;
+		field.walk([&](mlir::Type t) {
+			if (t == fun.getClassType())
+				foundRecursiveUse = true;
+		});
+		if (foundRecursiveUse)
+			return mlir::rlc::logError(
+					fun, "Action type contains itself, this in not allowed\n");
+	}
+
 	auto res = fun.getClassType().setBody(fields);
 	assert(res.succeeded());
 
@@ -192,6 +204,7 @@ static void setFramesBody(mlir::rlc::ActionFunction fun)
 			fun.getContext(), (fun.getClassType().getName() + "_shadow").str(), {});
 	auto isOk = res2.setBody(hiddenMembers).succeeded();
 	assert(isOk);
+	return mlir::success();
 }
 
 /*
@@ -237,7 +250,8 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 	fun.getResult().replaceAllUsesWith(newAction.getResult());
 	rewriter.eraseOp(fun);
 
-	setFramesBody(newAction);
+	if (setFramesBody(newAction).failed())
+		return nullptr;
 	return newAction;
 }
 

@@ -1,11 +1,17 @@
+try:
+    import numpy
+except:
+    print("Failed to import numpy, install it with python -m pip install numpy , or a equivalent command")
+    exit(-1)
+
 import numpy as np
 import ctypes
 import random
 
 
-def exit_on_invalid_env(sim, forced_one_player=False, needs_score=True):
+def exit_on_invalid_env(program, forced_one_player=False, needs_score=True):
     errors = validate_env(
-        sim, forced_one_player=forced_one_player, needs_score=needs_score
+        program, forced_one_player=forced_one_player, needs_score=needs_score
     )
     if len(errors) == 0:
         return
@@ -45,27 +51,30 @@ def get_num_players(module):
     return 1
 
 
-def validate_env(module, forced_one_player=False, needs_score=True):
-    if not has_get_num_players(module.module) and not has_get_current_player(
-        module.module
+def validate_env(program, forced_one_player=False, needs_score=True):
+    program.functions.emit_observation_tensor_warnings(program.functions.play())
+    if not has_get_num_players(program.module) and not has_get_current_player(
+        program.module
     ):
         forced_one_player = True
     errors = []
+    if not program.functions.print_enumeration_errors(program.module.AnyGameAction()):
+        errors.append("Invalid actions")
     if not forced_one_player:
-        if not has_get_num_players(module.module):
+        if not has_get_num_players(program.module):
             errors.append(
                 '"fun get_num_players() -> Int" is missing, you need to defined it'
             )
 
-        if not has_get_current_player(module.module):
+        if not has_get_current_player(program.module):
             errors.append(
                 '"fun get_current_player(Game game) -> Int" is missing, you need to defined it'
             )
 
-    if not hasattr(module.module, "rl_play__r_Game"):
+    if not hasattr(program.module, "rl_play__r_Game"):
         errors.append('"fun play() -> Game" is missing, you need to defined it')
 
-    if not has_score(module.module) and needs_score:
+    if not has_score(program.module) and needs_score:
         errors.append(
             '"fun score(Game g, Int player_id) -> Float" is missing, you need to defined it, or provide a field score in the action play'
         )
@@ -257,13 +266,10 @@ class SingleRLCEnvironment:
         self.to_observation_tensor(self.state.state, 0, self.serialized)
         self.serialized_player_id.contents = ctypes.c_double(0)
 
-        vec = np.rint(
-            np.ctypeslib.as_array(
-                self.program.functions.get(self.serialized, 0),
-                shape=(self.get_state_size(), 1, 1),
-            )
-        ).astype(float)
-        return vec
+        return np.ctypeslib.as_array(
+            self.program.functions.get(self.serialized, 0),
+            shape=(self.get_state_size(), 1, 1),
+        ).copy()
 
     def is_done_underling(self):
         return self.state.state.resume_index == -1

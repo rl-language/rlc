@@ -165,9 +165,6 @@ def train(
     log_dir="/tmp/ppg",
     league_play_dir="",
 ):
-    if not program.functions.print_enumeration_errors(program.module.AnyGameAction()):
-        exit(-1)
-    program.functions.emit_observation_tensor_warnings(program.functions.play())
     exit_on_invalid_env(program)
     # load_initial_states(program, args.initial_states)
 

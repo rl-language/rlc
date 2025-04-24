@@ -99,9 +99,10 @@ site_packages_path = (
     target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
 )
 
+version="0.2.9"
 setup(
-    name="rl_language",
-    version="0.2.8",
+    name="rl_language_core",
+    version=version,
     author="Massimo Fioravanti",
     author_email="massimo.fioravanti@polimi.it",
     packages=find_packages(),
@@ -125,7 +126,6 @@ setup(
             ],
         )
     ],
-    install_requires=read_requirements(os.path.join("..", "run-requirements.txt")),
     entry_points={
         "console_scripts": [
             "rlc-test=impl.test:main",
@@ -157,6 +157,35 @@ setup(
         "Topic :: Utilities",
     ],
     python_requires=">=3.8",
+    commit_hash=get_commit_hash(),
+)
+
+setup(
+    name="rl_language",
+    version=version,
+    author="Massimo Fioravanti",
+    author_email="massimo.fioravanti@polimi.it",
+    install_requires=read_requirements(os.path.join("..", "run-requirements.txt")) + [f"rl_language_core=={version}"],
+    packages=[],
+    include_package_data=False,
+    data_files=[],
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: Unix",
+        "Operating System :: POSIX",
+        "Intended Audience :: Developers",
+        "Environment :: Console",
+        "Natural Language :: English",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3 :: Only",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Topic :: Utilities",
+    ],
     commit_hash=get_commit_hash(),
 )
 

@@ -1,5 +1,5 @@
 torch
-numpy < 2.0.0
+numpy
 gym3
 tensorboard
 matplotlib

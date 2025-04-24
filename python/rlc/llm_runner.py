@@ -43,7 +43,7 @@ class Gemini:
 
 
 class GeminiStateless:
-    def __init__(self, program: Program, model="gemini-2.0-flash"):
+    def __init__(self, program: Program, model="gemini-2.0-flash", first_message=None):
         from google import genai
 
         self.client = genai.Client()
@@ -54,7 +54,7 @@ class GeminiStateless:
             }
             for x in range(program.functions.get_num_players())
         ]
-        self.first_messages = [None for x in range(program.functions.get_num_players())]
+        self.first_messages = [first_message for x in range(program.functions.get_num_players())]
 
     def chat(self, message: str, player_id: int) -> str:
         from google import genai

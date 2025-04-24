@@ -2106,6 +2106,8 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 
 	while (not accept<Token::Deindent>())
 	{
+		while (accept<Token::Newline>())
+			;
 		if (current == Token::KeywordFun)
 		{
 			TRY(_, functionDefinition(true), onExit());
@@ -2114,8 +2116,6 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 		{
 			TRY(_, enumFieldDeclaration(), onExit());
 		}
-		while (accept<Token::Newline>())
-			;
 	}
 
 	return onExit();
@@ -2198,25 +2198,26 @@ llvm::Expected<mlir::rlc::ConstantGlobalOp> Parser::globalConstant()
 	EXPECT(Token::Identifier);
 	std::string name = lIdent;
 	EXPECT(Token::Equal);
+	int mult = accept(Token::Minus) ? -1 : 1;
 	if (accept<Token::Double>())
 		return builder.create<mlir::rlc::ConstantGlobalOp>(
 				location,
 				mlir::rlc::FloatType::get(builder.getContext()),
-				builder.getF64FloatAttr(lDouble),
+				builder.getF64FloatAttr(lDouble * mult),
 				name);
 
 	if (accept<Token::Int64>())
 		return builder.create<mlir::rlc::ConstantGlobalOp>(
 				location,
 				mlir::rlc::IntegerType::getInt64(builder.getContext()),
-				builder.getIntegerAttr(builder.getIntegerType(64), lInt64),
+				builder.getIntegerAttr(builder.getIntegerType(64), lInt64 * mult),
 				name);
 
 	if (accept<Token::Character>())
 		return builder.create<mlir::rlc::ConstantGlobalOp>(
 				location,
 				mlir::rlc::IntegerType::getInt8(builder.getContext()),
-				builder.getIntegerAttr(builder.getIntegerType(8), lInt64),
+				builder.getIntegerAttr(builder.getIntegerType(8), lInt64 * mult),
 				name);
 
 	auto location2 = getCurrentSourcePos();

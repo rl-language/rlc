@@ -21,6 +21,8 @@ Install rlc with:
 pip install rl_language
 ```
 
+If you don't want to use the off-the-self machine learning tools, you can install instead `rl_language_core` which has no dependencies beside numpy.
+
 Create a file to test it is working, and fill it with the following content.
 ```
 # file.rl
@@ -43,12 +45,14 @@ rlc-probs file.rl net
 It will to learn pass true to `win` to maximize `score`, as reported by the second command.
 
 ##
-
+### Documentation
 [Project Rationale](./docs/where_we_are_going.md)
 
 [Language Rationale](./docs/rationale.md)
 
 [Tutorial](./docs/tutorial.md)
+
+[Tutorial for GYM users](./docs/gym_tutorial.md)
 
 [Language reference and stdlib documentation](https://github.com/rl-language/rlc-stdlib-doc/tree/master)
 
