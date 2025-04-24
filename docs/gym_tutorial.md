@@ -9,6 +9,8 @@ In this document you will see:
 * How to import a example program into python.
 * How to use RLCSingleEnvironment to get the basic functionalities you want to write your custom wrapper.
 
+In particular we will see how to handle tensor serialization, including custom serializations, get the list of actions, the list of valid actions, the returns, the rewards, how to check for the end of the game, how to handle secret information and how to handle randomness.
+
 ### Installing rl_language_core
 
 This document assumes you wish to replace the off-the-shelf tools RLC provides. For example, the default pip package for rlc comes with a dependency torward pytorch so that people can test their rlc programs. This is not acceptable if you want to use a custom pytorch or another machine learning framework.
@@ -56,7 +58,7 @@ fun score(Game game, Int player_id) -> Float:
 ### Loading program
 Now that we have a file to load let us write a python module that can load it.
 
-```
+```python
 # main.py
 
 from rlc import compile
@@ -68,7 +70,7 @@ This piece of code will compile on the fly rockpaperscizzor and gives you back `
 
 In our case we do not simply with to load the program and access its functions directly, we want access it throught a GYM compatible point of view, for that reason we are going to wrap it into a SingleRLCEnvironment.
 
-```
+```python
 from rlc import compile
 from ml.env import SingleRLCEnvironment, exit_on_invalid_env
 
@@ -87,7 +89,7 @@ In particular, it will check that:
 
 Furthermore it will emit warning if you have used objects that must be delivered to the GPU for training but that lack a conversion function.
 For example, if you modify the `play`  action as follow
-```
+```python
 @classes
 act play() -> Game:
     act player1_move(frm Gesture g1)
@@ -97,7 +99,7 @@ act play() -> Game:
 
 You will get a warning
 ```
-WARNING: obj.x is of type Int, which is not tensorable. Replace it instead with a BInt with appropriate bounds or specify yourself how to serialize it, or wrap it in a Hidden object. It will be ignored by machine learning.
+WARNING: obj.local_var is of type Int, which is not tensorable. Replace it instead with a BInt with appropriate bounds or specify yourself how to serialize it, or wrap it in a Hidden object. It will be ignored by machine learning.
 ```
 
 Very well, now that we have a valid env, let us discuss a bit what is inside of it.
@@ -108,13 +110,14 @@ A SingleRLCEnv contains:
 * A table of all possible moves, so that each possible move can be associated to a single integer.
 * A copy of the current player score, and of the score received at the last step.
 
-**Dumping the state**
+### Dumping the state
+
 You can print the state of the game as follow
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
-    print(env.print())
+    env.print()
 ```
 ```
 {resume_index: 1, g1: paper, g2: paper}
@@ -146,7 +149,7 @@ In this example the serialized state is a 1-hot rappresentation where the first 
 ```
 
 
-**All actions**
+### All actions
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
@@ -161,7 +164,7 @@ here are the game actions:
 ['player1_move {g1: paper} ', 'player1_move {g1: rock} ', 'player1_move {g1: scizzor} ', 'player2_move {g2: paper} ', 'player2_move {g2: rock} ', 'player2_move {g2: scizzor} ']
 ```
 
-**Valid actions**
+### Valid actions
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
@@ -175,7 +178,7 @@ Here is a numpy list of integers that tell you if a action is valid or not:
 ```
 as expected only the 3 actions that belong to player 0 are possible to execute at the start of the game.
 
-**Applying actions**
+### Applying actions
 
 To advance the state, there is a very simple function, `step` which accepts the index of the action to execute and returns the reward of that action, measure as the different between the score before the action has been executed and the score after the action has been executed.
 ```
@@ -192,10 +195,10 @@ with compile(["./rockpaperscizzor.rl"]) as program:
 ```
 
 
-**Score**
+### Score
 
 You can see the total score with
-```
+```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
@@ -212,7 +215,7 @@ which prints a array where each i-th element in the total score of player i. You
 
 You can as well query for the score value obtianed in the last step, instead of the global one.
 
-```
+```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
@@ -222,10 +225,10 @@ with compile(["./rockpaperscizzor.rl"]) as program:
 [0.0]
 ```
 
-**End of the game**
+### End of the game
 
 There are two ways to checkin for the end of the game. The first is with `is_done_underlying()`
-```
+```python
 with compile(["./file.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
@@ -238,11 +241,11 @@ It checks if the end of the game has been reached. Indeed the code snippet print
 True
 ```
 
-**Multyplayer**
+### Multyplayer
 
 In your Rulebook code you can provide two extra functions to enable multiplayer, get_num_players and get_current_player. For example, add the following code to your rulebook file.
 
-```
+```python
 fun get_num_players() -> Int:
     return 2
 
@@ -254,7 +257,7 @@ fun get_current_player(Game game) -> Int:
 
 You get the id of the player who has to act next with:
 
-```
+```python
 env = SingleRLCEnvironment(program, solve_randomness=True)
 print(env.get_current_player())
 env.step(1)
@@ -266,7 +269,7 @@ which prints integers
 1
 ```
 
-**Multiplayer end of game**
+### Multiplayer end of game
 If we try to observe the score, we get something strange.
 ```python
 env = SingleRLCEnvironment(program, solve_randomness=True)
@@ -306,7 +309,7 @@ False
 True
 ```
 
-**Random actions**
+### Random actions
 If you wish to, you can specify that some actions belong to player -1, that is, the random player.
 ```python
 fun get_num_players() -> Int:
@@ -336,19 +339,19 @@ True
 ```
 
 As you probably notice, you can disable the automatic fast tracking of random actions by passing false to solve_randomness.
-```
+```python
 env = SingleRLCEnvironment(program, solve_randomness=false)
 ```
 If you do, you must check every time yourself if step must perform a random action.
 
-**Hidden information**
+### Hidden information
 
 There is still one thing missing, hidden information. You can specify that some knowledge is not provided to the tensor serialization.
 You can do in to ways, one is the standard library class `Hidden`
 
 Here is the program rewritten to exploit hidden information
 
-```
+```python
 import machine_learning
 
 enum Gesture:
@@ -398,3 +401,44 @@ with compile(["./file.rl"]) as program:
 You will see that the player actions have been omitted from the serialized state, and not it only contains the current player id.
 
 `HiddentInformation` works in the same way, except you can provide the ID of the player that is allowed to see the information
+
+### Custom tensor rappresetation
+Your machine learning algorithms may require different custom rappresentations than the off-the-shelf one we provide.
+You can access them by providing two simple functions.
+```python
+    fun write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter)
+    fun size_as_observation_tensor(T obj) -> Int
+```
+
+For example, immagine we want serilize the `Gesture` enum as a single float instead of a one-hot encoding
+
+```python
+fun write_in_observation_tensor(Gesture obj, Int observer_id, Vector<Float> output, Int counter):
+    output[counter] = 2.0 * ((float(obj.value) / float(max(obj))) - 0.5)
+    counter = counter + 1
+
+fun size_as_observation_tensor(Gesture obj) -> Int:
+    return 1
+```
+
+The line
+```python
+output[counter] = 2.0 * ((float(obj.value) / float(max(obj))) - 0.5)
+```
+`float(obj.value)` takes the integer value of the enum and turns into a float. `/ float(max(obj))` rescales that number to be between 0 and 1. `-0.5`
+recenters the result to be between 0.5 and -0.5. Finally the `2.0` factor rescalases it between 1.0 and -1.0
+
+In practice this remaps the 3 candidates of then enum into -1.0, 0.0, and 1.0.
+
+When writing into the output vector it is always guaraneed that the vector can already contain your output, but you have to make sure that you keep track correctly of how much content you write.
+```python
+    counter = counter + 1
+```
+
+Finally, the function `size_as_observation_tensor` must return the maximal size the class can ever use, in number of floats.
+```python
+fun size_as_observation_tensor(Gesture obj) -> Int:
+    return 1
+```
+
+
