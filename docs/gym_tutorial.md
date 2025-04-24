@@ -1,30 +1,43 @@
 # RLC and GYM
 
-This document assumes the reader knows what reinforcement learning is, and what [GYM](https://gymnasium.farama.org) style environments are, and it intended to be a reference for those that with to wrap their own Rulebook environments into a GYM style wrapper for interoperability with already existing reinforcement learning algorithms.
 
-This document expects you to know what Rulebook is, if you have not done so, consider reading instead the [base tutorial](./tutorial.md).
+This document assumes the reader is already familiar with reinforcement learning and [GYM-style environments](https://gymnasium.farama.org). It is intended as a reference for those who wish to wrap their own Rulebook environments in a GYM-style wrapper to ensure interoperability with existing reinforcement learning algorithms.
 
-In this document you will see:
-* How to install rlc core, the bare bone pip package that only depends from numpy and has barebone functionalities.
-* How to import a example program into python.
-* How to use RLCSingleEnvironment to get the basic functionalities you want to write your custom wrapper.
+It also assumes you are familiar with Rulebook. If not, we recommend starting with the [base tutorial](./tutorial.md).
 
-In particular we will see how to handle tensor serialization, including custom serializations, get the list of actions, the list of valid actions, the returns, the rewards, how to check for the end of the game, how to handle secret information and how to handle randomness.
+In this document, you will learn:
 
-### Installing rl_language_core
+- How to install `rlc-core`, a minimal pip package that depends only on NumPy and offers basic functionality.
+- How to import an example program into Python.
+- How to use `RLCSingleEnvironment` to access essential features when building your custom wrapper.
 
-This document assumes you wish to replace the off-the-shelf tools RLC provides. For example, the default pip package for rlc comes with a dependency torward pytorch so that people can test their rlc programs. This is not acceptable if you want to use a custom pytorch or another machine learning framework.
-For this reason, we provide rl_language_core, which only ships the minimal tools needed to run rlc programs and some python code that only depends on numpy.
+Specifically, we will cover:
+- Handling tensor serialization, including custom serialization methods.
+- Accessing the full list of actions and the subset of valid actions.
+- Retrieving returns and rewards.
+- Checking for the end of a game.
+- Managing secret information and handling randomness.
 
-You can install it with
+Since there are too many GYM-like wrappers, we provide general functions that you can reuse to write the wrapper with the right interface for your usecase.
+
+
+### Installing `rl_language_core`
+
+This section assumes that you want to replace the default tools provided by RLC. The standard `rlc` pip package includes a dependency on PyTorch to allow users to quickly test their RLC programs. However, this setup may not be suitable if you plan to use a custom version of PyTorch or a different machine learning framework altogether.
+
+To address this, we provide the `rl_language_core` package—a minimal alternative that includes only the essential components needed to run RLC programs. It also comes with supporting Python code that depends solely on NumPy.
+
+To install it, run:
+
 ```
 pip install rl_language_core
 pip install numpy
 ```
 
-### Example program
 
-Let us start with a very simple RLC program and then let us built on top of it. Here is a implementation of rock-paper-scizzor. Notice that the game does not specify the number of players, nor a mapping between game state and current player.
+### Example Program
+
+Let’s begin with a simple RLC program and build on top of it. Below is an implementation of the classic game *rock-paper-scissors*. Note that this example does not define the number of players or specify how the game state maps to the current player—these details are left implicit.
 
 ```python
 # rockpaperscizzor.rl
@@ -55,8 +68,10 @@ fun score(Game game, Int player_id) -> Float:
 ```
 
 
-### Loading program
-Now that we have a file to load let us write a python module that can load it.
+
+### Loading the Program
+
+Now that we have a Rulebook file, let's write a Python module to load it:
 
 ```python
 # main.py
@@ -66,9 +81,11 @@ from rlc import compile
 with compile(["./rockpaperscizzor.rl"]) as program:
 ```
 
-This piece of code will compile on the fly rockpaperscizzor and gives you back `program: Program` which is a wrapper around to expose some usefull functions, such as convenient conversions to string or printing utilities. If you don't want to use a just in time approach, because for example you don't want to ship the rlc compiler to your users, you can instead ahead of time compile the Rulebook program and import it direclty. ToDo, show how.
+This snippet compiles the `rockpaperscizzor.rl` file on the fly and returns a `Program` object—a wrapper that provides useful utilities like string conversions and formatted printing.
 
-In our case we do not simply with to load the program and access its functions directly, we want access it throught a GYM compatible point of view, for that reason we are going to wrap it into a SingleRLCEnvironment.
+If you prefer not to use just-in-time (JIT) compilation—for example, if you don’t want to include the RLC compiler with your distribution—you can precompile the Rulebook program ahead of time and load it directly. *(TODO: Show how to do this.)*
+
+However, our goal is not just to load the program and access its functions directly. Instead, we want to interact with it through a GYM-compatible interface. For that, we wrap it in a `SingleRLCEnvironment`.
 
 ```python
 from rlc import compile
@@ -79,16 +96,23 @@ with compile(["./rockpaperscizzor.rl"]) as program:
     env = SingleRLCEnvironment(program, solve_randomness=True)
 ```
 
-SingleRLCEnvironment is a python class that given a Program, exposes all the helper functions you may want from a reinforcement learning environment.
-Of course, for this to work, the relevant info must be present somewhere in the Rulebook program. To validate the correctness of the Rulebook program there is exit_on_invalid_env, which will print errors and exit if the the types and functions inside Program are not those to be expected.
 
-In particular, it will check that:
-* the main action `play()` exists and the implied coroutine type is called `Game`.
-* `score(Game game, Int player_id)` exists and returns float or int.
-* Every action is enumerable. That is, every argument of every action implements the trait Enumerable, which is use to build the table of all possible actions.
+### Understanding `SingleRLCEnvironment`
 
-Furthermore it will emit warning if you have used objects that must be delivered to the GPU for training but that lack a conversion function.
-For example, if you modify the `play`  action as follow
+`SingleRLCEnvironment` is a Python class that takes a compiled `Program` and exposes the helper functions typically expected from a reinforcement learning environment. It serves as a bridge between your Rulebook program and GYM-style interfaces.
+
+For this wrapper to work correctly, certain information must be present and properly defined in the Rulebook program. To validate this, the function `exit_on_invalid_env` is provided. It will check the structure of your `Program` and exit with descriptive error messages if the expected types or functions are missing or incorrect.
+
+Specifically, it checks that:
+
+- A main action `play()` exists, and its coroutine return type is `Game`.
+- A scoring function `score(Game game, Int player_id)` is defined and returns either a `float` or `int`.
+- Every action's arguments implement the `Enumerable` trait. This trait is required to enumerate all possible actions and construct action tables.
+
+Additionally, `exit_on_invalid_env` will emit warnings if the program contains objects meant to be used in training (e.g., tensors) but that lack a valid serialization strategy.
+
+For example, consider this modification to the `play` action:
+
 ```python
 @classes
 act play() -> Game:
@@ -97,33 +121,39 @@ act play() -> Game:
     act player2_move(frm Gesture g2)
 ```
 
-You will get a warning
+This will trigger a warning like the following:
+
 ```
-WARNING: obj.local_var is of type Int, which is not tensorable. Replace it instead with a BInt with appropriate bounds or specify yourself how to serialize it, or wrap it in a Hidden object. It will be ignored by machine learning.
+WARNING: obj.local_var is of type Int, which is not tensorable. Replace it instead with a BInt with appropriate bounds, specify how to serialize it, or wrap it in a Hidden object. It will be ignored by machine learning.
 ```
 
-Very well, now that we have a valid env, let us discuss a bit what is inside of it.
+These warnings help ensure that your environment is fully compatible with GPU-based training and other downstream machine learning tasks.
 
-A SingleRLCEnv contains:
-* A game state obtained from executing the user defined `play` action function.
-* Pointers to the users defined functions such as `score` and `get_current_player`.
-* A table of all possible moves, so that each possible move can be associated to a single integer.
-* A copy of the current player score, and of the score received at the last step.
 
-### Dumping the state
+Very well, now that we have a valid environment, let’s take a closer look at what it contains.
 
-You can print the state of the game as follow
+A `SingleRLCEnvironment` includes:
+* A game state, created by executing the user-defined `play` action.
+* References to user-defined functions such as `score` and `get_current_player`.
+* A table of all possible moves, allowing each move to be mapped to a unique integer.
+* A copy of the current player’s score and the score received in the previous step.
+
+### Dumping the State
+
+You can print the current game state as follows:
+
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     env.print()
 ```
+
 ```
 {resume_index: 1, g1: paper, g2: paper}
 ```
 
-You can obtain the tensor serialization of the state with `get_state()`.
+To obtain a tensor serialization of the state, use `get_state()`:
 
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
@@ -131,52 +161,54 @@ with compile(["./rockpaperscizzor.rl"]) as program:
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print(env.get_state())
 ```
-In this example the serialized state is a 1-hot rappresentation where the first 3 float rappresent the 3 possible values of player 1 rock, paper and scizor, the second 3 are the same for player 2. The last float is reserved to specify who is the current player. Since we have not provided a function to specify the current player it will always be zero.
+
+In this example, the serialized state is a one-hot representation:
+- The first three floats represent the three possible values for player 1—rock, paper, and scissors.
+- The next three floats do the same for player 2.
+- The final float indicates the current player. Since we haven’t defined a function to determine the current player, this value defaults to zero.
+
 ```
 [[[1.]]
-
  [[0.]]
-
  [[0.]]
-
  [[1.]]
-
  [[0.]]
-
  [[0.]]
-
  [[0.]]]
 ```
+### All Actions
 
-
-### All actions
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
-    print("here are the game actions:")
+    print("Here are the game actions:")
     print([program.to_string(action) for action in env.actions()])
 ```
 
-running this program will print
+Running this program will print:
+
 ```
-here are the game actions:
+Here are the game actions:
 ['player1_move {g1: paper} ', 'player1_move {g1: rock} ', 'player1_move {g1: scizzor} ', 'player2_move {g2: paper} ', 'player2_move {g2: rock} ', 'player2_move {g2: scizzor} ']
 ```
 
-### Valid actions
+### Valid Actions
+
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
-    print("Here is a numpy list of integers that tell you if a action is valid or not:")
+    print("Here is a NumPy array indicating which actions are currently valid:")
     print(env.get_action_mask())
 ```
+
 ```
-Here is a numpy list of integers that tell you if a action is valid or not:
+Here is a NumPy array indicating which actions are currently valid:
 [1 1 1 0 0 0]
 ```
-as expected only the 3 actions that belong to player 0 are possible to execute at the start of the game.
+
+As expected, only the three actions available to player 0 are valid at the start of the game.
 
 ### Applying actions
 
@@ -194,10 +226,10 @@ with compile(["./rockpaperscizzor.rl"]) as program:
 {resume_index: 2, g1: scizzor, g2: paper}
 ```
 
-
 ### Score
 
-You can see the total score with
+You can view the total score using:
+
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
@@ -207,13 +239,15 @@ with compile(["./rockpaperscizzor.rl"]) as program:
     env.print()
     print(env.current_score)
 ```
-which prints a array where each i-th element in the total score of player i. Youn can see it prints that player0 played rock, player1 played scizzors, and thus player0 returns are 1.0
+
+This prints an array where the *i*-th element represents the total score of player *i*. In the example, player 0 plays rock, player 1 plays scissors, and player 0 receives a score of 1.0:
+
 ```
 {resume_index: -1, g1: rock, g2: scizzor}
 [1.0]
 ```
 
-You can as well query for the score value obtianed in the last step, instead of the global one.
+You can also query the score obtained in the most recent step, instead of the cumulative score:
 
 ```python
 with compile(["./rockpaperscizzor.rl"]) as program:
@@ -221,29 +255,35 @@ with compile(["./rockpaperscizzor.rl"]) as program:
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print(env.last_score)
 ```
+
 ```
 [0.0]
 ```
 
-### End of the game
+### End of the Game
 
-There are two ways to checkin for the end of the game. The first is with `is_done_underlying()`
+There are two ways to check whether the game has ended. The first is by using `is_done_underlying()`:
+
 ```python
 with compile(["./file.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     env.step(1)
     env.step(5)
-    print(env.is_done_underling())
+    print(env.is_done_underlying())
 ```
-It checks if the end of the game has been reached. Indeed the code snippet prints:
+
+This checks whether the game has reached a terminal state. The output in this example is:
+
 ```
 True
 ```
 
-### Multyplayer
+The second mechanism is discussed in the multiplayer section.
 
-In your Rulebook code you can provide two extra functions to enable multiplayer, get_num_players and get_current_player. For example, add the following code to your rulebook file.
+### Multiplayer
+
+In your Rulebook code, you can enable multiplayer support by defining two additional functions: `get_num_players` and `get_current_player`. For example, add the following to your Rulebook file:
 
 ```python
 fun get_num_players() -> Int:
@@ -255,7 +295,7 @@ fun get_current_player(Game game) -> Int:
     return 1
 ```
 
-You get the id of the player who has to act next with:
+You can get the ID of the player who needs to act next with:
 
 ```python
 env = SingleRLCEnvironment(program, solve_randomness=True)
@@ -263,26 +303,30 @@ print(env.get_current_player())
 env.step(1)
 print(env.get_current_player())
 ```
-which prints integers
+
+This prints:
+
 ```
 0
 1
 ```
 
-### Multiplayer end of game
-If we try to observe the score, we get something strange.
+### Multiplayer End of Game
+
+If we check the score in a multiplayer setup, we might notice something unexpected:
+
 ```python
 env = SingleRLCEnvironment(program, solve_randomness=True)
 print(env.current_score)
 ```
-we can see that there are now two values, but these two values do not add up to zero, which is strange in a zero sum game!
 
 ```
 [1.0, 0.0]
 ```
 
-This happens because we want to hide the actions played by other players. Each actor observes the game from their point of view, and it only gets to observe current state and rewards. For this reason the score of actors is only updated after they take a move, and a fake final move is added for each player, so that they can observe other players final moves.
+We now see two values, one for each player. However, they don't sum to zero, which is unusual in a zero-sum game.
 
+This behavior occurs because each player only observes the game from their own perspective. The score is updated for a player only after they take an action. To ensure that each player gets to observe the final state, the system automatically adds a fake final move for each one.
 
 ```python
 env = SingleRLCEnvironment(program, solve_randomness=True)
@@ -291,14 +335,17 @@ env.step(1)
 print(env.current_score)
 env.step(3)
 print(env.current_score)
-print(env.is_done_underling())
+print(env.is_done_underlying())
 print(env.is_done_for_everyone())
-env.step(1) # fake final action, the argument can be anything
+env.step(1)  # fake final action; the argument can be anything
 print(env.current_score)
 print(env.is_done_for_everyone())
 ```
 
-is_done_underlying tells you if the final state of the game has been reached. is_done_for_everyone tells you if every player had the possibility of observing the final state. After is_done_for_everyone returns true the score correctly sums to zero.
+`is_done_underlying` checks if the actual game logic has reached a terminal state.
+`is_done_for_everyone` checks if all players have had the chance to observe the final state.
+Only after `is_done_for_everyone` returns `True` will the scores reflect the full outcome of the game.
+
 ```
 [0.0, 0.0]
 [0.0, 0.0]
@@ -309,8 +356,10 @@ False
 True
 ```
 
-### Random actions
-If you wish to, you can specify that some actions belong to player -1, that is, the random player.
+### Random Actions
+
+You can specify that certain actions belong to a special player `-1`, which represents a random agent:
+
 ```python
 fun get_num_players() -> Int:
     return 1
@@ -321,8 +370,7 @@ fun get_current_player(Game game) -> Int:
     return -1
 ```
 
-If you do so all actions that belong to that player will be performed at random by uniformly picking among the enumeration of valid actions.
-
+When actions belong to player `-1`, they are automatically executed by sampling uniformly from the set of valid actions.
 
 ```python
 exit_on_invalid_env(program)
@@ -332,24 +380,26 @@ env.step(1)
 print(env.is_done_for_everyone())
 print(env.current_score)
 ```
+
 ```
 [0.0]
 True
-[1.0] # the final result is random of course.
+[1.0]  # The final result is random.
 ```
 
-As you probably notice, you can disable the automatic fast tracking of random actions by passing false to solve_randomness.
+You can disable automatic execution of random actions by setting `solve_randomness=False`:
+
 ```python
-env = SingleRLCEnvironment(program, solve_randomness=false)
+env = SingleRLCEnvironment(program, solve_randomness=False)
 ```
-If you do, you must check every time yourself if step must perform a random action.
 
-### Hidden information
+In this case, you must manually check when a random action needs to be taken and handle it yourself.
 
-There is still one thing missing, hidden information. You can specify that some knowledge is not provided to the tensor serialization.
-You can do in to ways, one is the standard library class `Hidden`
+### Hidden Information
 
-Here is the program rewritten to exploit hidden information
+To handle hidden information—data that should not be visible in the tensor serialization—you can use the `Hidden` type from the standard library.
+
+Here's an updated version of the program using hidden actions:
 
 ```python
 import machine_learning
@@ -379,7 +429,6 @@ fun score(Game game, Int player_id) -> Float:
         return 1.0
     return -1.0
 
-
 fun get_num_players() -> Int:
     return 1
 
@@ -390,27 +439,29 @@ fun get_current_player(Game game) -> Int:
     return -1
 ```
 
-if you now run the program
-```
+Running the following:
+
+```python
 with compile(["./file.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print(env.get_state())
 ```
 
-You will see that the player actions have been omitted from the serialized state, and not it only contains the current player id.
+will produce a serialized state where the player's actions are omitted, and only the current player ID is included.
 
-`HiddentInformation` works in the same way, except you can provide the ID of the player that is allowed to see the information
+`HiddenInformation` works similarly but allows you to specify which player is permitted to view the hidden data.
 
-### Custom tensor rappresetation
-Your machine learning algorithms may require different custom rappresentations than the off-the-shelf one we provide.
-You can access them by providing two simple functions.
+### Custom Tensor Representation
+
+Your machine learning algorithms might require custom tensor representations different from the default one provided. You can define these by implementing two simple functions:
+
 ```python
-    fun write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter)
-    fun size_as_observation_tensor(T obj) -> Int
+fun write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter)
+fun size_as_observation_tensor(T obj) -> Int
 ```
 
-For example, immagine we want serilize the `Gesture` enum as a single float instead of a one-hot encoding
+For example, to serialize the `Gesture` enum as a single float instead of a one-hot vector:
 
 ```python
 fun write_in_observation_tensor(Gesture obj, Int observer_id, Vector<Float> output, Int counter):
@@ -421,24 +472,29 @@ fun size_as_observation_tensor(Gesture obj) -> Int:
     return 1
 ```
 
-The line
+The line:
+
 ```python
 output[counter] = 2.0 * ((float(obj.value) / float(max(obj))) - 0.5)
 ```
-`float(obj.value)` takes the integer value of the enum and turns into a float. `/ float(max(obj))` rescales that number to be between 0 and 1. `-0.5`
-recenters the result to be between 0.5 and -0.5. Finally the `2.0` factor rescalases it between 1.0 and -1.0
 
-In practice this remaps the 3 candidates of then enum into -1.0, 0.0, and 1.0.
+works as follows:
+- `float(obj.value)` converts the enum's integer value to a float.
+- Dividing by `float(max(obj))` scales the value to the [0, 1] range.
+- Subtracting `0.5` recenters it to [-0.5, 0.5].
+- Multiplying by `2.0` scales it to the [-1.0, 1.0] range.
 
-When writing into the output vector it is always guaraneed that the vector can already contain your output, but you have to make sure that you keep track correctly of how much content you write.
+This maps the three enum values to `-1.0`, `0.0`, and `1.0`.
+
+When writing to the output vector, it is guaranteed that there is enough space, but you must manually update the `counter` to track how many floats you've written:
+
 ```python
-    counter = counter + 1
+counter = counter + 1
 ```
 
-Finally, the function `size_as_observation_tensor` must return the maximal size the class can ever use, in number of floats.
+Finally, `size_as_observation_tensor` must return the maximum number of floats your type will ever write:
+
 ```python
 fun size_as_observation_tensor(Gesture obj) -> Int:
     return 1
 ```
-
-
