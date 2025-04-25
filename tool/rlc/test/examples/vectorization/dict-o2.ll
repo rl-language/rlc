@@ -1,6 +1,6 @@
 ; ModuleID = 'dict.rl'
 source_filename = "dict.rl"
-target datalayout = "S128-e-f80:128-i128:128-i64:64-p272:64:64:64:64-p271:32:32:32:32-f128:128-f16:16-p270:32:32:32:32-f64:64-i32:32-i16:16-i8:8-i1:8-p0:64:64:64:64"
+target datalayout = "S128-e-i128:128-f80:128-p271:32:32:32:32-p270:32:32:32:32-f128:128-i64:64-p272:64:64:64:64-i32:32-i16:16-f16:16-f64:64-p0:64:64:64:64-i8:8-i1:8"
 target triple = "x86_64-unknown-linux-gnu"
 
 %Entry = type { i8, i64, i64, i64 }
