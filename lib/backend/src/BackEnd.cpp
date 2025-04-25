@@ -183,11 +183,11 @@ static void runOptimizer(
 		passManager.run(M, MAM);
 
 		ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
-		MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
-			auto PassName = PIC.getPassNameForClassName(ClassName);
-			return PassName.empty() ? ClassName : PassName;
-		  });
-		outs() << "\n";
+		// MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
+		// 	auto PassName = PIC.getPassNameForClassName(ClassName);
+		// 	return PassName.empty() ? ClassName : PassName;
+		//   });
+		// outs() << "\n";
 		MPM.run(M, MAM);
 	}
 	else

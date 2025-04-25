@@ -1,0 +1,2580 @@
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash__int64_t_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash__int64_t_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash__double_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash__double_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_compute_hash__int8_t_r_int64_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash__int8_t_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_compute_hash__String_r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_compute_hash__String_r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash__String_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash_of__int64_t_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_hash_of__int64_t_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_equal__int64_t_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_equal__double_double_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_equal__bool_bool_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_equal__int8_t_int8_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_compute_equal_of__int64_t_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_clear__DictTint64_tTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_clear__DictTint64_tTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_clear__DictTint64_tTint64_tT
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '2'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '2'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '2'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '2'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            slp-vectorizer
+Name:            StoresVectorized
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'Stores SLP vectorized with cost '
+  - Cost:            '-2'
+  - String:          ' and with tree size '
+  - TreeSize:        '2'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_m_contains__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_contains__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_contains__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_contains__DictTint64_tTint64_tT_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_m_get__DictTint64_tTint64_tT_int64_t_r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_get__DictTint64_tTint64_tT_int64_t_r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_get__DictTint64_tTint64_tT_int64_t_r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_get__DictTint64_tTint64_tT_int64_t_r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NoCFGForSelect
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          control flow cannot be substituted for a select
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeLibcall
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          call instruction cannot be vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeInstruction
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          instruction cannot be vectorized
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_init__DictTint64_tTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_init__DictTint64_tTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_init__DictTint64_tTint64_tT
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_drop_back__VectorTint8_tT_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_drop_back__VectorTint8_tT_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_drop_back__VectorTint8_tT_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_drop_back__VectorTint8_tT_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_drop_back__VectorTint8_tT_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_drop_back__VectorTint8_tT_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append__VectorTint8_tT_int8_t
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__VectorTint8_tT_int8_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append__VectorTint64_tT_int64_t
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '2'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__VectorTint64_tT_int64_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '2'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_init__VectorTint8_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_init__VectorTint8_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_init__VectorTint8_tT
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_init__VectorTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_init__VectorTint64_tT
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_init__VectorTint64_tT
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeLibcall
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          call instruction cannot be vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeInstruction
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          instruction cannot be vectorized
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_reverse__String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_reverse__String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_reverse__String
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_reverse__String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_reverse__String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_drop_back__String_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_drop_back__String_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_drop_back__String_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_drop_back__String_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_drop_back__String_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_drop_back__String_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_not_equal__String_strlit_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_not_equal__String_strlit_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_not_equal__String_strlit_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_not_equal__String_strlit_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_not_equal__String_strlit_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_not_equal__String_String_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_not_equal__String_String_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_not_equal__String_String_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_not_equal__String_String_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Passed
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_equal__String_strlit_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_equal__String_strlit_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_equal__String_strlit_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_equal__String_strlit_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_equal__String_strlit_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_add__String_String_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_add__String_String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_add__String_String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_add__String_String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_add__String_String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append__String_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append__String_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_append__String_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_append__String_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append__String_strlit
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append__String_strlit
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__String_strlit
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__String_strlit
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__String_strlit
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_count__String_int8_t_r_int64_t
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '2'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_count__String_int8_t_r_int64_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_m_substring_matches__String_strlit_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_substring_matches__String_strlit_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_substring_matches__String_strlit_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_append__String_int8_t
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_append__String_int8_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_m_init__String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_m_init__String
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_m_init__String
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_m_init__String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_m_init__String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_s__strlit_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_s__strlit_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_s__strlit_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_s__strlit_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_s__strlit_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            InterleavingNotBeneficial
+Function:        rl_to_string__int64_t_r_String
+Args:
+  - String:          the cost-model indicates that interleaving is not beneficial
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_to_string__int64_t_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '4'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '1'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_to_string__int64_t_r_String
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_to_string__int64_t_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_to_string__int64_t_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_to_string__int64_t_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_to_string__int64_t_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_length__strlit_r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_length__strlit_r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_length__strlit_r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            LoopContainsSwitch
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          loop contains a switch statement
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Passed
+Pass:            loop-vectorize
+Name:            Vectorized
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'vectorized '
+  - String:          ''
+  - String:          'loop (vectorization width: '
+  - VectorizationFactor: '16'
+  - String:          ', interleaved count: '
+  - InterleaveCount: '2'
+  - String:          ')'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_parse_string__String_String_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            LoopContainsSwitch
+Function:        rl_parse_string__bool_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          loop contains a switch statement
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_parse_string__bool_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantIdentifyArrayBounds
+Function:        rl_parse_string__bool_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          cannot identify array bounds
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_parse_string__bool_String_int64_t_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_parse_string__bool_String_int64_t_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_parse_string__bool_String_int64_t_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeLibcall
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          call instruction cannot be vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeInstruction
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          instruction cannot be vectorized
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_main__r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_main__r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NonReductionValueUsedOutsideLoop
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          value that could not be identified as reduction is used outside the loop
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_main__r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeLibcall
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          call instruction cannot be vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeInstruction
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          instruction cannot be vectorized
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_main__r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NoCFGForSelect
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          control flow cannot be substituted for a select
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeLibcall
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          call instruction cannot be vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeInstruction
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          instruction cannot be vectorized
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_main__r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            NoCFGForSelect
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          control flow cannot be substituted for a select
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeLibcall
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          call instruction cannot be vectorized
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantVectorizeInstruction
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'loop not vectorized: '
+  - String:          instruction cannot be vectorized
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+Function:        rl_main__r_int64_t
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_main__r_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
