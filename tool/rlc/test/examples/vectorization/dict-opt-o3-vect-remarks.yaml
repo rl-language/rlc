@@ -1,6 +1,7 @@
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 29, Column: 12 }
 Function:        rl_compute_hash__int64_t_r_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -9,6 +10,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 26, Column: 16 }
 Function:        rl_compute_hash__int64_t_r_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -17,6 +19,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 42, Column: 12 }
 Function:        rl_compute_hash__double_r_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -25,6 +28,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 39, Column: 16 }
 Function:        rl_compute_hash__double_r_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -33,6 +37,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: to_hash.rl, Line: 53, Column: 25 }
 Function:        rl_compute_hash__int8_t_r_int64_t
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -43,6 +48,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 53, Column: 17 }
 Function:        rl_compute_hash__int8_t_r_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -51,6 +57,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_compute_hash__String_r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -59,6 +66,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_compute_hash__String_r_int64_t
 Args:
   - String:          loop not vectorized
@@ -74,6 +82,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 29, Column: 12 }
 Function:        rl_compute_hash_of__int64_t_r_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -82,6 +91,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 26, Column: 16 }
 Function:        rl_compute_hash_of__int64_t_r_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -90,6 +100,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: key_equal.rl, Line: 21, Column: 19 }
 Function:        rl_compute_equal__int64_t_int64_t_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -98,6 +109,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: key_equal.rl, Line: 24, Column: 19 }
 Function:        rl_compute_equal__double_double_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -106,6 +118,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: key_equal.rl, Line: 36, Column: 19 }
 Function:        rl_compute_equal__bool_bool_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -114,6 +127,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: key_equal.rl, Line: 39, Column: 19 }
 Function:        rl_compute_equal__int8_t_int8_t_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -122,6 +136,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: key_equal.rl, Line: 109, Column: 12 }
 Function:        rl_compute_equal_of__int64_t_int64_t_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -130,6 +145,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: dictionary.rl, Line: 263, Column: 26 }
 Function:        rl_m_clear__DictTint64_tTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -138,6 +154,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 264, Column: 34 }
 Function:        rl_m_clear__DictTint64_tTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -146,6 +163,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 264, Column: 34 }
 Function:        rl_m_clear__DictTint64_tTint64_tT
 Args:
   - String:          loop not vectorized
@@ -153,6 +171,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'vectorized '
@@ -166,6 +185,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'vectorized '
@@ -179,6 +199,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 52, Column: 24 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -187,6 +208,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -197,6 +219,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -207,6 +230,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -215,6 +239,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: dictionary.rl, Line: 0, Column: 0 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -223,6 +248,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: dictionary.rl, Line: 0, Column: 0 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -231,6 +257,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_values__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -249,6 +276,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'vectorized '
@@ -262,6 +290,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'vectorized '
@@ -275,6 +304,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 52, Column: 24 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -283,6 +313,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -293,6 +324,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -303,6 +335,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -311,6 +344,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: dictionary.rl, Line: 0, Column: 0 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -319,6 +353,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: dictionary.rl, Line: 0, Column: 0 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -327,6 +362,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_keys__DictTint64_tTint64_tT_r_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -345,6 +381,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 174, Column: 13 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -353,6 +390,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 174, Column: 13 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -361,6 +399,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 174, Column: 13 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -368,6 +407,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 195, Column: 59 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -376,6 +416,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 202, Column: 44 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -384,6 +425,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 202, Column: 44 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -392,6 +434,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 202, Column: 44 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -399,6 +442,7 @@ Args:
 --- !Passed
 Pass:            slp-vectorizer
 Name:            StoresVectorized
+DebugLoc:        { File: dict.rl, Line: 0, Column: 0 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'Stores SLP vectorized with cost '
@@ -417,6 +461,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: dictionary.rl, Line: 195, Column: 59 }
 Function:        rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -433,6 +478,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_m_contains__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -441,6 +487,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_m_contains__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -449,6 +496,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_m_contains__DictTint64_tTint64_tT_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -464,6 +512,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 114, Column: 13 }
 Function:        rl_m_get__DictTint64_tTint64_tT_int64_t_r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -472,6 +521,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 114, Column: 13 }
 Function:        rl_m_get__DictTint64_tTint64_tT_int64_t_r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -480,6 +530,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 114, Column: 13 }
 Function:        rl_m_get__DictTint64_tTint64_tT_int64_t_r_int64_t
 Args:
   - String:          loop not vectorized
@@ -495,6 +546,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 98, Column: 53 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -503,6 +555,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: dictionary.rl, Line: 79, Column: 35 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -511,6 +564,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 98, Column: 53 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -519,9 +573,30 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 98, Column: 53 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: dictionary.rl, Line: 0, Column: 0 }
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+DebugLoc:        { File: dictionary.rl, Line: 0, Column: 0 }
+Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
 ...
 --- !Missed
 Pass:            slp-vectorizer
@@ -543,17 +618,8 @@ Args:
 ...
 --- !Missed
 Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 29, Column: 12 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -562,6 +628,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 26, Column: 16 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -570,6 +637,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 29, Column: 12 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -578,14 +646,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
-Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
-Args:
-  - String:          'Cannot SLP vectorize list: vectorization was impossible'
-  - String:          ' with available vectorization factors'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotPossible
+DebugLoc:        { File: to_hash.rl, Line: 26, Column: 16 }
 Function:        rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTint64_tTPtr_int64_t_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -594,6 +655,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 0, Column: 0 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -602,6 +664,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 312, Column: 9 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -610,6 +673,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 312, Column: 9 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -618,6 +682,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 312, Column: 9 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -625,6 +690,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: dictionary.rl, Line: 279, Column: 26 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -633,6 +699,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 282, Column: 74 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -641,6 +708,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 282, Column: 74 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -648,6 +716,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NoCFGForSelect
+DebugLoc:        { File: dictionary.rl, Line: 288, Column: 13 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -656,6 +725,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeLibcall
+DebugLoc:        { File: dictionary.rl, Line: 287, Column: 21 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -664,6 +734,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeInstruction
+DebugLoc:        { File: dictionary.rl, Line: 288, Column: 13 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -672,6 +743,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 288, Column: 13 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -679,6 +751,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: dictionary.rl, Line: 44, Column: 23 }
 Function:        rl_m_insert__DictTint64_tTint64_tT_int64_t_int64_t_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -687,6 +760,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: dictionary.rl, Line: 39, Column: 26 }
 Function:        rl_m_init__DictTint64_tTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -695,6 +769,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 40, Column: 34 }
 Function:        rl_m_init__DictTint64_tTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -703,6 +778,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 40, Column: 34 }
 Function:        rl_m_init__DictTint64_tTint64_tT
 Args:
   - String:          loop not vectorized
@@ -710,6 +786,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 153, Column: 54 }
 Function:        rl_m_drop_back__VectorTint8_tT_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -718,6 +795,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 155, Column: 9 }
 Function:        rl_m_drop_back__VectorTint8_tT_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -726,6 +804,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 155, Column: 9 }
 Function:        rl_m_drop_back__VectorTint8_tT_int64_t
 Args:
   - String:          loop not vectorized
@@ -733,6 +812,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 150, Column: 34 }
 Function:        rl_m_drop_back__VectorTint8_tT_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -741,6 +821,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 150, Column: 34 }
 Function:        rl_m_drop_back__VectorTint8_tT_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -749,6 +830,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 150, Column: 34 }
 Function:        rl_m_drop_back__VectorTint8_tT_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -757,6 +839,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__VectorTint8_tT_int8_t
 Args:
   - String:          'vectorized '
@@ -770,6 +853,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__VectorTint8_tT_int8_t
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -780,6 +864,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__VectorTint64_tT_int64_t
 Args:
   - String:          'vectorized '
@@ -793,6 +878,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__VectorTint64_tT_int64_t
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -803,6 +889,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 56, Column: 54 }
 Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
 Args:
   - String:          'loop not vectorized: '
@@ -811,6 +898,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
 Args:
   - String:          'loop not vectorized: '
@@ -819,6 +907,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
 Args:
   - String:          loop not vectorized
@@ -826,6 +915,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
 Args:
   - String:          'vectorized '
@@ -839,6 +929,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -849,6 +940,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 120, Column: 31 }
 Function:        rl_m_assign__VectorTint8_tT_VectorTint8_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -859,6 +951,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 56, Column: 54 }
 Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -867,6 +960,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -875,6 +969,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
 Args:
   - String:          loop not vectorized
@@ -882,6 +977,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
 Args:
   - String:          'vectorized '
@@ -895,6 +991,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -905,6 +1002,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 120, Column: 31 }
 Function:        rl_m_assign__VectorTint64_tT_VectorTint64_tT
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -915,6 +1013,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 56, Column: 54 }
 Function:        rl_m_init__VectorTint8_tT
 Args:
   - String:          'loop not vectorized: '
@@ -923,6 +1022,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_init__VectorTint8_tT
 Args:
   - String:          'loop not vectorized: '
@@ -931,6 +1031,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_init__VectorTint8_tT
 Args:
   - String:          loop not vectorized
@@ -938,6 +1039,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 56, Column: 54 }
 Function:        rl_m_init__VectorTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -946,6 +1048,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_init__VectorTint64_tT
 Args:
   - String:          'loop not vectorized: '
@@ -954,6 +1057,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_init__VectorTint64_tT
 Args:
   - String:          loop not vectorized
@@ -961,6 +1065,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 56, Column: 54 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'loop not vectorized: '
@@ -969,6 +1074,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'loop not vectorized: '
@@ -977,6 +1083,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          loop not vectorized
@@ -984,6 +1091,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -997,6 +1105,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1010,6 +1119,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1023,6 +1133,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1036,6 +1147,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1049,6 +1161,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1062,6 +1175,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1075,6 +1189,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1088,6 +1203,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1101,6 +1217,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1114,6 +1231,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1127,6 +1245,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1140,6 +1259,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeLibcall
+DebugLoc:        { File: string.rl, Line: 198, Column: 15 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'loop not vectorized: '
@@ -1148,6 +1268,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeInstruction
+DebugLoc:        { File: string.rl, Line: 199, Column: 32 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'loop not vectorized: '
@@ -1156,6 +1277,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: string.rl, Line: 199, Column: 32 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          loop not vectorized
@@ -1163,6 +1285,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1176,6 +1299,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1189,6 +1313,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'vectorized '
@@ -1202,6 +1327,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1210,6 +1336,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1220,6 +1347,201 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+DebugLoc:        { File: string.rl, Line: 0, Column: 0 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: string.rl, Line: 191, Column: 31 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 140, Column: 27 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 140, Column: 27 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_to_indented_lines__String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1237,183 +1559,8 @@ Args:
 ...
 --- !Missed
 Pass:            slp-vectorizer
-Name:            NotPossible
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'Cannot SLP vectorize list: vectorization was impossible'
-  - String:          ' with available vectorization factors'
-...
---- !Missed
-Pass:            slp-vectorizer
 Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotPossible
-Function:        rl_m_to_indented_lines__String_r_String
-Args:
-  - String:          'Cannot SLP vectorize list: vectorization was impossible'
-  - String:          ' with available vectorization factors'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_to_indented_lines__String_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1424,6 +1571,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 107, Column: 26 }
 Function:        rl_m_reverse__String
 Args:
   - String:          'loop not vectorized: '
@@ -1432,6 +1580,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_reverse__String
 Args:
   - String:          'loop not vectorized: '
@@ -1440,6 +1589,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_reverse__String
 Args:
   - String:          loop not vectorized
@@ -1447,6 +1597,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: string.rl, Line: 160, Column: 19 }
 Function:        rl_m_reverse__String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1467,6 +1618,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 153, Column: 54 }
 Function:        rl_m_drop_back__String_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -1475,6 +1627,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 155, Column: 9 }
 Function:        rl_m_drop_back__String_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -1483,6 +1636,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 155, Column: 9 }
 Function:        rl_m_drop_back__String_int64_t
 Args:
   - String:          loop not vectorized
@@ -1490,6 +1644,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 150, Column: 34 }
 Function:        rl_m_drop_back__String_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1498,6 +1653,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 150, Column: 34 }
 Function:        rl_m_drop_back__String_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1506,6 +1662,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 150, Column: 34 }
 Function:        rl_m_drop_back__String_int64_t
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1514,6 +1671,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_not_equal__String_strlit_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -1522,6 +1680,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_not_equal__String_strlit_r_bool
 Args:
   - String:          loop not vectorized
@@ -1537,6 +1696,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: string.rl, Line: 114, Column: 34 }
 Function:        rl_m_not_equal__String_strlit_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1553,6 +1713,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_not_equal__String_String_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -1561,6 +1722,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_not_equal__String_String_r_bool
 Args:
   - String:          loop not vectorized
@@ -1568,6 +1730,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: string.rl, Line: 131, Column: 34 }
 Function:        rl_m_not_equal__String_String_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1576,39 +1739,8 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 169, Column: 26 }
 Function:        rl_m_not_equal__String_String_r_bool
-Args:
-  - String:          'Cannot SLP vectorize list: vectorization was impossible'
-  - String:          ' with available vectorization factors'
-...
---- !Passed
---- !Analysis
-Pass:            loop-vectorize
-Name:            CantComputeNumberOfIterations
-Function:        rl_m_equal__String_String_r_bool
-Args:
-  - String:          'loop not vectorized: '
-  - String:          could not determine number of loop iterations
-...
---- !Missed
-Pass:            loop-vectorize
-Name:            MissedDetails
-Function:        rl_m_equal__String_String_r_bool
-Args:
-  - String:          loop not vectorized
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotPossible
-Function:        rl_m_equal__String_String_r_bool
-Args:
-  - String:          'Cannot SLP vectorize list: vectorization was impossible'
-  - String:          ' with available vectorization factors'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotPossible
-Function:        rl_m_equal__String_String_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
   - String:          ' with available vectorization factors'
@@ -1616,6 +1748,42 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          'loop not vectorized: '
+  - String:          could not determine number of loop iterations
+...
+--- !Missed
+Pass:            loop-vectorize
+Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          loop not vectorized
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+DebugLoc:        { File: string.rl, Line: 131, Column: 34 }
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 169, Column: 26 }
+Function:        rl_m_equal__String_String_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Analysis
+Pass:            loop-vectorize
+Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_equal__String_strlit_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -1624,6 +1792,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_equal__String_strlit_r_bool
 Args:
   - String:          loop not vectorized
@@ -1631,6 +1800,16 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: string.rl, Line: 114, Column: 34 }
+Function:        rl_m_equal__String_strlit_r_bool
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+DebugLoc:        { File: string.rl, Line: 114, Column: 34 }
 Function:        rl_m_equal__String_strlit_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1644,17 +1823,10 @@ Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
   - String:          ' with available vectorization factors'
 ...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotPossible
-Function:        rl_m_equal__String_strlit_r_bool
-Args:
-  - String:          'Cannot SLP vectorize list: vectorization was impossible'
-  - String:          ' with available vectorization factors'
-...
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_add__String_String_r_String
 Args:
   - String:          'vectorized '
@@ -1668,6 +1840,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_m_add__String_String_r_String
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1676,16 +1849,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
-Function:        rl_m_add__String_String_r_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_add__String_String_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1695,7 +1859,19 @@ Args:
 ...
 --- !Missed
 Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_add__String_String_r_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_m_add__String_String_r_String
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -1704,6 +1880,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'vectorized '
@@ -1717,6 +1894,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'vectorized '
@@ -1730,6 +1908,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'vectorized '
@@ -1743,6 +1922,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'vectorized '
@@ -1756,6 +1936,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'vectorized '
@@ -1769,6 +1950,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1779,6 +1961,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1789,6 +1972,37 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: string.rl, Line: 95, Column: 23 }
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'List vectorization was possible but not beneficial with cost '
+  - Cost:            '0'
+  - String:          ' >= '
+  - Treshold:        '0'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotPossible
+Function:        rl_m_append_quoted__String_String
+Args:
+  - String:          'Cannot SLP vectorize list: vectorization was impossible'
+  - String:          ' with available vectorization factors'
+...
+--- !Missed
+Pass:            slp-vectorizer
+Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1817,34 +2031,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
-Function:        rl_m_append_quoted__String_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
-Function:        rl_m_append_quoted__String_String
-Args:
-  - String:          'List vectorization was possible but not beneficial with cost '
-  - Cost:            '0'
-  - String:          ' >= '
-  - Treshold:        '0'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotPossible
-Function:        rl_m_append_quoted__String_String
-Args:
-  - String:          'Cannot SLP vectorize list: vectorization was impossible'
-  - String:          ' with available vectorization factors'
-...
---- !Missed
-Pass:            slp-vectorizer
-Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append_quoted__String_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1855,6 +2042,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_String
 Args:
   - String:          'vectorized '
@@ -1868,6 +2056,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_String
 Args:
   - String:          'vectorized '
@@ -1881,6 +2070,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1891,6 +2081,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: string.rl, Line: 84, Column: 23 }
 Function:        rl_m_append__String_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1901,6 +2092,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1927,6 +2119,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_strlit
 Args:
   - String:          'vectorized '
@@ -1940,6 +2133,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_strlit
 Args:
   - String:          'vectorized '
@@ -1953,6 +2147,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_strlit
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1963,6 +2158,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_strlit
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1973,6 +2169,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 120, Column: 31 }
 Function:        rl_m_append__String_strlit
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -1983,6 +2180,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 106, Column: 9 }
 Function:        rl_m_count__String_int8_t_r_int64_t
 Args:
   - String:          'vectorized '
@@ -2006,6 +2204,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: vector.rl, Line: 105, Column: 9 }
 Function:        rl_m_substring_matches__String_strlit_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2014,6 +2213,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 105, Column: 9 }
 Function:        rl_m_substring_matches__String_strlit_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2022,6 +2222,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 105, Column: 9 }
 Function:        rl_m_substring_matches__String_strlit_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -2029,6 +2230,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_int8_t
 Args:
   - String:          'vectorized '
@@ -2042,6 +2244,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_append__String_int8_t
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2052,6 +2255,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 56, Column: 54 }
 Function:        rl_m_init__String
 Args:
   - String:          'loop not vectorized: '
@@ -2060,6 +2264,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_init__String
 Args:
   - String:          'loop not vectorized: '
@@ -2068,6 +2273,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_m_init__String
 Args:
   - String:          loop not vectorized
@@ -2075,6 +2281,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_init__String
 Args:
   - String:          'vectorized '
@@ -2088,6 +2295,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_m_init__String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2098,6 +2306,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_s__strlit_r_String
 Args:
   - String:          'vectorized '
@@ -2111,6 +2320,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_s__strlit_r_String
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -2119,6 +2329,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_s__strlit_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2129,6 +2340,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_s__strlit_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2139,6 +2351,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_s__strlit_r_String
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -2147,6 +2360,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            InterleavingNotBeneficial
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_to_string__int64_t_r_String
 Args:
   - String:          the cost-model indicates that interleaving is not beneficial
@@ -2154,6 +2368,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 57, Column: 34 }
 Function:        rl_to_string__int64_t_r_String
 Args:
   - String:          'vectorized '
@@ -2167,6 +2382,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_to_string__int64_t_r_String
 Args:
   - String:          'vectorized '
@@ -2180,6 +2396,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_to_string__int64_t_r_String
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -2188,6 +2405,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_to_string__int64_t_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2198,6 +2416,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_to_string__int64_t_r_String
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2208,6 +2427,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 0, Column: 0 }
 Function:        rl_to_string__int64_t_r_String
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -2216,6 +2436,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: string.rl, Line: 345, Column: 5 }
 Function:        rl_length__strlit_r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2224,6 +2445,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: string.rl, Line: 345, Column: 5 }
 Function:        rl_length__strlit_r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2232,6 +2454,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: string.rl, Line: 345, Column: 5 }
 Function:        rl_length__strlit_r_int64_t
 Args:
   - String:          loop not vectorized
@@ -2239,6 +2462,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            LoopContainsSwitch
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2247,6 +2471,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2255,6 +2480,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 107, Column: 26 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2263,6 +2489,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2271,6 +2498,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -2278,6 +2506,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'vectorized '
@@ -2291,6 +2520,7 @@ Args:
 --- !Passed
 Pass:            loop-vectorize
 Name:            Vectorized
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'vectorized '
@@ -2304,6 +2534,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2314,6 +2545,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotPossible
+DebugLoc:        { File: vector.rl, Line: 105, Column: 22 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'Cannot SLP vectorize list: vectorization was impossible'
@@ -2322,6 +2554,7 @@ Args:
 --- !Missed
 Pass:            slp-vectorizer
 Name:            NotBeneficial
+DebugLoc:        { File: vector.rl, Line: 41, Column: 9 }
 Function:        rl_parse_string__String_String_int64_t_r_bool
 Args:
   - String:          'List vectorization was possible but not beneficial with cost '
@@ -2348,6 +2581,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            LoopContainsSwitch
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__bool_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2356,6 +2590,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__bool_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2364,6 +2599,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantIdentifyArrayBounds
+DebugLoc:        { File: vector.rl, Line: 107, Column: 26 }
 Function:        rl_parse_string__bool_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2372,6 +2608,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__bool_String_int64_t_r_bool
 Args:
   - String:          'loop not vectorized: '
@@ -2380,6 +2617,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: string.rl, Line: 324, Column: 24 }
 Function:        rl_parse_string__bool_String_int64_t_r_bool
 Args:
   - String:          loop not vectorized
@@ -2395,6 +2633,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeLibcall
+DebugLoc:        { File: dict.rl, Line: 38, Column: 12 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2403,6 +2642,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeInstruction
+DebugLoc:        { File: dict.rl, Line: 37, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2411,6 +2651,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dict.rl, Line: 37, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          loop not vectorized
@@ -2418,6 +2659,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2426,6 +2668,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2434,6 +2677,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          loop not vectorized
@@ -2441,6 +2685,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NonReductionValueUsedOutsideLoop
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2449,6 +2694,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantComputeNumberOfIterations
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2457,6 +2703,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dictionary.rl, Line: 146, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          loop not vectorized
@@ -2464,6 +2711,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeLibcall
+DebugLoc:        { File: dict.rl, Line: 56, Column: 15 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2472,6 +2720,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeInstruction
+DebugLoc:        { File: dict.rl, Line: 55, Column: 11 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2480,6 +2729,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dict.rl, Line: 55, Column: 11 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          loop not vectorized
@@ -2487,6 +2737,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NoCFGForSelect
+DebugLoc:        { File: vector.rl, Line: 66, Column: 9 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2495,6 +2746,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeLibcall
+DebugLoc:        { File: dict.rl, Line: 59, Column: 34 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2503,6 +2755,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeInstruction
+DebugLoc:        { File: dict.rl, Line: 58, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2511,6 +2764,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dict.rl, Line: 58, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          loop not vectorized
@@ -2518,6 +2772,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            NoCFGForSelect
+DebugLoc:        { File: vector.rl, Line: 66, Column: 9 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2526,6 +2781,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeLibcall
+DebugLoc:        { File: dict.rl, Line: 63, Column: 37 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2534,6 +2790,7 @@ Args:
 --- !Analysis
 Pass:            loop-vectorize
 Name:            CantVectorizeInstruction
+DebugLoc:        { File: dict.rl, Line: 62, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          'loop not vectorized: '
@@ -2542,6 +2799,7 @@ Args:
 --- !Missed
 Pass:            loop-vectorize
 Name:            MissedDetails
+DebugLoc:        { File: dict.rl, Line: 62, Column: 13 }
 Function:        rl_main__r_int64_t
 Args:
   - String:          loop not vectorized
