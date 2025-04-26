@@ -124,6 +124,24 @@ namespace mlir::rlc
 				const mlir::rlc::SerializationContext &ctx) const;
 
 		mlir::Type rename(llvm::StringRef newName) const;
+
+		llvm::SmallVector<mlir::Type, 4> getMemberTypes()
+		{
+			llvm::SmallVector<mlir::Type, 4> toReturn;
+			toReturn.reserve(getMembers().size());
+			for (auto member : getMembers())
+				toReturn.push_back(member.getType());
+			return toReturn;
+		}
+
+		llvm::SmallVector<llvm::StringRef, 4> getMemberNames()
+		{
+			llvm::SmallVector<llvm::StringRef, 4> toReturn;
+			toReturn.reserve(getMembers().size());
+			for (auto member : getMembers())
+				toReturn.push_back(member.getName());
+			return toReturn;
+		}
 	};
 
 	mlir::LogicalResult isTemplateType(mlir::Type type);
@@ -136,6 +154,8 @@ namespace mlir::rlc
 			mlir::FunctionType original,
 			mlir::rlc::TemplateParameterType toReplace,
 			mlir::Type replacement);
+
+	mlir::LogicalResult returnsVoid(mlir::FunctionType type);
 
 }	 // namespace mlir::rlc
 	 //

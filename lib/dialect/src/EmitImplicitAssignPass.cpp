@@ -59,7 +59,7 @@ namespace mlir::rlc
 						mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 						fType,
 						mlir::rlc::FunctionInfoAttr::get(
-								fType.getContext(), { "arg0", "arg1" }),
+								fType.getContext(), { "self", "other" }),
 						true);
 
 				table.add(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(), fun);
@@ -76,7 +76,7 @@ namespace mlir::rlc
 				mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(),
 				fType,
 				mlir::rlc::FunctionInfoAttr::get(
-						fType.getContext(), { "arg0", "arg1" }),
+						fType.getContext(), { "self", "other" }),
 				true);
 
 		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::AssignOp>(), fun);

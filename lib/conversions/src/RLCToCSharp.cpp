@@ -32,7 +32,7 @@ namespace mlir::rlc
 		void runOnOperation() override
 		{
 			PatternMatcher matcher(*OS);
-			matcher.add<FunctionDeclarationMatcher>();
+			matcher.add<CSharpFunctionDeclarationMatcher>();
 			matcher.apply(getOperation());
 		}
 	};

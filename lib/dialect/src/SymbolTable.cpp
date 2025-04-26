@@ -517,6 +517,14 @@ mlir::rlc::ModuleBuilder::ModuleBuilder(
 			typeToInitFunction[casted.getArgumentTypes()[0]] = fun;
 	}
 
+	for (auto fun : getSymbolTable().get("drop"))
+	{
+		auto casted = fun.getDefiningOp<mlir::rlc::FunctionOp>();
+		if (casted and casted.getFunctionType().getNumInputs() == 1 and
+				casted.getFunctionType().getNumResults() == 0)
+			typeToDropFunction[casted.getArgumentTypes()[0]] = fun;
+	}
+
 	for (auto fun : op.getOps<mlir::rlc::FunctionOp>())
 	{
 		if (fun.getUnmangledName() ==

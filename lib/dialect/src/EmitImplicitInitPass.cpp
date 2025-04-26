@@ -88,7 +88,7 @@ namespace mlir::rlc
 				op.getLoc(),
 				mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(),
 				fType,
-				mlir::rlc::FunctionInfoAttr::get(op.getContext(), { "arg0" }),
+				mlir::rlc::FunctionInfoAttr::get(op.getContext(), { "self" }),
 				true);
 
 		table.add(mlir::rlc::builtinOperatorName<mlir::rlc::InitOp>(), fun);

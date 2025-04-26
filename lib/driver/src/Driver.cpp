@@ -109,13 +109,15 @@ namespace mlir::rlc
 				request == Request::dumpPythonAST)
 		{
 			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
+			if (request == Request::dumpPythonAST)
+			{
+				manager.addPass(mlir::rlc::createNeoPrintPythonPass({ OS }));
+				return;
+			}
 			manager.addPass(mlir::python::createRLCTypesToPythonTypesPass());
 			manager.addPass(mlir::python::createRLCToPythonPass(
 					{ targetInfo->isWindows(), targetInfo->isMacOS() }));
-			if (request == Request::dumpPythonAST)
-				manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
-			else
-				manager.addPass(mlir::python::createPrintPythonPass({ OS }));
+			manager.addPass(mlir::python::createPrintPythonPass({ OS }));
 			return;
 		}
 

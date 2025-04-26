@@ -21,7 +21,7 @@ limitations under the License.
 namespace mlir::rlc
 {
 
-	class FunctionDeclarationMatcher
+	class CSharpFunctionDeclarationMatcher
 	{
 		public:
 		void apply(mlir::rlc::FunctionOp op, mlir::rlc::StreamWriter& writer)

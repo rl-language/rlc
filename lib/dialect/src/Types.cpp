@@ -277,6 +277,13 @@ void RLCDialect::printType(
 	}
 }
 
+mlir::LogicalResult mlir::rlc::returnsVoid(mlir::FunctionType type)
+{
+	return mlir::success(
+			type.getNumResults() == 0 or
+			mlir::isa<mlir::rlc::VoidType>(type.getResult(0)));
+}
+
 static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 {
 	if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())

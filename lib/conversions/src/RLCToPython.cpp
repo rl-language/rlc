@@ -24,6 +24,7 @@ limitations under the License.
 #include "rlc/python/Operations.hpp"
 #include "rlc/python/Passes.hpp"
 #include "rlc/python/Types.hpp"
+#include "rlc/utils/PatternMatcher.hpp"
 
 static void registerBuiltinConversions(
 		mlir::TypeConverter& converter, mlir::TypeConverter& ctypesConverter)
@@ -757,4 +758,5 @@ namespace mlir::python
 						hasCustomDestructor.contains(t));
 		}
 	};
+
 }	 // namespace mlir::python

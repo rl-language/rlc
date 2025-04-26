@@ -115,6 +115,12 @@ def RLC_FunctionInfoAttr : RLC_Attr<"FunctionInfo", "function_info"> {
         }
         return mlir::rlc::FunctionInfoAttr::get(getContext(), args, getShugarizedReturnType());
       }
+      llvm::SmallVector<llvm::StringRef, 2> getArgNames() const {
+        llvm::SmallVector<llvm::StringRef, 2> toReturn;
+        for (auto arg : getArguments())
+           toReturn.push_back(arg.getName());
+        return toReturn;
+      }
 
       mlir::rlc::FunctionInfoAttr replaceTypes(mlir::FunctionType shugarizedNewType) const {
             llvm::SmallVector<mlir::rlc::FunctionArgumentAttr, 2> newArgs; 

@@ -181,6 +181,15 @@ def SerializeRLPass : Pass<"rlc-serialize-ir-pass", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def NeoPrintPythonPass : Pass<"rlc-new-python-pass", "mlir::ModuleOp"> {
+  let summary = "prints the python header on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "stream on which to print the module">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def PrintCSharpPass : Pass<"rlc-print-c-sharp-pass", "mlir::ModuleOp"> {
   let summary = "prints the c sharp header on the provided stream";
   let options = [

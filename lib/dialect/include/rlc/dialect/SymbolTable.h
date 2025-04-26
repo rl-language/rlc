@@ -179,8 +179,16 @@ namespace mlir::rlc
 
 		mlir::Value getInitFunctionOf(mlir::Type type)
 		{
-			assert(typeToInitFunction.count(type) != 0);
+			if (typeToInitFunction.count(type) == 0)
+				return nullptr;
 			return typeToInitFunction[type];
+		}
+
+		mlir::Value getDropFunctionOf(mlir::Type type)
+		{
+			if (typeToDropFunction.count(type) == 0)
+				return nullptr;
+			return typeToDropFunction[type];
 		}
 
 		bool isClassOfAction(mlir::Type type) const
@@ -253,6 +261,7 @@ namespace mlir::rlc
 		std::vector<std::unique_ptr<RLCTypeConverter>> converter;
 		llvm::DenseMap<mlir::Type, mlir::Operation*> typeTypeDeclaration;
 		llvm::DenseMap<mlir::Type, mlir::Value> typeToInitFunction;
+		llvm::DenseMap<mlir::Type, mlir::Value> typeToDropFunction;
 		llvm::DenseMap<mlir::Type, mlir::Value> actionTypeToAction;
 		llvm::DenseMap<mlir::Value, mlir::Type> actionToActionType;
 		llvm::DenseMap<mlir::Value, llvm::SmallVector<mlir::Operation*, 4>>
