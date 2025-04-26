@@ -107,7 +107,8 @@ namespace mlir::rlc
 		if (request == Request::dumpPythonWrapper)
 		{
 			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
-			manager.addPass(mlir::rlc::createNeoPrintPythonPass({ OS }));
+			manager.addPass(mlir::rlc::createPrintPythonPass(
+					{ OS, targetInfo->isMacOS(), targetInfo->isWindows() }));
 			return;
 		}
 

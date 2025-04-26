@@ -103,7 +103,7 @@ namespace mlir::rlc
 		std::map<const void*, mlir::rlc::FunctionOp> dropFunction;
 		std::map<const void*, mlir::rlc::FunctionOp> assignFunction;
 	};
-	static void printPrelude(StreamWriter& writer)
+	static void printPrelude(StreamWriter& writer, bool isMac, bool isWindows)
 	{
 		writer.writenl("import ctypes");
 		writer.writenl("import os");
@@ -112,9 +112,16 @@ namespace mlir::rlc
 		writer.writenl("import builtins");
 		writer.writenl("from collections import defaultdict");
 
+		std::string libName = "lib.so";
+		if (isMac)
+			libName = "lib.dylib";
+		if (isWindows)
+			libName = "lib.dll";
 		writer.writenl(
 				"lib = ctypes.CDLL(os.path.join(Path(__file__).resolve().parent, "
-				"\"lib.so\"))");
+				"\"",
+				libName,
+				"\"))");
 		writer.writenl("actions = defaultdict(list)");
 		writer.writenl("wrappers = defaultdict(list)");
 		writer.writenl("signatures = {}");
@@ -854,12 +861,11 @@ namespace mlir::rlc
 		OS.endLine();
 	}
 
-#define GEN_PASS_DEF_NEOPRINTPYTHONPASS
+#define GEN_PASS_DEF_PRINTPYTHONPASS
 #include "rlc/dialect/Passes.inc"
-	struct NeoPrintPythonPass: impl::NeoPrintPythonPassBase<NeoPrintPythonPass>
+	struct PrintPythonPass: impl::PrintPythonPassBase<PrintPythonPass>
 	{
-		using impl::NeoPrintPythonPassBase<
-				NeoPrintPythonPass>::NeoPrintPythonPassBase;
+		using impl::PrintPythonPassBase<PrintPythonPass>::PrintPythonPassBase;
 
 		void runOnOperation() override
 		{
@@ -878,7 +884,7 @@ namespace mlir::rlc
 			matcher.add<AliasToPythonAlias>();
 
 			// emit includes
-			printPrelude(matcher.getWriter());
+			printPrelude(matcher.getWriter(), isMac, isWindows);
 
 			// emit declarations of types
 			for (auto t : ::rlc::postOrderTypes(getOperation()))
