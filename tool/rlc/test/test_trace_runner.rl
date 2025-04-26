@@ -19,7 +19,6 @@ act play() -> Game:
     act asd3()
 
 #--- trace.txt
-asd {x: 10}
 asd {x: 4}
 asd2 {y: {field: 5}}
 asd {x: 10}

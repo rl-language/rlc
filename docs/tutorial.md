@@ -194,7 +194,7 @@ program = compile(["black_jack.rl"])
 state = program.start()
 
 # invokes directly the user defined function on the real state object
-while program.functions.get_current_player(state.state) == -1:
+while program.get_current_player(state.state) == -1:
     # enumerate legal actions using the methods defined on the
     # wrapper
     action = random.choice(state.legal_actions)
@@ -209,13 +209,13 @@ while not state.is_done():
     decision = input()
     # invokes user defined actions directly
     if decision == "y":
-        program.functions.hit(state.state)
+        state.state.hit()
     else:
-        program.functions.stand(state.state)
+        state.state.stand()
 
     state.pretty_print()
 
-print(f"Your final score is: {program.functions.score(state.state, 0)}")
+print(f"Your final score is: {program.score(state.state, 0)}")
 ```
 
 You can run this program with the following command, using a shell with the activated environment:

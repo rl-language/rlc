@@ -118,11 +118,16 @@ namespace mlir::rlc
 		writer.writenl("actions = defaultdict(list)");
 		writer.writenl("wrappers = defaultdict(list)");
 		writer.writenl("signatures = {}");
+		writer.writenl("actionToAnyFunctionType = {}");
 		writer.endLine();
 	}
 
 	static bool builtinCType(mlir::Type type)
 	{
+		if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
+			return builtinCType(casted.getUnderlying());
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(type))
+			return builtinCType(casted.getUnderlying());
 		return mlir::isa<mlir::rlc::IntegerType>(type) or
 					 mlir::isa<mlir::rlc::BoolType>(type) or
 					 mlir::isa<mlir::rlc::FloatType>(type) or
@@ -133,10 +138,7 @@ namespace mlir::rlc
 	{
 		if (type.getNumResults() == 0)
 			return false;
-		return mlir::isa<mlir::rlc::IntegerType>(type.getResult(0)) or
-					 mlir::isa<mlir::rlc::BoolType>(type.getResult(0)) or
-					 mlir::isa<mlir::rlc::FloatType>(type.getResult(0)) or
-					 mlir::isa<mlir::rlc::StringLiteralType>(type.getResult(0));
+		return builtinCType(type.getResult(0));
 	}
 
 	static void printFunctionDecl(
@@ -167,6 +169,39 @@ namespace mlir::rlc
 		writer.writenl(":");
 	}
 
+	static void printArg(
+			mlir::Type type, llvm::StringRef name, StreamWriter& writer)
+	{
+		bool typeIsPyobject = false;
+		if (auto casted = mlir::dyn_cast_or_null<mlir::rlc::ClassType>(type);
+				casted and casted.getName() == "PyObject")
+			typeIsPyobject = true;
+
+		bool isStringArg =
+				mlir::isa_and_nonnull<mlir::rlc::StringLiteralType>(type);
+		writer.write("ctypes.byref(");
+		if (typeIsPyobject)
+			writer.write("ctypes.py_object(");
+		if (type != nullptr and builtinCType(type))
+		{
+			writer.writeType(type, 1);
+			writer.write("(");
+		}
+		writer.write(name);
+		if (isStringArg)
+		{
+			writer.write(".encode(\"utf-8\")");
+		}
+		if (type != nullptr and builtinCType(type))
+		{
+			writer.write(")");
+		}
+		if (typeIsPyobject)
+			writer.write(")");
+		writer.write(")");
+		writer.write(", ");
+	}
+
 	static void printCallArgs(
 			TypeRange typeRange,
 			llvm::ArrayRef<llvm::StringRef> infoRange,
@@ -178,26 +213,10 @@ namespace mlir::rlc
 
 		if (not mlir::isa<mlir::rlc::VoidType>(resultType))
 		{
-			writer.write("ctypes.byref(result)");
-			if (not infoRange.empty())
-				writer.write(", ");
+			printArg(nullptr, "__result", writer);
 		}
 		for (size_t i = 0; i != typeRange.size(); i++)
-		{
-			mlir::Type argType = typeRange[i];
-			writer.write("ctypes.byref(");
-			if (builtinCType(argType))
-			{
-				writer.writeType(argType, 1);
-				writer.write("(");
-			}
-			writer.write(infoRange[i]);
-			if (builtinCType(argType))
-			{
-				writer.write(")");
-			}
-			writer.write("), ");
-		}
+			printArg(typeRange[i], infoRange[i], writer);
 		writer.writenl(")");
 	}
 
@@ -217,7 +236,7 @@ namespace mlir::rlc
 
 		if (returnsVoid(type).failed())
 		{
-			w.write("result = ");
+			w.write("__result = ");
 			w.writeType(resultType, 1);
 			w.writenl("()");
 		}
@@ -230,7 +249,7 @@ namespace mlir::rlc
 		// and if they return a builtin ctype type, add .value to
 		// extract to convert it to a python builtin type instead
 		if (returnsVoid(type).failed())
-			w.write("return result");
+			w.write("return __result");
 		if (needsUnwrapping(type))
 			w.writenl(".value").endLine();
 		else
@@ -539,7 +558,10 @@ namespace mlir::rlc
 				declarePythonFunction(
 						"can_" + op.getUnmangledName().str(),
 						op.getInfo().getArgNames(),
-						op.getMainActionType(),
+						mlir::FunctionType::get(
+								op.getContext(),
+								op.getMainActionType().getInputs(),
+								{ mlir::rlc::BoolType::get(op.getContext()) }),
 						w,
 						op.getIsMemberFunction());
 
@@ -608,7 +630,10 @@ namespace mlir::rlc
 				declarePythonFunction(
 						"can_" + op.getUnmangledName().str(),
 						op.getInfo().getArgNames(),
-						op.getFunctionType(),
+						mlir::FunctionType::get(
+								op.getContext(),
+								op.getType().getInputs(),
+								{ mlir::rlc::BoolType::get(op.getContext()) }),
 						w,
 						op.getIsMemberFunction(),
 						not op.getIsMemberFunction());
@@ -631,20 +656,9 @@ namespace mlir::rlc
 		matcher.add([&](mlir::rlc::ContextType type, llvm::raw_string_ostream& OS) {
 			OS << matcher.convert(type.getUnderlying());
 		});
-		matcher.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
-			if (type.getName() == "PyObject")
-				OS << "py_object";
-			else
-				OS << type.mangledName();
-		});
 		matcher.add(
 				[&](mlir::rlc::AlternativeType type, llvm::raw_string_ostream& OS) {
-					for (auto field : llvm::enumerate(type.getUnderlying()))
-					{
-						OS << matcher.convert(field.value());
-						if (field.index() + 1 != type.getUnderlying().size())
-							OS << "Or";
-					}
+					OS << type.getMangledName();
 				});
 	}
 
@@ -662,6 +676,12 @@ namespace mlir::rlc
 		});
 		matcher.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
 			OS << "list";
+		});
+		matcher.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
+			if (type.getName() == "PyObject")
+				OS << "builtins.object";
+			else
+				OS << type.mangledName();
 		});
 		matcher.add(
 				[&](mlir::rlc::OwningPtrType type, llvm::raw_string_ostream& OS) {
@@ -691,6 +711,12 @@ namespace mlir::rlc
 		});
 		ser.add([](mlir::rlc::BoolType type, llvm::raw_string_ostream& OS) {
 			OS << "ctypes.c_bool";
+		});
+		ser.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
+			if (type.getName() == "PyObject")
+				OS << "ctypes.py_object";
+			else
+				OS << type.mangledName();
 		});
 		ser.add([](mlir::rlc::StringLiteralType type,
 							 llvm::raw_string_ostream& OS) { OS << "ctypes.c_char_p"; });
@@ -759,36 +785,26 @@ namespace mlir::rlc
 
 		if (not returnVoid)
 		{
-			OS.write("result = ");
+			OS.write("__result = ");
 			OS.writeType(resultType, 1);
 			OS.writenl("()");
 		}
+
 		OS.write(
 				"lib.",
 				mangled,
 				"(",
-				returnVoid ? "" : "ctypes.byref(result), ",
+				returnVoid ? "" : "ctypes.byref(__result), ",
 				"ctypes.byref(self), ");
 
 		for (auto [info, type] : llvm::zip(argsInfo, argTypes))
 		{
-			OS.write("ctypes.byref(");
-			if (builtinCType(type))
-			{
-				OS.writeType(type, 1);
-				OS.write("(");
-			}
-			OS.write(info.getName());
-			if (builtinCType(type))
-			{
-				OS.write(")");
-			}
-			OS.write("), ");
+			printArg(type, info.getName(), OS);
 		}
 		OS.writenl(")");
 
 		if (not returnVoid)
-			OS.writenl("return result", needsUnwrapping(fType) ? ".value" : "");
+			OS.writenl("return __result", needsUnwrapping(fType) ? ".value" : "");
 
 		OS.endLine();
 		return mangled;
@@ -869,6 +885,8 @@ namespace mlir::rlc
 			{
 				if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
 				{
+					if (casted.getName() == "PyObject")
+						continue;
 					emitDeclaration(casted, matcher.getWriter(), table);
 					if (builder.isClassOfAction(casted))
 					{
@@ -891,6 +909,12 @@ namespace mlir::rlc
 				if (op.getIsMemberFunction())
 					continue;
 				sortedOverloads[op.getUnmangledName()].push_back(op.getType());
+				if (not op.getPrecondition().empty())
+					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+							mlir::FunctionType::get(
+									op.getContext(),
+									op.getType().getInputs(),
+									{ mlir::rlc::BoolType::get(op.getContext()) }));
 			}
 			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
 			{
@@ -898,6 +922,22 @@ namespace mlir::rlc
 					continue;
 				sortedOverloads[op.getUnmangledName()].push_back(
 						op.getMainActionType());
+				if (not op.getPrecondition().empty())
+					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+							mlir::FunctionType::get(
+									op.getContext(),
+									op.getMainActionType().getInputs(),
+									{ mlir::rlc::BoolType::get(op.getContext()) }));
+
+				auto types = builder.getConverter().getTypes().get(
+						("Any" + op.getClassType().getName() + "Action").str());
+				if (not types.empty())
+					matcher.getWriter().writenl(
+							"actionToAnyFunctionType[\"",
+							op.getUnmangledName(),
+							"\"] = Any",
+							op.getClassType().getName(),
+							"Action");
 			}
 
 			for (auto& pair : sortedOverloads)

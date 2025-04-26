@@ -29,6 +29,6 @@ c = C()
 rlc_obj = wrapper.Something()
 rlc_obj.content = 10
 
-wrapper.functions.rlc_call(c, rlc_obj)
+wrapper.rlc_call(c, rlc_obj)
 
-assert(wrapper.addressof(rlc_obj) == wrapper.addressof(c.value))
+assert(wrapper.ctypes.addressof(rlc_obj) == wrapper.ctypes.addressof(c.value))

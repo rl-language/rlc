@@ -47,18 +47,18 @@ def has_get_current_player(module):
 
 def get_num_players(module):
     if has_get_num_players(module):
-        return module.functions.get_num_players()
+        return module.get_num_players()
     return 1
 
 
 def validate_env(program, forced_one_player=False, needs_score=True):
-    program.functions.emit_observation_tensor_warnings(program.functions.play())
+    program.module.emit_observation_tensor_warnings(program.module.play())
     if not has_get_num_players(program.module) and not has_get_current_player(
         program.module
     ):
         forced_one_player = True
     errors = []
-    if not program.functions.print_enumeration_errors(program.module.AnyGameAction()):
+    if not program.module.print_enumeration_errors(program.module.AnyGameAction()):
         errors.append("Invalid actions")
     if not forced_one_player:
         if not has_get_num_players(program.module):
@@ -91,7 +91,7 @@ class SingleRLCEnvironment:
         self.has_get_current_player_f = has_get_current_player(self.module)
         self.num_players = get_num_players(self.module)
         self.state = self.program.start()
-        self.valid_action_vector = program.module.functions.make_valid_actions_vector(
+        self.valid_action_vector = self.module.make_valid_actions_vector(
             self.state.raw_actions, self.state.state
         )
         self.score_fn = (
@@ -101,19 +101,15 @@ class SingleRLCEnvironment:
         )
         self.num_actions = len(self.state.actions)
         self.serialized = self.module.VectorTdoubleT()
-        self.program.functions.resize(self.serialized, self.get_state_size())
-        self.serialized_player_id = self.program.functions.get(
-            self.serialized, self.get_state_size() - 1
-        )
+        self.serialized.resize(self.get_state_size())
+        self.serialized_player_id = self.serialized.get(self.get_state_size() - 1)
         self.to_observation_tensor = (
             self.module.rl_to_observation_tensor__Game_int64_t_VectorTdoubleT
         )
         self.get_valid_actions = (
             self.module.rl_get_valid_actions__VectorTint8_tT_VectorTAnyGameActionT_Game
         )
-        self.ptr_to_valid_actions = self.program.functions.get(
-            self.valid_action_vector, 0
-        )
+        self.ptr_to_valid_actions = self.valid_action_vector.get(0)
         self.last_valid_action_mask = np.ctypeslib.as_array(
             self.ptr_to_valid_actions, shape=(self.num_actions,)
         )
@@ -205,7 +201,7 @@ class SingleRLCEnvironment:
         return self.current_score[player_id] - self.last_score[player_id]
 
     def can_apply(self, action) -> bool:
-        return self.program.functions.can_apply_impl(action, self.state.state).value
+        return self.module.can_apply_impl(action, self.state.state)
 
     def _resolve_randomness(self):
         if not self.solve_randomess:
@@ -213,8 +209,8 @@ class SingleRLCEnvironment:
         while self.get_current_player() == -1:  # random player
             action_index = self.random_valid_action_index()
             action = self.actions()[action_index]
-            assert self.program.functions.can_apply_impl(action, self.state.state).value
-            self.program.functions.apply(action, self.state.state)
+            assert self.module.can_apply_impl(action, self.state.state)
+            self.module.apply(action, self.state.state)
 
     def reset(self, seed=None, options=None, path_to_binary_state=None):
         self.is_terminating_episode = False
@@ -260,14 +256,14 @@ class SingleRLCEnvironment:
         return self.num_actions
 
     def get_state_size(self):
-        return self.program.functions.observation_tensor_size(self.module.Game()) + 1
+        return self.module.observation_tensor_size(self.module.Game()) + 1
 
     def get_state(self):
         self.to_observation_tensor(self.state.state, 0, self.serialized)
         self.serialized_player_id.contents = ctypes.c_double(0)
 
         return np.ctypeslib.as_array(
-            self.program.functions.get(self.serialized, 0),
+            self.serialized.get(0),
             shape=(self.get_state_size(), 1, 1),
         ).copy()
 

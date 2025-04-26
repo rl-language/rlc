@@ -46,14 +46,14 @@ class State:
     def __init__(self, program):
         self.program = program
         action = self.module.AnyGameAction()
-        self._actions = self.program.functions.enumerate(action)
+        self._actions = self.program.module.enumerate(action)
         self.actions = []
-        for i in range(self.program.functions.size(self._actions)):
-            self.actions.append(self.program.functions.get(self._actions, i).contents)
+        for i in range(self._actions.size()):
+            self.actions.append(self._actions.get(i).contents)
 
         self.num_actions = len(self.actions)
 
-        self.state = self.program.functions.play()
+        self.state = self.program.module.play()
 
     @property
     def raw_actions(self):
@@ -67,7 +67,7 @@ class State:
     def legal_actions_indicies(self):
         x = []
         for i, action in enumerate(self.actions):
-            if self.program.functions.can_apply_impl(action, self.state).value:
+            if self.program.can_apply_impl(action, self.state):
                 x.append(i)
         return x
 
@@ -75,61 +75,58 @@ class State:
     def legal_actions(self):
         x = []
         for action in self.actions:
-            if self.program.functions.can_apply_impl(action, self.state).value:
+            if self.program.module.can_apply_impl(action, self.state):
                 x.append(action)
         return x
 
     def reset(self, seed=None, options=None, path_to_binary_state=None):
         if path_to_binary_state == None:
-            self.state = self.program.functions.play()
+            self.state = self.program.module.play()
         else:
             self.load_binary(path_to_binary_state)
 
     def step(self, action):
         if not self.can_apply(action):
-            self.module.functions.print(action)
+            self.module.print(action)
             sys.stdout.flush()
             assert (
                 len(self.legal_actions) != 0
             ), "found a state with no valid actions, yet the game is not terminated"
             return
-        self.program.functions.apply(action, self.state)
+        self.program.module.apply(action, self.state)
 
     def can_apply(self, action) -> bool:
-        return self.program.functions.can_apply(action, self.state)
+        return self.program.module.can_apply(action, self.state)
 
     def as_byte_vector(self):
-        return self.program.as_byte_vector(obj, self.state)
+        return self.program.module.as_byte_vector(obj, self.state)
 
     def load_string(self, string: str) -> bool:
-        return self.program.load_string(string, self.state)
+        return self.program.module.load_string(string, self.state)
 
     def load_byte_vector(self, byte_vector):
-        self.program.load_byte_vector(byte_vector, self.state)
+        self.program.module.load_byte_vector(byte_vector, self.state)
 
     def write_binary(self, path: str):
-        self.program.write_binary(path, self.state)
+        self.program.module.write_binary(path, self.state)
 
     def load_byte_vector_from_file(self, path: str):
-        self.program.load_string_from_file(path, self.state)
+        self.program.module.load_string_from_file(path, self.state)
 
     def load_string_from_file(self, path: str) -> bool:
-        return self.program.load_string_from_file(path, self.state)
+        return self.program.module.load_string_from_file(path, self.state)
 
     def print(self):
-        program.functions.print(state.state)
+        self.program.module.print(self.state)
 
     def is_done(self) -> bool:
         return self.state.resume_index == -1
 
     def to_string(self) -> str:
-        return self.program.to_string(self.state)
-
-    def print(self) -> str:
-        return self.program.functions.print(self.state)
+        return self.program.to_python_string(self.program.module.to_string(self.state))
 
     def pretty_print(self) -> str:
-        return self.program.functions.pretty_print(self.state)
+        return self.program.module.pretty_print(self.state)
 
 
 class Program:
@@ -148,7 +145,7 @@ class Program:
     def parse_action(self, action: str):
         any_action = self.module.actionToAnyFunctionType["play"]()
         rl_string = self.to_rl_string(action)
-        if self.module.functions.from_string(any_action, rl_string):
+        if self.module.from_string(any_action, rl_string):
             return any_action
         else:
             return None
@@ -156,16 +153,16 @@ class Program:
     def parse_actions_from_binary_buffer(self, actions: bytes) -> [list]:
         vector = self._bytes_to_byte_vector(actions)
         any_action = self.module.actionToAnyFunctionType["play"]()
-        vec = self.module.functions.parse_actions(any_action, vector)
+        vec = self.module.parse_actions(any_action, vector)
         to_return = []
-        for i in range(getattr(vec, "__size")):
-            to_return.append(getattr(vec, "__data")[i])
+        for i in range(getattr(vec, "_size")):
+            to_return.append(getattr(vec, "_data")[i])
         return to_return
 
     def _bytes_to_byte_vector(self, byte_vector: bytes):
         vector = self.module.VectorTint8_tT()
         for byte in byte_vector:
-            self.module.functions.append(vector, byte)
+            vector.append(byte)
         return vector
 
     @property
@@ -180,8 +177,8 @@ class Program:
         return self.module.rl_s__strlit_r_String(string)
 
     def to_python_string(self, string):
-        first_character = getattr(getattr(string, "__data"), "__data")
-        return self.module.cast(first_character, self.module.c_char_p).value.decode(
+        first_character = getattr(getattr(string, "_data"), "_data")
+        return self.module.ctypes.cast(first_character, self.module.ctypes.c_char_p).value.decode(
             "utf-8"
         )
 
@@ -197,28 +194,24 @@ class Program:
 
         libHandle = self.module.lib._handle
 
-    @property
-    def functions(self):
-        return self.module.functions
-
     def to_string(self, action):
-        return self.to_python_string(self.module.functions.to_string(action))
+        return self.to_python_string(self.module.to_string(action))
 
     def as_byte_vector(self, obj):
-        result = self.module.functions.as_byte_vector(obj)
+        result = self.module.as_byte_vector(obj)
         real_content = []
-        for i in range(getattr(result, "__size")):
-            real_content.append(getattr(result, "__data")[i] + 128)
+        for i in range(getattr(result, "_size")):
+            real_content.append(getattr(result, "_data")[i] + 128)
         return bytes(real_content)
 
     def load_string(self, string: str, obj) -> bool:
         rl_string = self.to_rl_string(string)
-        return self.module.functions.from_string(obj, rl_string)
+        return self.module.from_string(obj, rl_string)
 
     def load_byte_vector(self, byte_vector, obj):
         vector = self.module.VectorTint8_tT()
         for byte in byte_vector:
-            self.module.functions.append(vector, byte - 128)
+            vector.append(byte - 128)
         self.module.functions.from_byte_vector(obj, vector)
 
     def write_binary(self, path: str, obj):

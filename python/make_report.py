@@ -205,9 +205,9 @@ def main():
                 images.append([file_name])
             descriptions.append(f"average: {mean(metric)}\n")
             attr_name = f"description_{name}"
-            if hasattr(program.functions, attr_name):
+            if hasattr(program, attr_name):
                 descriptions[-1] = descriptions[-1] + program.to_python_string(
-                    getattr(program.functions, attr_name)()
+                    getattr(program, attr_name)()
                 )
 
         create_pdf_with_histograms(

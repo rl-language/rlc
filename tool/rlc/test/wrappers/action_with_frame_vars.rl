@@ -35,5 +35,5 @@ int main() {
 #--- to_run.py
 import wrapper as wrapper
 
-frame = wrapper.functions.to_invoke(7)
+frame = wrapper.to_invoke(7)
 exit((frame.to_return + frame.arg) - 11)

@@ -52,7 +52,7 @@ def main():
 
     args = parser.parse_args()
     with load_program_from_args(args) as program:
-        if not program.functions.print_enumeration_errors(
+        if not program.module.print_enumeration_errors(
             program.module.AnyGameAction()
         ):
             exit(-1)

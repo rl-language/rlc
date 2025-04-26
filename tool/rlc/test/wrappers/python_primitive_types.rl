@@ -32,11 +32,11 @@ class C:
         
 
 c = C()
-wrapper.functions.rlc_true(c)
+wrapper.rlc_true(c)
 assert(c.value is True)
-wrapper.functions.rlc_false(c)
+wrapper.rlc_false(c)
 assert(c.value is False)
-wrapper.functions.rlc_double(c)
+wrapper.rlc_double(c)
 assert(c.value == 10.0)
-wrapper.functions.rlc_int(c)
+wrapper.rlc_int(c)
 assert(c.value == 10)

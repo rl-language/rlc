@@ -528,4 +528,6 @@ fun<T> to_observation_tensor_warnings(T obj) -> String:
     return s
 
 fun<T> emit_observation_tensor_warnings(T obj):
-    print(to_observation_tensor_warnings(obj))
+    let errors = to_observation_tensor_warnings(obj)
+    if errors.size() != 0:
+        print(errors)

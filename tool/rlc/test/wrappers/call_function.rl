@@ -19,6 +19,6 @@ def py_call(obj):
     global called
     called = obj
 
-wrapper.functions.rlc_call(py_call, True)
+wrapper.rlc_call(py_call, True)
 assert(called)
 

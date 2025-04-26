@@ -31,5 +31,5 @@ int main() {
 #--- to_run.py
 import wrapper as wrapper
 
-assert(wrapper.functions.can_to_invoke())
-exit(wrapper.functions.to_invoke() - 5)
+assert(wrapper.can_to_invoke())
+exit(wrapper.to_invoke() - 5)

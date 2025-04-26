@@ -7,7 +7,7 @@ class Ollama:
     def __init__(self, program: Program):
         from ollama import generate
 
-        self.contexts = [None for x in range(program.functions.get_num_players())]
+        self.contexts = [None for x in range(program.get_num_players())]
         self.generate = generate
 
     def chat(self, message: str, player_id: int) -> str:
@@ -31,7 +31,7 @@ class Gemini:
                     "system_instruction": f"You are a player of reinforcement learning enviroments, you will recieve the rules of the environment, your player id is {x}, the state of the environment, and the actions you take in the game. The game rules are correct, if you think there is a error, it is because you made a mistake in reading the code."
                 },
             )
-            for x in range(program.functions.get_num_players())
+            for x in range(program.get_num_players())
         ]
 
     def chat(self, message: str, player_id: int) -> str:
@@ -52,9 +52,9 @@ class GeminiStateless:
             {
                 "system_instruction": f"You are a player of reinforcement learning enviroments, you will recieve the rules of the environment, your player id is {x}, the state of the environment, and the actions you take in the game. The game rules are correct, if you think there is a error, it is because you made a mistake in reading the code. You are player {x}. Notice the game code may imply that your id is mapped onto other numbers in the game state. "
             }
-            for x in range(program.functions.get_num_players())
+            for x in range(program.get_num_players())
         ]
-        self.first_messages = [first_message for x in range(program.functions.get_num_players())]
+        self.first_messages = [first_message for x in range(program.get_num_players())]
 
     def chat(self, message: str, player_id: int) -> str:
         from google import genai
@@ -105,13 +105,13 @@ def get_action_from_string(string: str, state):
 
 
 def solve_randomness(program: Program, state: State, trace_output):
-    current_player = program.functions.get_current_player(state.state)
+    current_player = program.get_current_player(state.state)
     while len(state.legal_actions) == 1 or current_player == -1 and not state.is_done():
         action = choice(state.legal_actions)
         trace_output.write(program.to_string(action) + "\n")
         trace_output.flush()
         state.step(action)
-        current_player = program.functions.get_current_player(state.state)
+        current_player = program.get_current_player(state.state)
         yield (action, "")
 
 
@@ -127,7 +127,7 @@ def make_llm(args, program):
 
 def run_game(llm, program: Program, rules: str, output=stdout, trace_output=stdout):
     prompt_message = "The following is the current state, follwed by the actions you can take. Terminate your message with the number of the action you want to take, with the following sintax ACTION: INDEX. Explain your decisions."
-    num_players = program.functions.get_num_players()
+    num_players = program.get_num_players()
     state = program.start()
     for x in solve_randomness(program, state, trace_output):
         yield x
@@ -140,7 +140,7 @@ def run_game(llm, program: Program, rules: str, output=stdout, trace_output=stdo
         output.write(llm.chat(message=message, player_id=x))
 
     while not state.is_done():
-        current_player = program.functions.get_current_player(state.state)
+        current_player = program.get_current_player(state.state)
 
         output.write("CURRENT_PLAYER " + str(current_player))
         message = prompt_message + "\n" + state.to_string() + "\n"
@@ -170,5 +170,5 @@ def run_game(llm, program: Program, rules: str, output=stdout, trace_output=stdo
             yield x
     output.write(
         "FINAL SCORE: "
-        + str([program.functions.score(state.state, x) for x in range(num_players)])
+        + str([program.score(state.state, x) for x in range(num_players)])
     )

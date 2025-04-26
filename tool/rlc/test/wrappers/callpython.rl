@@ -23,5 +23,5 @@ class C:
         
 c = C()
 
-wrapper.functions.rlc_call(c, 10)
+wrapper.rlc_call(c, 10)
 assert(c.value == 10)
