@@ -6,7 +6,6 @@
 #include "mlir/Transforms/Passes.h"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Passes.hpp"
-#include "rlc/python/Passes.hpp"
 
 namespace mlir::rlc
 {
@@ -105,8 +104,7 @@ namespace mlir::rlc
 			return;
 		}
 
-		if (request == Request::dumpPythonWrapper or
-				request == Request::dumpPythonAST)
+		if (request == Request::dumpPythonWrapper)
 		{
 			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
 			manager.addPass(mlir::rlc::createNeoPrintPythonPass({ OS }));

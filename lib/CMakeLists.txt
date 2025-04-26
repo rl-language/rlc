@@ -1,7 +1,6 @@
 add_subdirectory(utils)
 add_subdirectory(parser)
 add_subdirectory(dialect)
-add_subdirectory(python)
 add_subdirectory(conversions)
 add_subdirectory(backend)
 add_subdirectory(lsp)

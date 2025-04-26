@@ -13,750 +13,937 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "rlc/dialect/ActionArgumentAnalysis.hpp"
 #include "rlc/dialect/Dialect.h"
 #include "rlc/dialect/Operations.hpp"
+#include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/Types.hpp"
 #include "rlc/dialect/Visits.hpp"
-#include "rlc/python/Dialect.h"
-#include "rlc/python/Operations.hpp"
-#include "rlc/python/Passes.hpp"
-#include "rlc/python/Types.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
-
-static void registerBuiltinConversions(
-		mlir::TypeConverter& converter, mlir::TypeConverter& ctypesConverter)
+namespace mlir::rlc
 {
-	converter.addConversion([](mlir::rlc::IntegerType t) -> mlir::Type {
-		return mlir::rlc::python::IntType::get(t.getContext(), t.getSize());
-	});
-
-	converter.addConversion([](mlir::rlc::BoolType t) -> mlir::Type {
-		return mlir::rlc::python::BoolType::get(t.getContext());
-	});
-
-	converter.addConversion([](mlir::rlc::FloatType t) -> mlir::Type {
-		return mlir::rlc::python::FloatType::get(t.getContext());
-	});
-
-	converter.addConversion([](mlir::rlc::VoidType t) -> mlir::Type {
-		return mlir::rlc::python::NoneType::get(t.getContext());
-	});
-
-	converter.addConversion([&](mlir::rlc::OwningPtrType t) -> mlir::Type {
-		auto converted = ctypesConverter.convertType(t.getUnderlying());
-		assert(converted);
-		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
-	});
-
-	converter.addConversion([&](mlir::rlc::ReferenceType t) -> mlir::Type {
-		auto converted = ctypesConverter.convertType(t.getUnderlying());
-		assert(converted);
-		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
-	});
-
-	converter.addConversion([&](mlir::rlc::FrameType t) -> mlir::Type {
-		return converter.convertType(t.getUnderlying());
-	});
-
-	converter.addConversion([&](mlir::rlc::ContextType t) -> mlir::Type {
-		return converter.convertType(t.getUnderlying());
-	});
-
-	converter.addConversion([](mlir::rlc::StringLiteralType t) -> mlir::Type {
-		return mlir::rlc::python::StrType::get(t.getContext());
-	});
-
-	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
-		auto converted = converter.convertType(t.getUnderlying());
-		assert(converted);
-		return mlir::rlc::python::CArrayType::get(
-				t.getContext(), converted, t.getArraySize());
-	});
-
-	converter.addConversion([&](mlir::rlc::AlternativeType t) -> mlir::Type {
-		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getUnderlying())
-		{
-			auto converted = ctypesConverter.convertType(sub);
-			assert(converted);
-			types.push_back(converted);
-		}
-		return mlir::rlc::python::CTypeUnionType::get(t.getContext(), types);
-	});
-
-	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
-		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getMembers())
-		{
-			auto converted = ctypesConverter.convertType(sub.getType());
-			assert(converted);
-			types.push_back(converted);
-		}
-		return mlir::rlc::python::CTypeStructType::get(
-				t.getContext(), t.mangledName(), types);
-	});
-
-	converter.addConversion([&](mlir::FunctionType t) -> mlir::Type {
-		llvm::SmallVector<mlir::Type, 3> resTypes;
-		for (auto sub : t.getResults())
-		{
-			auto converted = converter.convertType(sub);
-			assert(converted);
-			resTypes.push_back(converted);
-		}
-
-		llvm::SmallVector<mlir::Type, 3> inputTypes;
-		for (auto sub : t.getInputs())
-		{
-			auto converted = converter.convertType(sub);
-			assert(converted);
-			inputTypes.push_back(converted);
-		}
-		return mlir::FunctionType::get(t.getContext(), inputTypes, resTypes);
-	});
-}
-
-static void registerCTypesConversions(mlir::TypeConverter& converter)
-{
-	converter.addConversion([](mlir::rlc::IntegerType t) -> mlir::Type {
-		return mlir::rlc::python::CTypesIntType::get(t.getContext(), t.getSize());
-	});
-
-	converter.addConversion([](mlir::rlc::BoolType t) -> mlir::Type {
-		return mlir::rlc::python::CTypesBoolType::get(t.getContext());
-	});
-
-	converter.addConversion([](mlir::rlc::FloatType t) -> mlir::Type {
-		return mlir::rlc::python::CTypesFloatType::get(t.getContext());
-	});
-
-	converter.addConversion([](mlir::rlc::VoidType t) -> mlir::Type {
-		return mlir::rlc::python::NoneType::get(t.getContext());
-	});
-
-	converter.addConversion([](mlir::rlc::StringLiteralType t) -> mlir::Type {
-		return mlir::rlc::python::CTypesCharPType::get(t.getContext());
-	});
-
-	converter.addConversion([&](mlir::rlc::ArrayType t) -> mlir::Type {
-		auto converted = converter.convertType(t.getUnderlying());
-		assert(converted);
-		return mlir::rlc::python::CArrayType::get(
-				t.getContext(), converted, t.getArraySize());
-	});
-
-	converter.addConversion([&](mlir::rlc::OwningPtrType t) -> mlir::Type {
-		auto converted = converter.convertType(t.getUnderlying());
-		assert(converted);
-		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
-	});
-
-	converter.addConversion([&](mlir::rlc::ReferenceType t) -> mlir::Type {
-		auto converted = converter.convertType(t.getUnderlying());
-		assert(converted);
-		return mlir::rlc::python::CTypesPointerType::get(t.getContext(), converted);
-	});
-
-	converter.addConversion([&](mlir::rlc::AlternativeType t) -> mlir::Type {
-		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getUnderlying())
-		{
-			auto converted = converter.convertType(sub);
-			assert(converted);
-			types.push_back(converted);
-		}
-		return mlir::rlc::python::CTypeUnionType::get(t.getContext(), types);
-	});
-
-	converter.addConversion([&](mlir::rlc::ClassType t) -> mlir::Type {
-		llvm::SmallVector<mlir::Type, 3> types;
-		for (auto sub : t.getMembers())
-		{
-			auto converted = converter.convertType(sub.getType());
-			assert(converted);
-			types.push_back(converted);
-		}
-		return mlir::rlc::python::CTypeStructType::get(
-				t.getContext(), t.mangledName(), types);
-	});
-
-	converter.addConversion([&](mlir::FunctionType t) -> mlir::Type {
-		llvm::SmallVector<mlir::Type, 3> resTypes;
-		for (auto sub : t.getResults())
-		{
-			auto converted = converter.convertType(sub);
-			assert(converted);
-			resTypes.push_back(converted);
-		}
-
-		llvm::SmallVector<mlir::Type, 3> inputTypes;
-		for (auto sub : t.getInputs())
-		{
-			auto converted = converter.convertType(sub);
-			if (not converted)
-			{
-				sub.dump();
-				abort();
-			}
-			inputTypes.push_back(converted);
-		}
-		return mlir::FunctionType::get(t.getContext(), inputTypes, resTypes);
-	});
-}
-
-static mlir::rlc::python::PythonFun emitFunctionWrapper(
-		mlir::Location loc,
-		mlir::rlc::python::CTypesLoad* library,
-		mlir::ConversionPatternRewriter& rewriter,
-		const mlir::TypeConverter* converter,
-		llvm::StringRef overloadName,
-		llvm::StringRef fName,
-		llvm::ArrayRef<llvm::StringRef> argNames,
-		mlir::FunctionType fType)
-{
-	if (fName.starts_with("_"))
-		return nullptr;
-
-	auto funType = converter->convertType(fType).cast<mlir::FunctionType>();
-
-	auto f = rewriter.create<mlir::rlc::python::PythonFun>(
-			loc, funType, fName, overloadName, rewriter.getStrArrayAttr(argNames));
-	llvm::SmallVector<mlir::Location> locs;
-	for (const auto& _ : funType.getInputs())
+	// a table that keeps track of which member functions belong to which type
+	class MemberFunctionsTable
 	{
-		locs.push_back(loc);
-	}
-
-	auto* block = rewriter.createBlock(
-			&f.getRegion(), f.getRegion().begin(), funType.getInputs(), locs);
-	auto res = rewriter.create<mlir::rlc::python::PythonAccess>(
-			loc, funType, *library, f.getSymName());
-
-	auto resType = funType.getNumResults() == 0
-										 ? mlir::rlc::python::NoneType::get(fType.getContext())
-										 : mlir::rlc::pythonBuiltinToCTypes(funType.getResult(0));
-
-	rewriter.create<mlir::rlc::python::AssignResultType>(loc, res, resType);
-	llvm::SmallVector<mlir::Value> values;
-
-	for (auto value : block->getArguments())
-	{
-		if (mlir::rlc::isBuiltinType(value.getType()))
+		public:
+		MemberFunctionsTable(mlir::ModuleOp mod)
 		{
-			auto res = rewriter.create<mlir::rlc::python::PythonCast>(
-					value.getLoc(),
-					mlir::rlc::pythonBuiltinToCTypes(value.getType()),
-					value);
-			values.push_back(res);
-		}
-		else if (value.getType().isa<mlir::rlc::python::StrType>())
-		{
-			auto res = rewriter.create<mlir::rlc::python::PythonCast>(
-					value.getLoc(),
-					mlir::rlc::python::CTypesCharPType::get(value.getContext()),
-					value);
-			values.push_back(res);
-		}
-		else if (auto casted =
-								 value.getType().dyn_cast<mlir::rlc::python::CTypeStructType>();
-						 casted and casted.getName() == "PyObject")
-		{
-			auto res = rewriter.create<mlir::rlc::python::PythonCast>(
-					value.getLoc(),
-					mlir::rlc::python::CTypesPyObjType::get(value.getContext()),
-					value);
-			values.push_back(res);
-		}
-		else
-		{
-			values.push_back(value);
-		}
-	}
-
-	auto result = rewriter.create<mlir::rlc::python::PythonCall>(
-			loc, mlir::TypeRange({ resType }), res, values);
-
-	if (resType.isa<mlir::rlc::python::NoneType>())
-	{
-		rewriter.create<mlir::rlc::python::PythonReturn>(loc, mlir::ValueRange());
-		return f;
-	}
-
-	mlir::Value toReturn = result.getResult(0);
-
-	if (resType.isa<mlir::rlc::python::StrType>() or
-			resType.isa<mlir::rlc::python::CTypesIntType>())
-	{
-		toReturn = rewriter.create<mlir::rlc::python::PythonAccess>(
-				result.getLoc(),
-				mlir::rlc::pythonCTypesToBuiltin(resType),
-				toReturn,
-				"value");
-	}
-
-	rewriter.create<mlir::rlc::python::PythonReturn>(loc, toReturn);
-	return f;
-}
-
-class ClassDeclarationToNothing
-		: public mlir::OpConversionPattern<mlir::rlc::ClassDeclaration>
-{
-	public:
-	using mlir::OpConversionPattern<
-			mlir::rlc::ClassDeclaration>::OpConversionPattern;
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::ClassDeclaration op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
-class ConstantGlobalArrayOpToNothing
-		: public mlir::OpConversionPattern<mlir::rlc::ConstantGlobalOp>
-{
-	public:
-	using mlir::OpConversionPattern<
-			mlir::rlc::ConstantGlobalOp>::OpConversionPattern;
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::ConstantGlobalOp op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
-class EnumDeclarationToNothing
-		: public mlir::OpConversionPattern<mlir::rlc::EnumDeclarationOp>
-{
-	public:
-	using mlir::OpConversionPattern<
-			mlir::rlc::EnumDeclarationOp>::OpConversionPattern;
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::EnumDeclarationOp op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
-class TypeAliasConverter
-		: public mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>
-{
-	public:
-	using mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>::OpConversionPattern;
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::TypeAliasOp op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		auto type = getTypeConverter()->convertType(op.getAliased());
-		rewriter.replaceOpWithNewOp<mlir::rlc::python::PythonTypeAliasOp>(
-				op, op.getName(), type);
-		return mlir::success();
-	}
-};
-
-class TraitDeclarationToNothing
-		: public mlir::OpConversionPattern<mlir::rlc::TraitDefinition>
-{
-	public:
-	using mlir::OpConversionPattern<
-			mlir::rlc::TraitDefinition>::OpConversionPattern;
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::TraitDefinition op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
-class FunctionToPyFunction
-		: public mlir::OpConversionPattern<mlir::rlc::FunctionOp>
-{
-	private:
-	mlir::rlc::python::CTypesLoad* library;
-
-	public:
-	template<typename... Args>
-	FunctionToPyFunction(mlir::rlc::python::CTypesLoad* library, Args&&... args)
-			: mlir::OpConversionPattern<mlir::rlc::FunctionOp>(
-						std::forward<Args>(args)...),
-				library(library)
-	{
-	}
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::FunctionOp op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		auto newFun = emitFunctionWrapper(
-				op.getLoc(),
-				library,
-				rewriter,
-				getTypeConverter(),
-				op.getUnmangledName(),
-				op.getMangledName(),
-				op.getArgNames(),
-				op.getFunctionType());
-
-		if (newFun)
-		{
-			rewriter.setInsertionPointAfter(newFun);
-			auto validityType = mlir::FunctionType::get(
-					getContext(),
-					op.getType().getInputs(),
-					mlir::rlc::BoolType::get(getContext()));
-			auto name = ("can_" + op.getUnmangledName()).str();
-			auto preconditionCheckFunction = emitFunctionWrapper(
-					op.getLoc(),
-					library,
-					rewriter,
-					getTypeConverter(),
-					name,
-					mlir::rlc::mangledName(name, op.getIsMemberFunction(), validityType),
-					op.getArgNames(),
-					validityType);
-			rewriter.setInsertionPointAfter(preconditionCheckFunction);
-		}
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
-static mlir::rlc::ClassType getActionTypeOfActionStatement(
-		mlir::rlc::ActionStatement action)
-{
-	auto* currentOp = action.getOperation()->getParentOp();
-	assert(currentOp != nullptr);
-	while (not mlir::dyn_cast<mlir::rlc::ActionFunction>(currentOp))
-	{
-		currentOp = currentOp->getParentOp();
-		assert(currentOp != nullptr);
-	}
-	return mlir::cast<mlir::rlc::ActionFunction>(currentOp).getClassType();
-}
-
-static void emitActionContraints(
-		mlir::rlc::ActionStatement action,
-		mlir::Value emittedPythonFunction,
-		mlir::ConversionPatternRewriter& rewriter)
-{
-	mlir::rlc::ActionArgumentAnalysis analysis(action);
-	auto created = rewriter.create<mlir::rlc::python::PythonActionInfo>(
-			action->getLoc(), emittedPythonFunction);
-
-	mlir::rlc::ClassType ActionType = getActionTypeOfActionStatement(action);
-
-	llvm::SmallVector<mlir::Location, 2> locs;
-	llvm::SmallVector<mlir::Type, 2> types;
-
-	locs.push_back(action.getLoc());
-	types.push_back(ActionType);
-
-	for (size_t i = 0; i < action.getResultTypes().size(); i++)
-		locs.push_back(action.getLoc());
-
-	for (auto type : action.getResultTypes())
-		types.push_back(type);
-
-	auto* block = rewriter.createBlock(
-			&created.getBody(), created.getBody().begin(), types, locs);
-
-	rewriter.setInsertionPoint(block, block->begin());
-
-	for (const auto& [pythonArg, rlcArg] : llvm::zip(
-					 block->getArguments().drop_front(),
-					 action.getPrecondition().getArguments()))
-	{
-		const auto& argInfo = analysis.getBoundsOf(rlcArg);
-		rewriter.create<mlir::rlc::python::PythonArgumentConstraint>(
-				action.getLoc(), pythonArg, argInfo.getMin(), argInfo.getMax());
-	}
-
-	rewriter.setInsertionPointAfter(created);
-}
-
-static void emitActionContraints(
-		mlir::rlc::ActionFunction action,
-		mlir::Value emittedPythonFunction,
-		mlir::ConversionPatternRewriter& rewriter)
-{
-	mlir::rlc::ActionArgumentAnalysis analysis(action);
-	auto created = rewriter.create<mlir::rlc::python::PythonActionInfo>(
-			action->getLoc(), emittedPythonFunction);
-
-	llvm::SmallVector<mlir::Location, 2> locs;
-	for (size_t i = 0; i < action.getFunctionType().getNumInputs(); i++)
-		locs.push_back(action.getLoc());
-
-	auto* block = rewriter.createBlock(
-			&created.getBody(),
-			created.getBody().begin(),
-			action.getFunctionType().getInputs(),
-			locs);
-
-	rewriter.setInsertionPoint(block, block->begin());
-
-	for (const auto& [pythonArg, rlcArg] : llvm::zip(
-					 block->getArguments(), action.getBody().front().getArguments()))
-	{
-		const auto& argInfo = analysis.getBoundsOf(rlcArg);
-		rewriter.create<mlir::rlc::python::PythonArgumentConstraint>(
-				action.getLoc(), pythonArg, argInfo.getMin(), argInfo.getMax());
-	}
-
-	rewriter.setInsertionPointAfter(created);
-}
-
-class ActionDeclToTNothing
-		: public mlir::OpConversionPattern<mlir::rlc::ActionFunction>
-{
-	private:
-	mlir::rlc::python::CTypesLoad* library;
-	mlir::rlc::ModuleBuilder* builder;
-
-	public:
-	template<typename... Args>
-	ActionDeclToTNothing(
-			mlir::rlc::python::CTypesLoad* library,
-			mlir::rlc::ModuleBuilder* builder,
-			Args&&... args)
-			: mlir::OpConversionPattern<mlir::rlc::ActionFunction>(
-						std::forward<Args>(args)...),
-				library(library),
-				builder(builder)
-	{
-	}
-
-	mlir::LogicalResult matchAndRewrite(
-			mlir::rlc::ActionFunction op,
-			OpAdaptor adaptor,
-			mlir::ConversionPatternRewriter& rewriter) const final
-	{
-		auto types = builder->getConverter().getTypes().get(
-				("Any" + op.getClassType().getName() + "Action").str());
-		if (not types.empty())
-			rewriter.create<mlir::rlc::python::AddToMap>(
-					op.getLoc(),
-					"actionToAnyFunctionType",
-					("\"" + op.getUnmangledName() + "\"").str(),
-					("Any" + op.getClassType().getName() + "Action").str());
-
-		auto f = emitFunctionWrapper(
-				op.getLoc(),
-				library,
-				rewriter,
-				getTypeConverter(),
-				op.getUnmangledName(),
-				op.getMangledName(),
-				op.getArgNames(),
-				op.getFunctionType());
-
-		if (f == nullptr)
-		{
-			rewriter.eraseOp(op);
-			return mlir::success();
-		}
-
-		rewriter.setInsertionPointAfter(op);
-
-		emitActionContraints(op, f, rewriter);
-
-		using ActionKey = std::pair<std::string, const void*>;
-		std::set<ActionKey> alreadyAdded;
-		for (auto type : op.getActions())
-		{
-			auto casted = mlir::cast<mlir::rlc::ActionStatement>(
-					*builder->actionFunctionValueToActionStatement(type).begin());
-			ActionKey key(casted.getName(), type.getAsOpaquePointer());
-			if (alreadyAdded.contains(key))
-				continue;
-
-			alreadyAdded.insert(key);
-
-			llvm::SmallVector<llvm::StringRef, 2> arrayAttr;
-			arrayAttr.push_back("frame");
-			for (const auto& attr : casted.getInfo().getArguments())
-				arrayAttr.push_back(attr.getName());
-
-			auto castedType = type.getType().cast<mlir::FunctionType>();
-			auto f = emitFunctionWrapper(
-					casted.getLoc(),
-					library,
-					rewriter,
-					getTypeConverter(),
-					casted.getName(),
-					mlir::rlc::mangledName(casted.getName(), true, castedType),
-					arrayAttr,
-					castedType);
-			rewriter.setInsertionPointAfter(f);
-			if (f == nullptr)
-				continue;
-
-			emitActionContraints(casted, f, rewriter);
-
-			auto validityType = mlir::FunctionType::get(
-					getContext(),
-					castedType.getInputs(),
-					mlir::rlc::BoolType::get(getContext()));
-			auto name = ("can_" + casted.getName()).str();
-			auto preconditionCheckFunction = emitFunctionWrapper(
-					casted.getLoc(),
-					library,
-					rewriter,
-					getTypeConverter(),
-					name,
-					mlir::rlc::mangledName(name, true, validityType),
-					arrayAttr,
-					validityType);
-			rewriter.setInsertionPointAfter(preconditionCheckFunction);
-		}
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
-namespace mlir::python
-{
-#define GEN_PASS_DEF_RLCTOPYTHONPASS
-#include "rlc/python/Passes.inc"
-	struct RLCToPythonPass: impl::RLCToPythonPassBase<RLCToPythonPass>
-	{
-		using RLCToPythonPassBase<RLCToPythonPass>::RLCToPythonPassBase;
-		void getDependentDialects(mlir::DialectRegistry& registry) const override
-		{
-			registry.insert<mlir::rlc::RLCDialect>();
-			registry.insert<mlir::rlc::python::RLCPython>();
-		}
-
-		void runOnOperation() override
-		{
-			mlir::OpBuilder builder(&getContext());
-			mlir::rlc::ModuleBuilder rlcBuilder(getOperation());
-			builder.setInsertionPoint(
-					&getOperation().getBodyRegion().front().front());
-			auto lib = builder.create<mlir::rlc::python::CTypesLoad>(
-					getOperation().getLoc(),
-					mlir::rlc::python::CDLLType::get(&getContext()),
-					target_is_windows ? "lib.dll"
-														: (target_is_mac ? "lib.dylib" : "lib.so"));
-			mlir::ConversionTarget target(getContext());
-
-			mlir::TypeConverter ctypesConverter;
-			registerCTypesConversions(ctypesConverter);
-
-			mlir::TypeConverter converter;
-			registerBuiltinConversions(converter, ctypesConverter);
-
-			target.addLegalDialect<mlir::rlc::python::RLCPython>();
-			target.addIllegalDialect<mlir::rlc::RLCDialect>();
-
-			mlir::RewritePatternSet patterns(&getContext());
-			patterns.add<ActionDeclToTNothing>(
-					&lib, &rlcBuilder, converter, &getContext());
-			patterns.add<TraitDeclarationToNothing>(converter, &getContext());
-			patterns.add<EnumDeclarationToNothing>(converter, &getContext());
-			patterns.add<TypeAliasConverter>(converter, &getContext());
-			patterns.add<ConstantGlobalArrayOpToNothing>(converter, &getContext());
-			patterns.add<ClassDeclarationToNothing>(converter, &getContext());
-			patterns.add<FunctionToPyFunction>(&lib, converter, &getContext());
-
-			if (failed(applyPartialConversion(
-							getOperation(), target, std::move(patterns))))
-				signalPassFailure();
-		}
-	};
-
-	static void emitDeclaration(
-			mlir::Location loc,
-			mlir::Type type,
-			mlir::IRRewriter& rewriter,
-			const mlir::TypeConverter& converter,
-			bool hasCustomDestructor)
-	{
-		mlir::Type converted = converter.convertType(type);
-		llvm::SmallVector<std::string, 2> names;
-		llvm::SmallVector<llvm::StringRef, 2> refs;
-
-		if (auto classDecl = type.dyn_cast<mlir::rlc::ClassType>())
-		{
-			for (auto field : classDecl.getMembers())
-				names.push_back(field.getName().str());
-		}
-		else if (auto alternative = type.dyn_cast<mlir::rlc::AlternativeType>())
-		{
-			for (const auto& name : llvm::enumerate(alternative.getUnderlying()))
-				names.push_back(
-						(llvm::Twine("field") + llvm::Twine(name.index())).str());
-		}
-		else
-		{
-			return;
-		}
-
-		for (auto& name : names)
-			refs.push_back(name);
-
-		rewriter.create<mlir::rlc::python::CTypeStructDecl>(
-				loc, converted, rewriter.getStrArrayAttr(refs), hasCustomDestructor);
-	}
-
-#define GEN_PASS_DEF_RLCTYPESTOPYTHONTYPESPASS
-#include "rlc/python/Passes.inc"
-	struct RLCTypesToPythonTypesPass
-			: impl::RLCTypesToPythonTypesPassBase<RLCTypesToPythonTypesPass>
-	{
-		using RLCTypesToPythonTypesPassBase<
-				RLCTypesToPythonTypesPass>::RLCTypesToPythonTypesPassBase;
-		void getDependentDialects(mlir::DialectRegistry& registry) const override
-		{
-			registry.insert<mlir::rlc::RLCDialect>();
-			registry.insert<mlir::rlc::python::RLCPython>();
-		}
-
-		void runOnOperation() override
-		{
-			mlir::TypeConverter ctypesConverter;
-			registerCTypesConversions(ctypesConverter);
-			mlir::IRRewriter rewriter(&getContext());
-
-			rewriter.setInsertionPointToStart(getOperation().getBody());
-			mlir::DenseSet<mlir::Type> hasCustomDestructor;
-			for (auto fun : getOperation().getBody()->getOps<mlir::rlc::FunctionOp>())
-			{
-				if (fun.getIsMemberFunction() and fun.getUnmangledName() == "drop" and
-						fun.getArgumentTypes().size() == 1)
+			for (auto op : mod.getOps<mlir::rlc::FunctionOp>())
+				if (op.getIsMemberFunction() and not op.isInternal() and
+						(op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() or
+						 op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>()))
 				{
-					hasCustomDestructor.insert(fun.getArgumentTypes()[0]);
+					auto selfType = op.getArgumentTypes()[0];
+					auto key = selfType.getAsOpaquePointer();
+					if (isInitFunction(selfType, op))
+						initFunction[key] = op;
+					else if (isDropFunction(selfType, op))
+						dropFunction[key] = op;
+					else if (isAssignFunction(selfType, op))
+						assignFunction[key] = op;
+					else
+						typeToMethods[key].insert(op);
 				}
+		}
+
+		bool isInitFunction(mlir::Type t, mlir::rlc::FunctionOp method)
+		{
+			return (
+					method.getUnmangledName() == "init" and
+					returnsVoid(method.getType()).succeeded() and
+					method.getType().getNumInputs() == 1 and
+					method.getType().getInput(0) == t);
+		}
+
+		bool isTriviallyInitializable(mlir::Type t)
+		{
+			return initFunction.count(t.getAsOpaquePointer()) == 0;
+		}
+
+		bool isDropFunction(mlir::Type t, mlir::rlc::FunctionOp method)
+		{
+			return (
+					method.getUnmangledName() == "drop" and
+					returnsVoid(method.getType()).succeeded() and
+					method.getType().getNumInputs() == 1 and
+					method.getType().getInput(0) == t);
+		}
+
+		bool isTriviallyDestructible(mlir::Type t)
+		{
+			return dropFunction.count(t.getAsOpaquePointer()) == 0;
+		}
+
+		bool isAssignFunction(mlir::Type t, mlir::rlc::FunctionOp method)
+		{
+			return (
+					method.getUnmangledName() == "assign" and
+					returnsVoid(method.getType()).succeeded() and
+					method.getType().getNumInputs() == 2 and
+					method.getType().getInput(0) == t and
+					method.getType().getInput(1) == t);
+		}
+
+		bool isTriviallyCopiable(mlir::Type t)
+		{
+			return assignFunction.count(t.getAsOpaquePointer()) == 0;
+		}
+
+		llvm::DenseSet<mlir::rlc::FunctionOp> getMemberFunctionsOf(mlir::Type type)
+		{
+			return typeToMethods[type.getAsOpaquePointer()];
+		}
+
+		private:
+		std::map<const void*, llvm::DenseSet<mlir::rlc::FunctionOp>> typeToMethods;
+		std::map<const void*, mlir::rlc::FunctionOp> initFunction;
+		std::map<const void*, mlir::rlc::FunctionOp> dropFunction;
+		std::map<const void*, mlir::rlc::FunctionOp> assignFunction;
+	};
+	static void printPrelude(StreamWriter& writer)
+	{
+		writer.writenl("import ctypes");
+		writer.writenl("import os");
+		writer.writenl("from typing import overload");
+		writer.writenl("from pathlib import Path");
+		writer.writenl("import builtins");
+		writer.writenl("from collections import defaultdict");
+
+		writer.writenl(
+				"lib = ctypes.CDLL(os.path.join(Path(__file__).resolve().parent, "
+				"\"lib.so\"))");
+		writer.writenl("actions = defaultdict(list)");
+		writer.writenl("wrappers = defaultdict(list)");
+		writer.writenl("signatures = {}");
+		writer.writenl("actionToAnyFunctionType = {}");
+		writer.endLine();
+	}
+
+	static bool builtinCType(mlir::Type type)
+	{
+		if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
+			return builtinCType(casted.getUnderlying());
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(type))
+			return builtinCType(casted.getUnderlying());
+		return mlir::isa<mlir::rlc::IntegerType>(type) or
+					 mlir::isa<mlir::rlc::BoolType>(type) or
+					 mlir::isa<mlir::rlc::FloatType>(type) or
+					 mlir::isa<mlir::rlc::StringLiteralType>(type);
+	}
+
+	static bool needsUnwrapping(mlir::FunctionType type)
+	{
+		if (type.getNumResults() == 0)
+			return false;
+		return builtinCType(type.getResult(0));
+	}
+
+	static void printFunctionDecl(
+			TypeRange typeRange,
+			llvm::ArrayRef<llvm::StringRef> infoRange,
+			StreamWriter& writer,
+			mlir::Type resultType,
+			bool isMemberFunction)
+	{
+		assert(typeRange.size() == infoRange.size());
+		writer.write("(");
+		for (size_t i = 0; i != typeRange.size(); i++)
+		{
+			writer.write(infoRange[i]);
+			writer.write(": '");
+			writer.writeType(typeRange[i]);
+			writer.write("',");
+		}
+		writer.write(")");
+
+		if (not mlir::isa<mlir::rlc::VoidType>(resultType))
+		{
+			writer.write(" -> '");
+			writer.writeType(resultType);
+			writer.write("'");
+		}
+
+		writer.writenl(":");
+	}
+
+	static void printArg(
+			mlir::Type type, llvm::StringRef name, StreamWriter& writer)
+	{
+		bool typeIsPyobject = false;
+		if (auto casted = mlir::dyn_cast_or_null<mlir::rlc::ClassType>(type);
+				casted and casted.getName() == "PyObject")
+			typeIsPyobject = true;
+
+		bool isStringArg =
+				mlir::isa_and_nonnull<mlir::rlc::StringLiteralType>(type);
+		writer.write("ctypes.byref(");
+		if (typeIsPyobject)
+			writer.write("ctypes.py_object(");
+		if (type != nullptr and builtinCType(type))
+		{
+			writer.writeType(type, 1);
+			writer.write("(");
+		}
+		writer.write(name);
+		if (isStringArg)
+		{
+			writer.write(".encode(\"utf-8\")");
+		}
+		if (type != nullptr and builtinCType(type))
+		{
+			writer.write(")");
+		}
+		if (typeIsPyobject)
+			writer.write(")");
+		writer.write(")");
+		writer.write(", ");
+	}
+
+	static void printCallArgs(
+			TypeRange typeRange,
+			llvm::ArrayRef<llvm::StringRef> infoRange,
+			StreamWriter& writer,
+			mlir::Type resultType)
+	{
+		assert(typeRange.size() == infoRange.size());
+		writer.write("(");
+
+		if (not mlir::isa<mlir::rlc::VoidType>(resultType))
+		{
+			printArg(nullptr, "__result", writer);
+		}
+		for (size_t i = 0; i != typeRange.size(); i++)
+			printArg(typeRange[i], infoRange[i], writer);
+		writer.writenl(")");
+	}
+
+	static void printMangledWrapper(
+			llvm::StringRef unmangledName,
+			llvm::StringRef mangledName,
+			llvm::ArrayRef<llvm::StringRef> argsInfo,
+			mlir::FunctionType type,
+			StreamWriter& w,
+			mlir::Type resultType,
+			bool isMemberFunction)
+	{
+		w.write("def ", mangledName);
+		printFunctionDecl(
+				type.getInputs(), argsInfo, w, resultType, isMemberFunction);
+		auto _ = w.indent();
+
+		if (returnsVoid(type).failed())
+		{
+			w.write("__result = ");
+			w.writeType(resultType, 1);
+			w.writenl("()");
+		}
+
+		w.write("lib.", mangledName);
+		printCallArgs(type.getInputs(), argsInfo, w, resultType);
+
+		// for functions that return something emit
+		// return result
+		// and if they return a builtin ctype type, add .value to
+		// extract to convert it to a python builtin type instead
+		if (returnsVoid(type).failed())
+			w.write("return __result");
+		if (needsUnwrapping(type))
+			w.writenl(".value").endLine();
+		else
+			w.endLine().endLine();
+	}
+
+	static void declareOverload(
+			llvm::StringRef unmangledName,
+			llvm::ArrayRef<llvm::StringRef> argsInfo,
+			mlir::FunctionType type,
+			StreamWriter& w,
+			bool isMemberFunction)
+	{
+		mlir::Type resultType = type.getNumResults() == 0
+																? mlir::rlc::VoidType::get(type.getContext())
+																: type.getResult(0);
+		w.writenl("@overload");
+		w.write("def ", unmangledName);
+		printFunctionDecl(
+				type.getInputs(), argsInfo, w, resultType, isMemberFunction);
+		w.indentOnce(1).writenl("return").endLine();
+	}
+
+	static void declarePythonFunction(
+			llvm::StringRef unmangledName,
+			llvm::ArrayRef<llvm::StringRef> argsInfo,
+			mlir::FunctionType type,
+			StreamWriter& w,
+			bool isMemberFunction,
+			bool declareOveralods = true)
+	{
+		mlir::Type resultType = type.getNumResults() == 0
+																? mlir::rlc::VoidType::get(type.getContext())
+																: type.getResult(0);
+
+		if (declareOveralods)
+			declareOverload(unmangledName, argsInfo, type, w, isMemberFunction);
+		auto mangledName =
+				mlir::rlc::mangledName(unmangledName, isMemberFunction, type);
+
+		// mangled wrapper
+		printMangledWrapper(
+				unmangledName,
+				mangledName,
+				argsInfo,
+				type,
+				w,
+				resultType,
+				isMemberFunction);
+
+		// register the overload
+		w.writenl("wrappers[\"", unmangledName, "\"].append(", mangledName, ")");
+		w.write("signatures[", mangledName, "] = [");
+		if (returnsVoid(type).succeeded())
+			w.write("None, ");
+		else
+			w.writeType(type.getResults()[0]).write(", ");
+
+		for (auto type : type.getInputs())
+			w.writeType(type).write(", ");
+		w.writenl("]").endLine();
+	}
+
+	void emitSpecialFunctions(
+			mlir::Type type, mlir::rlc::StreamWriter& w, MemberFunctionsTable& table)
+	{
+		if (not table.isTriviallyInitializable(type))
+		{
+			w.writenl("def __init__(self):");
+			auto _ = w.indent();
+			w.writenl("self.to_erase = True");
+			auto mangled_init_function_name = mangledName(
+					"init",
+					true,
+					mlir::FunctionType::get(type.getContext(), { type }, {}));
+			w.writenl("lib.", mangled_init_function_name, "(ctypes.byref(self))")
+					.endLine();
+		}
+
+		if (not table.isTriviallyDestructible(type))
+		{
+			w.writenl("def __del__(self):");
+			auto _ = w.indent();
+			w.writenl("if hasattr(self, \"to_erase\") and self.to_erase:");
+			auto _2 = w.indent();
+			auto mangled_init_function_name = mangledName(
+					"drop",
+					true,
+					mlir::FunctionType::get(type.getContext(), { type }, {}));
+			w.writenl("lib.", mangled_init_function_name, "(ctypes.byref(self))")
+					.endLine();
+		}
+
+		if (not table.isTriviallyCopiable(type))
+		{
+			w.writenl("def clone(self):");
+			auto _2 = w.indent();
+
+			auto mangled_assign_name = mangledName(
+					"assign",
+					true,
+					mlir::FunctionType::get(type.getContext(), { type, type }, {}));
+			w.write("new_one = ");
+			w.writeType(type);
+			w.writenl("()");
+			w.writenl(
+					"lib.",
+					mangled_assign_name,
+					"(ctypes.byref(new_one), ctypes.byref(self))");
+			w.writenl("return new_one").endLine();
+		}
+	}
+
+	void emitMembers(
+			llvm::ArrayRef<mlir::Type> types,
+			llvm::ArrayRef<llvm::StringRef> memberNames,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table)
+	{
+		w.write("_fields_ = [");
+		for (auto [type, name] : llvm::zip(types, memberNames))
+		{
+			w.write("(\"", name, "\", ");
+			w.writeType(type, 1);
+			w.write("), ");
+		}
+		w.writenl("]").endLine();
+	}
+
+	void emitMembers(
+			llvm::ArrayRef<mlir::Type> types,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table)
+	{
+		w.write("_fields_ = [");
+		for (auto iter : llvm::enumerate(types))
+		{
+			w.write("(\"_alternative", iter.index(), "\", ");
+			w.writeType(iter.value(), 1);
+			w.write("), ");
+		}
+		w.writenl("]").endLine();
+	}
+
+	void emitHinting(
+			llvm::ArrayRef<mlir::Type> types,
+			llvm::ArrayRef<llvm::StringRef> memberNames,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table)
+	{
+		for (auto [type, name] : llvm::zip(types, memberNames))
+		{
+			if (name.starts_with("_"))
+				continue;
+
+			w.write(name, ": ");
+			w.writeType(type);
+			w.endLine();
+		}
+		w.endLine();
+	}
+
+	void emitOverloadDispatcher(
+			llvm::StringRef name,
+			llvm::ArrayRef<mlir::FunctionType> overloads,
+			mlir::rlc::StreamWriter& w,
+			bool isMethod)
+	{
+		w.writenl("def ", name, "(", isMethod ? "self, " : "", "*args):");
+		auto _ = w.indent();
+		for (auto overload : overloads)
+		{
+			w.write("if len(args) == ", overload.getNumInputs() - isMethod);
+			for (auto argument :
+					 llvm::drop_begin(llvm::enumerate(overload.getInputs()), isMethod))
+			{
+				w.write(" and isinstance(args[", argument.index() - isMethod, "], ");
+				w.writeType(argument.value());
+				w.write(")");
 			}
-			for (auto t : ::rlc::postOrderTypes(getOperation()))
-				emitDeclaration(
-						getOperation().getLoc(),
-						t,
-						rewriter,
-						ctypesConverter,
-						hasCustomDestructor.contains(t));
+			w.writenl(":");
+			auto _ = w.indent();
+			w.writenl(
+					"return ",
+					mangledName(name, isMethod, overload),
+					"(",
+					isMethod ? "self, " : "",
+					"*args)");
+		}
+
+		w.writenl(
+				 "raise TypeError(\"",
+				 name,
+				 " invoked with incorrect arguments types)\")")
+				.endLine();
+	}
+
+	void emitMemberFunctions(
+			mlir::Type type, mlir::rlc::StreamWriter& w, MemberFunctionsTable& table)
+	{
+		llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
+		for (auto memberFunction : table.getMemberFunctionsOf(type))
+		{
+			declareOverload(
+					memberFunction.getUnmangledName(),
+					memberFunction.getInfo().getArgNames(),
+					memberFunction.getType(),
+					w,
+					true);
+			sortedOverloads[memberFunction.getUnmangledName()].push_back(
+					memberFunction.getType());
+		}
+
+		for (auto& pair : sortedOverloads)
+			emitOverloadDispatcher(pair.first(), pair.second, w, true);
+	}
+
+	void emitDeclaration(
+			mlir::rlc::ClassType type,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table)
+	{
+		w.write("class ");
+		w.writeType(type);
+		w.writenl("(ctypes.Structure):");
+		auto _ = w.indent();
+
+		emitMembers(type.getMemberTypes(), type.getMemberNames(), w, table);
+		emitSpecialFunctions(type, w, table);
+		emitHinting(type.getMemberTypes(), type.getMemberNames(), w, table);
+		emitMemberFunctions(type, w, table);
+	}
+
+	void emitDeclaration(
+			mlir::rlc::AlternativeType type,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table)
+	{
+		w.write("class _");
+		w.writeType(type);
+		w.writenl("(ctypes.Union):");
+		{
+			auto _ = w.indent();
+			emitMembers(type.getUnderlying(), w, table);
+			w.endLine();
+		}
+		w.write("class ");
+		w.writeType(type);
+		w.writenl("(ctypes.Structure):");
+		auto _ = w.indent();
+
+		w.write("_fields_ = [(\"_content\", _");
+		w.writeType(type);
+		w.writenl("), (\"resume_index\", ctypes.c_longlong)]");
+
+		emitSpecialFunctions(type, w, table);
+
+		w.writenl("def __getitem__(self, key):");
+		{
+			auto _2 = w.indent();
+			for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+			{
+				w.write("if key == ");
+				w.writeType(enumeration.value());
+				w.writenl(" and self.resume_index == ", enumeration.index(), ":");
+				auto _ = w.indent();
+				w.writenl("return self._content._alternative", enumeration.index());
+			}
+			w.writenl("return None");
+		}
+		w.endLine();
+		emitMemberFunctions(type, w, table);
+	}
+
+	class AliasToPythonAlias
+	{
+		public:
+		void apply(mlir::rlc::TypeAliasOp op, mlir::rlc::StreamWriter& w)
+		{
+			w.write(op.getName(), " = ");
+			w.writeType(mlir::cast<mlir::rlc::AliasType>(op.getDeclaredType())
+											.getUnderlying());
+			w.endLine();
+			w.endLine();
 		}
 	};
 
-}	 // namespace mlir::python
+	class ActionToPythonFunction
+	{
+		private:
+		mlir::rlc::ModuleBuilder& builder;
+
+		public:
+		ActionToPythonFunction(mlir::rlc::ModuleBuilder& builder): builder(builder)
+		{
+		}
+		void apply(mlir::rlc::ActionFunction op, mlir::rlc::StreamWriter& w)
+		{
+			declarePythonFunction(
+					op.getUnmangledName(),
+					op.getInfo().getArgNames(),
+					op.getMainActionType(),
+					w,
+					op.getIsMemberFunction());
+			if (not op.getPrecondition().empty())
+				declarePythonFunction(
+						"can_" + op.getUnmangledName().str(),
+						op.getInfo().getArgNames(),
+						mlir::FunctionType::get(
+								op.getContext(),
+								op.getMainActionType().getInputs(),
+								{ mlir::rlc::BoolType::get(op.getContext()) }),
+						w,
+						op.getIsMemberFunction());
+
+			for (auto value : op.getActions())
+			{
+				mlir::Operation* statement =
+						builder.actionFunctionValueToActionStatement(value).front();
+				auto actionStatement =
+						mlir::cast<mlir::rlc::ActionStatement>(statement);
+				llvm::SmallVector<llvm::StringRef> argNames = { "self" };
+				for (auto arg : actionStatement.getInfo().getArguments())
+					argNames.push_back(arg.getName());
+
+				auto fType = mlir::cast<mlir::FunctionType>(value.getType());
+				auto mangled = mangledName(actionStatement.getName(), true, fType);
+
+				declarePythonFunction(
+						actionStatement.getName(), argNames, fType, w, true, false);
+
+				auto canDoType = mlir::FunctionType::get(
+						fType.getContext(),
+						fType.getInputs(),
+						{ mlir::rlc::BoolType::get(fType.getContext()) });
+				declarePythonFunction(
+						"can_" + actionStatement.getName().str(),
+						argNames,
+						canDoType,
+						w,
+						true,
+						false);
+
+				w.writenl(
+						"actions[\"",
+						actionStatement.getName(),
+						"\"].append(",
+						mangled,
+						")");
+			}
+
+			declarePythonFunction(
+					"is_done",
+					{ "self" },
+					mlir::FunctionType::get(
+							op.getContext(),
+							{ op.getClassType() },
+							{ mlir::rlc::BoolType::get(op.getContext()) }),
+					w,
+					true,
+					false);
+		}
+	};
+
+	class FunctionToPythonFunction
+	{
+		public:
+		void apply(mlir::rlc::FunctionOp op, mlir::rlc::StreamWriter& w)
+		{
+			declarePythonFunction(
+					op.getUnmangledName(),
+					op.getInfo().getArgNames(),
+					op.getFunctionType(),
+					w,
+					op.getIsMemberFunction(),
+					not op.getIsMemberFunction());
+			if (not op.getPrecondition().empty())
+				declarePythonFunction(
+						"can_" + op.getUnmangledName().str(),
+						op.getInfo().getArgNames(),
+						mlir::FunctionType::get(
+								op.getContext(),
+								op.getType().getInputs(),
+								{ mlir::rlc::BoolType::get(op.getContext()) }),
+						w,
+						op.getIsMemberFunction(),
+						not op.getIsMemberFunction());
+		}
+	};
+
+	static void registerCommonTypeConversion(TypeSerializer& matcher)
+	{
+		matcher.add([](mlir::rlc::IntegerLiteralType type,
+									 llvm::raw_string_ostream& OS) { OS << type.getValue(); });
+		matcher.add([](mlir::rlc::VoidType type, llvm::raw_string_ostream& OS) {
+			OS << "None";
+		});
+		matcher.add([&](mlir::rlc::AliasType type, llvm::raw_string_ostream& OS) {
+			OS << type.getName();
+		});
+		matcher.add([&](mlir::rlc::FrameType type, llvm::raw_string_ostream& OS) {
+			OS << matcher.convert(type.getUnderlying());
+		});
+		matcher.add([&](mlir::rlc::ContextType type, llvm::raw_string_ostream& OS) {
+			OS << matcher.convert(type.getUnderlying());
+		});
+		matcher.add(
+				[&](mlir::rlc::AlternativeType type, llvm::raw_string_ostream& OS) {
+					OS << type.getMangledName();
+				});
+	}
+
+	static void registerTypeConversions(
+			TypeSerializer& matcher, TypeSerializer& ctypesSerializer)
+	{
+		matcher.add([](mlir::rlc::IntegerType type, llvm::raw_string_ostream& OS) {
+			OS << "builtins.int";
+		});
+		matcher.add([](mlir::rlc::BoolType type, llvm::raw_string_ostream& OS) {
+			OS << "builtins.bool";
+		});
+		matcher.add([](mlir::rlc::FloatType type, llvm::raw_string_ostream& OS) {
+			OS << "builtins.float";
+		});
+		matcher.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
+			OS << "list";
+		});
+		matcher.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
+			if (type.getName() == "PyObject")
+				OS << "builtins.object";
+			else
+				OS << type.mangledName();
+		});
+		matcher.add(
+				[&](mlir::rlc::OwningPtrType type, llvm::raw_string_ostream& OS) {
+					OS << "ctypes.POINTER("
+						 << ctypesSerializer.convert(type.getUnderlying()) << ")";
+				});
+		matcher.add(
+				[&](mlir::rlc::ReferenceType type, llvm::raw_string_ostream& OS) {
+					OS << "ctypes.POINTER("
+						 << ctypesSerializer.convert(type.getUnderlying()) << ")";
+				});
+		matcher.add([](mlir::rlc::StringLiteralType type,
+									 llvm::raw_string_ostream& OS) { OS << "builtins.str"; });
+		registerCommonTypeConversion(matcher);
+	}
+
+	static void registerCTypesConversions(TypeSerializer& ser)
+	{
+		ser.add([](mlir::rlc::IntegerType type, llvm::raw_string_ostream& OS) {
+			if (type.getSize() == 64)
+				OS << "ctypes.c_longlong";
+			else
+				OS << "ctypes.c_byte";
+		});
+		ser.add([](mlir::rlc::FloatType type, llvm::raw_string_ostream& OS) {
+			OS << "ctypes.c_double";
+		});
+		ser.add([](mlir::rlc::BoolType type, llvm::raw_string_ostream& OS) {
+			OS << "ctypes.c_bool";
+		});
+		ser.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
+			if (type.getName() == "PyObject")
+				OS << "ctypes.py_object";
+			else
+				OS << type.mangledName();
+		});
+		ser.add([](mlir::rlc::StringLiteralType type,
+							 llvm::raw_string_ostream& OS) { OS << "ctypes.c_char_p"; });
+		ser.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
+			OS << ser.convert(type.getUnderlying()) << " * "
+				 << ser.convert(type.getSize());
+		});
+		ser.add([&](mlir::rlc::OwningPtrType type, llvm::raw_string_ostream& OS) {
+			OS << "ctypes.POINTER(" << ser.convert(type.getUnderlying()) << ")";
+		});
+		ser.add([&](mlir::rlc::ReferenceType type, llvm::raw_string_ostream& OS) {
+			OS << "ctypes.POINTER(" << ser.convert(type.getUnderlying()) << ")";
+		});
+		registerCommonTypeConversion(ser);
+	}
+
+	static std::string emitActionFunction(
+			mlir::rlc::ClassType frameType,
+			llvm::StringRef actionName,
+			mlir::TypeRange argTypes,
+			mlir::Type resultType,
+			llvm::ArrayRef<FunctionArgumentAttr> argsInfo,
+			mlir::rlc::ModuleBuilder& builder,
+			StreamWriter& OS)
+	{
+		const bool returnVoid = mlir::isa<mlir::rlc::VoidType>(resultType);
+		OS.write("def ", actionName, "(self, ");
+		for (auto [info, type] : llvm::zip(argsInfo, argTypes))
+		{
+			OS.write(info.getName(), ": '");
+			OS.writeType(type);
+			OS.write("', ");
+		}
+		OS.write(")");
+		if (not returnVoid)
+		{
+			OS.write(" -> ");
+			OS.writeType(resultType);
+		}
+		OS.writenl(":");
+		auto _ = OS.indent();
+
+		for (auto [info, type] : llvm::zip(argsInfo, argTypes))
+		{
+			OS.write("if ");
+			OS.write("not isinstance(", info.getName(), ",");
+			OS.writeType(type);
+			OS.writenl("):");
+			OS.indentOnce(1);
+			OS.write(
+					"raise TypeError(f\"",
+					actionName,
+					" invoked with incorrect argument type for argument ",
+					info.getName(),
+					". Expected ");
+			OS.writeType(type);
+			OS.writenl(" but got {type(", info.getName(), ")})\")").endLine();
+		}
+
+		llvm::SmallVector<mlir::Type> args = { frameType };
+		for (auto arg : argTypes)
+			args.push_back(arg);
+		auto fType =
+				mlir::FunctionType::get(resultType.getContext(), args, { resultType });
+		std::string mangled = mangledName(actionName, true, fType);
+
+		if (not returnVoid)
+		{
+			OS.write("__result = ");
+			OS.writeType(resultType, 1);
+			OS.writenl("()");
+		}
+
+		OS.write(
+				"lib.",
+				mangled,
+				"(",
+				returnVoid ? "" : "ctypes.byref(__result), ",
+				"ctypes.byref(self), ");
+
+		for (auto [info, type] : llvm::zip(argsInfo, argTypes))
+		{
+			printArg(type, info.getName(), OS);
+		}
+		OS.writenl(")");
+
+		if (not returnVoid)
+			OS.writenl("return __result", needsUnwrapping(fType) ? ".value" : "");
+
+		OS.endLine();
+		return mangled;
+	}
+
+	static void emitActionFunctions(
+			mlir::rlc::ActionFunction action,
+			mlir::rlc::ModuleBuilder& builder,
+			StreamWriter& OS)
+	{
+		for (auto value : action.getActions())
+		{
+			auto _ = OS.indent();
+			mlir::Operation* statement =
+					builder.actionFunctionValueToActionStatement(value).front();
+			auto actionStatement = mlir::cast<mlir::rlc::ActionStatement>(statement);
+			emitActionFunction(
+					action.getClassType(),
+					actionStatement.getName(),
+					actionStatement.getResultTypes(),
+					mlir::rlc::VoidType::get(action.getContext()),
+					actionStatement.getInfo().getArguments(),
+					builder,
+					OS);
+			emitActionFunction(
+					action.getClassType(),
+					("can_" + actionStatement.getName()).str(),
+					actionStatement.getResultTypes(),
+					mlir::rlc::BoolType::get(action.getContext()),
+					actionStatement.getInfo().getArguments(),
+					builder,
+					OS);
+		}
+
+		{
+			auto _ = OS.indent();
+			emitActionFunction(
+					action.getClassType(),
+					"is_done",
+					{},
+					mlir::rlc::BoolType::get(action.getContext()),
+					{},
+					builder,
+					OS);
+		}
+
+		OS.endLine();
+	}
+
+#define GEN_PASS_DEF_NEOPRINTPYTHONPASS
+#include "rlc/dialect/Passes.inc"
+	struct NeoPrintPythonPass: impl::NeoPrintPythonPassBase<NeoPrintPythonPass>
+	{
+		using impl::NeoPrintPythonPassBase<
+				NeoPrintPythonPass>::NeoPrintPythonPassBase;
+
+		void runOnOperation() override
+		{
+			rlc::PatternMatcher matcher(*OS);
+			MemberFunctionsTable table(getOperation());
+			mlir::rlc::ModuleBuilder builder(getOperation());
+
+			matcher.addTypeSerializer();
+			registerTypeConversions(
+					matcher.getWriter().getTypeSerializer(),
+					matcher.getWriter().getTypeSerializer(1));
+			registerCTypesConversions(matcher.getWriter().getTypeSerializer(1));
+
+			matcher.add<FunctionToPythonFunction>();
+			matcher.add<ActionToPythonFunction>(builder);
+			matcher.add<AliasToPythonAlias>();
+
+			// emit includes
+			printPrelude(matcher.getWriter());
+
+			// emit declarations of types
+			for (auto t : ::rlc::postOrderTypes(getOperation()))
+			{
+				if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
+				{
+					if (casted.getName() == "PyObject")
+						continue;
+					emitDeclaration(casted, matcher.getWriter(), table);
+					if (builder.isClassOfAction(casted))
+					{
+						auto action = mlir::cast<mlir::rlc::ActionFunction>(
+								builder.getActionOf(casted).getDefiningOp());
+						emitActionFunctions(action, builder, matcher.getWriter());
+					}
+				}
+				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
+					emitDeclaration(casted, matcher.getWriter(), table);
+			}
+
+			// emit declarations of free functions
+			matcher.apply(getOperation());
+
+			// emit dispatcher of free functions
+			llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
+			for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
+			{
+				if (op.getIsMemberFunction())
+					continue;
+				sortedOverloads[op.getUnmangledName()].push_back(op.getType());
+				if (not op.getPrecondition().empty())
+					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+							mlir::FunctionType::get(
+									op.getContext(),
+									op.getType().getInputs(),
+									{ mlir::rlc::BoolType::get(op.getContext()) }));
+			}
+			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
+			{
+				if (op.getIsMemberFunction())
+					continue;
+				sortedOverloads[op.getUnmangledName()].push_back(
+						op.getMainActionType());
+				if (not op.getPrecondition().empty())
+					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+							mlir::FunctionType::get(
+									op.getContext(),
+									op.getMainActionType().getInputs(),
+									{ mlir::rlc::BoolType::get(op.getContext()) }));
+
+				auto types = builder.getConverter().getTypes().get(
+						("Any" + op.getClassType().getName() + "Action").str());
+				if (not types.empty())
+					matcher.getWriter().writenl(
+							"actionToAnyFunctionType[\"",
+							op.getUnmangledName(),
+							"\"] = Any",
+							op.getClassType().getName(),
+							"Action");
+			}
+
+			for (auto& pair : sortedOverloads)
+				emitOverloadDispatcher(
+						pair.first(), pair.second, matcher.getWriter(), false);
+		}
+	};
+
+}	 // namespace mlir::rlc

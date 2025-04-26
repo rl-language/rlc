@@ -19,7 +19,6 @@ namespace mlir::rlc
 			dumpCSharp,
 			dumpBeforeTemplate,
 			dumpGodotWrapper,
-			dumpPythonAST,
 			dumpPythonWrapper,
 			dumpRLC,
 			dumpAfterImplicit,

@@ -47,8 +47,6 @@ limitations under the License.
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/driver/Driver.hpp"
 #include "rlc/parser/MultiFileParser.hpp"
-#include "rlc/python/Interfaces.hpp"
-#include "rlc/python/Passes.hpp"
 
 #if NDEBUG
 static constexpr const bool isDebug = false;
@@ -124,12 +122,6 @@ static cl::opt<std::string> abortSymbol(
 		"abort-symbol",
 		cl::desc("abort symbol called by assertions"),
 		cl::init(""),
-		cl::cat(astDumperCategory));
-
-static cl::opt<bool> dumpPythonAST(
-		"python-ast",
-		cl::desc("dumps the ast of python-ast and exits"),
-		cl::init(false),
 		cl::cat(astDumperCategory));
 
 static cl::opt<bool> dumpGodotWrapper(
@@ -350,8 +342,6 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpCSharp;
 	if (dumpGodotWrapper)
 		return Driver::Request::dumpGodotWrapper;
-	if (dumpPythonAST)
-		return Driver::Request::dumpPythonAST;
 	if (dumpPythonWrapper)
 		return Driver::Request::dumpPythonWrapper;
 	if (dumpRLC)
