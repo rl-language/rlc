@@ -36,6 +36,11 @@ namespace mlir::rlc
 		};
 	}	 // namespace impl
 
+	/* *
+	 * A type serializer that can be configured with lambda functions.
+	 * The usefullnes of suing this over regular switch is that it caches
+	 * results so it does not recompute everything every time.
+	 * */
 	class TypeSerializer
 	{
 		public:

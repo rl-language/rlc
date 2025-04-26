@@ -18,6 +18,7 @@ limitations under the License.
 #include "mlir/Transforms/DialectConversion.h"
 #include "rlc/dialect/ActionArgumentAnalysis.hpp"
 #include "rlc/dialect/Dialect.h"
+#include "rlc/dialect/MemberFunctionsTable.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/Types.hpp"
@@ -25,84 +26,7 @@ limitations under the License.
 #include "rlc/utils/PatternMatcher.hpp"
 namespace mlir::rlc
 {
-	// a table that keeps track of which member functions belong to which type
-	class MemberFunctionsTable
-	{
-		public:
-		MemberFunctionsTable(mlir::ModuleOp mod)
-		{
-			for (auto op : mod.getOps<mlir::rlc::FunctionOp>())
-				if (op.getIsMemberFunction() and not op.isInternal() and
-						(op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() or
-						 op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>()))
-				{
-					auto selfType = op.getArgumentTypes()[0];
-					auto key = selfType.getAsOpaquePointer();
-					if (isInitFunction(selfType, op))
-						initFunction[key] = op;
-					else if (isDropFunction(selfType, op))
-						dropFunction[key] = op;
-					else if (isAssignFunction(selfType, op))
-						assignFunction[key] = op;
-					else
-						typeToMethods[key].insert(op);
-				}
-		}
-
-		bool isInitFunction(mlir::Type t, mlir::rlc::FunctionOp method)
-		{
-			return (
-					method.getUnmangledName() == "init" and
-					returnsVoid(method.getType()).succeeded() and
-					method.getType().getNumInputs() == 1 and
-					method.getType().getInput(0) == t);
-		}
-
-		bool isTriviallyInitializable(mlir::Type t)
-		{
-			return initFunction.count(t.getAsOpaquePointer()) == 0;
-		}
-
-		bool isDropFunction(mlir::Type t, mlir::rlc::FunctionOp method)
-		{
-			return (
-					method.getUnmangledName() == "drop" and
-					returnsVoid(method.getType()).succeeded() and
-					method.getType().getNumInputs() == 1 and
-					method.getType().getInput(0) == t);
-		}
-
-		bool isTriviallyDestructible(mlir::Type t)
-		{
-			return dropFunction.count(t.getAsOpaquePointer()) == 0;
-		}
-
-		bool isAssignFunction(mlir::Type t, mlir::rlc::FunctionOp method)
-		{
-			return (
-					method.getUnmangledName() == "assign" and
-					returnsVoid(method.getType()).succeeded() and
-					method.getType().getNumInputs() == 2 and
-					method.getType().getInput(0) == t and
-					method.getType().getInput(1) == t);
-		}
-
-		bool isTriviallyCopiable(mlir::Type t)
-		{
-			return assignFunction.count(t.getAsOpaquePointer()) == 0;
-		}
-
-		llvm::DenseSet<mlir::rlc::FunctionOp> getMemberFunctionsOf(mlir::Type type)
-		{
-			return typeToMethods[type.getAsOpaquePointer()];
-		}
-
-		private:
-		std::map<const void*, llvm::DenseSet<mlir::rlc::FunctionOp>> typeToMethods;
-		std::map<const void*, mlir::rlc::FunctionOp> initFunction;
-		std::map<const void*, mlir::rlc::FunctionOp> dropFunction;
-		std::map<const void*, mlir::rlc::FunctionOp> assignFunction;
-	};
+	// Emits python imports and bookinping global variables.
 	static void printPrelude(StreamWriter& writer, bool isMac, bool isWindows)
 	{
 		writer.writenl("import ctypes");
@@ -129,6 +53,8 @@ namespace mlir::rlc
 		writer.endLine();
 	}
 
+	// returns true if `type` has a immediate mapping onto a ctypes
+	// type.
 	static bool builtinCType(mlir::Type type)
 	{
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
@@ -141,6 +67,8 @@ namespace mlir::rlc
 					 mlir::isa<mlir::rlc::StringLiteralType>(type);
 	}
 
+	// returns true if the require holds the real content
+	// in the `.value` member
 	static bool needsUnwrapping(mlir::FunctionType type)
 	{
 		if (type.getNumResults() == 0)
@@ -252,7 +180,7 @@ namespace mlir::rlc
 		printCallArgs(type.getInputs(), argsInfo, w, resultType);
 
 		// for functions that return something emit
-		// return result
+		// return __result
 		// and if they return a builtin ctype type, add .value to
 		// extract to convert it to a python builtin type instead
 		if (returnsVoid(type).failed())
@@ -280,6 +208,18 @@ namespace mlir::rlc
 		w.indentOnce(1).writenl("return").endLine();
 	}
 
+	// When we declare a python function we
+	// * Emit the mangled function
+	//     (eg: def rl_ugly_mangled_name_r_bool(arg: ctypes.c_bool):)
+	//   that dispaches directly to the symbol in the binary
+	//
+	// * Emit the non mangled typehinting
+	//     @overload
+	//     def nice_name(arg: Bool):
+	//        return
+	//
+	// * stick that overload in the signatures global list so
+	//   other people can discover it dynamically if they need.
 	static void declarePythonFunction(
 			llvm::StringRef unmangledName,
 			llvm::ArrayRef<llvm::StringRef> argsInfo,
@@ -297,7 +237,6 @@ namespace mlir::rlc
 		auto mangledName =
 				mlir::rlc::mangledName(unmangledName, isMemberFunction, type);
 
-		// mangled wrapper
 		printMangledWrapper(
 				unmangledName,
 				mangledName,
@@ -320,6 +259,12 @@ namespace mlir::rlc
 		w.writenl("]").endLine();
 	}
 
+	// the three rlc special functions init, drop and assing must
+	// be special cased to ensure they are always called, otherwise
+	// the user could access invalid memory.
+	//
+	// In practice this means overriding python __init__, __del__ and
+	// clone so that we can dispatch to the proper rlc methods.
 	void emitSpecialFunctions(
 			mlir::Type type, mlir::rlc::StreamWriter& w, MemberFunctionsTable& table)
 	{
@@ -370,6 +315,8 @@ namespace mlir::rlc
 		}
 	}
 
+	// emits the ctypes __fields__ member that specifies
+	// the layout of the class.
 	void emitMembers(
 			llvm::ArrayRef<mlir::Type> types,
 			llvm::ArrayRef<llvm::StringRef> memberNames,
@@ -419,6 +366,16 @@ namespace mlir::rlc
 		w.endLine();
 	}
 
+	// Python has no innate overload, so we have to create runtime
+	// dispatchers that look at the types of arguments and find the
+	// right overload.
+	//
+	// In practice this just means doing
+	// def f(*args):
+	//   if len(args) == overload_arg_count and isinstance(args[0], t1) and ...:
+	//     return overload(*args)
+	//   ...
+	//   raise TypeError()
 	void emitOverloadDispatcher(
 			llvm::StringRef name,
 			llvm::ArrayRef<mlir::FunctionType> overloads,
@@ -544,6 +501,15 @@ namespace mlir::rlc
 		}
 	};
 
+	// ActionFunction end up generating:
+	// * A class that rappresents the ActionFunction
+	// * A free function to start the ActionFunction
+	// * Optionally, the precondition function of the free function.
+	// * the is_done member function.
+	//
+	// then, for each actions statement:
+	// * emit the member function to trigger that action
+	// * emit the precondition of that action member function.
 	class ActionToPythonFunction
 	{
 		private:
@@ -740,6 +706,9 @@ namespace mlir::rlc
 		registerCommonTypeConversion(ser);
 	}
 
+	// emitting a action function is ugly because we need to collect
+	// the frame type from the action function, and the arguments from
+	// the action statements.
 	static std::string emitActionFunction(
 			mlir::rlc::ClassType frameType,
 			llvm::StringRef actionName,
@@ -863,6 +832,38 @@ namespace mlir::rlc
 
 #define GEN_PASS_DEF_PRINTPYTHONPASS
 #include "rlc/dialect/Passes.inc"
+	/***
+	 *This pass emits a python module that describes the content of the rlc
+	 *module being compiled. It does the following:
+	 * 1 For each ClassType and AlternativeType in the RLC program it emits a
+	 *   CType structure or union that with same members, and makes sure that
+	 *   constructors, clone and destructor invoke the right method in the RLC
+	 *   shared library.
+	 *
+	 *
+	 * 2 For each alias it emits the same alias
+	 *
+	 * 3 For each free function it emits a ctypes function declaration that wraps
+	 *   that RLC function, annotated with the real signature of the function. The
+	 *   emitted function has the same mangled name as the function in the
+	 *   library.
+	 *
+	 *   Then, it emits a dispatcher function that accepts a argument list and
+	 *   invokes the correct overload according to the types of the variables the
+	 *   python user has provided.
+	 *
+	 *   Finally it emits typehinting annotations so that the user can see the
+	 *   proper overloads available for a free function
+	 *
+	 * 4 For each member function it does the same thing that it did in step 3,
+	 *   but instead of putting it into the global name space, the generated stuff
+	 *   is placed inside the class that own the free function
+	 *
+	 * 5 For each ActionFunction it emits the ActionFunction as a ctypes class,
+	 *   and inside that class it emits the ctypes function wrappers to invoke
+	 *   the is_done function and actions statements that the ActionFunction
+	 *   declares.
+	 ***/
 	struct PrintPythonPass: impl::PrintPythonPassBase<PrintPythonPass>
 	{
 		using impl::PrintPythonPassBase<PrintPythonPass>::PrintPythonPassBase;
