@@ -1,6 +1,6 @@
 ; ModuleID = 'dict.rl'
 source_filename = "dict.rl"
-target datalayout = "S128-e-i128:128-f80:128-p271:32:32:32:32-p270:32:32:32:32-f128:128-i64:64-p272:64:64:64:64-i32:32-i16:16-f16:16-f64:64-p0:64:64:64:64-i8:8-i1:8"
+target datalayout = "e-S128-i32:32-i16:16-f16:16-f64:64-p0:64:64:64:64-i8:8-i1:8-i128:128-f80:128-p271:32:32:32:32-p270:32:32:32:32-f128:128-i64:64-p272:64:64:64:64"
 target triple = "x86_64-unknown-linux-gnu"
 
 %Entry = type { i8, i64, i64, i64 }
@@ -374,12 +374,13 @@ rl_m_init__VectorTint64_tT.exit.preheader:
   br i1 %8, label %.lr.ph, label %rl_m_init__VectorTint64_tT.exit._crit_edge
 
 .lr.ph:                                           ; preds = %rl_m_init__VectorTint64_tT.exit.preheader, %rl_m_init__VectorTint64_tT.exit
-  %9 = phi i64 [ %35, %rl_m_init__VectorTint64_tT.exit ], [ %7, %rl_m_init__VectorTint64_tT.exit.preheader ]
-  %.013 = phi i64 [ %38, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %9 = phi i64 [ %42, %rl_m_init__VectorTint64_tT.exit ], [ %7, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %.013 = phi i64 [ %45, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
   %.0112 = phi i64 [ %.1, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
-  %10 = phi i64 [ %37, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
-  %11 = phi i64 [ %36, %rl_m_init__VectorTint64_tT.exit ], [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %10 = phi i64 [ %44, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %11 = phi i64 [ %43, %rl_m_init__VectorTint64_tT.exit ], [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ]
   %.pre2.i1011 = phi ptr [ %.pre2.i9, %rl_m_init__VectorTint64_tT.exit ], [ %calloc18, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %.pre2.i101123 = ptrtoint ptr %.pre2.i1011 to i64
   %12 = load ptr, ptr %1, align 8
   %13 = getelementptr %Entry, ptr %12, i64 %.013
   %14 = load i8, ptr %13, align 1
@@ -395,75 +396,109 @@ rl_m_init__VectorTint64_tT.exit.preheader:
 19:                                               ; preds = %15
   %20 = shl i64 %17, 4
   %21 = tail call ptr @malloc(i64 %20)
-  %22 = trunc i64 %17 to i63
-  %23 = icmp sgt i63 %22, 0
-  br i1 %23, label %.lr.ph.preheader.i.i, label %.preheader2.i.i
+  %22 = ptrtoint ptr %21 to i64
+  %23 = trunc i64 %17 to i63
+  %24 = icmp sgt i63 %23, 0
+  br i1 %24, label %.lr.ph.preheader.i.i, label %.preheader2.i.i
 
 .lr.ph.preheader.i.i:                             ; preds = %19
   tail call void @llvm.memset.p0.i64(ptr align 8 %21, i8 0, i64 %20, i1 false)
   br label %.preheader2.i.i
 
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %19
-  %24 = icmp sgt i64 %10, 0
-  br i1 %24, label %.lr.ph5.i.i, label %.preheader.i.i
+  %25 = icmp sgt i64 %10, 0
+  br i1 %25, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %.preheader2.i.i
+.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+  %min.iters.check = icmp ult i64 %10, 4
+  %26 = sub i64 %22, %.pre2.i101123
+  %diff.check = icmp ult i64 %26, 32
+  %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader25, label %vector.ph
+
+.lr.ph5.i.i.preheader25:                          ; preds = %middle.block, %.lr.ph5.i.i.preheader
+  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
+  br label %.lr.ph5.i.i
+
+vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
+  %n.vec = and i64 %10, 9223372036854775804
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %27 = getelementptr i64, ptr %21, i64 %index
+  %28 = getelementptr i64, ptr %.pre2.i1011, i64 %index
+  %29 = getelementptr i8, ptr %28, i64 16
+  %wide.load = load <2 x i64>, ptr %28, align 8
+  %wide.load24 = load <2 x i64>, ptr %29, align 8
+  %30 = getelementptr i8, ptr %27, i64 16
+  store <2 x i64> %wide.load, ptr %27, align 8
+  store <2 x i64> %wide.load24, ptr %30, align 8
+  %index.next = add nuw i64 %index, 4
+  %31 = icmp eq i64 %index.next, %n.vec
+  br i1 %31, label %middle.block, label %vector.body, !llvm.loop !1
+
+middle.block:                                     ; preds = %vector.body
+  %cmp.n = icmp eq i64 %10, %n.vec
+  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader25
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre2.i1011)
-  %25 = shl i64 %17, 1
+  %32 = shl i64 %17, 1
   br label %rl_m_append__VectorTint64_tT_int64_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.preheader2.i.i, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %29, %.lr.ph5.i.i ], [ 0, %.preheader2.i.i ]
-  %26 = getelementptr i64, ptr %21, i64 %.14.i.i
-  %27 = getelementptr i64, ptr %.pre2.i1011, i64 %.14.i.i
-  %28 = load i64, ptr %27, align 8
-  store i64 %28, ptr %26, align 8
-  %29 = add nuw nsw i64 %.14.i.i, 1
-  %30 = icmp slt i64 %29, %10
-  br i1 %30, label %.lr.ph5.i.i, label %.preheader.i.i
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader25, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %36, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader25 ]
+  %33 = getelementptr i64, ptr %21, i64 %.14.i.i
+  %34 = getelementptr i64, ptr %.pre2.i1011, i64 %.14.i.i
+  %35 = load i64, ptr %34, align 8
+  store i64 %35, ptr %33, align 8
+  %36 = add nuw nsw i64 %.14.i.i, 1
+  %37 = icmp slt i64 %36, %10
+  br i1 %37, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !4
 
 rl_m_append__VectorTint64_tT_int64_t.exit:        ; preds = %15, %.preheader.i.i
   %.pre2.i8 = phi ptr [ %21, %.preheader.i.i ], [ %.pre2.i1011, %15 ]
-  %31 = phi i64 [ %25, %.preheader.i.i ], [ %11, %15 ]
-  %32 = getelementptr i64, ptr %.pre2.i8, i64 %10
-  %33 = load i64, ptr %16, align 8
-  store i64 %33, ptr %32, align 8
-  %34 = add i64 %.0112, 1
+  %38 = phi i64 [ %32, %.preheader.i.i ], [ %11, %15 ]
+  %39 = getelementptr i64, ptr %.pre2.i8, i64 %10
+  %40 = load i64, ptr %16, align 8
+  store i64 %40, ptr %39, align 8
+  %41 = add i64 %.0112, 1
   %.pre = load i64, ptr %6, align 8
   br label %rl_m_init__VectorTint64_tT.exit
 
 rl_m_init__VectorTint64_tT.exit:                  ; preds = %.lr.ph, %rl_m_append__VectorTint64_tT_int64_t.exit
-  %35 = phi i64 [ %.pre, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %9, %.lr.ph ]
+  %42 = phi i64 [ %.pre, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %9, %.lr.ph ]
   %.pre2.i9 = phi ptr [ %.pre2.i8, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.pre2.i1011, %.lr.ph ]
-  %36 = phi i64 [ %31, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %11, %.lr.ph ]
-  %37 = phi i64 [ %17, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %10, %.lr.ph ]
-  %.1 = phi i64 [ %34, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.0112, %.lr.ph ]
-  %38 = add i64 %.013, 1
-  %39 = icmp slt i64 %.1, %35
-  br i1 %39, label %.lr.ph, label %rl_m_init__VectorTint64_tT.exit._crit_edge
+  %43 = phi i64 [ %38, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %11, %.lr.ph ]
+  %44 = phi i64 [ %17, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %10, %.lr.ph ]
+  %.1 = phi i64 [ %41, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.0112, %.lr.ph ]
+  %45 = add i64 %.013, 1
+  %46 = icmp slt i64 %.1, %42
+  br i1 %46, label %.lr.ph, label %rl_m_init__VectorTint64_tT.exit._crit_edge
 
 rl_m_init__VectorTint64_tT.exit._crit_edge:       ; preds = %rl_m_init__VectorTint64_tT.exit, %rl_m_init__VectorTint64_tT.exit.preheader
-  %40 = phi ptr [ %calloc18, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %.pre2.i9, %rl_m_init__VectorTint64_tT.exit ]
-  %.lcssa6 = phi i64 [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %36, %rl_m_init__VectorTint64_tT.exit ]
-  %.lcssa = phi i64 [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %37, %rl_m_init__VectorTint64_tT.exit ]
+  %47 = phi ptr [ %calloc18, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %.pre2.i9, %rl_m_init__VectorTint64_tT.exit ]
+  %.lcssa6 = phi i64 [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %43, %rl_m_init__VectorTint64_tT.exit ]
+  %.lcssa = phi i64 [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %44, %rl_m_init__VectorTint64_tT.exit ]
   store i64 %.lcssa, ptr %4, align 8
   store i64 %.lcssa6, ptr %5, align 8
-  store ptr %40, ptr %3, align 8
-  %41 = getelementptr inbounds i8, ptr %2, i64 8
-  store i64 0, ptr %41, align 8
-  %42 = getelementptr inbounds i8, ptr %2, i64 16
-  store i64 4, ptr %42, align 8
+  store ptr %47, ptr %3, align 8
+  %48 = getelementptr inbounds i8, ptr %2, i64 8
+  store i64 0, ptr %48, align 8
+  %49 = getelementptr inbounds i8, ptr %2, i64 16
+  store i64 4, ptr %49, align 8
   %calloc = tail call dereferenceable_or_null(32) ptr @calloc(i64 1, i64 32)
   store ptr %calloc, ptr %2, align 8
   call void @rl_m_assign__VectorTint64_tT_VectorTint64_tT(ptr nonnull %2, ptr nonnull %3)
   %.not2.i = icmp eq i64 %.lcssa6, 0
-  br i1 %.not2.i, label %rl_m_drop__VectorTint64_tT.exit, label %43
+  br i1 %.not2.i, label %rl_m_drop__VectorTint64_tT.exit, label %50
 
-43:                                               ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge
-  tail call void @free(ptr %40)
+50:                                               ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge
+  tail call void @free(ptr %47)
   br label %rl_m_drop__VectorTint64_tT.exit
 
-rl_m_drop__VectorTint64_tT.exit:                  ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge, %43
+rl_m_drop__VectorTint64_tT.exit:                  ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge, %50
   call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(24) %0, ptr noundef nonnull align 8 dereferenceable(24) %2, i64 24, i1 false)
   ret void
 }
@@ -485,12 +520,13 @@ rl_m_init__VectorTint64_tT.exit.preheader:
   br i1 %8, label %.lr.ph, label %rl_m_init__VectorTint64_tT.exit._crit_edge
 
 .lr.ph:                                           ; preds = %rl_m_init__VectorTint64_tT.exit.preheader, %rl_m_init__VectorTint64_tT.exit
-  %9 = phi i64 [ %35, %rl_m_init__VectorTint64_tT.exit ], [ %7, %rl_m_init__VectorTint64_tT.exit.preheader ]
-  %.013 = phi i64 [ %38, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %9 = phi i64 [ %42, %rl_m_init__VectorTint64_tT.exit ], [ %7, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %.013 = phi i64 [ %45, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
   %.0112 = phi i64 [ %.1, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
-  %10 = phi i64 [ %37, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
-  %11 = phi i64 [ %36, %rl_m_init__VectorTint64_tT.exit ], [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %10 = phi i64 [ %44, %rl_m_init__VectorTint64_tT.exit ], [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %11 = phi i64 [ %43, %rl_m_init__VectorTint64_tT.exit ], [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ]
   %.pre2.i1011 = phi ptr [ %.pre2.i9, %rl_m_init__VectorTint64_tT.exit ], [ %calloc18, %rl_m_init__VectorTint64_tT.exit.preheader ]
+  %.pre2.i101123 = ptrtoint ptr %.pre2.i1011 to i64
   %12 = load ptr, ptr %1, align 8
   %13 = getelementptr %Entry, ptr %12, i64 %.013
   %14 = load i8, ptr %13, align 1
@@ -506,75 +542,109 @@ rl_m_init__VectorTint64_tT.exit.preheader:
 19:                                               ; preds = %15
   %20 = shl i64 %17, 4
   %21 = tail call ptr @malloc(i64 %20)
-  %22 = trunc i64 %17 to i63
-  %23 = icmp sgt i63 %22, 0
-  br i1 %23, label %.lr.ph.preheader.i.i, label %.preheader2.i.i
+  %22 = ptrtoint ptr %21 to i64
+  %23 = trunc i64 %17 to i63
+  %24 = icmp sgt i63 %23, 0
+  br i1 %24, label %.lr.ph.preheader.i.i, label %.preheader2.i.i
 
 .lr.ph.preheader.i.i:                             ; preds = %19
   tail call void @llvm.memset.p0.i64(ptr align 8 %21, i8 0, i64 %20, i1 false)
   br label %.preheader2.i.i
 
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %19
-  %24 = icmp sgt i64 %10, 0
-  br i1 %24, label %.lr.ph5.i.i, label %.preheader.i.i
+  %25 = icmp sgt i64 %10, 0
+  br i1 %25, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %.preheader2.i.i
+.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+  %min.iters.check = icmp ult i64 %10, 4
+  %26 = sub i64 %22, %.pre2.i101123
+  %diff.check = icmp ult i64 %26, 32
+  %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader25, label %vector.ph
+
+.lr.ph5.i.i.preheader25:                          ; preds = %middle.block, %.lr.ph5.i.i.preheader
+  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
+  br label %.lr.ph5.i.i
+
+vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
+  %n.vec = and i64 %10, 9223372036854775804
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %27 = getelementptr i64, ptr %21, i64 %index
+  %28 = getelementptr i64, ptr %.pre2.i1011, i64 %index
+  %29 = getelementptr i8, ptr %28, i64 16
+  %wide.load = load <2 x i64>, ptr %28, align 8
+  %wide.load24 = load <2 x i64>, ptr %29, align 8
+  %30 = getelementptr i8, ptr %27, i64 16
+  store <2 x i64> %wide.load, ptr %27, align 8
+  store <2 x i64> %wide.load24, ptr %30, align 8
+  %index.next = add nuw i64 %index, 4
+  %31 = icmp eq i64 %index.next, %n.vec
+  br i1 %31, label %middle.block, label %vector.body, !llvm.loop !5
+
+middle.block:                                     ; preds = %vector.body
+  %cmp.n = icmp eq i64 %10, %n.vec
+  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader25
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre2.i1011)
-  %25 = shl i64 %17, 1
+  %32 = shl i64 %17, 1
   br label %rl_m_append__VectorTint64_tT_int64_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.preheader2.i.i, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %29, %.lr.ph5.i.i ], [ 0, %.preheader2.i.i ]
-  %26 = getelementptr i64, ptr %21, i64 %.14.i.i
-  %27 = getelementptr i64, ptr %.pre2.i1011, i64 %.14.i.i
-  %28 = load i64, ptr %27, align 8
-  store i64 %28, ptr %26, align 8
-  %29 = add nuw nsw i64 %.14.i.i, 1
-  %30 = icmp slt i64 %29, %10
-  br i1 %30, label %.lr.ph5.i.i, label %.preheader.i.i
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader25, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %36, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader25 ]
+  %33 = getelementptr i64, ptr %21, i64 %.14.i.i
+  %34 = getelementptr i64, ptr %.pre2.i1011, i64 %.14.i.i
+  %35 = load i64, ptr %34, align 8
+  store i64 %35, ptr %33, align 8
+  %36 = add nuw nsw i64 %.14.i.i, 1
+  %37 = icmp slt i64 %36, %10
+  br i1 %37, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !6
 
 rl_m_append__VectorTint64_tT_int64_t.exit:        ; preds = %15, %.preheader.i.i
   %.pre2.i8 = phi ptr [ %21, %.preheader.i.i ], [ %.pre2.i1011, %15 ]
-  %31 = phi i64 [ %25, %.preheader.i.i ], [ %11, %15 ]
-  %32 = getelementptr i64, ptr %.pre2.i8, i64 %10
-  %33 = load i64, ptr %16, align 8
-  store i64 %33, ptr %32, align 8
-  %34 = add i64 %.0112, 1
+  %38 = phi i64 [ %32, %.preheader.i.i ], [ %11, %15 ]
+  %39 = getelementptr i64, ptr %.pre2.i8, i64 %10
+  %40 = load i64, ptr %16, align 8
+  store i64 %40, ptr %39, align 8
+  %41 = add i64 %.0112, 1
   %.pre = load i64, ptr %6, align 8
   br label %rl_m_init__VectorTint64_tT.exit
 
 rl_m_init__VectorTint64_tT.exit:                  ; preds = %.lr.ph, %rl_m_append__VectorTint64_tT_int64_t.exit
-  %35 = phi i64 [ %.pre, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %9, %.lr.ph ]
+  %42 = phi i64 [ %.pre, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %9, %.lr.ph ]
   %.pre2.i9 = phi ptr [ %.pre2.i8, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.pre2.i1011, %.lr.ph ]
-  %36 = phi i64 [ %31, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %11, %.lr.ph ]
-  %37 = phi i64 [ %17, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %10, %.lr.ph ]
-  %.1 = phi i64 [ %34, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.0112, %.lr.ph ]
-  %38 = add i64 %.013, 1
-  %39 = icmp slt i64 %.1, %35
-  br i1 %39, label %.lr.ph, label %rl_m_init__VectorTint64_tT.exit._crit_edge
+  %43 = phi i64 [ %38, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %11, %.lr.ph ]
+  %44 = phi i64 [ %17, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %10, %.lr.ph ]
+  %.1 = phi i64 [ %41, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.0112, %.lr.ph ]
+  %45 = add i64 %.013, 1
+  %46 = icmp slt i64 %.1, %42
+  br i1 %46, label %.lr.ph, label %rl_m_init__VectorTint64_tT.exit._crit_edge
 
 rl_m_init__VectorTint64_tT.exit._crit_edge:       ; preds = %rl_m_init__VectorTint64_tT.exit, %rl_m_init__VectorTint64_tT.exit.preheader
-  %40 = phi ptr [ %calloc18, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %.pre2.i9, %rl_m_init__VectorTint64_tT.exit ]
-  %.lcssa6 = phi i64 [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %36, %rl_m_init__VectorTint64_tT.exit ]
-  %.lcssa = phi i64 [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %37, %rl_m_init__VectorTint64_tT.exit ]
+  %47 = phi ptr [ %calloc18, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %.pre2.i9, %rl_m_init__VectorTint64_tT.exit ]
+  %.lcssa6 = phi i64 [ 4, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %43, %rl_m_init__VectorTint64_tT.exit ]
+  %.lcssa = phi i64 [ 0, %rl_m_init__VectorTint64_tT.exit.preheader ], [ %44, %rl_m_init__VectorTint64_tT.exit ]
   store i64 %.lcssa, ptr %4, align 8
   store i64 %.lcssa6, ptr %5, align 8
-  store ptr %40, ptr %3, align 8
-  %41 = getelementptr inbounds i8, ptr %2, i64 8
-  store i64 0, ptr %41, align 8
-  %42 = getelementptr inbounds i8, ptr %2, i64 16
-  store i64 4, ptr %42, align 8
+  store ptr %47, ptr %3, align 8
+  %48 = getelementptr inbounds i8, ptr %2, i64 8
+  store i64 0, ptr %48, align 8
+  %49 = getelementptr inbounds i8, ptr %2, i64 16
+  store i64 4, ptr %49, align 8
   %calloc = tail call dereferenceable_or_null(32) ptr @calloc(i64 1, i64 32)
   store ptr %calloc, ptr %2, align 8
   call void @rl_m_assign__VectorTint64_tT_VectorTint64_tT(ptr nonnull %2, ptr nonnull %3)
   %.not2.i = icmp eq i64 %.lcssa6, 0
-  br i1 %.not2.i, label %rl_m_drop__VectorTint64_tT.exit, label %43
+  br i1 %.not2.i, label %rl_m_drop__VectorTint64_tT.exit, label %50
 
-43:                                               ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge
-  tail call void @free(ptr %40)
+50:                                               ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge
+  tail call void @free(ptr %47)
   br label %rl_m_drop__VectorTint64_tT.exit
 
-rl_m_drop__VectorTint64_tT.exit:                  ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge, %43
+rl_m_drop__VectorTint64_tT.exit:                  ; preds = %rl_m_init__VectorTint64_tT.exit._crit_edge, %50
   call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(24) %0, ptr noundef nonnull align 8 dereferenceable(24) %2, i64 24, i1 false)
   ret void
 }
@@ -648,12 +718,12 @@ define void @rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool(ptr nocapture wri
   br i1 %43, label %._crit_edge30, label %.lr.ph29
 
 .lr.ph29:                                         ; preds = %35, %53
-  %44 = phi i64 [ %61, %53 ], [ %14, %35 ]
-  %.pn32 = phi ptr [ %64, %53 ], [ %41, %35 ]
-  %45 = phi i8 [ %65, %53 ], [ %42, %35 ]
-  %46 = phi ptr [ %63, %53 ], [ %15, %35 ]
+  %44 = phi i64 [ %59, %53 ], [ %14, %35 ]
+  %.pn32 = phi ptr [ %62, %53 ], [ %41, %35 ]
+  %45 = phi i8 [ %63, %53 ], [ %42, %35 ]
+  %46 = phi ptr [ %61, %53 ], [ %15, %35 ]
   %.027 = phi i64 [ %.0126, %53 ], [ %.0525, %35 ]
-  %.0126 = phi i64 [ %62, %53 ], [ %40, %35 ]
+  %.0126 = phi i64 [ %60, %53 ], [ %40, %35 ]
   %.in35 = getelementptr i8, ptr %.pn32, i64 8
   %47 = load i64, ptr %.in35, align 8
   %48 = add i64 %44, %.0126
@@ -661,42 +731,38 @@ define void @rl_m_remove__DictTint64_tTint64_tT_int64_t_r_bool(ptr nocapture wri
   %50 = sub i64 %48, %49
   %51 = srem i64 %50, %44
   %52 = icmp eq i64 %51, 0
-  br i1 %52, label %67, label %53
+  br i1 %52, label %65, label %53
 
 53:                                               ; preds = %.lr.ph29
   %.in33 = getelementptr i8, ptr %.pn32, i64 16
-  %54 = load i64, ptr %.in33, align 8
-  %.in = getelementptr i8, ptr %.pn32, i64 24
-  %55 = load i64, ptr %.in, align 8
-  %56 = getelementptr %Entry, ptr %46, i64 %.027
-  store i8 %45, ptr %56, align 1
-  %57 = getelementptr i8, ptr %56, i64 8
-  store i64 %47, ptr %57, align 8
-  %58 = getelementptr i8, ptr %56, i64 16
-  store i64 %54, ptr %58, align 8
-  %59 = getelementptr i8, ptr %56, i64 24
-  store i64 %55, ptr %59, align 8
-  %60 = add i64 %.0126, 1
-  %61 = load i64, ptr %13, align 8
-  %62 = srem i64 %60, %61
-  %63 = load ptr, ptr %1, align 8
-  %64 = getelementptr %Entry, ptr %63, i64 %62
-  %65 = load i8, ptr %64, align 1
-  %66 = icmp eq i8 %65, 0
-  br i1 %66, label %._crit_edge30, label %.lr.ph29
+  %54 = getelementptr %Entry, ptr %46, i64 %.027
+  %55 = getelementptr i8, ptr %54, i64 8
+  %56 = getelementptr i8, ptr %54, i64 16
+  %57 = load <2 x i64>, ptr %.in33, align 8
+  store i8 %45, ptr %54, align 1
+  store i64 %47, ptr %55, align 8
+  store <2 x i64> %57, ptr %56, align 8
+  %58 = add i64 %.0126, 1
+  %59 = load i64, ptr %13, align 8
+  %60 = srem i64 %58, %59
+  %61 = load ptr, ptr %1, align 8
+  %62 = getelementptr %Entry, ptr %61, i64 %60
+  %63 = load i8, ptr %62, align 1
+  %64 = icmp eq i8 %63, 0
+  br i1 %64, label %._crit_edge30, label %.lr.ph29
 
-67:                                               ; preds = %.lr.ph29
-  %68 = getelementptr %Entry, ptr %46, i64 %.027
+65:                                               ; preds = %.lr.ph29
+  %66 = getelementptr %Entry, ptr %46, i64 %.027
   br label %common.ret.sink.split
 
 ._crit_edge30:                                    ; preds = %53, %35
   %.0.lcssa = phi i64 [ %.0525, %35 ], [ %.0126, %53 ]
-  %.lcssa = phi ptr [ %15, %35 ], [ %63, %53 ]
-  %69 = getelementptr %Entry, ptr %.lcssa, i64 %.0.lcssa
+  %.lcssa = phi ptr [ %15, %35 ], [ %61, %53 ]
+  %67 = getelementptr %Entry, ptr %.lcssa, i64 %.0.lcssa
   br label %common.ret.sink.split
 
-common.ret.sink.split:                            ; preds = %._crit_edge30, %67
-  %.sink = phi ptr [ %68, %67 ], [ %69, %._crit_edge30 ]
+common.ret.sink.split:                            ; preds = %._crit_edge30, %65
+  %.sink = phi ptr [ %66, %65 ], [ %67, %._crit_edge30 ]
   store i8 0, ptr %.sink, align 1
   br label %common.ret
 
@@ -706,7 +772,7 @@ common.ret:                                       ; preds = %.thread, %16, %comm
   ret void
 
 ._crit_edge:                                      ; preds = %33, %3
-  %70 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_0)
+  %68 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_0)
   tail call void @llvm.trap()
   unreachable
 }
@@ -909,7 +975,7 @@ define internal fastcc void @rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTi
   %22 = load i8, ptr %21, align 1
   %23 = icmp eq i8 %22, 0
   %24 = getelementptr i8, ptr %21, i64 8
-  br i1 %23, label %64, label %25
+  br i1 %23, label %65, label %25
 
 25:                                               ; preds = %.lr.ph
   %26 = load i64, ptr %24, align 8
@@ -965,45 +1031,46 @@ define internal fastcc void @rl_m__insert__DictTint64_tTint64_tT_EntryTint64_tTi
   %.not = icmp slt i64 %19, %50
   br i1 %.not, label %.lr.ph, label %._crit_edge
 
-common.ret:                                       ; preds = %64, %54
+common.ret:                                       ; preds = %65, %54
   ret void
 
 54:                                               ; preds = %28
-  %55 = getelementptr i8, ptr %21, i64 24
-  store i64 %.0337, ptr %55, align 8
-  %56 = load ptr, ptr %1, align 8
-  %57 = getelementptr %Entry, ptr %56, i64 %.039
-  store i8 %22, ptr %57, align 1
-  %58 = getelementptr i8, ptr %57, i64 8
-  %59 = load i64, ptr %24, align 8
-  store i64 %59, ptr %58, align 8
-  %60 = getelementptr i8, ptr %57, i64 16
-  %61 = load i64, ptr %29, align 8
-  store i64 %61, ptr %60, align 8
-  %62 = getelementptr i8, ptr %57, i64 24
-  %63 = load i64, ptr %55, align 8
-  store i64 %63, ptr %62, align 8
+  %55 = getelementptr i8, ptr %21, i64 16
+  %56 = getelementptr i8, ptr %21, i64 24
+  store i64 %.0337, ptr %56, align 8
+  %57 = load ptr, ptr %1, align 8
+  %58 = getelementptr %Entry, ptr %57, i64 %.039
+  store i8 %22, ptr %58, align 1
+  %59 = getelementptr i8, ptr %58, i64 8
+  %60 = load i64, ptr %24, align 8
+  store i64 %60, ptr %59, align 8
+  %61 = getelementptr i8, ptr %58, i64 16
+  %62 = load i64, ptr %55, align 8
+  store i64 %62, ptr %61, align 8
+  %63 = getelementptr i8, ptr %58, i64 24
+  %64 = load i64, ptr %56, align 8
+  store i64 %64, ptr %63, align 8
   br label %common.ret
 
-64:                                               ; preds = %.lr.ph
+65:                                               ; preds = %.lr.ph
   tail call void @llvm.memset.p0.i64(ptr noundef nonnull align 8 dereferenceable(24) %24, i8 0, i64 24, i1 false)
-  %65 = load ptr, ptr %1, align 8
-  %66 = getelementptr %Entry, ptr %65, i64 %.039
-  %67 = getelementptr i8, ptr %66, i64 8
-  %68 = getelementptr i8, ptr %66, i64 16
-  %69 = getelementptr i8, ptr %66, i64 24
-  store i8 1, ptr %66, align 1
-  store i64 %.0238, ptr %67, align 8
-  store i64 %.01634, ptr %68, align 8
-  store i64 %.0337, ptr %69, align 8
-  %70 = getelementptr i8, ptr %0, i64 8
-  %71 = load i64, ptr %70, align 8
-  %72 = add i64 %71, 1
-  store i64 %72, ptr %70, align 8
+  %66 = load ptr, ptr %1, align 8
+  %67 = getelementptr %Entry, ptr %66, i64 %.039
+  %68 = getelementptr i8, ptr %67, i64 8
+  %69 = getelementptr i8, ptr %67, i64 16
+  %70 = getelementptr i8, ptr %67, i64 24
+  store i8 1, ptr %67, align 1
+  store i64 %.0238, ptr %68, align 8
+  store i64 %.01634, ptr %69, align 8
+  store i64 %.0337, ptr %70, align 8
+  %71 = getelementptr i8, ptr %0, i64 8
+  %72 = load i64, ptr %71, align 8
+  %73 = add i64 %72, 1
+  store i64 %73, ptr %71, align 8
   br label %common.ret
 
 ._crit_edge:                                      ; preds = %49, %4
-  %73 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_6)
+  %74 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_6)
   tail call void @llvm.trap()
   unreachable
 }
@@ -1243,64 +1310,96 @@ define void @rl_m_append__VectorTint8_tT_int8_t(ptr nocapture %0, ptr nocapture 
 .preheader2.i:                                    ; preds = %.lr.ph.preheader.i, %9
   %14 = icmp sgt i64 %4, 0
   %.pre.i = load ptr, ptr %0, align 8
-  br i1 %14, label %.lr.ph5.i.preheader, label %.preheader.i
+  br i1 %14, label %iter.check, label %.preheader.i
 
-.lr.ph5.i.preheader:                              ; preds = %.preheader2.i
+iter.check:                                       ; preds = %.preheader2.i
   %.pre.i3 = ptrtoint ptr %.pre.i to i64
-  %min.iters.check = icmp ult i64 %4, 4
+  %min.iters.check = icmp ult i64 %4, 8
   %15 = sub i64 %12, %.pre.i3
-  %diff.check = icmp ult i64 %15, 4
+  %diff.check = icmp ult i64 %15, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.preheader4, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.preheader4:                             ; preds = %middle.block, %.lr.ph5.i.preheader
-  %.14.i.ph = phi i64 [ 0, %.lr.ph5.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check4 = icmp ult i64 %4, 32
+  br i1 %min.iters.check4, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.preheader
-  %n.vec = and i64 %4, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %4, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %16 = getelementptr i8, ptr %11, i64 %index
   %17 = getelementptr i8, ptr %.pre.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %17, align 1
-  store <4 x i8> %wide.load, ptr %16, align 1
-  %index.next = add nuw i64 %index, 4
-  %18 = icmp eq i64 %index.next, %n.vec
-  br i1 %18, label %middle.block, label %vector.body, !llvm.loop !1
+  %18 = getelementptr i8, ptr %17, i64 16
+  %wide.load = load <16 x i8>, ptr %17, align 1
+  %wide.load5 = load <16 x i8>, ptr %18, align 1
+  %19 = getelementptr i8, ptr %16, i64 16
+  store <16 x i8> %wide.load, ptr %16, align 1
+  store <16 x i8> %wide.load5, ptr %19, align 1
+  %index.next = add nuw i64 %index, 32
+  %20 = icmp eq i64 %index.next, %n.vec
+  br i1 %20, label %middle.block, label %vector.body, !llvm.loop !7
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %4, %n.vec
-  br i1 %cmp.n, label %.preheader.i, label %.lr.ph5.i.preheader4
+  br i1 %cmp.n, label %.preheader.i, label %vec.epilog.iter.check
 
-.preheader.i:                                     ; preds = %.lr.ph5.i, %middle.block, %.preheader2.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %4, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.preheader:                              ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec7, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec7 = and i64 %4, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index8 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next10, %vec.epilog.vector.body ]
+  %21 = getelementptr i8, ptr %11, i64 %index8
+  %22 = getelementptr i8, ptr %.pre.i, i64 %index8
+  %wide.load9 = load <8 x i8>, ptr %22, align 1
+  store <8 x i8> %wide.load9, ptr %21, align 1
+  %index.next10 = add nuw i64 %index8, 8
+  %23 = icmp eq i64 %index.next10, %n.vec7
+  br i1 %23, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !8
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n11 = icmp eq i64 %4, %n.vec7
+  br i1 %cmp.n11, label %.preheader.i, label %.lr.ph5.i.preheader
+
+.preheader.i:                                     ; preds = %.lr.ph5.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i
   tail call void @free(ptr %.pre.i)
   store i64 %10, ptr %6, align 8
   store ptr %11, ptr %0, align 8
   %.pre = load i64, ptr %3, align 8
   br label %rl_m__grow__VectorTint8_tT_int64_t.exit
 
-.lr.ph5.i:                                        ; preds = %.lr.ph5.i.preheader4, %.lr.ph5.i
-  %.14.i = phi i64 [ %22, %.lr.ph5.i ], [ %.14.i.ph, %.lr.ph5.i.preheader4 ]
-  %19 = getelementptr i8, ptr %11, i64 %.14.i
-  %20 = getelementptr i8, ptr %.pre.i, i64 %.14.i
-  %21 = load i8, ptr %20, align 1
-  store i8 %21, ptr %19, align 1
-  %22 = add nuw nsw i64 %.14.i, 1
-  %23 = icmp slt i64 %22, %4
-  br i1 %23, label %.lr.ph5.i, label %.preheader.i, !llvm.loop !4
+.lr.ph5.i:                                        ; preds = %.lr.ph5.i.preheader, %.lr.ph5.i
+  %.14.i = phi i64 [ %27, %.lr.ph5.i ], [ %.14.i.ph, %.lr.ph5.i.preheader ]
+  %24 = getelementptr i8, ptr %11, i64 %.14.i
+  %25 = getelementptr i8, ptr %.pre.i, i64 %.14.i
+  %26 = load i8, ptr %25, align 1
+  store i8 %26, ptr %24, align 1
+  %27 = add nuw nsw i64 %.14.i, 1
+  %28 = icmp slt i64 %27, %4
+  br i1 %28, label %.lr.ph5.i, label %.preheader.i, !llvm.loop !9
 
 rl_m__grow__VectorTint8_tT_int64_t.exit:          ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge, %.preheader.i
-  %24 = phi ptr [ %.pre2, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge ], [ %11, %.preheader.i ]
-  %25 = phi i64 [ %4, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge ], [ %.pre, %.preheader.i ]
-  %26 = getelementptr i8, ptr %24, i64 %25
-  %27 = load i8, ptr %1, align 1
-  store i8 %27, ptr %26, align 1
-  %28 = load i64, ptr %3, align 8
-  %29 = add i64 %28, 1
-  store i64 %29, ptr %3, align 8
+  %29 = phi ptr [ %.pre2, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge ], [ %11, %.preheader.i ]
+  %30 = phi i64 [ %4, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge ], [ %.pre, %.preheader.i ]
+  %31 = getelementptr i8, ptr %29, i64 %30
+  %32 = load i8, ptr %1, align 1
+  store i8 %32, ptr %31, align 1
+  %33 = load i64, ptr %3, align 8
+  %34 = add i64 %33, 1
+  store i64 %34, ptr %3, align 8
   ret void
 }
 
@@ -1321,46 +1420,81 @@ define void @rl_m_append__VectorTint64_tT_int64_t(ptr nocapture %0, ptr nocaptur
 9:                                                ; preds = %2
   %10 = shl i64 %5, 4
   %11 = tail call ptr @malloc(i64 %10)
-  %12 = trunc i64 %5 to i63
-  %13 = icmp sgt i63 %12, 0
-  br i1 %13, label %.lr.ph.preheader.i, label %.preheader2.i
+  %12 = ptrtoint ptr %11 to i64
+  %13 = trunc i64 %5 to i63
+  %14 = icmp sgt i63 %13, 0
+  br i1 %14, label %.lr.ph.preheader.i, label %.preheader2.i
 
 .lr.ph.preheader.i:                               ; preds = %9
   tail call void @llvm.memset.p0.i64(ptr align 8 %11, i8 0, i64 %10, i1 false)
   br label %.preheader2.i
 
 .preheader2.i:                                    ; preds = %.lr.ph.preheader.i, %9
-  %14 = icmp sgt i64 %4, 0
+  %15 = icmp sgt i64 %4, 0
   %.pre.i = load ptr, ptr %0, align 8
-  br i1 %14, label %.lr.ph5.i, label %.preheader.i
+  br i1 %15, label %.lr.ph5.i.preheader, label %.preheader.i
 
-.preheader.i:                                     ; preds = %.lr.ph5.i, %.preheader2.i
+.lr.ph5.i.preheader:                              ; preds = %.preheader2.i
+  %.pre.i3 = ptrtoint ptr %.pre.i to i64
+  %min.iters.check = icmp ult i64 %4, 6
+  %16 = sub i64 %12, %.pre.i3
+  %diff.check = icmp ult i64 %16, 32
+  %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
+  br i1 %or.cond, label %.lr.ph5.i.preheader5, label %vector.ph
+
+.lr.ph5.i.preheader5:                             ; preds = %middle.block, %.lr.ph5.i.preheader
+  %.14.i.ph = phi i64 [ 0, %.lr.ph5.i.preheader ], [ %n.vec, %middle.block ]
+  br label %.lr.ph5.i
+
+vector.ph:                                        ; preds = %.lr.ph5.i.preheader
+  %n.vec = and i64 %4, 9223372036854775804
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %17 = getelementptr i64, ptr %11, i64 %index
+  %18 = getelementptr i64, ptr %.pre.i, i64 %index
+  %19 = getelementptr i8, ptr %18, i64 16
+  %wide.load = load <2 x i64>, ptr %18, align 8
+  %wide.load4 = load <2 x i64>, ptr %19, align 8
+  %20 = getelementptr i8, ptr %17, i64 16
+  store <2 x i64> %wide.load, ptr %17, align 8
+  store <2 x i64> %wide.load4, ptr %20, align 8
+  %index.next = add nuw i64 %index, 4
+  %21 = icmp eq i64 %index.next, %n.vec
+  br i1 %21, label %middle.block, label %vector.body, !llvm.loop !10
+
+middle.block:                                     ; preds = %vector.body
+  %cmp.n = icmp eq i64 %4, %n.vec
+  br i1 %cmp.n, label %.preheader.i, label %.lr.ph5.i.preheader5
+
+.preheader.i:                                     ; preds = %.lr.ph5.i, %middle.block, %.preheader2.i
   tail call void @free(ptr %.pre.i)
-  %15 = shl i64 %5, 1
-  store i64 %15, ptr %6, align 8
+  %22 = shl i64 %5, 1
+  store i64 %22, ptr %6, align 8
   store ptr %11, ptr %0, align 8
   %.pre = load i64, ptr %3, align 8
   br label %rl_m__grow__VectorTint64_tT_int64_t.exit
 
-.lr.ph5.i:                                        ; preds = %.preheader2.i, %.lr.ph5.i
-  %.14.i = phi i64 [ %19, %.lr.ph5.i ], [ 0, %.preheader2.i ]
-  %16 = getelementptr i64, ptr %11, i64 %.14.i
-  %17 = getelementptr i64, ptr %.pre.i, i64 %.14.i
-  %18 = load i64, ptr %17, align 8
-  store i64 %18, ptr %16, align 8
-  %19 = add nuw nsw i64 %.14.i, 1
-  %20 = icmp slt i64 %19, %4
-  br i1 %20, label %.lr.ph5.i, label %.preheader.i
+.lr.ph5.i:                                        ; preds = %.lr.ph5.i.preheader5, %.lr.ph5.i
+  %.14.i = phi i64 [ %26, %.lr.ph5.i ], [ %.14.i.ph, %.lr.ph5.i.preheader5 ]
+  %23 = getelementptr i64, ptr %11, i64 %.14.i
+  %24 = getelementptr i64, ptr %.pre.i, i64 %.14.i
+  %25 = load i64, ptr %24, align 8
+  store i64 %25, ptr %23, align 8
+  %26 = add nuw nsw i64 %.14.i, 1
+  %27 = icmp slt i64 %26, %4
+  br i1 %27, label %.lr.ph5.i, label %.preheader.i, !llvm.loop !11
 
 rl_m__grow__VectorTint64_tT_int64_t.exit:         ; preds = %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge, %.preheader.i
-  %21 = phi ptr [ %.pre2, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge ], [ %11, %.preheader.i ]
-  %22 = phi i64 [ %4, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge ], [ %.pre, %.preheader.i ]
-  %23 = getelementptr i64, ptr %21, i64 %22
-  %24 = load i64, ptr %1, align 8
-  store i64 %24, ptr %23, align 8
-  %25 = load i64, ptr %3, align 8
-  %26 = add i64 %25, 1
-  store i64 %26, ptr %3, align 8
+  %28 = phi ptr [ %.pre2, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge ], [ %11, %.preheader.i ]
+  %29 = phi i64 [ %4, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge ], [ %.pre, %.preheader.i ]
+  %30 = getelementptr i64, ptr %28, i64 %29
+  %31 = load i64, ptr %1, align 8
+  store i64 %31, ptr %30, align 8
+  %32 = load i64, ptr %3, align 8
+  %33 = add i64 %32, 1
+  store i64 %33, ptr %3, align 8
   ret void
 }
 
@@ -1483,8 +1617,8 @@ rl_m_init__VectorTint8_tT.exit.preheader:         ; preds = %.lr.ph.i
   br label %rl_m_get__VectorTint8_tT_int64_t_r_int8_tRef.exit
 
 rl_m_get__VectorTint8_tT_int64_t_r_int8_tRef.exit: ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit, %.lr.ph.preheader
-  %17 = phi i64 [ %43, %rl_m_append__VectorTint8_tT_int8_t.exit ], [ %.pr, %.lr.ph.preheader ]
-  %storemerge2 = phi i64 [ %44, %rl_m_append__VectorTint8_tT_int8_t.exit ], [ 0, %.lr.ph.preheader ]
+  %17 = phi i64 [ %48, %rl_m_append__VectorTint8_tT_int8_t.exit ], [ %.pr, %.lr.ph.preheader ]
+  %storemerge2 = phi i64 [ %49, %rl_m_append__VectorTint8_tT_int8_t.exit ], [ 0, %.lr.ph.preheader ]
   %18 = load ptr, ptr %1, align 8
   %19 = getelementptr i8, ptr %18, i64 %storemerge2
   %20 = add i64 %17, 1
@@ -1510,68 +1644,100 @@ rl_m_get__VectorTint8_tT_int64_t_r_int8_tRef.exit: ; preds = %rl_m_append__Vecto
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %23
   %28 = icmp sgt i64 %17, 0
   %.pre.i.i = load ptr, ptr %0, align 8
-  br i1 %28, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
+  br i1 %28, label %iter.check, label %.preheader.i.i
 
-.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+iter.check:                                       ; preds = %.preheader2.i.i
   %.pre.i.i3 = ptrtoint ptr %.pre.i.i to i64
-  %min.iters.check = icmp ult i64 %17, 4
+  %min.iters.check = icmp ult i64 %17, 8
   %29 = sub i64 %26, %.pre.i.i3
-  %diff.check = icmp ult i64 %29, 4
+  %diff.check = icmp ult i64 %29, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.preheader4, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.preheader4:                           ; preds = %middle.block, %.lr.ph5.i.i.preheader
-  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check4 = icmp ult i64 %17, 32
+  br i1 %min.iters.check4, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
-  %n.vec = and i64 %17, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %17, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %30 = getelementptr i8, ptr %25, i64 %index
   %31 = getelementptr i8, ptr %.pre.i.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %31, align 1
-  store <4 x i8> %wide.load, ptr %30, align 1
-  %index.next = add nuw i64 %index, 4
-  %32 = icmp eq i64 %index.next, %n.vec
-  br i1 %32, label %middle.block, label %vector.body, !llvm.loop !5
+  %32 = getelementptr i8, ptr %31, i64 16
+  %wide.load = load <16 x i8>, ptr %31, align 1
+  %wide.load5 = load <16 x i8>, ptr %32, align 1
+  %33 = getelementptr i8, ptr %30, i64 16
+  store <16 x i8> %wide.load, ptr %30, align 1
+  store <16 x i8> %wide.load5, ptr %33, align 1
+  %index.next = add nuw i64 %index, 32
+  %34 = icmp eq i64 %index.next, %n.vec
+  br i1 %34, label %middle.block, label %vector.body, !llvm.loop !12
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %17, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader4
+  br i1 %cmp.n, label %.preheader.i.i, label %vec.epilog.iter.check
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %17, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.preheader:                            ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec7, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec7 = and i64 %17, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index8 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next10, %vec.epilog.vector.body ]
+  %35 = getelementptr i8, ptr %25, i64 %index8
+  %36 = getelementptr i8, ptr %.pre.i.i, i64 %index8
+  %wide.load9 = load <8 x i8>, ptr %36, align 1
+  store <8 x i8> %wide.load9, ptr %35, align 1
+  %index.next10 = add nuw i64 %index8, 8
+  %37 = icmp eq i64 %index.next10, %n.vec7
+  br i1 %37, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !13
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n11 = icmp eq i64 %17, %n.vec7
+  br i1 %cmp.n11, label %.preheader.i.i, label %.lr.ph5.i.i.preheader
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre.i.i)
   store i64 %24, ptr %3, align 8
   store ptr %25, ptr %0, align 8
   %.pre.i = load i64, ptr %7, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader4, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %36, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader4 ]
-  %33 = getelementptr i8, ptr %25, i64 %.14.i.i
-  %34 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
-  %35 = load i8, ptr %34, align 1
-  store i8 %35, ptr %33, align 1
-  %36 = add nuw nsw i64 %.14.i.i, 1
-  %37 = icmp slt i64 %36, %17
-  br i1 %37, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !6
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %41, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader ]
+  %38 = getelementptr i8, ptr %25, i64 %.14.i.i
+  %39 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
+  %40 = load i8, ptr %39, align 1
+  store i8 %40, ptr %38, align 1
+  %41 = add nuw nsw i64 %.14.i.i, 1
+  %42 = icmp slt i64 %41, %17
+  br i1 %42, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !14
 
 rl_m_append__VectorTint8_tT_int8_t.exit:          ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i, %.preheader.i.i
-  %38 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %25, %.preheader.i.i ]
-  %39 = phi i64 [ %17, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
-  %40 = getelementptr i8, ptr %38, i64 %39
-  %41 = load i8, ptr %19, align 1
-  store i8 %41, ptr %40, align 1
-  %42 = load i64, ptr %7, align 8
-  %43 = add i64 %42, 1
-  store i64 %43, ptr %7, align 8
-  %44 = add nuw nsw i64 %storemerge2, 1
-  %45 = load i64, ptr %14, align 8
-  %46 = icmp slt i64 %44, %45
-  br i1 %46, label %rl_m_get__VectorTint8_tT_int64_t_r_int8_tRef.exit, label %rl_m_init__VectorTint8_tT.exit._crit_edge
+  %43 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %25, %.preheader.i.i ]
+  %44 = phi i64 [ %17, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
+  %45 = getelementptr i8, ptr %43, i64 %44
+  %46 = load i8, ptr %19, align 1
+  store i8 %46, ptr %45, align 1
+  %47 = load i64, ptr %7, align 8
+  %48 = add i64 %47, 1
+  store i64 %48, ptr %7, align 8
+  %49 = add nuw nsw i64 %storemerge2, 1
+  %50 = load i64, ptr %14, align 8
+  %51 = icmp slt i64 %49, %50
+  br i1 %51, label %rl_m_get__VectorTint8_tT_int64_t_r_int8_tRef.exit, label %rl_m_init__VectorTint8_tT.exit._crit_edge
 
 rl_m_init__VectorTint8_tT.exit._crit_edge:        ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit, %rl_m_init__VectorTint8_tT.exit.preheader
   ret void
@@ -1618,8 +1784,8 @@ rl_m_init__VectorTint64_tT.exit.preheader:        ; preds = %.lr.ph.i
   br label %rl_m_get__VectorTint64_tT_int64_t_r_int64_tRef.exit
 
 rl_m_get__VectorTint64_tT_int64_t_r_int64_tRef.exit: ; preds = %rl_m_append__VectorTint64_tT_int64_t.exit, %.lr.ph.preheader
-  %17 = phi i64 [ %40, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.pr, %.lr.ph.preheader ]
-  %storemerge2 = phi i64 [ %41, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ 0, %.lr.ph.preheader ]
+  %17 = phi i64 [ %47, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ %.pr, %.lr.ph.preheader ]
+  %storemerge2 = phi i64 [ %48, %rl_m_append__VectorTint64_tT_int64_t.exit ], [ 0, %.lr.ph.preheader ]
   %18 = load ptr, ptr %1, align 8
   %19 = getelementptr i64, ptr %18, i64 %storemerge2
   %20 = add i64 %17, 1
@@ -1634,50 +1800,85 @@ rl_m_get__VectorTint64_tT_int64_t_r_int64_tRef.exit: ; preds = %rl_m_append__Vec
 23:                                               ; preds = %rl_m_get__VectorTint64_tT_int64_t_r_int64_tRef.exit
   %24 = shl i64 %20, 4
   %25 = tail call ptr @malloc(i64 %24)
-  %26 = trunc i64 %20 to i63
-  %27 = icmp sgt i63 %26, 0
-  br i1 %27, label %.lr.ph.preheader.i.i, label %.preheader2.i.i
+  %26 = ptrtoint ptr %25 to i64
+  %27 = trunc i64 %20 to i63
+  %28 = icmp sgt i63 %27, 0
+  br i1 %28, label %.lr.ph.preheader.i.i, label %.preheader2.i.i
 
 .lr.ph.preheader.i.i:                             ; preds = %23
   tail call void @llvm.memset.p0.i64(ptr align 8 %25, i8 0, i64 %24, i1 false)
   br label %.preheader2.i.i
 
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %23
-  %28 = icmp sgt i64 %17, 0
+  %29 = icmp sgt i64 %17, 0
   %.pre.i.i = load ptr, ptr %0, align 8
-  br i1 %28, label %.lr.ph5.i.i, label %.preheader.i.i
+  br i1 %29, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %.preheader2.i.i
+.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+  %.pre.i.i3 = ptrtoint ptr %.pre.i.i to i64
+  %min.iters.check = icmp ult i64 %17, 4
+  %30 = sub i64 %26, %.pre.i.i3
+  %diff.check = icmp ult i64 %30, 32
+  %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader5, label %vector.ph
+
+.lr.ph5.i.i.preheader5:                           ; preds = %middle.block, %.lr.ph5.i.i.preheader
+  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
+  br label %.lr.ph5.i.i
+
+vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
+  %n.vec = and i64 %17, 9223372036854775804
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %31 = getelementptr i64, ptr %25, i64 %index
+  %32 = getelementptr i64, ptr %.pre.i.i, i64 %index
+  %33 = getelementptr i8, ptr %32, i64 16
+  %wide.load = load <2 x i64>, ptr %32, align 8
+  %wide.load4 = load <2 x i64>, ptr %33, align 8
+  %34 = getelementptr i8, ptr %31, i64 16
+  store <2 x i64> %wide.load, ptr %31, align 8
+  store <2 x i64> %wide.load4, ptr %34, align 8
+  %index.next = add nuw i64 %index, 4
+  %35 = icmp eq i64 %index.next, %n.vec
+  br i1 %35, label %middle.block, label %vector.body, !llvm.loop !15
+
+middle.block:                                     ; preds = %vector.body
+  %cmp.n = icmp eq i64 %17, %n.vec
+  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader5
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre.i.i)
-  %29 = shl i64 %20, 1
-  store i64 %29, ptr %3, align 8
+  %36 = shl i64 %20, 1
+  store i64 %36, ptr %3, align 8
   store ptr %25, ptr %0, align 8
   %.pre.i = load i64, ptr %7, align 8
   br label %rl_m_append__VectorTint64_tT_int64_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.preheader2.i.i, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %33, %.lr.ph5.i.i ], [ 0, %.preheader2.i.i ]
-  %30 = getelementptr i64, ptr %25, i64 %.14.i.i
-  %31 = getelementptr i64, ptr %.pre.i.i, i64 %.14.i.i
-  %32 = load i64, ptr %31, align 8
-  store i64 %32, ptr %30, align 8
-  %33 = add nuw nsw i64 %.14.i.i, 1
-  %34 = icmp slt i64 %33, %17
-  br i1 %34, label %.lr.ph5.i.i, label %.preheader.i.i
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader5, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %40, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader5 ]
+  %37 = getelementptr i64, ptr %25, i64 %.14.i.i
+  %38 = getelementptr i64, ptr %.pre.i.i, i64 %.14.i.i
+  %39 = load i64, ptr %38, align 8
+  store i64 %39, ptr %37, align 8
+  %40 = add nuw nsw i64 %.14.i.i, 1
+  %41 = icmp slt i64 %40, %17
+  br i1 %41, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !16
 
 rl_m_append__VectorTint64_tT_int64_t.exit:        ; preds = %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge.i, %.preheader.i.i
-  %35 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge.i ], [ %25, %.preheader.i.i ]
-  %36 = phi i64 [ %17, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
-  %37 = getelementptr i64, ptr %35, i64 %36
-  %38 = load i64, ptr %19, align 8
-  store i64 %38, ptr %37, align 8
-  %39 = load i64, ptr %7, align 8
-  %40 = add i64 %39, 1
-  store i64 %40, ptr %7, align 8
-  %41 = add nuw nsw i64 %storemerge2, 1
-  %42 = load i64, ptr %14, align 8
-  %43 = icmp slt i64 %41, %42
-  br i1 %43, label %rl_m_get__VectorTint64_tT_int64_t_r_int64_tRef.exit, label %rl_m_init__VectorTint64_tT.exit._crit_edge
+  %42 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge.i ], [ %25, %.preheader.i.i ]
+  %43 = phi i64 [ %17, %.rl_m__grow__VectorTint64_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
+  %44 = getelementptr i64, ptr %42, i64 %43
+  %45 = load i64, ptr %19, align 8
+  store i64 %45, ptr %44, align 8
+  %46 = load i64, ptr %7, align 8
+  %47 = add i64 %46, 1
+  store i64 %47, ptr %7, align 8
+  %48 = add nuw nsw i64 %storemerge2, 1
+  %49 = load i64, ptr %14, align 8
+  %50 = icmp slt i64 %48, %49
+  br i1 %50, label %rl_m_get__VectorTint64_tT_int64_t_r_int64_tRef.exit, label %rl_m_init__VectorTint64_tT.exit._crit_edge
 
 rl_m_init__VectorTint64_tT.exit._crit_edge:       ; preds = %rl_m_append__VectorTint64_tT_int64_t.exit, %rl_m_init__VectorTint64_tT.exit.preheader
   ret void
@@ -1790,10 +1991,10 @@ rl_m_init__String.exit:
   %13 = icmp sgt i64 %12, 0
   br i1 %13, label %.lr.ph, label %.critedge
 
-.lr.ph:                                           ; preds = %rl_m_init__String.exit, %233
-  %14 = phi i64 [ %235, %233 ], [ %11, %rl_m_init__String.exit ]
-  %.0149 = phi i64 [ %234, %233 ], [ 0, %rl_m_init__String.exit ]
-  %.0140148 = phi i64 [ %.1141, %233 ], [ 0, %rl_m_init__String.exit ]
+.lr.ph:                                           ; preds = %rl_m_init__String.exit, %268
+  %14 = phi i64 [ %270, %268 ], [ %11, %rl_m_init__String.exit ]
+  %.0149 = phi i64 [ %269, %268 ], [ 0, %rl_m_init__String.exit ]
+  %.0140148 = phi i64 [ %.1141, %268 ], [ 0, %rl_m_init__String.exit ]
   %15 = icmp sgt i64 %.0149, -1
   br i1 %15, label %18, label %16
 
@@ -1851,684 +2052,908 @@ rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i:     ; preds = %rl_m_get__String_in
   %38 = tail call ptr @malloc(i64 %37)
   %39 = ptrtoint ptr %38 to i64
   %40 = icmp sgt i64 %37, 0
-  br i1 %40, label %.lr.ph.preheader.i.i.i12, label %.lr.ph5.i.i.i10.preheader
+  br i1 %40, label %.lr.ph.preheader.i.i.i12, label %iter.check
 
 .lr.ph.preheader.i.i.i12:                         ; preds = %36
   tail call void @llvm.memset.p0.i64(ptr align 1 %38, i8 0, i64 %37, i1 false)
-  br label %.lr.ph5.i.i.i10.preheader
+  br label %iter.check
 
-.lr.ph5.i.i.i10.preheader:                        ; preds = %36, %.lr.ph.preheader.i.i.i12
+iter.check:                                       ; preds = %36, %.lr.ph.preheader.i.i.i12
   %smax = tail call i64 @llvm.smax.i64(i64 %25, i64 1)
-  %min.iters.check = icmp slt i64 %25, 4
+  %min.iters.check = icmp slt i64 %25, 8
   %41 = sub i64 %39, %30
-  %diff.check = icmp ult i64 %41, 4
+  %diff.check = icmp ult i64 %41, 32
   %or.cond = or i1 %min.iters.check, %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.i10.preheader249, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.i10.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.i10.preheader249:                     ; preds = %middle.block, %.lr.ph5.i.i.i10.preheader
-  %.14.i.i.i11.ph = phi i64 [ 0, %.lr.ph5.i.i.i10.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i.i10
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check152 = icmp slt i64 %25, 32
+  br i1 %min.iters.check152, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.i10.preheader
-  %n.vec = and i64 %smax, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %smax, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %42 = getelementptr i8, ptr %38, i64 %index
   %43 = getelementptr i8, ptr %29, i64 %index
-  %wide.load = load <4 x i8>, ptr %43, align 1
-  store <4 x i8> %wide.load, ptr %42, align 1
-  %index.next = add nuw i64 %index, 4
-  %44 = icmp eq i64 %index.next, %n.vec
-  br i1 %44, label %middle.block, label %vector.body, !llvm.loop !7
+  %44 = getelementptr i8, ptr %43, i64 16
+  %wide.load = load <16 x i8>, ptr %43, align 1
+  %wide.load153 = load <16 x i8>, ptr %44, align 1
+  %45 = getelementptr i8, ptr %42, i64 16
+  store <16 x i8> %wide.load, ptr %42, align 1
+  store <16 x i8> %wide.load153, ptr %45, align 1
+  %index.next = add nuw i64 %index, 32
+  %46 = icmp eq i64 %index.next, %n.vec
+  br i1 %46, label %middle.block, label %vector.body, !llvm.loop !17
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %smax, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i.i8, label %.lr.ph5.i.i.i10.preheader249
+  br i1 %cmp.n, label %.preheader.i.i.i8, label %vec.epilog.iter.check
 
-.preheader.i.i.i8:                                ; preds = %.lr.ph5.i.i.i10, %middle.block
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %smax, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.i10.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.i10.preheader:                        ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.i11.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec155, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i.i10
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec155 = and i64 %smax, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index156 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next158, %vec.epilog.vector.body ]
+  %47 = getelementptr i8, ptr %38, i64 %index156
+  %48 = getelementptr i8, ptr %29, i64 %index156
+  %wide.load157 = load <8 x i8>, ptr %48, align 1
+  store <8 x i8> %wide.load157, ptr %47, align 1
+  %index.next158 = add nuw i64 %index156, 8
+  %49 = icmp eq i64 %index.next158, %n.vec155
+  br i1 %49, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !18
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n159 = icmp eq i64 %smax, %n.vec155
+  br i1 %cmp.n159, label %.preheader.i.i.i8, label %.lr.ph5.i.i.i10.preheader
+
+.preheader.i.i.i8:                                ; preds = %.lr.ph5.i.i.i10, %vec.epilog.middle.block, %middle.block
   tail call void @free(ptr nonnull %29)
   store i64 %37, ptr %8, align 8
   store ptr %38, ptr %6, align 8
   br label %rl_m_append__String_int8_t.exit
 
-.lr.ph5.i.i.i10:                                  ; preds = %.lr.ph5.i.i.i10.preheader249, %.lr.ph5.i.i.i10
-  %.14.i.i.i11 = phi i64 [ %48, %.lr.ph5.i.i.i10 ], [ %.14.i.i.i11.ph, %.lr.ph5.i.i.i10.preheader249 ]
-  %45 = getelementptr i8, ptr %38, i64 %.14.i.i.i11
-  %46 = getelementptr i8, ptr %29, i64 %.14.i.i.i11
-  %47 = load i8, ptr %46, align 1
-  store i8 %47, ptr %45, align 1
-  %48 = add nuw nsw i64 %.14.i.i.i11, 1
-  %49 = icmp slt i64 %48, %25
-  br i1 %49, label %.lr.ph5.i.i.i10, label %.preheader.i.i.i8, !llvm.loop !8
+.lr.ph5.i.i.i10:                                  ; preds = %.lr.ph5.i.i.i10.preheader, %.lr.ph5.i.i.i10
+  %.14.i.i.i11 = phi i64 [ %53, %.lr.ph5.i.i.i10 ], [ %.14.i.i.i11.ph, %.lr.ph5.i.i.i10.preheader ]
+  %50 = getelementptr i8, ptr %38, i64 %.14.i.i.i11
+  %51 = getelementptr i8, ptr %29, i64 %.14.i.i.i11
+  %52 = load i8, ptr %51, align 1
+  store i8 %52, ptr %50, align 1
+  %53 = add nuw nsw i64 %.14.i.i.i11, 1
+  %54 = icmp slt i64 %53, %25
+  br i1 %54, label %.lr.ph5.i.i.i10, label %.preheader.i.i.i8, !llvm.loop !19
 
 rl_m_append__String_int8_t.exit:                  ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i, %.preheader.i.i.i8
-  %50 = phi ptr [ %38, %.preheader.i.i.i8 ], [ %29, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i ]
-  %51 = getelementptr i8, ptr %50, i64 %25
-  store i8 0, ptr %51, align 1
+  %55 = phi ptr [ %38, %.preheader.i.i.i8 ], [ %29, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i ]
+  %56 = getelementptr i8, ptr %55, i64 %25
+  store i8 0, ptr %56, align 1
   store i64 %33, ptr %7, align 8
-  br label %233
+  br label %268
 
 rl_m_get__String_int64_t_r_int8_tRef.exit15:      ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit
-  %52 = load i64, ptr %7, align 8
-  %53 = icmp sgt i64 %52, 0
-  br i1 %53, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16, label %54
+  %57 = load i64, ptr %7, align 8
+  %58 = icmp sgt i64 %57, 0
+  br i1 %58, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16, label %59
 
-54:                                               ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit15
-  %55 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
+59:                                               ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit15
+  %60 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16:   ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit15
-  %56 = load ptr, ptr %6, align 8
-  %57 = ptrtoint ptr %56 to i64
-  %58 = getelementptr i8, ptr %56, i64 %52
-  %59 = getelementptr i8, ptr %58, i64 -1
-  store i8 44, ptr %59, align 1
-  %60 = add nuw i64 %52, 1
-  %61 = load i64, ptr %8, align 8
-  %62 = icmp sgt i64 %61, %60
-  br i1 %62, label %rl_m_append__String_int8_t.exit26, label %63
+  %61 = load ptr, ptr %6, align 8
+  %62 = ptrtoint ptr %61 to i64
+  %63 = getelementptr i8, ptr %61, i64 %57
+  %64 = getelementptr i8, ptr %63, i64 -1
+  store i8 44, ptr %64, align 1
+  %65 = add nuw i64 %57, 1
+  %66 = load i64, ptr %8, align 8
+  %67 = icmp sgt i64 %66, %65
+  br i1 %67, label %rl_m_append__String_int8_t.exit26, label %68
 
-63:                                               ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16
-  %64 = shl i64 %60, 1
-  %65 = tail call ptr @malloc(i64 %64)
-  %66 = ptrtoint ptr %65 to i64
-  %67 = icmp sgt i64 %64, 0
-  br i1 %67, label %.lr.ph.preheader.i.i.i23, label %.lr.ph5.i.i.i21.preheader
+68:                                               ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16
+  %69 = shl i64 %65, 1
+  %70 = tail call ptr @malloc(i64 %69)
+  %71 = ptrtoint ptr %70 to i64
+  %72 = icmp sgt i64 %69, 0
+  br i1 %72, label %.lr.ph.preheader.i.i.i23, label %iter.check332
 
-.lr.ph.preheader.i.i.i23:                         ; preds = %63
-  tail call void @llvm.memset.p0.i64(ptr align 1 %65, i8 0, i64 %64, i1 false)
-  br label %.lr.ph5.i.i.i21.preheader
+.lr.ph.preheader.i.i.i23:                         ; preds = %68
+  tail call void @llvm.memset.p0.i64(ptr align 1 %70, i8 0, i64 %69, i1 false)
+  br label %iter.check332
 
-.lr.ph5.i.i.i21.preheader:                        ; preds = %63, %.lr.ph.preheader.i.i.i23
-  %smax230 = tail call i64 @llvm.smax.i64(i64 %52, i64 1)
-  %min.iters.check233 = icmp slt i64 %52, 4
-  %68 = sub i64 %66, %57
-  %diff.check229 = icmp ult i64 %68, 4
-  %or.cond243 = or i1 %min.iters.check233, %diff.check229
-  br i1 %or.cond243, label %.lr.ph5.i.i.i21.preheader254, label %vector.ph234
+iter.check332:                                    ; preds = %68, %.lr.ph.preheader.i.i.i23
+  %smax328 = tail call i64 @llvm.smax.i64(i64 %57, i64 1)
+  %min.iters.check330 = icmp slt i64 %57, 8
+  %73 = sub i64 %71, %62
+  %diff.check327 = icmp ult i64 %73, 32
+  %or.cond359 = or i1 %min.iters.check330, %diff.check327
+  br i1 %or.cond359, label %.lr.ph5.i.i.i21.preheader, label %vector.main.loop.iter.check334
 
-.lr.ph5.i.i.i21.preheader254:                     ; preds = %middle.block231, %.lr.ph5.i.i.i21.preheader
-  %.14.i.i.i22.ph = phi i64 [ 0, %.lr.ph5.i.i.i21.preheader ], [ %n.vec236, %middle.block231 ]
+vector.main.loop.iter.check334:                   ; preds = %iter.check332
+  %min.iters.check333 = icmp slt i64 %57, 32
+  br i1 %min.iters.check333, label %vec.epilog.ph346, label %vector.ph335
+
+vector.ph335:                                     ; preds = %vector.main.loop.iter.check334
+  %n.vec337 = and i64 %smax328, 9223372036854775776
+  br label %vector.body338
+
+vector.body338:                                   ; preds = %vector.body338, %vector.ph335
+  %index339 = phi i64 [ 0, %vector.ph335 ], [ %index.next342, %vector.body338 ]
+  %74 = getelementptr i8, ptr %70, i64 %index339
+  %75 = getelementptr i8, ptr %61, i64 %index339
+  %76 = getelementptr i8, ptr %75, i64 16
+  %wide.load340 = load <16 x i8>, ptr %75, align 1
+  %wide.load341 = load <16 x i8>, ptr %76, align 1
+  %77 = getelementptr i8, ptr %74, i64 16
+  store <16 x i8> %wide.load340, ptr %74, align 1
+  store <16 x i8> %wide.load341, ptr %77, align 1
+  %index.next342 = add nuw i64 %index339, 32
+  %78 = icmp eq i64 %index.next342, %n.vec337
+  br i1 %78, label %middle.block329, label %vector.body338, !llvm.loop !20
+
+middle.block329:                                  ; preds = %vector.body338
+  %cmp.n343 = icmp eq i64 %smax328, %n.vec337
+  br i1 %cmp.n343, label %.preheader.i.i.i19, label %vec.epilog.iter.check347
+
+vec.epilog.iter.check347:                         ; preds = %middle.block329
+  %n.vec.remaining348 = and i64 %smax328, 24
+  %min.epilog.iters.check349 = icmp eq i64 %n.vec.remaining348, 0
+  br i1 %min.epilog.iters.check349, label %.lr.ph5.i.i.i21.preheader, label %vec.epilog.ph346
+
+.lr.ph5.i.i.i21.preheader:                        ; preds = %vec.epilog.middle.block344, %iter.check332, %vec.epilog.iter.check347
+  %.14.i.i.i22.ph = phi i64 [ 0, %iter.check332 ], [ %n.vec337, %vec.epilog.iter.check347 ], [ %n.vec352, %vec.epilog.middle.block344 ]
   br label %.lr.ph5.i.i.i21
 
-vector.ph234:                                     ; preds = %.lr.ph5.i.i.i21.preheader
-  %n.vec236 = and i64 %smax230, 9223372036854775804
-  br label %vector.body238
+vec.epilog.ph346:                                 ; preds = %vector.main.loop.iter.check334, %vec.epilog.iter.check347
+  %vec.epilog.resume.val350 = phi i64 [ %n.vec337, %vec.epilog.iter.check347 ], [ 0, %vector.main.loop.iter.check334 ]
+  %n.vec352 = and i64 %smax328, 9223372036854775800
+  br label %vec.epilog.vector.body354
 
-vector.body238:                                   ; preds = %vector.body238, %vector.ph234
-  %index239 = phi i64 [ 0, %vector.ph234 ], [ %index.next241, %vector.body238 ]
-  %69 = getelementptr i8, ptr %65, i64 %index239
-  %70 = getelementptr i8, ptr %56, i64 %index239
-  %wide.load240 = load <4 x i8>, ptr %70, align 1
-  store <4 x i8> %wide.load240, ptr %69, align 1
-  %index.next241 = add nuw i64 %index239, 4
-  %71 = icmp eq i64 %index.next241, %n.vec236
-  br i1 %71, label %middle.block231, label %vector.body238, !llvm.loop !9
+vec.epilog.vector.body354:                        ; preds = %vec.epilog.vector.body354, %vec.epilog.ph346
+  %index355 = phi i64 [ %vec.epilog.resume.val350, %vec.epilog.ph346 ], [ %index.next357, %vec.epilog.vector.body354 ]
+  %79 = getelementptr i8, ptr %70, i64 %index355
+  %80 = getelementptr i8, ptr %61, i64 %index355
+  %wide.load356 = load <8 x i8>, ptr %80, align 1
+  store <8 x i8> %wide.load356, ptr %79, align 1
+  %index.next357 = add nuw i64 %index355, 8
+  %81 = icmp eq i64 %index.next357, %n.vec352
+  br i1 %81, label %vec.epilog.middle.block344, label %vec.epilog.vector.body354, !llvm.loop !21
 
-middle.block231:                                  ; preds = %vector.body238
-  %cmp.n242 = icmp eq i64 %smax230, %n.vec236
-  br i1 %cmp.n242, label %.preheader.i.i.i19, label %.lr.ph5.i.i.i21.preheader254
+vec.epilog.middle.block344:                       ; preds = %vec.epilog.vector.body354
+  %cmp.n358 = icmp eq i64 %smax328, %n.vec352
+  br i1 %cmp.n358, label %.preheader.i.i.i19, label %.lr.ph5.i.i.i21.preheader
 
-.preheader.i.i.i19:                               ; preds = %.lr.ph5.i.i.i21, %middle.block231
-  tail call void @free(ptr nonnull %56)
-  store i64 %64, ptr %8, align 8
-  store ptr %65, ptr %6, align 8
+.preheader.i.i.i19:                               ; preds = %.lr.ph5.i.i.i21, %vec.epilog.middle.block344, %middle.block329
+  tail call void @free(ptr nonnull %61)
+  store i64 %69, ptr %8, align 8
+  store ptr %70, ptr %6, align 8
   br label %rl_m_append__String_int8_t.exit26
 
-.lr.ph5.i.i.i21:                                  ; preds = %.lr.ph5.i.i.i21.preheader254, %.lr.ph5.i.i.i21
-  %.14.i.i.i22 = phi i64 [ %75, %.lr.ph5.i.i.i21 ], [ %.14.i.i.i22.ph, %.lr.ph5.i.i.i21.preheader254 ]
-  %72 = getelementptr i8, ptr %65, i64 %.14.i.i.i22
-  %73 = getelementptr i8, ptr %56, i64 %.14.i.i.i22
-  %74 = load i8, ptr %73, align 1
-  store i8 %74, ptr %72, align 1
-  %75 = add nuw nsw i64 %.14.i.i.i22, 1
-  %76 = icmp slt i64 %75, %52
-  br i1 %76, label %.lr.ph5.i.i.i21, label %.preheader.i.i.i19, !llvm.loop !10
+.lr.ph5.i.i.i21:                                  ; preds = %.lr.ph5.i.i.i21.preheader, %.lr.ph5.i.i.i21
+  %.14.i.i.i22 = phi i64 [ %85, %.lr.ph5.i.i.i21 ], [ %.14.i.i.i22.ph, %.lr.ph5.i.i.i21.preheader ]
+  %82 = getelementptr i8, ptr %70, i64 %.14.i.i.i22
+  %83 = getelementptr i8, ptr %61, i64 %.14.i.i.i22
+  %84 = load i8, ptr %83, align 1
+  store i8 %84, ptr %82, align 1
+  %85 = add nuw nsw i64 %.14.i.i.i22, 1
+  %86 = icmp slt i64 %85, %57
+  br i1 %86, label %.lr.ph5.i.i.i21, label %.preheader.i.i.i19, !llvm.loop !22
 
 rl_m_append__String_int8_t.exit26:                ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16, %.preheader.i.i.i19
-  %77 = phi i64 [ %64, %.preheader.i.i.i19 ], [ %61, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16 ]
-  %.pre2.i.i36 = phi ptr [ %65, %.preheader.i.i.i19 ], [ %56, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16 ]
-  %.pre2.i.i36213 = ptrtoint ptr %.pre2.i.i36 to i64
-  %78 = getelementptr i8, ptr %.pre2.i.i36, i64 %52
-  store i8 0, ptr %78, align 1
-  store i64 %60, ptr %7, align 8
-  %.not = icmp eq i64 %52, 9223372036854775807
-  br i1 %.not, label %79, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27
+  %87 = phi i64 [ %69, %.preheader.i.i.i19 ], [ %66, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16 ]
+  %.pre2.i.i36 = phi ptr [ %70, %.preheader.i.i.i19 ], [ %61, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i16 ]
+  %.pre2.i.i36293 = ptrtoint ptr %.pre2.i.i36 to i64
+  %88 = getelementptr i8, ptr %.pre2.i.i36, i64 %57
+  store i8 0, ptr %88, align 1
+  store i64 %65, ptr %7, align 8
+  %.not = icmp eq i64 %57, 9223372036854775807
+  br i1 %.not, label %89, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27
 
-79:                                               ; preds = %rl_m_append__String_int8_t.exit26
-  %80 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
+89:                                               ; preds = %rl_m_append__String_int8_t.exit26
+  %90 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27:   ; preds = %rl_m_append__String_int8_t.exit26
-  %81 = getelementptr i8, ptr %.pre2.i.i36, i64 %60
-  %82 = getelementptr i8, ptr %81, i64 -1
-  store i8 10, ptr %82, align 1
-  %83 = add nuw i64 %52, 2
-  %84 = icmp sgt i64 %77, %83
-  br i1 %84, label %rl_m_append__String_int8_t.exit37, label %85
+  %91 = getelementptr i8, ptr %.pre2.i.i36, i64 %65
+  %92 = getelementptr i8, ptr %91, i64 -1
+  store i8 10, ptr %92, align 1
+  %93 = add nuw i64 %57, 2
+  %94 = icmp sgt i64 %87, %93
+  br i1 %94, label %rl_m_append__String_int8_t.exit37, label %95
 
-85:                                               ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27
-  %86 = shl i64 %83, 1
-  %87 = tail call ptr @malloc(i64 %86)
-  %88 = ptrtoint ptr %87 to i64
-  %89 = icmp sgt i64 %86, 0
-  br i1 %89, label %.lr.ph.preheader.i.i.i34, label %.lr.ph5.i.i.i32.preheader
+95:                                               ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27
+  %96 = shl i64 %93, 1
+  %97 = tail call ptr @malloc(i64 %96)
+  %98 = ptrtoint ptr %97 to i64
+  %99 = icmp sgt i64 %96, 0
+  br i1 %99, label %.lr.ph.preheader.i.i.i34, label %iter.check299
 
-.lr.ph.preheader.i.i.i34:                         ; preds = %85
-  tail call void @llvm.memset.p0.i64(ptr align 1 %87, i8 0, i64 %86, i1 false)
-  br label %.lr.ph5.i.i.i32.preheader
+.lr.ph.preheader.i.i.i34:                         ; preds = %95
+  tail call void @llvm.memset.p0.i64(ptr align 1 %97, i8 0, i64 %96, i1 false)
+  br label %iter.check299
 
-.lr.ph5.i.i.i32.preheader:                        ; preds = %85, %.lr.ph.preheader.i.i.i34
-  %smax215 = tail call i64 @llvm.smax.i64(i64 %60, i64 1)
-  %min.iters.check218 = icmp slt i64 %60, 4
-  %90 = sub i64 %88, %.pre2.i.i36213
-  %diff.check214 = icmp ult i64 %90, 4
-  %or.cond244 = or i1 %min.iters.check218, %diff.check214
-  br i1 %or.cond244, label %.lr.ph5.i.i.i32.preheader253, label %vector.ph219
+iter.check299:                                    ; preds = %95, %.lr.ph.preheader.i.i.i34
+  %smax295 = tail call i64 @llvm.smax.i64(i64 %65, i64 1)
+  %min.iters.check297 = icmp slt i64 %65, 8
+  %100 = sub i64 %98, %.pre2.i.i36293
+  %diff.check294 = icmp ult i64 %100, 32
+  %or.cond360 = or i1 %min.iters.check297, %diff.check294
+  br i1 %or.cond360, label %.lr.ph5.i.i.i32.preheader, label %vector.main.loop.iter.check301
 
-.lr.ph5.i.i.i32.preheader253:                     ; preds = %middle.block216, %.lr.ph5.i.i.i32.preheader
-  %.14.i.i.i33.ph = phi i64 [ 0, %.lr.ph5.i.i.i32.preheader ], [ %n.vec221, %middle.block216 ]
+vector.main.loop.iter.check301:                   ; preds = %iter.check299
+  %min.iters.check300 = icmp slt i64 %65, 32
+  br i1 %min.iters.check300, label %vec.epilog.ph313, label %vector.ph302
+
+vector.ph302:                                     ; preds = %vector.main.loop.iter.check301
+  %n.vec304 = and i64 %smax295, 9223372036854775776
+  br label %vector.body305
+
+vector.body305:                                   ; preds = %vector.body305, %vector.ph302
+  %index306 = phi i64 [ 0, %vector.ph302 ], [ %index.next309, %vector.body305 ]
+  %101 = getelementptr i8, ptr %97, i64 %index306
+  %102 = getelementptr i8, ptr %.pre2.i.i36, i64 %index306
+  %103 = getelementptr i8, ptr %102, i64 16
+  %wide.load307 = load <16 x i8>, ptr %102, align 1
+  %wide.load308 = load <16 x i8>, ptr %103, align 1
+  %104 = getelementptr i8, ptr %101, i64 16
+  store <16 x i8> %wide.load307, ptr %101, align 1
+  store <16 x i8> %wide.load308, ptr %104, align 1
+  %index.next309 = add nuw i64 %index306, 32
+  %105 = icmp eq i64 %index.next309, %n.vec304
+  br i1 %105, label %middle.block296, label %vector.body305, !llvm.loop !23
+
+middle.block296:                                  ; preds = %vector.body305
+  %cmp.n310 = icmp eq i64 %smax295, %n.vec304
+  br i1 %cmp.n310, label %.preheader.i.i.i30, label %vec.epilog.iter.check314
+
+vec.epilog.iter.check314:                         ; preds = %middle.block296
+  %n.vec.remaining315 = and i64 %smax295, 24
+  %min.epilog.iters.check316 = icmp eq i64 %n.vec.remaining315, 0
+  br i1 %min.epilog.iters.check316, label %.lr.ph5.i.i.i32.preheader, label %vec.epilog.ph313
+
+.lr.ph5.i.i.i32.preheader:                        ; preds = %vec.epilog.middle.block311, %iter.check299, %vec.epilog.iter.check314
+  %.14.i.i.i33.ph = phi i64 [ 0, %iter.check299 ], [ %n.vec304, %vec.epilog.iter.check314 ], [ %n.vec319, %vec.epilog.middle.block311 ]
   br label %.lr.ph5.i.i.i32
 
-vector.ph219:                                     ; preds = %.lr.ph5.i.i.i32.preheader
-  %n.vec221 = and i64 %smax215, 9223372036854775804
-  br label %vector.body223
+vec.epilog.ph313:                                 ; preds = %vector.main.loop.iter.check301, %vec.epilog.iter.check314
+  %vec.epilog.resume.val317 = phi i64 [ %n.vec304, %vec.epilog.iter.check314 ], [ 0, %vector.main.loop.iter.check301 ]
+  %n.vec319 = and i64 %smax295, 9223372036854775800
+  br label %vec.epilog.vector.body321
 
-vector.body223:                                   ; preds = %vector.body223, %vector.ph219
-  %index224 = phi i64 [ 0, %vector.ph219 ], [ %index.next226, %vector.body223 ]
-  %91 = getelementptr i8, ptr %87, i64 %index224
-  %92 = getelementptr i8, ptr %.pre2.i.i36, i64 %index224
-  %wide.load225 = load <4 x i8>, ptr %92, align 1
-  store <4 x i8> %wide.load225, ptr %91, align 1
-  %index.next226 = add nuw i64 %index224, 4
-  %93 = icmp eq i64 %index.next226, %n.vec221
-  br i1 %93, label %middle.block216, label %vector.body223, !llvm.loop !11
+vec.epilog.vector.body321:                        ; preds = %vec.epilog.vector.body321, %vec.epilog.ph313
+  %index322 = phi i64 [ %vec.epilog.resume.val317, %vec.epilog.ph313 ], [ %index.next324, %vec.epilog.vector.body321 ]
+  %106 = getelementptr i8, ptr %97, i64 %index322
+  %107 = getelementptr i8, ptr %.pre2.i.i36, i64 %index322
+  %wide.load323 = load <8 x i8>, ptr %107, align 1
+  store <8 x i8> %wide.load323, ptr %106, align 1
+  %index.next324 = add nuw i64 %index322, 8
+  %108 = icmp eq i64 %index.next324, %n.vec319
+  br i1 %108, label %vec.epilog.middle.block311, label %vec.epilog.vector.body321, !llvm.loop !24
 
-middle.block216:                                  ; preds = %vector.body223
-  %cmp.n227 = icmp eq i64 %smax215, %n.vec221
-  br i1 %cmp.n227, label %.preheader.i.i.i30, label %.lr.ph5.i.i.i32.preheader253
+vec.epilog.middle.block311:                       ; preds = %vec.epilog.vector.body321
+  %cmp.n325 = icmp eq i64 %smax295, %n.vec319
+  br i1 %cmp.n325, label %.preheader.i.i.i30, label %.lr.ph5.i.i.i32.preheader
 
-.preheader.i.i.i30:                               ; preds = %.lr.ph5.i.i.i32, %middle.block216
+.preheader.i.i.i30:                               ; preds = %.lr.ph5.i.i.i32, %vec.epilog.middle.block311, %middle.block296
   tail call void @free(ptr nonnull %.pre2.i.i36)
-  store i64 %86, ptr %8, align 8
-  store ptr %87, ptr %6, align 8
+  store i64 %96, ptr %8, align 8
+  store ptr %97, ptr %6, align 8
   br label %rl_m_append__String_int8_t.exit37
 
-.lr.ph5.i.i.i32:                                  ; preds = %.lr.ph5.i.i.i32.preheader253, %.lr.ph5.i.i.i32
-  %.14.i.i.i33 = phi i64 [ %97, %.lr.ph5.i.i.i32 ], [ %.14.i.i.i33.ph, %.lr.ph5.i.i.i32.preheader253 ]
-  %94 = getelementptr i8, ptr %87, i64 %.14.i.i.i33
-  %95 = getelementptr i8, ptr %.pre2.i.i36, i64 %.14.i.i.i33
-  %96 = load i8, ptr %95, align 1
-  store i8 %96, ptr %94, align 1
-  %97 = add nuw nsw i64 %.14.i.i.i33, 1
-  %98 = icmp slt i64 %97, %60
-  br i1 %98, label %.lr.ph5.i.i.i32, label %.preheader.i.i.i30, !llvm.loop !12
+.lr.ph5.i.i.i32:                                  ; preds = %.lr.ph5.i.i.i32.preheader, %.lr.ph5.i.i.i32
+  %.14.i.i.i33 = phi i64 [ %112, %.lr.ph5.i.i.i32 ], [ %.14.i.i.i33.ph, %.lr.ph5.i.i.i32.preheader ]
+  %109 = getelementptr i8, ptr %97, i64 %.14.i.i.i33
+  %110 = getelementptr i8, ptr %.pre2.i.i36, i64 %.14.i.i.i33
+  %111 = load i8, ptr %110, align 1
+  store i8 %111, ptr %109, align 1
+  %112 = add nuw nsw i64 %.14.i.i.i33, 1
+  %113 = icmp slt i64 %112, %65
+  br i1 %113, label %.lr.ph5.i.i.i32, label %.preheader.i.i.i30, !llvm.loop !25
 
 rl_m_append__String_int8_t.exit37:                ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27, %.preheader.i.i.i30
-  %99 = phi ptr [ %87, %.preheader.i.i.i30 ], [ %.pre2.i.i36, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27 ]
-  %100 = getelementptr i8, ptr %99, i64 %60
-  store i8 0, ptr %100, align 1
-  %101 = load i64, ptr %7, align 8
-  %102 = add i64 %101, 1
-  store i64 %102, ptr %7, align 8
+  %114 = phi ptr [ %97, %.preheader.i.i.i30 ], [ %.pre2.i.i36, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i27 ]
+  %115 = getelementptr i8, ptr %114, i64 %65
+  store i8 0, ptr %115, align 1
+  %116 = load i64, ptr %7, align 8
+  %117 = add i64 %116, 1
+  store i64 %117, ptr %7, align 8
   call void @llvm.lifetime.start.p0(i64 8, ptr nonnull %4)
   %.not1.i = icmp eq i64 %.0140148, 0
   br i1 %.not1.i, label %rl__indent_string__String_int64_t.exit, label %.lr.ph.i
 
 .lr.ph.i:                                         ; preds = %rl_m_append__String_int8_t.exit37, %.lr.ph.i
-  %.02.i = phi i64 [ %103, %.lr.ph.i ], [ 0, %rl_m_append__String_int8_t.exit37 ]
+  %.02.i = phi i64 [ %118, %.lr.ph.i ], [ 0, %rl_m_append__String_int8_t.exit37 ]
   store ptr @str_11, ptr %4, align 8
   call void @rl_m_append__String_strlit(ptr nonnull %6, ptr nonnull %4)
-  %103 = add nuw i64 %.02.i, 1
-  %.not.i = icmp eq i64 %103, %.0140148
+  %118 = add nuw i64 %.02.i, 1
+  %.not.i = icmp eq i64 %118, %.0140148
   br i1 %.not.i, label %rl__indent_string__String_int64_t.exit, label %.lr.ph.i
 
 rl__indent_string__String_int64_t.exit:           ; preds = %.lr.ph.i, %rl_m_append__String_int8_t.exit37
   call void @llvm.lifetime.end.p0(i64 8, ptr nonnull %4)
-  %104 = add nuw i64 %.0149, 1
-  %105 = icmp sgt i64 %104, -1
-  br i1 %105, label %108, label %106
+  %119 = add nuw i64 %.0149, 1
+  %120 = icmp sgt i64 %119, -1
+  br i1 %120, label %123, label %121
 
-106:                                              ; preds = %rl__indent_string__String_int64_t.exit
-  %107 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_8)
+121:                                              ; preds = %rl__indent_string__String_int64_t.exit
+  %122 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_8)
   tail call void @llvm.trap()
   unreachable
 
-108:                                              ; preds = %rl__indent_string__String_int64_t.exit
-  %109 = load i64, ptr %10, align 8
-  %110 = icmp slt i64 %104, %109
-  br i1 %110, label %rl_m_get__String_int64_t_r_int8_tRef.exit38, label %111
+123:                                              ; preds = %rl__indent_string__String_int64_t.exit
+  %124 = load i64, ptr %10, align 8
+  %125 = icmp slt i64 %119, %124
+  br i1 %125, label %rl_m_get__String_int64_t_r_int8_tRef.exit38, label %126
 
-111:                                              ; preds = %108
-  %112 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
+126:                                              ; preds = %123
+  %127 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
   tail call void @llvm.trap()
   unreachable
 
-rl_m_get__String_int64_t_r_int8_tRef.exit38:      ; preds = %108
-  %113 = load ptr, ptr %1, align 8
-  %114 = getelementptr i8, ptr %113, i64 %104
-  %115 = load i8, ptr %114, align 1
-  %116 = icmp eq i8 %115, 32
-  %spec.select = select i1 %116, i64 %104, i64 %.0149
-  br label %233
+rl_m_get__String_int64_t_r_int8_tRef.exit38:      ; preds = %123
+  %128 = load ptr, ptr %1, align 8
+  %129 = getelementptr i8, ptr %128, i64 %119
+  %130 = load i8, ptr %129, align 1
+  %131 = icmp eq i8 %130, 32
+  %spec.select = select i1 %131, i64 %119, i64 %.0149
+  br label %268
 
 rl_is_close_paren__int8_t_r_bool.exit.thread:     ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit, %rl_m_get__String_int64_t_r_int8_tRef.exit, %rl_m_get__String_int64_t_r_int8_tRef.exit
-  %117 = load i64, ptr %7, align 8
-  %118 = icmp sgt i64 %117, 0
-  br i1 %118, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39, label %119
+  %132 = load i64, ptr %7, align 8
+  %133 = icmp sgt i64 %132, 0
+  br i1 %133, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39, label %134
 
-119:                                              ; preds = %rl_is_close_paren__int8_t_r_bool.exit.thread
-  %120 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
+134:                                              ; preds = %rl_is_close_paren__int8_t_r_bool.exit.thread
+  %135 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39:   ; preds = %rl_is_close_paren__int8_t_r_bool.exit.thread
-  %121 = load ptr, ptr %6, align 8
-  %122 = ptrtoint ptr %121 to i64
-  %123 = getelementptr i8, ptr %121, i64 %117
-  %124 = getelementptr i8, ptr %123, i64 -1
-  store i8 10, ptr %124, align 1
-  %125 = add nuw i64 %117, 1
-  %126 = load i64, ptr %8, align 8
-  %127 = icmp sgt i64 %126, %125
-  br i1 %127, label %rl_m_append__String_int8_t.exit49, label %128
+  %136 = load ptr, ptr %6, align 8
+  %137 = ptrtoint ptr %136 to i64
+  %138 = getelementptr i8, ptr %136, i64 %132
+  %139 = getelementptr i8, ptr %138, i64 -1
+  store i8 10, ptr %139, align 1
+  %140 = add nuw i64 %132, 1
+  %141 = load i64, ptr %8, align 8
+  %142 = icmp sgt i64 %141, %140
+  br i1 %142, label %rl_m_append__String_int8_t.exit49, label %143
 
-128:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39
-  %129 = shl i64 %125, 1
-  %130 = tail call ptr @malloc(i64 %129)
-  %131 = ptrtoint ptr %130 to i64
-  %132 = icmp sgt i64 %129, 0
-  br i1 %132, label %.lr.ph.preheader.i.i.i46, label %.lr.ph5.i.i.i44.preheader
+143:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39
+  %144 = shl i64 %140, 1
+  %145 = tail call ptr @malloc(i64 %144)
+  %146 = ptrtoint ptr %145 to i64
+  %147 = icmp sgt i64 %144, 0
+  br i1 %147, label %.lr.ph.preheader.i.i.i46, label %iter.check265
 
-.lr.ph.preheader.i.i.i46:                         ; preds = %128
-  tail call void @llvm.memset.p0.i64(ptr align 1 %130, i8 0, i64 %129, i1 false)
-  br label %.lr.ph5.i.i.i44.preheader
+.lr.ph.preheader.i.i.i46:                         ; preds = %143
+  tail call void @llvm.memset.p0.i64(ptr align 1 %145, i8 0, i64 %144, i1 false)
+  br label %iter.check265
 
-.lr.ph5.i.i.i44.preheader:                        ; preds = %128, %.lr.ph.preheader.i.i.i46
-  %smax199 = tail call i64 @llvm.smax.i64(i64 %117, i64 1)
-  %min.iters.check202 = icmp slt i64 %117, 4
-  %133 = sub i64 %131, %122
-  %diff.check198 = icmp ult i64 %133, 4
-  %or.cond245 = or i1 %min.iters.check202, %diff.check198
-  br i1 %or.cond245, label %.lr.ph5.i.i.i44.preheader252, label %vector.ph203
+iter.check265:                                    ; preds = %143, %.lr.ph.preheader.i.i.i46
+  %smax261 = tail call i64 @llvm.smax.i64(i64 %132, i64 1)
+  %min.iters.check263 = icmp slt i64 %132, 8
+  %148 = sub i64 %146, %137
+  %diff.check260 = icmp ult i64 %148, 32
+  %or.cond361 = or i1 %min.iters.check263, %diff.check260
+  br i1 %or.cond361, label %.lr.ph5.i.i.i44.preheader, label %vector.main.loop.iter.check267
 
-.lr.ph5.i.i.i44.preheader252:                     ; preds = %middle.block200, %.lr.ph5.i.i.i44.preheader
-  %.14.i.i.i45.ph = phi i64 [ 0, %.lr.ph5.i.i.i44.preheader ], [ %n.vec205, %middle.block200 ]
+vector.main.loop.iter.check267:                   ; preds = %iter.check265
+  %min.iters.check266 = icmp slt i64 %132, 32
+  br i1 %min.iters.check266, label %vec.epilog.ph279, label %vector.ph268
+
+vector.ph268:                                     ; preds = %vector.main.loop.iter.check267
+  %n.vec270 = and i64 %smax261, 9223372036854775776
+  br label %vector.body271
+
+vector.body271:                                   ; preds = %vector.body271, %vector.ph268
+  %index272 = phi i64 [ 0, %vector.ph268 ], [ %index.next275, %vector.body271 ]
+  %149 = getelementptr i8, ptr %145, i64 %index272
+  %150 = getelementptr i8, ptr %136, i64 %index272
+  %151 = getelementptr i8, ptr %150, i64 16
+  %wide.load273 = load <16 x i8>, ptr %150, align 1
+  %wide.load274 = load <16 x i8>, ptr %151, align 1
+  %152 = getelementptr i8, ptr %149, i64 16
+  store <16 x i8> %wide.load273, ptr %149, align 1
+  store <16 x i8> %wide.load274, ptr %152, align 1
+  %index.next275 = add nuw i64 %index272, 32
+  %153 = icmp eq i64 %index.next275, %n.vec270
+  br i1 %153, label %middle.block262, label %vector.body271, !llvm.loop !26
+
+middle.block262:                                  ; preds = %vector.body271
+  %cmp.n276 = icmp eq i64 %smax261, %n.vec270
+  br i1 %cmp.n276, label %.preheader.i.i.i42, label %vec.epilog.iter.check280
+
+vec.epilog.iter.check280:                         ; preds = %middle.block262
+  %n.vec.remaining281 = and i64 %smax261, 24
+  %min.epilog.iters.check282 = icmp eq i64 %n.vec.remaining281, 0
+  br i1 %min.epilog.iters.check282, label %.lr.ph5.i.i.i44.preheader, label %vec.epilog.ph279
+
+.lr.ph5.i.i.i44.preheader:                        ; preds = %vec.epilog.middle.block277, %iter.check265, %vec.epilog.iter.check280
+  %.14.i.i.i45.ph = phi i64 [ 0, %iter.check265 ], [ %n.vec270, %vec.epilog.iter.check280 ], [ %n.vec285, %vec.epilog.middle.block277 ]
   br label %.lr.ph5.i.i.i44
 
-vector.ph203:                                     ; preds = %.lr.ph5.i.i.i44.preheader
-  %n.vec205 = and i64 %smax199, 9223372036854775804
-  br label %vector.body207
+vec.epilog.ph279:                                 ; preds = %vector.main.loop.iter.check267, %vec.epilog.iter.check280
+  %vec.epilog.resume.val283 = phi i64 [ %n.vec270, %vec.epilog.iter.check280 ], [ 0, %vector.main.loop.iter.check267 ]
+  %n.vec285 = and i64 %smax261, 9223372036854775800
+  br label %vec.epilog.vector.body287
 
-vector.body207:                                   ; preds = %vector.body207, %vector.ph203
-  %index208 = phi i64 [ 0, %vector.ph203 ], [ %index.next210, %vector.body207 ]
-  %134 = getelementptr i8, ptr %130, i64 %index208
-  %135 = getelementptr i8, ptr %121, i64 %index208
-  %wide.load209 = load <4 x i8>, ptr %135, align 1
-  store <4 x i8> %wide.load209, ptr %134, align 1
-  %index.next210 = add nuw i64 %index208, 4
-  %136 = icmp eq i64 %index.next210, %n.vec205
-  br i1 %136, label %middle.block200, label %vector.body207, !llvm.loop !13
+vec.epilog.vector.body287:                        ; preds = %vec.epilog.vector.body287, %vec.epilog.ph279
+  %index288 = phi i64 [ %vec.epilog.resume.val283, %vec.epilog.ph279 ], [ %index.next290, %vec.epilog.vector.body287 ]
+  %154 = getelementptr i8, ptr %145, i64 %index288
+  %155 = getelementptr i8, ptr %136, i64 %index288
+  %wide.load289 = load <8 x i8>, ptr %155, align 1
+  store <8 x i8> %wide.load289, ptr %154, align 1
+  %index.next290 = add nuw i64 %index288, 8
+  %156 = icmp eq i64 %index.next290, %n.vec285
+  br i1 %156, label %vec.epilog.middle.block277, label %vec.epilog.vector.body287, !llvm.loop !27
 
-middle.block200:                                  ; preds = %vector.body207
-  %cmp.n211 = icmp eq i64 %smax199, %n.vec205
-  br i1 %cmp.n211, label %.preheader.i.i.i42, label %.lr.ph5.i.i.i44.preheader252
+vec.epilog.middle.block277:                       ; preds = %vec.epilog.vector.body287
+  %cmp.n291 = icmp eq i64 %smax261, %n.vec285
+  br i1 %cmp.n291, label %.preheader.i.i.i42, label %.lr.ph5.i.i.i44.preheader
 
-.preheader.i.i.i42:                               ; preds = %.lr.ph5.i.i.i44, %middle.block200
-  tail call void @free(ptr nonnull %121)
-  store i64 %129, ptr %8, align 8
-  store ptr %130, ptr %6, align 8
+.preheader.i.i.i42:                               ; preds = %.lr.ph5.i.i.i44, %vec.epilog.middle.block277, %middle.block262
+  tail call void @free(ptr nonnull %136)
+  store i64 %144, ptr %8, align 8
+  store ptr %145, ptr %6, align 8
   br label %rl_m_append__String_int8_t.exit49
 
-.lr.ph5.i.i.i44:                                  ; preds = %.lr.ph5.i.i.i44.preheader252, %.lr.ph5.i.i.i44
-  %.14.i.i.i45 = phi i64 [ %140, %.lr.ph5.i.i.i44 ], [ %.14.i.i.i45.ph, %.lr.ph5.i.i.i44.preheader252 ]
-  %137 = getelementptr i8, ptr %130, i64 %.14.i.i.i45
-  %138 = getelementptr i8, ptr %121, i64 %.14.i.i.i45
-  %139 = load i8, ptr %138, align 1
-  store i8 %139, ptr %137, align 1
-  %140 = add nuw nsw i64 %.14.i.i.i45, 1
-  %141 = icmp slt i64 %140, %117
-  br i1 %141, label %.lr.ph5.i.i.i44, label %.preheader.i.i.i42, !llvm.loop !14
+.lr.ph5.i.i.i44:                                  ; preds = %.lr.ph5.i.i.i44.preheader, %.lr.ph5.i.i.i44
+  %.14.i.i.i45 = phi i64 [ %160, %.lr.ph5.i.i.i44 ], [ %.14.i.i.i45.ph, %.lr.ph5.i.i.i44.preheader ]
+  %157 = getelementptr i8, ptr %145, i64 %.14.i.i.i45
+  %158 = getelementptr i8, ptr %136, i64 %.14.i.i.i45
+  %159 = load i8, ptr %158, align 1
+  store i8 %159, ptr %157, align 1
+  %160 = add nuw nsw i64 %.14.i.i.i45, 1
+  %161 = icmp slt i64 %160, %132
+  br i1 %161, label %.lr.ph5.i.i.i44, label %.preheader.i.i.i42, !llvm.loop !28
 
 rl_m_append__String_int8_t.exit49:                ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39, %.preheader.i.i.i42
-  %142 = phi ptr [ %130, %.preheader.i.i.i42 ], [ %121, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39 ]
-  %143 = getelementptr i8, ptr %142, i64 %117
-  store i8 0, ptr %143, align 1
-  store i64 %125, ptr %7, align 8
-  %144 = add i64 %.0140148, -1
+  %162 = phi ptr [ %145, %.preheader.i.i.i42 ], [ %136, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i39 ]
+  %163 = getelementptr i8, ptr %162, i64 %132
+  store i8 0, ptr %163, align 1
+  store i64 %140, ptr %7, align 8
+  %164 = add i64 %.0140148, -1
   call void @llvm.lifetime.start.p0(i64 8, ptr nonnull %3)
-  %.not1.i50 = icmp eq i64 %144, 0
+  %.not1.i50 = icmp eq i64 %164, 0
   br i1 %.not1.i50, label %.loopexit, label %.lr.ph.i51
 
 .lr.ph.i51:                                       ; preds = %rl_m_append__String_int8_t.exit49, %.lr.ph.i51
-  %.02.i52 = phi i64 [ %145, %.lr.ph.i51 ], [ 0, %rl_m_append__String_int8_t.exit49 ]
+  %.02.i52 = phi i64 [ %165, %.lr.ph.i51 ], [ 0, %rl_m_append__String_int8_t.exit49 ]
   store ptr @str_11, ptr %3, align 8
   call void @rl_m_append__String_strlit(ptr nonnull %6, ptr nonnull %3)
-  %145 = add nuw i64 %.02.i52, 1
-  %.not.i53 = icmp eq i64 %145, %144
+  %165 = add nuw i64 %.02.i52, 1
+  %.not.i53 = icmp eq i64 %165, %164
   br i1 %.not.i53, label %.loopexit, label %.lr.ph.i51
 
 .loopexit:                                        ; preds = %.lr.ph.i51, %rl_m_append__String_int8_t.exit49
   call void @llvm.lifetime.end.p0(i64 8, ptr nonnull %3)
-  %146 = load i64, ptr %10, align 8
-  %147 = icmp slt i64 %.0149, %146
-  br i1 %147, label %rl_m_get__String_int64_t_r_int8_tRef.exit55, label %148
+  %166 = load i64, ptr %10, align 8
+  %167 = icmp slt i64 %.0149, %166
+  br i1 %167, label %rl_m_get__String_int64_t_r_int8_tRef.exit55, label %168
 
-148:                                              ; preds = %.loopexit
-  %149 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
+168:                                              ; preds = %.loopexit
+  %169 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_get__String_int64_t_r_int8_tRef.exit55:      ; preds = %.loopexit
-  %150 = load i64, ptr %7, align 8
-  %151 = icmp sgt i64 %150, 0
-  br i1 %151, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56, label %152
+  %170 = load i64, ptr %7, align 8
+  %171 = icmp sgt i64 %170, 0
+  br i1 %171, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56, label %172
 
-152:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit55
-  %153 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
+172:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit55
+  %173 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56:   ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit55
-  %154 = load ptr, ptr %1, align 8
-  %155 = getelementptr i8, ptr %154, i64 %.0149
-  %156 = load ptr, ptr %6, align 8
-  %157 = ptrtoint ptr %156 to i64
-  %158 = getelementptr i8, ptr %156, i64 %150
-  %159 = getelementptr i8, ptr %158, i64 -1
-  %160 = load i8, ptr %155, align 1
-  store i8 %160, ptr %159, align 1
-  %161 = add nuw i64 %150, 1
-  %162 = load i64, ptr %8, align 8
-  %163 = icmp sgt i64 %162, %161
-  br i1 %163, label %rl_m_append__String_int8_t.exit66, label %164
+  %174 = load ptr, ptr %1, align 8
+  %175 = getelementptr i8, ptr %174, i64 %.0149
+  %176 = load ptr, ptr %6, align 8
+  %177 = ptrtoint ptr %176 to i64
+  %178 = getelementptr i8, ptr %176, i64 %170
+  %179 = getelementptr i8, ptr %178, i64 -1
+  %180 = load i8, ptr %175, align 1
+  store i8 %180, ptr %179, align 1
+  %181 = add nuw i64 %170, 1
+  %182 = load i64, ptr %8, align 8
+  %183 = icmp sgt i64 %182, %181
+  br i1 %183, label %rl_m_append__String_int8_t.exit66, label %184
 
-164:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56
-  %165 = shl i64 %161, 1
-  %166 = tail call ptr @malloc(i64 %165)
-  %167 = ptrtoint ptr %166 to i64
-  %168 = icmp sgt i64 %165, 0
-  br i1 %168, label %.lr.ph.preheader.i.i.i63, label %.lr.ph5.i.i.i61.preheader
+184:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56
+  %185 = shl i64 %181, 1
+  %186 = tail call ptr @malloc(i64 %185)
+  %187 = ptrtoint ptr %186 to i64
+  %188 = icmp sgt i64 %185, 0
+  br i1 %188, label %.lr.ph.preheader.i.i.i63, label %iter.check232
 
-.lr.ph.preheader.i.i.i63:                         ; preds = %164
-  tail call void @llvm.memset.p0.i64(ptr align 1 %166, i8 0, i64 %165, i1 false)
-  br label %.lr.ph5.i.i.i61.preheader
+.lr.ph.preheader.i.i.i63:                         ; preds = %184
+  tail call void @llvm.memset.p0.i64(ptr align 1 %186, i8 0, i64 %185, i1 false)
+  br label %iter.check232
 
-.lr.ph5.i.i.i61.preheader:                        ; preds = %164, %.lr.ph.preheader.i.i.i63
-  %smax184 = tail call i64 @llvm.smax.i64(i64 %150, i64 1)
-  %min.iters.check187 = icmp slt i64 %150, 4
-  %169 = sub i64 %167, %157
-  %diff.check183 = icmp ult i64 %169, 4
-  %or.cond246 = or i1 %min.iters.check187, %diff.check183
-  br i1 %or.cond246, label %.lr.ph5.i.i.i61.preheader251, label %vector.ph188
+iter.check232:                                    ; preds = %184, %.lr.ph.preheader.i.i.i63
+  %smax228 = tail call i64 @llvm.smax.i64(i64 %170, i64 1)
+  %min.iters.check230 = icmp slt i64 %170, 8
+  %189 = sub i64 %187, %177
+  %diff.check227 = icmp ult i64 %189, 32
+  %or.cond362 = or i1 %min.iters.check230, %diff.check227
+  br i1 %or.cond362, label %.lr.ph5.i.i.i61.preheader, label %vector.main.loop.iter.check234
 
-.lr.ph5.i.i.i61.preheader251:                     ; preds = %middle.block185, %.lr.ph5.i.i.i61.preheader
-  %.14.i.i.i62.ph = phi i64 [ 0, %.lr.ph5.i.i.i61.preheader ], [ %n.vec190, %middle.block185 ]
+vector.main.loop.iter.check234:                   ; preds = %iter.check232
+  %min.iters.check233 = icmp slt i64 %170, 32
+  br i1 %min.iters.check233, label %vec.epilog.ph246, label %vector.ph235
+
+vector.ph235:                                     ; preds = %vector.main.loop.iter.check234
+  %n.vec237 = and i64 %smax228, 9223372036854775776
+  br label %vector.body238
+
+vector.body238:                                   ; preds = %vector.body238, %vector.ph235
+  %index239 = phi i64 [ 0, %vector.ph235 ], [ %index.next242, %vector.body238 ]
+  %190 = getelementptr i8, ptr %186, i64 %index239
+  %191 = getelementptr i8, ptr %176, i64 %index239
+  %192 = getelementptr i8, ptr %191, i64 16
+  %wide.load240 = load <16 x i8>, ptr %191, align 1
+  %wide.load241 = load <16 x i8>, ptr %192, align 1
+  %193 = getelementptr i8, ptr %190, i64 16
+  store <16 x i8> %wide.load240, ptr %190, align 1
+  store <16 x i8> %wide.load241, ptr %193, align 1
+  %index.next242 = add nuw i64 %index239, 32
+  %194 = icmp eq i64 %index.next242, %n.vec237
+  br i1 %194, label %middle.block229, label %vector.body238, !llvm.loop !29
+
+middle.block229:                                  ; preds = %vector.body238
+  %cmp.n243 = icmp eq i64 %smax228, %n.vec237
+  br i1 %cmp.n243, label %.preheader.i.i.i59, label %vec.epilog.iter.check247
+
+vec.epilog.iter.check247:                         ; preds = %middle.block229
+  %n.vec.remaining248 = and i64 %smax228, 24
+  %min.epilog.iters.check249 = icmp eq i64 %n.vec.remaining248, 0
+  br i1 %min.epilog.iters.check249, label %.lr.ph5.i.i.i61.preheader, label %vec.epilog.ph246
+
+.lr.ph5.i.i.i61.preheader:                        ; preds = %vec.epilog.middle.block244, %iter.check232, %vec.epilog.iter.check247
+  %.14.i.i.i62.ph = phi i64 [ 0, %iter.check232 ], [ %n.vec237, %vec.epilog.iter.check247 ], [ %n.vec252, %vec.epilog.middle.block244 ]
   br label %.lr.ph5.i.i.i61
 
-vector.ph188:                                     ; preds = %.lr.ph5.i.i.i61.preheader
-  %n.vec190 = and i64 %smax184, 9223372036854775804
-  br label %vector.body192
+vec.epilog.ph246:                                 ; preds = %vector.main.loop.iter.check234, %vec.epilog.iter.check247
+  %vec.epilog.resume.val250 = phi i64 [ %n.vec237, %vec.epilog.iter.check247 ], [ 0, %vector.main.loop.iter.check234 ]
+  %n.vec252 = and i64 %smax228, 9223372036854775800
+  br label %vec.epilog.vector.body254
 
-vector.body192:                                   ; preds = %vector.body192, %vector.ph188
-  %index193 = phi i64 [ 0, %vector.ph188 ], [ %index.next195, %vector.body192 ]
-  %170 = getelementptr i8, ptr %166, i64 %index193
-  %171 = getelementptr i8, ptr %156, i64 %index193
-  %wide.load194 = load <4 x i8>, ptr %171, align 1
-  store <4 x i8> %wide.load194, ptr %170, align 1
-  %index.next195 = add nuw i64 %index193, 4
-  %172 = icmp eq i64 %index.next195, %n.vec190
-  br i1 %172, label %middle.block185, label %vector.body192, !llvm.loop !15
+vec.epilog.vector.body254:                        ; preds = %vec.epilog.vector.body254, %vec.epilog.ph246
+  %index255 = phi i64 [ %vec.epilog.resume.val250, %vec.epilog.ph246 ], [ %index.next257, %vec.epilog.vector.body254 ]
+  %195 = getelementptr i8, ptr %186, i64 %index255
+  %196 = getelementptr i8, ptr %176, i64 %index255
+  %wide.load256 = load <8 x i8>, ptr %196, align 1
+  store <8 x i8> %wide.load256, ptr %195, align 1
+  %index.next257 = add nuw i64 %index255, 8
+  %197 = icmp eq i64 %index.next257, %n.vec252
+  br i1 %197, label %vec.epilog.middle.block244, label %vec.epilog.vector.body254, !llvm.loop !30
 
-middle.block185:                                  ; preds = %vector.body192
-  %cmp.n196 = icmp eq i64 %smax184, %n.vec190
-  br i1 %cmp.n196, label %.preheader.i.i.i59, label %.lr.ph5.i.i.i61.preheader251
+vec.epilog.middle.block244:                       ; preds = %vec.epilog.vector.body254
+  %cmp.n258 = icmp eq i64 %smax228, %n.vec252
+  br i1 %cmp.n258, label %.preheader.i.i.i59, label %.lr.ph5.i.i.i61.preheader
 
-.preheader.i.i.i59:                               ; preds = %.lr.ph5.i.i.i61, %middle.block185
-  tail call void @free(ptr nonnull %156)
-  store i64 %165, ptr %8, align 8
-  store ptr %166, ptr %6, align 8
+.preheader.i.i.i59:                               ; preds = %.lr.ph5.i.i.i61, %vec.epilog.middle.block244, %middle.block229
+  tail call void @free(ptr nonnull %176)
+  store i64 %185, ptr %8, align 8
+  store ptr %186, ptr %6, align 8
   br label %rl_m_append__String_int8_t.exit66
 
-.lr.ph5.i.i.i61:                                  ; preds = %.lr.ph5.i.i.i61.preheader251, %.lr.ph5.i.i.i61
-  %.14.i.i.i62 = phi i64 [ %176, %.lr.ph5.i.i.i61 ], [ %.14.i.i.i62.ph, %.lr.ph5.i.i.i61.preheader251 ]
-  %173 = getelementptr i8, ptr %166, i64 %.14.i.i.i62
-  %174 = getelementptr i8, ptr %156, i64 %.14.i.i.i62
-  %175 = load i8, ptr %174, align 1
-  store i8 %175, ptr %173, align 1
-  %176 = add nuw nsw i64 %.14.i.i.i62, 1
-  %177 = icmp slt i64 %176, %150
-  br i1 %177, label %.lr.ph5.i.i.i61, label %.preheader.i.i.i59, !llvm.loop !16
+.lr.ph5.i.i.i61:                                  ; preds = %.lr.ph5.i.i.i61.preheader, %.lr.ph5.i.i.i61
+  %.14.i.i.i62 = phi i64 [ %201, %.lr.ph5.i.i.i61 ], [ %.14.i.i.i62.ph, %.lr.ph5.i.i.i61.preheader ]
+  %198 = getelementptr i8, ptr %186, i64 %.14.i.i.i62
+  %199 = getelementptr i8, ptr %176, i64 %.14.i.i.i62
+  %200 = load i8, ptr %199, align 1
+  store i8 %200, ptr %198, align 1
+  %201 = add nuw nsw i64 %.14.i.i.i62, 1
+  %202 = icmp slt i64 %201, %170
+  br i1 %202, label %.lr.ph5.i.i.i61, label %.preheader.i.i.i59, !llvm.loop !31
 
 rl_m_append__String_int8_t.exit66:                ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56, %.preheader.i.i.i59
-  %178 = phi ptr [ %166, %.preheader.i.i.i59 ], [ %156, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56 ]
-  %179 = getelementptr i8, ptr %178, i64 %150
-  store i8 0, ptr %179, align 1
-  store i64 %161, ptr %7, align 8
-  br label %233
+  %203 = phi ptr [ %186, %.preheader.i.i.i59 ], [ %176, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i56 ]
+  %204 = getelementptr i8, ptr %203, i64 %170
+  store i8 0, ptr %204, align 1
+  store i64 %181, ptr %7, align 8
+  br label %268
 
 rl_m_get__String_int64_t_r_int8_tRef.exit67:      ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit, %rl_m_get__String_int64_t_r_int8_tRef.exit, %rl_m_get__String_int64_t_r_int8_tRef.exit
-  %180 = load i64, ptr %7, align 8
-  %181 = icmp sgt i64 %180, 0
-  br i1 %181, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68, label %182
+  %205 = load i64, ptr %7, align 8
+  %206 = icmp sgt i64 %205, 0
+  br i1 %206, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68, label %207
 
-182:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit67
-  %183 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
+207:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit67
+  %208 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68:   ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit67
-  %184 = load ptr, ptr %6, align 8
-  %185 = ptrtoint ptr %184 to i64
-  %186 = getelementptr i8, ptr %184, i64 %180
-  %187 = getelementptr i8, ptr %186, i64 -1
-  store i8 %24, ptr %187, align 1
-  %188 = add nuw i64 %180, 1
-  %189 = load i64, ptr %8, align 8
-  %190 = icmp sgt i64 %189, %188
-  br i1 %190, label %rl_m_append__String_int8_t.exit78, label %191
+  %209 = load ptr, ptr %6, align 8
+  %210 = ptrtoint ptr %209 to i64
+  %211 = getelementptr i8, ptr %209, i64 %205
+  %212 = getelementptr i8, ptr %211, i64 -1
+  store i8 %24, ptr %212, align 1
+  %213 = add nuw i64 %205, 1
+  %214 = load i64, ptr %8, align 8
+  %215 = icmp sgt i64 %214, %213
+  br i1 %215, label %rl_m_append__String_int8_t.exit78, label %216
 
-191:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68
-  %192 = shl i64 %188, 1
-  %193 = tail call ptr @malloc(i64 %192)
-  %194 = ptrtoint ptr %193 to i64
-  %195 = icmp sgt i64 %192, 0
-  br i1 %195, label %.lr.ph.preheader.i.i.i75, label %.lr.ph5.i.i.i73.preheader
+216:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68
+  %217 = shl i64 %213, 1
+  %218 = tail call ptr @malloc(i64 %217)
+  %219 = ptrtoint ptr %218 to i64
+  %220 = icmp sgt i64 %217, 0
+  br i1 %220, label %.lr.ph.preheader.i.i.i75, label %iter.check199
 
-.lr.ph.preheader.i.i.i75:                         ; preds = %191
-  tail call void @llvm.memset.p0.i64(ptr align 1 %193, i8 0, i64 %192, i1 false)
-  br label %.lr.ph5.i.i.i73.preheader
+.lr.ph.preheader.i.i.i75:                         ; preds = %216
+  tail call void @llvm.memset.p0.i64(ptr align 1 %218, i8 0, i64 %217, i1 false)
+  br label %iter.check199
 
-.lr.ph5.i.i.i73.preheader:                        ; preds = %191, %.lr.ph.preheader.i.i.i75
-  %smax169 = tail call i64 @llvm.smax.i64(i64 %180, i64 1)
-  %min.iters.check172 = icmp slt i64 %180, 4
-  %196 = sub i64 %194, %185
-  %diff.check168 = icmp ult i64 %196, 4
-  %or.cond247 = or i1 %min.iters.check172, %diff.check168
-  br i1 %or.cond247, label %.lr.ph5.i.i.i73.preheader250, label %vector.ph173
+iter.check199:                                    ; preds = %216, %.lr.ph.preheader.i.i.i75
+  %smax195 = tail call i64 @llvm.smax.i64(i64 %205, i64 1)
+  %min.iters.check197 = icmp slt i64 %205, 8
+  %221 = sub i64 %219, %210
+  %diff.check194 = icmp ult i64 %221, 32
+  %or.cond363 = or i1 %min.iters.check197, %diff.check194
+  br i1 %or.cond363, label %.lr.ph5.i.i.i73.preheader, label %vector.main.loop.iter.check201
 
-.lr.ph5.i.i.i73.preheader250:                     ; preds = %middle.block170, %.lr.ph5.i.i.i73.preheader
-  %.14.i.i.i74.ph = phi i64 [ 0, %.lr.ph5.i.i.i73.preheader ], [ %n.vec175, %middle.block170 ]
+vector.main.loop.iter.check201:                   ; preds = %iter.check199
+  %min.iters.check200 = icmp slt i64 %205, 32
+  br i1 %min.iters.check200, label %vec.epilog.ph213, label %vector.ph202
+
+vector.ph202:                                     ; preds = %vector.main.loop.iter.check201
+  %n.vec204 = and i64 %smax195, 9223372036854775776
+  br label %vector.body205
+
+vector.body205:                                   ; preds = %vector.body205, %vector.ph202
+  %index206 = phi i64 [ 0, %vector.ph202 ], [ %index.next209, %vector.body205 ]
+  %222 = getelementptr i8, ptr %218, i64 %index206
+  %223 = getelementptr i8, ptr %209, i64 %index206
+  %224 = getelementptr i8, ptr %223, i64 16
+  %wide.load207 = load <16 x i8>, ptr %223, align 1
+  %wide.load208 = load <16 x i8>, ptr %224, align 1
+  %225 = getelementptr i8, ptr %222, i64 16
+  store <16 x i8> %wide.load207, ptr %222, align 1
+  store <16 x i8> %wide.load208, ptr %225, align 1
+  %index.next209 = add nuw i64 %index206, 32
+  %226 = icmp eq i64 %index.next209, %n.vec204
+  br i1 %226, label %middle.block196, label %vector.body205, !llvm.loop !32
+
+middle.block196:                                  ; preds = %vector.body205
+  %cmp.n210 = icmp eq i64 %smax195, %n.vec204
+  br i1 %cmp.n210, label %.preheader.i.i.i71, label %vec.epilog.iter.check214
+
+vec.epilog.iter.check214:                         ; preds = %middle.block196
+  %n.vec.remaining215 = and i64 %smax195, 24
+  %min.epilog.iters.check216 = icmp eq i64 %n.vec.remaining215, 0
+  br i1 %min.epilog.iters.check216, label %.lr.ph5.i.i.i73.preheader, label %vec.epilog.ph213
+
+.lr.ph5.i.i.i73.preheader:                        ; preds = %vec.epilog.middle.block211, %iter.check199, %vec.epilog.iter.check214
+  %.14.i.i.i74.ph = phi i64 [ 0, %iter.check199 ], [ %n.vec204, %vec.epilog.iter.check214 ], [ %n.vec219, %vec.epilog.middle.block211 ]
   br label %.lr.ph5.i.i.i73
 
-vector.ph173:                                     ; preds = %.lr.ph5.i.i.i73.preheader
-  %n.vec175 = and i64 %smax169, 9223372036854775804
-  br label %vector.body177
+vec.epilog.ph213:                                 ; preds = %vector.main.loop.iter.check201, %vec.epilog.iter.check214
+  %vec.epilog.resume.val217 = phi i64 [ %n.vec204, %vec.epilog.iter.check214 ], [ 0, %vector.main.loop.iter.check201 ]
+  %n.vec219 = and i64 %smax195, 9223372036854775800
+  br label %vec.epilog.vector.body221
 
-vector.body177:                                   ; preds = %vector.body177, %vector.ph173
-  %index178 = phi i64 [ 0, %vector.ph173 ], [ %index.next180, %vector.body177 ]
-  %197 = getelementptr i8, ptr %193, i64 %index178
-  %198 = getelementptr i8, ptr %184, i64 %index178
-  %wide.load179 = load <4 x i8>, ptr %198, align 1
-  store <4 x i8> %wide.load179, ptr %197, align 1
-  %index.next180 = add nuw i64 %index178, 4
-  %199 = icmp eq i64 %index.next180, %n.vec175
-  br i1 %199, label %middle.block170, label %vector.body177, !llvm.loop !17
+vec.epilog.vector.body221:                        ; preds = %vec.epilog.vector.body221, %vec.epilog.ph213
+  %index222 = phi i64 [ %vec.epilog.resume.val217, %vec.epilog.ph213 ], [ %index.next224, %vec.epilog.vector.body221 ]
+  %227 = getelementptr i8, ptr %218, i64 %index222
+  %228 = getelementptr i8, ptr %209, i64 %index222
+  %wide.load223 = load <8 x i8>, ptr %228, align 1
+  store <8 x i8> %wide.load223, ptr %227, align 1
+  %index.next224 = add nuw i64 %index222, 8
+  %229 = icmp eq i64 %index.next224, %n.vec219
+  br i1 %229, label %vec.epilog.middle.block211, label %vec.epilog.vector.body221, !llvm.loop !33
 
-middle.block170:                                  ; preds = %vector.body177
-  %cmp.n181 = icmp eq i64 %smax169, %n.vec175
-  br i1 %cmp.n181, label %.preheader.i.i.i71, label %.lr.ph5.i.i.i73.preheader250
+vec.epilog.middle.block211:                       ; preds = %vec.epilog.vector.body221
+  %cmp.n225 = icmp eq i64 %smax195, %n.vec219
+  br i1 %cmp.n225, label %.preheader.i.i.i71, label %.lr.ph5.i.i.i73.preheader
 
-.preheader.i.i.i71:                               ; preds = %.lr.ph5.i.i.i73, %middle.block170
-  tail call void @free(ptr nonnull %184)
-  store i64 %192, ptr %8, align 8
-  store ptr %193, ptr %6, align 8
+.preheader.i.i.i71:                               ; preds = %.lr.ph5.i.i.i73, %vec.epilog.middle.block211, %middle.block196
+  tail call void @free(ptr nonnull %209)
+  store i64 %217, ptr %8, align 8
+  store ptr %218, ptr %6, align 8
   br label %rl_m_append__String_int8_t.exit78
 
-.lr.ph5.i.i.i73:                                  ; preds = %.lr.ph5.i.i.i73.preheader250, %.lr.ph5.i.i.i73
-  %.14.i.i.i74 = phi i64 [ %203, %.lr.ph5.i.i.i73 ], [ %.14.i.i.i74.ph, %.lr.ph5.i.i.i73.preheader250 ]
-  %200 = getelementptr i8, ptr %193, i64 %.14.i.i.i74
-  %201 = getelementptr i8, ptr %184, i64 %.14.i.i.i74
-  %202 = load i8, ptr %201, align 1
-  store i8 %202, ptr %200, align 1
-  %203 = add nuw nsw i64 %.14.i.i.i74, 1
-  %204 = icmp slt i64 %203, %180
-  br i1 %204, label %.lr.ph5.i.i.i73, label %.preheader.i.i.i71, !llvm.loop !18
+.lr.ph5.i.i.i73:                                  ; preds = %.lr.ph5.i.i.i73.preheader, %.lr.ph5.i.i.i73
+  %.14.i.i.i74 = phi i64 [ %233, %.lr.ph5.i.i.i73 ], [ %.14.i.i.i74.ph, %.lr.ph5.i.i.i73.preheader ]
+  %230 = getelementptr i8, ptr %218, i64 %.14.i.i.i74
+  %231 = getelementptr i8, ptr %209, i64 %.14.i.i.i74
+  %232 = load i8, ptr %231, align 1
+  store i8 %232, ptr %230, align 1
+  %233 = add nuw nsw i64 %.14.i.i.i74, 1
+  %234 = icmp slt i64 %233, %205
+  br i1 %234, label %.lr.ph5.i.i.i73, label %.preheader.i.i.i71, !llvm.loop !34
 
 rl_m_append__String_int8_t.exit78:                ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68, %.preheader.i.i.i71
-  %205 = phi i64 [ %192, %.preheader.i.i.i71 ], [ %189, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68 ]
-  %206 = phi ptr [ %193, %.preheader.i.i.i71 ], [ %184, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68 ]
-  %207 = ptrtoint ptr %206 to i64
-  %208 = getelementptr i8, ptr %206, i64 %180
-  store i8 0, ptr %208, align 1
-  %.not151 = icmp eq i64 %180, 9223372036854775807
-  br i1 %.not151, label %209, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79
+  %235 = phi i64 [ %217, %.preheader.i.i.i71 ], [ %214, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68 ]
+  %236 = phi ptr [ %218, %.preheader.i.i.i71 ], [ %209, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i68 ]
+  %237 = ptrtoint ptr %236 to i64
+  %238 = getelementptr i8, ptr %236, i64 %205
+  store i8 0, ptr %238, align 1
+  %.not151 = icmp eq i64 %205, 9223372036854775807
+  br i1 %.not151, label %239, label %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79
 
-209:                                              ; preds = %rl_m_append__String_int8_t.exit78
-  %210 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
+239:                                              ; preds = %rl_m_append__String_int8_t.exit78
+  %240 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_10)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79:   ; preds = %rl_m_append__String_int8_t.exit78
-  %211 = getelementptr i8, ptr %206, i64 %188
-  %212 = getelementptr i8, ptr %211, i64 -1
-  store i8 10, ptr %212, align 1
-  %213 = add nuw i64 %180, 2
-  %214 = icmp sgt i64 %205, %213
-  br i1 %214, label %rl_m_append__String_int8_t.exit89, label %215
+  %241 = getelementptr i8, ptr %236, i64 %213
+  %242 = getelementptr i8, ptr %241, i64 -1
+  store i8 10, ptr %242, align 1
+  %243 = add nuw i64 %205, 2
+  %244 = icmp sgt i64 %235, %243
+  br i1 %244, label %rl_m_append__String_int8_t.exit89, label %245
 
-215:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79
-  %216 = shl i64 %213, 1
-  %217 = tail call ptr @malloc(i64 %216)
-  %218 = ptrtoint ptr %217 to i64
-  %219 = icmp sgt i64 %216, 0
-  br i1 %219, label %.lr.ph.preheader.i.i.i86, label %.preheader2.i.i.i80
+245:                                              ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79
+  %246 = shl i64 %243, 1
+  %247 = tail call ptr @malloc(i64 %246)
+  %248 = ptrtoint ptr %247 to i64
+  %249 = icmp sgt i64 %246, 0
+  br i1 %249, label %.lr.ph.preheader.i.i.i86, label %iter.check166
 
-.lr.ph.preheader.i.i.i86:                         ; preds = %215
-  tail call void @llvm.memset.p0.i64(ptr align 1 %217, i8 0, i64 %216, i1 false)
-  br label %.preheader2.i.i.i80
+.lr.ph.preheader.i.i.i86:                         ; preds = %245
+  tail call void @llvm.memset.p0.i64(ptr align 1 %247, i8 0, i64 %246, i1 false)
+  br label %iter.check166
 
-.preheader2.i.i.i80:                              ; preds = %.lr.ph.preheader.i.i.i86, %215
-  %smax154 = tail call i64 @llvm.smax.i64(i64 %188, i64 1)
-  %min.iters.check157 = icmp slt i64 %188, 4
-  %220 = sub i64 %218, %207
-  %diff.check153 = icmp ult i64 %220, 4
-  %or.cond248 = or i1 %min.iters.check157, %diff.check153
-  br i1 %or.cond248, label %.lr.ph5.i.i.i84.preheader, label %vector.ph158
+iter.check166:                                    ; preds = %.lr.ph.preheader.i.i.i86, %245
+  %smax162 = tail call i64 @llvm.smax.i64(i64 %213, i64 1)
+  %min.iters.check164 = icmp slt i64 %213, 8
+  %250 = sub i64 %248, %237
+  %diff.check161 = icmp ult i64 %250, 32
+  %or.cond364 = or i1 %min.iters.check164, %diff.check161
+  br i1 %or.cond364, label %.lr.ph5.i.i.i84.preheader, label %vector.main.loop.iter.check168
 
-.lr.ph5.i.i.i84.preheader:                        ; preds = %middle.block155, %.preheader2.i.i.i80
-  %.14.i.i.i85.ph = phi i64 [ 0, %.preheader2.i.i.i80 ], [ %n.vec160, %middle.block155 ]
+vector.main.loop.iter.check168:                   ; preds = %iter.check166
+  %min.iters.check167 = icmp slt i64 %213, 32
+  br i1 %min.iters.check167, label %vec.epilog.ph180, label %vector.ph169
+
+vector.ph169:                                     ; preds = %vector.main.loop.iter.check168
+  %n.vec171 = and i64 %smax162, 9223372036854775776
+  br label %vector.body172
+
+vector.body172:                                   ; preds = %vector.body172, %vector.ph169
+  %index173 = phi i64 [ 0, %vector.ph169 ], [ %index.next176, %vector.body172 ]
+  %251 = getelementptr i8, ptr %247, i64 %index173
+  %252 = getelementptr i8, ptr %236, i64 %index173
+  %253 = getelementptr i8, ptr %252, i64 16
+  %wide.load174 = load <16 x i8>, ptr %252, align 1
+  %wide.load175 = load <16 x i8>, ptr %253, align 1
+  %254 = getelementptr i8, ptr %251, i64 16
+  store <16 x i8> %wide.load174, ptr %251, align 1
+  store <16 x i8> %wide.load175, ptr %254, align 1
+  %index.next176 = add nuw i64 %index173, 32
+  %255 = icmp eq i64 %index.next176, %n.vec171
+  br i1 %255, label %middle.block163, label %vector.body172, !llvm.loop !35
+
+middle.block163:                                  ; preds = %vector.body172
+  %cmp.n177 = icmp eq i64 %smax162, %n.vec171
+  br i1 %cmp.n177, label %.preheader.i.i.i82, label %vec.epilog.iter.check181
+
+vec.epilog.iter.check181:                         ; preds = %middle.block163
+  %n.vec.remaining182 = and i64 %smax162, 24
+  %min.epilog.iters.check183 = icmp eq i64 %n.vec.remaining182, 0
+  br i1 %min.epilog.iters.check183, label %.lr.ph5.i.i.i84.preheader, label %vec.epilog.ph180
+
+.lr.ph5.i.i.i84.preheader:                        ; preds = %vec.epilog.middle.block178, %iter.check166, %vec.epilog.iter.check181
+  %.14.i.i.i85.ph = phi i64 [ 0, %iter.check166 ], [ %n.vec171, %vec.epilog.iter.check181 ], [ %n.vec186, %vec.epilog.middle.block178 ]
   br label %.lr.ph5.i.i.i84
 
-vector.ph158:                                     ; preds = %.preheader2.i.i.i80
-  %n.vec160 = and i64 %smax154, 9223372036854775804
-  br label %vector.body162
+vec.epilog.ph180:                                 ; preds = %vector.main.loop.iter.check168, %vec.epilog.iter.check181
+  %vec.epilog.resume.val184 = phi i64 [ %n.vec171, %vec.epilog.iter.check181 ], [ 0, %vector.main.loop.iter.check168 ]
+  %n.vec186 = and i64 %smax162, 9223372036854775800
+  br label %vec.epilog.vector.body188
 
-vector.body162:                                   ; preds = %vector.body162, %vector.ph158
-  %index163 = phi i64 [ 0, %vector.ph158 ], [ %index.next165, %vector.body162 ]
-  %221 = getelementptr i8, ptr %217, i64 %index163
-  %222 = getelementptr i8, ptr %206, i64 %index163
-  %wide.load164 = load <4 x i8>, ptr %222, align 1
-  store <4 x i8> %wide.load164, ptr %221, align 1
-  %index.next165 = add nuw i64 %index163, 4
-  %223 = icmp eq i64 %index.next165, %n.vec160
-  br i1 %223, label %middle.block155, label %vector.body162, !llvm.loop !19
+vec.epilog.vector.body188:                        ; preds = %vec.epilog.vector.body188, %vec.epilog.ph180
+  %index189 = phi i64 [ %vec.epilog.resume.val184, %vec.epilog.ph180 ], [ %index.next191, %vec.epilog.vector.body188 ]
+  %256 = getelementptr i8, ptr %247, i64 %index189
+  %257 = getelementptr i8, ptr %236, i64 %index189
+  %wide.load190 = load <8 x i8>, ptr %257, align 1
+  store <8 x i8> %wide.load190, ptr %256, align 1
+  %index.next191 = add nuw i64 %index189, 8
+  %258 = icmp eq i64 %index.next191, %n.vec186
+  br i1 %258, label %vec.epilog.middle.block178, label %vec.epilog.vector.body188, !llvm.loop !36
 
-middle.block155:                                  ; preds = %vector.body162
-  %cmp.n166 = icmp eq i64 %smax154, %n.vec160
-  br i1 %cmp.n166, label %.preheader.i.i.i82, label %.lr.ph5.i.i.i84.preheader
+vec.epilog.middle.block178:                       ; preds = %vec.epilog.vector.body188
+  %cmp.n192 = icmp eq i64 %smax162, %n.vec186
+  br i1 %cmp.n192, label %.preheader.i.i.i82, label %.lr.ph5.i.i.i84.preheader
 
-.preheader.i.i.i82:                               ; preds = %.lr.ph5.i.i.i84, %middle.block155
-  tail call void @free(ptr nonnull %206)
-  store i64 %216, ptr %8, align 8
-  store ptr %217, ptr %6, align 8
+.preheader.i.i.i82:                               ; preds = %.lr.ph5.i.i.i84, %vec.epilog.middle.block178, %middle.block163
+  tail call void @free(ptr nonnull %236)
+  store i64 %246, ptr %8, align 8
+  store ptr %247, ptr %6, align 8
   br label %rl_m_append__String_int8_t.exit89
 
 .lr.ph5.i.i.i84:                                  ; preds = %.lr.ph5.i.i.i84.preheader, %.lr.ph5.i.i.i84
-  %.14.i.i.i85 = phi i64 [ %227, %.lr.ph5.i.i.i84 ], [ %.14.i.i.i85.ph, %.lr.ph5.i.i.i84.preheader ]
-  %224 = getelementptr i8, ptr %217, i64 %.14.i.i.i85
-  %225 = getelementptr i8, ptr %206, i64 %.14.i.i.i85
-  %226 = load i8, ptr %225, align 1
-  store i8 %226, ptr %224, align 1
-  %227 = add nuw nsw i64 %.14.i.i.i85, 1
-  %228 = icmp slt i64 %227, %188
-  br i1 %228, label %.lr.ph5.i.i.i84, label %.preheader.i.i.i82, !llvm.loop !20
+  %.14.i.i.i85 = phi i64 [ %262, %.lr.ph5.i.i.i84 ], [ %.14.i.i.i85.ph, %.lr.ph5.i.i.i84.preheader ]
+  %259 = getelementptr i8, ptr %247, i64 %.14.i.i.i85
+  %260 = getelementptr i8, ptr %236, i64 %.14.i.i.i85
+  %261 = load i8, ptr %260, align 1
+  store i8 %261, ptr %259, align 1
+  %262 = add nuw nsw i64 %.14.i.i.i85, 1
+  %263 = icmp slt i64 %262, %213
+  br i1 %263, label %.lr.ph5.i.i.i84, label %.preheader.i.i.i82, !llvm.loop !37
 
 rl_m_append__String_int8_t.exit89:                ; preds = %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79, %.preheader.i.i.i82
-  %229 = phi ptr [ %217, %.preheader.i.i.i82 ], [ %206, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79 ]
-  %230 = getelementptr i8, ptr %229, i64 %188
-  store i8 0, ptr %230, align 1
-  store i64 %213, ptr %7, align 8
-  %231 = add i64 %.0140148, 1
+  %264 = phi ptr [ %247, %.preheader.i.i.i82 ], [ %236, %rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i79 ]
+  %265 = getelementptr i8, ptr %264, i64 %213
+  store i8 0, ptr %265, align 1
+  store i64 %243, ptr %7, align 8
+  %266 = add i64 %.0140148, 1
   call void @llvm.lifetime.start.p0(i64 8, ptr nonnull %2)
-  %.not1.i90 = icmp eq i64 %231, 0
+  %.not1.i90 = icmp eq i64 %266, 0
   br i1 %.not1.i90, label %rl__indent_string__String_int64_t.exit94, label %.lr.ph.i91
 
 .lr.ph.i91:                                       ; preds = %rl_m_append__String_int8_t.exit89, %.lr.ph.i91
-  %.02.i92 = phi i64 [ %232, %.lr.ph.i91 ], [ 0, %rl_m_append__String_int8_t.exit89 ]
+  %.02.i92 = phi i64 [ %267, %.lr.ph.i91 ], [ 0, %rl_m_append__String_int8_t.exit89 ]
   store ptr @str_11, ptr %2, align 8
   call void @rl_m_append__String_strlit(ptr nonnull %6, ptr nonnull %2)
-  %232 = add nuw i64 %.02.i92, 1
+  %267 = add nuw i64 %.02.i92, 1
   %.not.i93 = icmp eq i64 %.02.i92, %.0140148
   br i1 %.not.i93, label %rl__indent_string__String_int64_t.exit94, label %.lr.ph.i91
 
 rl__indent_string__String_int64_t.exit94:         ; preds = %.lr.ph.i91, %rl_m_append__String_int8_t.exit89
   call void @llvm.lifetime.end.p0(i64 8, ptr nonnull %2)
-  br label %233
+  br label %268
 
-233:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit38, %rl_m_append__String_int8_t.exit66, %rl_m_append__String_int8_t.exit, %rl__indent_string__String_int64_t.exit94
-  %.1141 = phi i64 [ %.0140148, %rl_m_append__String_int8_t.exit ], [ %144, %rl_m_append__String_int8_t.exit66 ], [ %231, %rl__indent_string__String_int64_t.exit94 ], [ %.0140148, %rl_m_get__String_int64_t_r_int8_tRef.exit38 ]
+268:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit38, %rl_m_append__String_int8_t.exit66, %rl_m_append__String_int8_t.exit, %rl__indent_string__String_int64_t.exit94
+  %.1141 = phi i64 [ %.0140148, %rl_m_append__String_int8_t.exit ], [ %164, %rl_m_append__String_int8_t.exit66 ], [ %266, %rl__indent_string__String_int64_t.exit94 ], [ %.0140148, %rl_m_get__String_int64_t_r_int8_tRef.exit38 ]
   %.1 = phi i64 [ %.0149, %rl_m_append__String_int8_t.exit ], [ %.0149, %rl_m_append__String_int8_t.exit66 ], [ %.0149, %rl__indent_string__String_int64_t.exit94 ], [ %spec.select, %rl_m_get__String_int64_t_r_int8_tRef.exit38 ]
-  %234 = add i64 %.1, 1
-  %235 = load i64, ptr %10, align 8
-  %236 = add i64 %235, -1
-  %237 = icmp slt i64 %234, %236
-  br i1 %237, label %.lr.ph, label %._crit_edge.loopexit
+  %269 = add i64 %.1, 1
+  %270 = load i64, ptr %10, align 8
+  %271 = add i64 %270, -1
+  %272 = icmp slt i64 %269, %271
+  br i1 %272, label %.lr.ph, label %._crit_edge.loopexit
 
-._crit_edge.loopexit:                             ; preds = %233
+._crit_edge.loopexit:                             ; preds = %268
   %.pre = load i64, ptr %8, align 8
-  %238 = icmp eq i64 %.pre, 0
-  %239 = getelementptr inbounds i8, ptr %5, i64 8
-  %240 = getelementptr inbounds i8, ptr %5, i64 16
-  store i64 4, ptr %240, align 8
-  %241 = tail call dereferenceable_or_null(4) ptr @malloc(i64 4)
-  store ptr %241, ptr %5, align 8
-  store i32 0, ptr %241, align 1
-  store i64 1, ptr %239, align 8
+  %273 = icmp eq i64 %.pre, 0
+  %274 = getelementptr inbounds i8, ptr %5, i64 8
+  %275 = getelementptr inbounds i8, ptr %5, i64 16
+  store i64 4, ptr %275, align 8
+  %276 = tail call dereferenceable_or_null(4) ptr @malloc(i64 4)
+  store ptr %276, ptr %5, align 8
+  store i32 0, ptr %276, align 1
+  store i64 1, ptr %274, align 8
   call void @rl_m_assign__VectorTint8_tT_VectorTint8_tT(ptr nonnull %5, ptr nonnull readonly %6)
-  br i1 %238, label %rl_m_drop__String.exit, label %245
+  br i1 %273, label %rl_m_drop__String.exit, label %280
 
 .critedge:                                        ; preds = %rl_m_init__String.exit
-  %242 = getelementptr inbounds i8, ptr %5, i64 8
-  %243 = getelementptr inbounds i8, ptr %5, i64 16
-  store i64 4, ptr %243, align 8
-  %244 = tail call dereferenceable_or_null(4) ptr @malloc(i64 4)
-  store ptr %244, ptr %5, align 8
-  store i32 0, ptr %244, align 1
-  store i64 1, ptr %242, align 8
+  %277 = getelementptr inbounds i8, ptr %5, i64 8
+  %278 = getelementptr inbounds i8, ptr %5, i64 16
+  store i64 4, ptr %278, align 8
+  %279 = tail call dereferenceable_or_null(4) ptr @malloc(i64 4)
+  store ptr %279, ptr %5, align 8
+  store i32 0, ptr %279, align 1
+  store i64 1, ptr %277, align 8
   call void @rl_m_assign__VectorTint8_tT_VectorTint8_tT(ptr nonnull %5, ptr nonnull readonly %6)
-  br label %245
+  br label %280
 
-245:                                              ; preds = %.critedge, %._crit_edge.loopexit
-  %246 = load ptr, ptr %6, align 8
-  tail call void @free(ptr %246)
+280:                                              ; preds = %.critedge, %._crit_edge.loopexit
+  %281 = load ptr, ptr %6, align 8
+  tail call void @free(ptr %281)
   br label %rl_m_drop__String.exit
 
-rl_m_drop__String.exit:                           ; preds = %._crit_edge.loopexit, %245
+rl_m_drop__String.exit:                           ; preds = %._crit_edge.loopexit, %280
   call void @llvm.memcpy.p0.p0.i64(ptr noundef nonnull align 1 dereferenceable(24) %0, ptr noundef nonnull align 8 dereferenceable(24) %5, i64 24, i1 false)
   ret void
 }
@@ -2753,7 +3178,7 @@ rl_m_get__String_int64_t_r_int8_tRef.exit4.i:     ; preds = %.lr.ph.i
   %24 = add nuw nsw i64 %storemerge12.i, 1
   %25 = icmp sge i64 %24, %8
   %or.cond.not = select i1 %.not3.i.not, i1 true, i1 %25
-  br i1 %or.cond.not, label %rl_m_equal__String_String_r_bool.exit, label %.lr.ph.i, !llvm.loop !21
+  br i1 %or.cond.not, label %rl_m_equal__String_String_r_bool.exit, label %.lr.ph.i, !llvm.loop !38
 
 rl_m_equal__String_String_r_bool.exit:            ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit4.i.peel, %rl_m_get__String_int64_t_r_int8_tRef.exit4.i, %3, %.preheader.i
   %26 = phi i1 [ false, %.preheader.i ], [ true, %3 ], [ %.not3.i.not.peel, %rl_m_get__String_int64_t_r_int8_tRef.exit4.i.peel ], [ %.not3.i.not, %rl_m_get__String_int64_t_r_int8_tRef.exit4.i ]
@@ -2940,435 +3365,595 @@ rl_m_pop__VectorTint8_tT_r_int8_t.exit:           ; preds = %2
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %16
   %21 = icmp sgt i64 %11, 0
   %.pre.i.i = load ptr, ptr %0, align 8
-  br i1 %21, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
+  br i1 %21, label %iter.check, label %.preheader.i.i
 
-.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+iter.check:                                       ; preds = %.preheader2.i.i
   %.pre.i.i52 = ptrtoint ptr %.pre.i.i to i64
-  %min.iters.check = icmp ult i64 %11, 4
+  %min.iters.check = icmp ult i64 %11, 8
   %22 = sub i64 %19, %.pre.i.i52
-  %diff.check = icmp ult i64 %22, 4
+  %diff.check = icmp ult i64 %22, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.preheader121, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.preheader121:                         ; preds = %middle.block, %.lr.ph5.i.i.preheader
-  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check53 = icmp ult i64 %11, 32
+  br i1 %min.iters.check53, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
-  %n.vec = and i64 %11, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %11, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %23 = getelementptr i8, ptr %18, i64 %index
   %24 = getelementptr i8, ptr %.pre.i.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %24, align 1
-  store <4 x i8> %wide.load, ptr %23, align 1
-  %index.next = add nuw i64 %index, 4
-  %25 = icmp eq i64 %index.next, %n.vec
-  br i1 %25, label %middle.block, label %vector.body, !llvm.loop !23
+  %25 = getelementptr i8, ptr %24, i64 16
+  %wide.load = load <16 x i8>, ptr %24, align 1
+  %wide.load54 = load <16 x i8>, ptr %25, align 1
+  %26 = getelementptr i8, ptr %23, i64 16
+  store <16 x i8> %wide.load, ptr %23, align 1
+  store <16 x i8> %wide.load54, ptr %26, align 1
+  %index.next = add nuw i64 %index, 32
+  %27 = icmp eq i64 %index.next, %n.vec
+  br i1 %27, label %middle.block, label %vector.body, !llvm.loop !40
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %11, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader121
+  br i1 %cmp.n, label %.preheader.i.i, label %vec.epilog.iter.check
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %11, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.preheader:                            ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec56, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec56 = and i64 %11, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index57 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next59, %vec.epilog.vector.body ]
+  %28 = getelementptr i8, ptr %18, i64 %index57
+  %29 = getelementptr i8, ptr %.pre.i.i, i64 %index57
+  %wide.load58 = load <8 x i8>, ptr %29, align 1
+  store <8 x i8> %wide.load58, ptr %28, align 1
+  %index.next59 = add nuw i64 %index57, 8
+  %30 = icmp eq i64 %index.next59, %n.vec56
+  br i1 %30, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !41
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n60 = icmp eq i64 %11, %n.vec56
+  br i1 %cmp.n60, label %.preheader.i.i, label %.lr.ph5.i.i.preheader
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre.i.i)
   store i64 %17, ptr %13, align 8
   store ptr %18, ptr %0, align 8
   %.pre.i = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader121, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %29, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader121 ]
-  %26 = getelementptr i8, ptr %18, i64 %.14.i.i
-  %27 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
-  %28 = load i8, ptr %27, align 1
-  store i8 %28, ptr %26, align 1
-  %29 = add nuw nsw i64 %.14.i.i, 1
-  %30 = icmp slt i64 %29, %11
-  br i1 %30, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !24
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %34, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader ]
+  %31 = getelementptr i8, ptr %18, i64 %.14.i.i
+  %32 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
+  %33 = load i8, ptr %32, align 1
+  store i8 %33, ptr %31, align 1
+  %34 = add nuw nsw i64 %.14.i.i, 1
+  %35 = icmp slt i64 %34, %11
+  br i1 %35, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !42
 
 rl_m_append__VectorTint8_tT_int8_t.exit:          ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i, %.preheader.i.i
-  %31 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %18, %.preheader.i.i ]
-  %32 = phi i64 [ %11, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
-  %33 = getelementptr i8, ptr %31, i64 %32
-  store i8 34, ptr %33, align 1
-  %34 = load i64, ptr %3, align 8
-  %35 = add i64 %34, 1
-  store i64 %35, ptr %3, align 8
-  %36 = getelementptr i8, ptr %1, i64 8
-  %37 = load i64, ptr %36, align 8
-  %38 = add i64 %37, -1
-  %39 = icmp sgt i64 %38, 0
-  br i1 %39, label %.lr.ph.preheader, label %._crit_edge
+  %36 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %18, %.preheader.i.i ]
+  %37 = phi i64 [ %11, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
+  %38 = getelementptr i8, ptr %36, i64 %37
+  store i8 34, ptr %38, align 1
+  %39 = load i64, ptr %3, align 8
+  %40 = add i64 %39, 1
+  store i64 %40, ptr %3, align 8
+  %41 = getelementptr i8, ptr %1, i64 8
+  %42 = load i64, ptr %41, align 8
+  %43 = add i64 %42, -1
+  %44 = icmp sgt i64 %43, 0
+  br i1 %44, label %.lr.ph.preheader, label %._crit_edge
 
 .lr.ph.preheader:                                 ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit, %rl_m_append__VectorTint8_tT_int8_t.exit21
-  %40 = phi i64 [ %104, %rl_m_append__VectorTint8_tT_int8_t.exit21 ], [ %35, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %41 = phi i64 [ %106, %rl_m_append__VectorTint8_tT_int8_t.exit21 ], [ %37, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %storemerge51 = phi i64 [ %105, %rl_m_append__VectorTint8_tT_int8_t.exit21 ], [ 0, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %42 = icmp slt i64 %storemerge51, %41
-  br i1 %42, label %rl_m_get__String_int64_t_r_int8_tRef.exit, label %43
+  %45 = phi i64 [ %119, %rl_m_append__VectorTint8_tT_int8_t.exit21 ], [ %40, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %46 = phi i64 [ %121, %rl_m_append__VectorTint8_tT_int8_t.exit21 ], [ %42, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %storemerge51 = phi i64 [ %120, %rl_m_append__VectorTint8_tT_int8_t.exit21 ], [ 0, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %47 = icmp slt i64 %storemerge51, %46
+  br i1 %47, label %rl_m_get__String_int64_t_r_int8_tRef.exit, label %48
 
-43:                                               ; preds = %.lr.ph.preheader
-  %44 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
+48:                                               ; preds = %.lr.ph.preheader
+  %49 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
   tail call void @llvm.trap()
   unreachable
 
 rl_m_get__String_int64_t_r_int8_tRef.exit:        ; preds = %.lr.ph.preheader
-  %45 = load ptr, ptr %1, align 8
-  %46 = getelementptr i8, ptr %45, i64 %storemerge51
-  %47 = load i8, ptr %46, align 1
-  %48 = icmp eq i8 %47, 34
-  br i1 %48, label %49, label %73
+  %50 = load ptr, ptr %1, align 8
+  %51 = getelementptr i8, ptr %50, i64 %storemerge51
+  %52 = load i8, ptr %51, align 1
+  %53 = icmp eq i8 %52, 34
+  br i1 %53, label %54, label %83
 
-49:                                               ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit
-  %50 = add i64 %40, 1
-  %51 = load i64, ptr %13, align 8
-  %52 = icmp sgt i64 %51, %50
-  br i1 %52, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, label %53
+54:                                               ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit
+  %55 = add i64 %45, 1
+  %56 = load i64, ptr %13, align 8
+  %57 = icmp sgt i64 %56, %55
+  br i1 %57, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, label %58
 
-.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8: ; preds = %49
+.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8: ; preds = %54
   %.pre2.i9 = load ptr, ptr %0, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit10
 
-53:                                               ; preds = %49
-  %54 = shl i64 %50, 1
-  %55 = tail call ptr @malloc(i64 %54)
-  %56 = ptrtoint ptr %55 to i64
-  %57 = icmp sgt i64 %54, 0
-  br i1 %57, label %.lr.ph.preheader.i.i7, label %.preheader2.i.i1
+58:                                               ; preds = %54
+  %59 = shl i64 %55, 1
+  %60 = tail call ptr @malloc(i64 %59)
+  %61 = ptrtoint ptr %60 to i64
+  %62 = icmp sgt i64 %59, 0
+  br i1 %62, label %.lr.ph.preheader.i.i7, label %.preheader2.i.i1
 
-.lr.ph.preheader.i.i7:                            ; preds = %53
-  tail call void @llvm.memset.p0.i64(ptr align 1 %55, i8 0, i64 %54, i1 false)
+.lr.ph.preheader.i.i7:                            ; preds = %58
+  tail call void @llvm.memset.p0.i64(ptr align 1 %60, i8 0, i64 %59, i1 false)
   br label %.preheader2.i.i1
 
-.preheader2.i.i1:                                 ; preds = %.lr.ph.preheader.i.i7, %53
-  %58 = icmp sgt i64 %40, 0
+.preheader2.i.i1:                                 ; preds = %.lr.ph.preheader.i.i7, %58
+  %63 = icmp sgt i64 %45, 0
   %.pre.i.i2 = load ptr, ptr %0, align 8
-  br i1 %58, label %.lr.ph5.i.i5.preheader, label %.preheader.i.i3
+  br i1 %63, label %iter.check100, label %.preheader.i.i3
 
-.lr.ph5.i.i5.preheader:                           ; preds = %.preheader2.i.i1
-  %.pre.i.i269 = ptrtoint ptr %.pre.i.i2 to i64
-  %min.iters.check73 = icmp ult i64 %40, 4
-  %59 = sub i64 %56, %.pre.i.i269
-  %diff.check70 = icmp ult i64 %59, 4
-  %or.cond113 = select i1 %min.iters.check73, i1 true, i1 %diff.check70
-  br i1 %or.cond113, label %.lr.ph5.i.i5.preheader120, label %vector.ph74
+iter.check100:                                    ; preds = %.preheader2.i.i1
+  %.pre.i.i295 = ptrtoint ptr %.pre.i.i2 to i64
+  %min.iters.check98 = icmp ult i64 %45, 8
+  %64 = sub i64 %61, %.pre.i.i295
+  %diff.check96 = icmp ult i64 %64, 32
+  %or.cond193 = select i1 %min.iters.check98, i1 true, i1 %diff.check96
+  br i1 %or.cond193, label %.lr.ph5.i.i5.preheader, label %vector.main.loop.iter.check102
 
-.lr.ph5.i.i5.preheader120:                        ; preds = %middle.block71, %.lr.ph5.i.i5.preheader
-  %.14.i.i6.ph = phi i64 [ 0, %.lr.ph5.i.i5.preheader ], [ %n.vec76, %middle.block71 ]
+vector.main.loop.iter.check102:                   ; preds = %iter.check100
+  %min.iters.check101 = icmp ult i64 %45, 32
+  br i1 %min.iters.check101, label %vec.epilog.ph114, label %vector.ph103
+
+vector.ph103:                                     ; preds = %vector.main.loop.iter.check102
+  %n.vec105 = and i64 %45, 9223372036854775776
+  br label %vector.body106
+
+vector.body106:                                   ; preds = %vector.body106, %vector.ph103
+  %index107 = phi i64 [ 0, %vector.ph103 ], [ %index.next110, %vector.body106 ]
+  %65 = getelementptr i8, ptr %60, i64 %index107
+  %66 = getelementptr i8, ptr %.pre.i.i2, i64 %index107
+  %67 = getelementptr i8, ptr %66, i64 16
+  %wide.load108 = load <16 x i8>, ptr %66, align 1
+  %wide.load109 = load <16 x i8>, ptr %67, align 1
+  %68 = getelementptr i8, ptr %65, i64 16
+  store <16 x i8> %wide.load108, ptr %65, align 1
+  store <16 x i8> %wide.load109, ptr %68, align 1
+  %index.next110 = add nuw i64 %index107, 32
+  %69 = icmp eq i64 %index.next110, %n.vec105
+  br i1 %69, label %middle.block97, label %vector.body106, !llvm.loop !43
+
+middle.block97:                                   ; preds = %vector.body106
+  %cmp.n111 = icmp eq i64 %45, %n.vec105
+  br i1 %cmp.n111, label %.preheader.i.i3, label %vec.epilog.iter.check115
+
+vec.epilog.iter.check115:                         ; preds = %middle.block97
+  %n.vec.remaining116 = and i64 %45, 24
+  %min.epilog.iters.check117 = icmp eq i64 %n.vec.remaining116, 0
+  br i1 %min.epilog.iters.check117, label %.lr.ph5.i.i5.preheader, label %vec.epilog.ph114
+
+.lr.ph5.i.i5.preheader:                           ; preds = %vec.epilog.middle.block112, %iter.check100, %vec.epilog.iter.check115
+  %.14.i.i6.ph = phi i64 [ 0, %iter.check100 ], [ %n.vec105, %vec.epilog.iter.check115 ], [ %n.vec120, %vec.epilog.middle.block112 ]
   br label %.lr.ph5.i.i5
 
-vector.ph74:                                      ; preds = %.lr.ph5.i.i5.preheader
-  %n.vec76 = and i64 %40, 9223372036854775804
-  br label %vector.body78
+vec.epilog.ph114:                                 ; preds = %vector.main.loop.iter.check102, %vec.epilog.iter.check115
+  %vec.epilog.resume.val118 = phi i64 [ %n.vec105, %vec.epilog.iter.check115 ], [ 0, %vector.main.loop.iter.check102 ]
+  %n.vec120 = and i64 %45, 9223372036854775800
+  br label %vec.epilog.vector.body122
 
-vector.body78:                                    ; preds = %vector.body78, %vector.ph74
-  %index79 = phi i64 [ 0, %vector.ph74 ], [ %index.next81, %vector.body78 ]
-  %60 = getelementptr i8, ptr %55, i64 %index79
-  %61 = getelementptr i8, ptr %.pre.i.i2, i64 %index79
-  %wide.load80 = load <4 x i8>, ptr %61, align 1
-  store <4 x i8> %wide.load80, ptr %60, align 1
-  %index.next81 = add nuw i64 %index79, 4
-  %62 = icmp eq i64 %index.next81, %n.vec76
-  br i1 %62, label %middle.block71, label %vector.body78, !llvm.loop !25
+vec.epilog.vector.body122:                        ; preds = %vec.epilog.vector.body122, %vec.epilog.ph114
+  %index123 = phi i64 [ %vec.epilog.resume.val118, %vec.epilog.ph114 ], [ %index.next125, %vec.epilog.vector.body122 ]
+  %70 = getelementptr i8, ptr %60, i64 %index123
+  %71 = getelementptr i8, ptr %.pre.i.i2, i64 %index123
+  %wide.load124 = load <8 x i8>, ptr %71, align 1
+  store <8 x i8> %wide.load124, ptr %70, align 1
+  %index.next125 = add nuw i64 %index123, 8
+  %72 = icmp eq i64 %index.next125, %n.vec120
+  br i1 %72, label %vec.epilog.middle.block112, label %vec.epilog.vector.body122, !llvm.loop !44
 
-middle.block71:                                   ; preds = %vector.body78
-  %cmp.n82 = icmp eq i64 %40, %n.vec76
-  br i1 %cmp.n82, label %.preheader.i.i3, label %.lr.ph5.i.i5.preheader120
+vec.epilog.middle.block112:                       ; preds = %vec.epilog.vector.body122
+  %cmp.n126 = icmp eq i64 %45, %n.vec120
+  br i1 %cmp.n126, label %.preheader.i.i3, label %.lr.ph5.i.i5.preheader
 
-.preheader.i.i3:                                  ; preds = %.lr.ph5.i.i5, %middle.block71, %.preheader2.i.i1
+.preheader.i.i3:                                  ; preds = %.lr.ph5.i.i5, %middle.block97, %vec.epilog.middle.block112, %.preheader2.i.i1
   tail call void @free(ptr %.pre.i.i2)
-  store i64 %54, ptr %13, align 8
-  store ptr %55, ptr %0, align 8
+  store i64 %59, ptr %13, align 8
+  store ptr %60, ptr %0, align 8
   %.pre.i4 = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit10
 
-.lr.ph5.i.i5:                                     ; preds = %.lr.ph5.i.i5.preheader120, %.lr.ph5.i.i5
-  %.14.i.i6 = phi i64 [ %66, %.lr.ph5.i.i5 ], [ %.14.i.i6.ph, %.lr.ph5.i.i5.preheader120 ]
-  %63 = getelementptr i8, ptr %55, i64 %.14.i.i6
-  %64 = getelementptr i8, ptr %.pre.i.i2, i64 %.14.i.i6
-  %65 = load i8, ptr %64, align 1
-  store i8 %65, ptr %63, align 1
-  %66 = add nuw nsw i64 %.14.i.i6, 1
-  %67 = icmp slt i64 %66, %40
-  br i1 %67, label %.lr.ph5.i.i5, label %.preheader.i.i3, !llvm.loop !26
+.lr.ph5.i.i5:                                     ; preds = %.lr.ph5.i.i5.preheader, %.lr.ph5.i.i5
+  %.14.i.i6 = phi i64 [ %76, %.lr.ph5.i.i5 ], [ %.14.i.i6.ph, %.lr.ph5.i.i5.preheader ]
+  %73 = getelementptr i8, ptr %60, i64 %.14.i.i6
+  %74 = getelementptr i8, ptr %.pre.i.i2, i64 %.14.i.i6
+  %75 = load i8, ptr %74, align 1
+  store i8 %75, ptr %73, align 1
+  %76 = add nuw nsw i64 %.14.i.i6, 1
+  %77 = icmp slt i64 %76, %45
+  br i1 %77, label %.lr.ph5.i.i5, label %.preheader.i.i3, !llvm.loop !45
 
 rl_m_append__VectorTint8_tT_int8_t.exit10:        ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, %.preheader.i.i3
-  %68 = phi ptr [ %.pre2.i9, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %55, %.preheader.i.i3 ]
-  %69 = phi i64 [ %40, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %.pre.i4, %.preheader.i.i3 ]
-  %70 = getelementptr i8, ptr %68, i64 %69
-  store i8 92, ptr %70, align 1
-  %71 = load i64, ptr %3, align 8
-  %72 = add i64 %71, 1
-  store i64 %72, ptr %3, align 8
-  %.pre = load i64, ptr %36, align 8
-  br label %73
+  %78 = phi ptr [ %.pre2.i9, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %60, %.preheader.i.i3 ]
+  %79 = phi i64 [ %45, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %.pre.i4, %.preheader.i.i3 ]
+  %80 = getelementptr i8, ptr %78, i64 %79
+  store i8 92, ptr %80, align 1
+  %81 = load i64, ptr %3, align 8
+  %82 = add i64 %81, 1
+  store i64 %82, ptr %3, align 8
+  %.pre = load i64, ptr %41, align 8
+  br label %83
 
-73:                                               ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit10, %rl_m_get__String_int64_t_r_int8_tRef.exit
-  %74 = phi i64 [ %72, %rl_m_append__VectorTint8_tT_int8_t.exit10 ], [ %40, %rl_m_get__String_int64_t_r_int8_tRef.exit ]
-  %75 = phi i64 [ %.pre, %rl_m_append__VectorTint8_tT_int8_t.exit10 ], [ %41, %rl_m_get__String_int64_t_r_int8_tRef.exit ]
-  %76 = icmp slt i64 %storemerge51, %75
-  br i1 %76, label %rl_m_get__String_int64_t_r_int8_tRef.exit11, label %77
+83:                                               ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit10, %rl_m_get__String_int64_t_r_int8_tRef.exit
+  %84 = phi i64 [ %82, %rl_m_append__VectorTint8_tT_int8_t.exit10 ], [ %45, %rl_m_get__String_int64_t_r_int8_tRef.exit ]
+  %85 = phi i64 [ %.pre, %rl_m_append__VectorTint8_tT_int8_t.exit10 ], [ %46, %rl_m_get__String_int64_t_r_int8_tRef.exit ]
+  %86 = icmp slt i64 %storemerge51, %85
+  br i1 %86, label %rl_m_get__String_int64_t_r_int8_tRef.exit11, label %87
 
-77:                                               ; preds = %73
-  %78 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
+87:                                               ; preds = %83
+  %88 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
   tail call void @llvm.trap()
   unreachable
 
-rl_m_get__String_int64_t_r_int8_tRef.exit11:      ; preds = %73
-  %79 = load ptr, ptr %1, align 8
-  %80 = getelementptr i8, ptr %79, i64 %storemerge51
-  %81 = add i64 %74, 1
-  %82 = load i64, ptr %13, align 8
-  %83 = icmp sgt i64 %82, %81
-  br i1 %83, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19, label %84
+rl_m_get__String_int64_t_r_int8_tRef.exit11:      ; preds = %83
+  %89 = load ptr, ptr %1, align 8
+  %90 = getelementptr i8, ptr %89, i64 %storemerge51
+  %91 = add i64 %84, 1
+  %92 = load i64, ptr %13, align 8
+  %93 = icmp sgt i64 %92, %91
+  br i1 %93, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19, label %94
 
 .rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19: ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit11
   %.pre2.i20 = load ptr, ptr %0, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit21
 
-84:                                               ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit11
-  %85 = shl i64 %81, 1
-  %86 = tail call ptr @malloc(i64 %85)
-  %87 = ptrtoint ptr %86 to i64
-  %88 = icmp sgt i64 %85, 0
-  br i1 %88, label %.lr.ph.preheader.i.i18, label %.preheader2.i.i12
+94:                                               ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit11
+  %95 = shl i64 %91, 1
+  %96 = tail call ptr @malloc(i64 %95)
+  %97 = ptrtoint ptr %96 to i64
+  %98 = icmp sgt i64 %95, 0
+  br i1 %98, label %.lr.ph.preheader.i.i18, label %.preheader2.i.i12
 
-.lr.ph.preheader.i.i18:                           ; preds = %84
-  tail call void @llvm.memset.p0.i64(ptr align 1 %86, i8 0, i64 %85, i1 false)
+.lr.ph.preheader.i.i18:                           ; preds = %94
+  tail call void @llvm.memset.p0.i64(ptr align 1 %96, i8 0, i64 %95, i1 false)
   br label %.preheader2.i.i12
 
-.preheader2.i.i12:                                ; preds = %.lr.ph.preheader.i.i18, %84
-  %89 = icmp sgt i64 %74, 0
+.preheader2.i.i12:                                ; preds = %.lr.ph.preheader.i.i18, %94
+  %99 = icmp sgt i64 %84, 0
   %.pre.i.i13 = load ptr, ptr %0, align 8
-  br i1 %89, label %.lr.ph5.i.i16.preheader, label %.preheader.i.i14
+  br i1 %99, label %iter.check67, label %.preheader.i.i14
 
-.lr.ph5.i.i16.preheader:                          ; preds = %.preheader2.i.i12
-  %.pre.i.i1354 = ptrtoint ptr %.pre.i.i13 to i64
-  %min.iters.check58 = icmp ult i64 %74, 4
-  %90 = sub i64 %87, %.pre.i.i1354
-  %diff.check55 = icmp ult i64 %90, 4
-  %or.cond114 = select i1 %min.iters.check58, i1 true, i1 %diff.check55
-  br i1 %or.cond114, label %.lr.ph5.i.i16.preheader119, label %vector.ph59
+iter.check67:                                     ; preds = %.preheader2.i.i12
+  %.pre.i.i1362 = ptrtoint ptr %.pre.i.i13 to i64
+  %min.iters.check65 = icmp ult i64 %84, 8
+  %100 = sub i64 %97, %.pre.i.i1362
+  %diff.check63 = icmp ult i64 %100, 32
+  %or.cond194 = select i1 %min.iters.check65, i1 true, i1 %diff.check63
+  br i1 %or.cond194, label %.lr.ph5.i.i16.preheader, label %vector.main.loop.iter.check69
 
-.lr.ph5.i.i16.preheader119:                       ; preds = %middle.block56, %.lr.ph5.i.i16.preheader
-  %.14.i.i17.ph = phi i64 [ 0, %.lr.ph5.i.i16.preheader ], [ %n.vec61, %middle.block56 ]
+vector.main.loop.iter.check69:                    ; preds = %iter.check67
+  %min.iters.check68 = icmp ult i64 %84, 32
+  br i1 %min.iters.check68, label %vec.epilog.ph81, label %vector.ph70
+
+vector.ph70:                                      ; preds = %vector.main.loop.iter.check69
+  %n.vec72 = and i64 %84, 9223372036854775776
+  br label %vector.body73
+
+vector.body73:                                    ; preds = %vector.body73, %vector.ph70
+  %index74 = phi i64 [ 0, %vector.ph70 ], [ %index.next77, %vector.body73 ]
+  %101 = getelementptr i8, ptr %96, i64 %index74
+  %102 = getelementptr i8, ptr %.pre.i.i13, i64 %index74
+  %103 = getelementptr i8, ptr %102, i64 16
+  %wide.load75 = load <16 x i8>, ptr %102, align 1
+  %wide.load76 = load <16 x i8>, ptr %103, align 1
+  %104 = getelementptr i8, ptr %101, i64 16
+  store <16 x i8> %wide.load75, ptr %101, align 1
+  store <16 x i8> %wide.load76, ptr %104, align 1
+  %index.next77 = add nuw i64 %index74, 32
+  %105 = icmp eq i64 %index.next77, %n.vec72
+  br i1 %105, label %middle.block64, label %vector.body73, !llvm.loop !46
+
+middle.block64:                                   ; preds = %vector.body73
+  %cmp.n78 = icmp eq i64 %84, %n.vec72
+  br i1 %cmp.n78, label %.preheader.i.i14, label %vec.epilog.iter.check82
+
+vec.epilog.iter.check82:                          ; preds = %middle.block64
+  %n.vec.remaining83 = and i64 %84, 24
+  %min.epilog.iters.check84 = icmp eq i64 %n.vec.remaining83, 0
+  br i1 %min.epilog.iters.check84, label %.lr.ph5.i.i16.preheader, label %vec.epilog.ph81
+
+.lr.ph5.i.i16.preheader:                          ; preds = %vec.epilog.middle.block79, %iter.check67, %vec.epilog.iter.check82
+  %.14.i.i17.ph = phi i64 [ 0, %iter.check67 ], [ %n.vec72, %vec.epilog.iter.check82 ], [ %n.vec87, %vec.epilog.middle.block79 ]
   br label %.lr.ph5.i.i16
 
-vector.ph59:                                      ; preds = %.lr.ph5.i.i16.preheader
-  %n.vec61 = and i64 %74, 9223372036854775804
-  br label %vector.body63
+vec.epilog.ph81:                                  ; preds = %vector.main.loop.iter.check69, %vec.epilog.iter.check82
+  %vec.epilog.resume.val85 = phi i64 [ %n.vec72, %vec.epilog.iter.check82 ], [ 0, %vector.main.loop.iter.check69 ]
+  %n.vec87 = and i64 %84, 9223372036854775800
+  br label %vec.epilog.vector.body89
 
-vector.body63:                                    ; preds = %vector.body63, %vector.ph59
-  %index64 = phi i64 [ 0, %vector.ph59 ], [ %index.next66, %vector.body63 ]
-  %91 = getelementptr i8, ptr %86, i64 %index64
-  %92 = getelementptr i8, ptr %.pre.i.i13, i64 %index64
-  %wide.load65 = load <4 x i8>, ptr %92, align 1
-  store <4 x i8> %wide.load65, ptr %91, align 1
-  %index.next66 = add nuw i64 %index64, 4
-  %93 = icmp eq i64 %index.next66, %n.vec61
-  br i1 %93, label %middle.block56, label %vector.body63, !llvm.loop !27
+vec.epilog.vector.body89:                         ; preds = %vec.epilog.vector.body89, %vec.epilog.ph81
+  %index90 = phi i64 [ %vec.epilog.resume.val85, %vec.epilog.ph81 ], [ %index.next92, %vec.epilog.vector.body89 ]
+  %106 = getelementptr i8, ptr %96, i64 %index90
+  %107 = getelementptr i8, ptr %.pre.i.i13, i64 %index90
+  %wide.load91 = load <8 x i8>, ptr %107, align 1
+  store <8 x i8> %wide.load91, ptr %106, align 1
+  %index.next92 = add nuw i64 %index90, 8
+  %108 = icmp eq i64 %index.next92, %n.vec87
+  br i1 %108, label %vec.epilog.middle.block79, label %vec.epilog.vector.body89, !llvm.loop !47
 
-middle.block56:                                   ; preds = %vector.body63
-  %cmp.n67 = icmp eq i64 %74, %n.vec61
-  br i1 %cmp.n67, label %.preheader.i.i14, label %.lr.ph5.i.i16.preheader119
+vec.epilog.middle.block79:                        ; preds = %vec.epilog.vector.body89
+  %cmp.n93 = icmp eq i64 %84, %n.vec87
+  br i1 %cmp.n93, label %.preheader.i.i14, label %.lr.ph5.i.i16.preheader
 
-.preheader.i.i14:                                 ; preds = %.lr.ph5.i.i16, %middle.block56, %.preheader2.i.i12
+.preheader.i.i14:                                 ; preds = %.lr.ph5.i.i16, %middle.block64, %vec.epilog.middle.block79, %.preheader2.i.i12
   tail call void @free(ptr %.pre.i.i13)
-  store i64 %85, ptr %13, align 8
-  store ptr %86, ptr %0, align 8
+  store i64 %95, ptr %13, align 8
+  store ptr %96, ptr %0, align 8
   %.pre.i15 = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit21
 
-.lr.ph5.i.i16:                                    ; preds = %.lr.ph5.i.i16.preheader119, %.lr.ph5.i.i16
-  %.14.i.i17 = phi i64 [ %97, %.lr.ph5.i.i16 ], [ %.14.i.i17.ph, %.lr.ph5.i.i16.preheader119 ]
-  %94 = getelementptr i8, ptr %86, i64 %.14.i.i17
-  %95 = getelementptr i8, ptr %.pre.i.i13, i64 %.14.i.i17
-  %96 = load i8, ptr %95, align 1
-  store i8 %96, ptr %94, align 1
-  %97 = add nuw nsw i64 %.14.i.i17, 1
-  %98 = icmp slt i64 %97, %74
-  br i1 %98, label %.lr.ph5.i.i16, label %.preheader.i.i14, !llvm.loop !28
+.lr.ph5.i.i16:                                    ; preds = %.lr.ph5.i.i16.preheader, %.lr.ph5.i.i16
+  %.14.i.i17 = phi i64 [ %112, %.lr.ph5.i.i16 ], [ %.14.i.i17.ph, %.lr.ph5.i.i16.preheader ]
+  %109 = getelementptr i8, ptr %96, i64 %.14.i.i17
+  %110 = getelementptr i8, ptr %.pre.i.i13, i64 %.14.i.i17
+  %111 = load i8, ptr %110, align 1
+  store i8 %111, ptr %109, align 1
+  %112 = add nuw nsw i64 %.14.i.i17, 1
+  %113 = icmp slt i64 %112, %84
+  br i1 %113, label %.lr.ph5.i.i16, label %.preheader.i.i14, !llvm.loop !48
 
 rl_m_append__VectorTint8_tT_int8_t.exit21:        ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19, %.preheader.i.i14
-  %99 = phi ptr [ %.pre2.i20, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19 ], [ %86, %.preheader.i.i14 ]
-  %100 = phi i64 [ %74, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19 ], [ %.pre.i15, %.preheader.i.i14 ]
-  %101 = getelementptr i8, ptr %99, i64 %100
-  %102 = load i8, ptr %80, align 1
-  store i8 %102, ptr %101, align 1
-  %103 = load i64, ptr %3, align 8
-  %104 = add i64 %103, 1
-  store i64 %104, ptr %3, align 8
-  %105 = add nuw nsw i64 %storemerge51, 1
-  %106 = load i64, ptr %36, align 8
-  %107 = add i64 %106, -1
-  %108 = icmp slt i64 %105, %107
-  br i1 %108, label %.lr.ph.preheader, label %._crit_edge
+  %114 = phi ptr [ %.pre2.i20, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19 ], [ %96, %.preheader.i.i14 ]
+  %115 = phi i64 [ %84, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i19 ], [ %.pre.i15, %.preheader.i.i14 ]
+  %116 = getelementptr i8, ptr %114, i64 %115
+  %117 = load i8, ptr %90, align 1
+  store i8 %117, ptr %116, align 1
+  %118 = load i64, ptr %3, align 8
+  %119 = add i64 %118, 1
+  store i64 %119, ptr %3, align 8
+  %120 = add nuw nsw i64 %storemerge51, 1
+  %121 = load i64, ptr %41, align 8
+  %122 = add i64 %121, -1
+  %123 = icmp slt i64 %120, %122
+  br i1 %123, label %.lr.ph.preheader, label %._crit_edge
 
 ._crit_edge:                                      ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit21, %rl_m_append__VectorTint8_tT_int8_t.exit
-  %109 = phi i64 [ %35, %rl_m_append__VectorTint8_tT_int8_t.exit ], [ %104, %rl_m_append__VectorTint8_tT_int8_t.exit21 ]
-  %110 = add i64 %109, 1
-  %111 = load i64, ptr %13, align 8
-  %112 = icmp sgt i64 %111, %110
-  br i1 %112, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29, label %113
+  %124 = phi i64 [ %40, %rl_m_append__VectorTint8_tT_int8_t.exit ], [ %119, %rl_m_append__VectorTint8_tT_int8_t.exit21 ]
+  %125 = add i64 %124, 1
+  %126 = load i64, ptr %13, align 8
+  %127 = icmp sgt i64 %126, %125
+  br i1 %127, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29, label %128
 
 .rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29: ; preds = %._crit_edge
   %.pre2.i30 = load ptr, ptr %0, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit31
 
-113:                                              ; preds = %._crit_edge
-  %114 = shl i64 %110, 1
-  %115 = tail call ptr @malloc(i64 %114)
-  %116 = ptrtoint ptr %115 to i64
-  %117 = icmp sgt i64 %114, 0
-  br i1 %117, label %.lr.ph.preheader.i.i28, label %.preheader2.i.i22
+128:                                              ; preds = %._crit_edge
+  %129 = shl i64 %125, 1
+  %130 = tail call ptr @malloc(i64 %129)
+  %131 = ptrtoint ptr %130 to i64
+  %132 = icmp sgt i64 %129, 0
+  br i1 %132, label %.lr.ph.preheader.i.i28, label %.preheader2.i.i22
 
-.lr.ph.preheader.i.i28:                           ; preds = %113
-  tail call void @llvm.memset.p0.i64(ptr align 1 %115, i8 0, i64 %114, i1 false)
+.lr.ph.preheader.i.i28:                           ; preds = %128
+  tail call void @llvm.memset.p0.i64(ptr align 1 %130, i8 0, i64 %129, i1 false)
   br label %.preheader2.i.i22
 
-.preheader2.i.i22:                                ; preds = %.lr.ph.preheader.i.i28, %113
-  %118 = icmp sgt i64 %109, 0
+.preheader2.i.i22:                                ; preds = %.lr.ph.preheader.i.i28, %128
+  %133 = icmp sgt i64 %124, 0
   %.pre.i.i23 = load ptr, ptr %0, align 8
-  br i1 %118, label %.lr.ph5.i.i26.preheader, label %.preheader.i.i24
+  br i1 %133, label %iter.check133, label %.preheader.i.i24
 
-.lr.ph5.i.i26.preheader:                          ; preds = %.preheader2.i.i22
-  %.pre.i.i2384 = ptrtoint ptr %.pre.i.i23 to i64
-  %min.iters.check88 = icmp ult i64 %109, 4
-  %119 = sub i64 %116, %.pre.i.i2384
-  %diff.check85 = icmp ult i64 %119, 4
-  %or.cond115 = select i1 %min.iters.check88, i1 true, i1 %diff.check85
-  br i1 %or.cond115, label %.lr.ph5.i.i26.preheader118, label %vector.ph89
+iter.check133:                                    ; preds = %.preheader2.i.i22
+  %.pre.i.i23128 = ptrtoint ptr %.pre.i.i23 to i64
+  %min.iters.check131 = icmp ult i64 %124, 8
+  %134 = sub i64 %131, %.pre.i.i23128
+  %diff.check129 = icmp ult i64 %134, 32
+  %or.cond195 = select i1 %min.iters.check131, i1 true, i1 %diff.check129
+  br i1 %or.cond195, label %.lr.ph5.i.i26.preheader, label %vector.main.loop.iter.check135
 
-.lr.ph5.i.i26.preheader118:                       ; preds = %middle.block86, %.lr.ph5.i.i26.preheader
-  %.14.i.i27.ph = phi i64 [ 0, %.lr.ph5.i.i26.preheader ], [ %n.vec91, %middle.block86 ]
+vector.main.loop.iter.check135:                   ; preds = %iter.check133
+  %min.iters.check134 = icmp ult i64 %124, 32
+  br i1 %min.iters.check134, label %vec.epilog.ph147, label %vector.ph136
+
+vector.ph136:                                     ; preds = %vector.main.loop.iter.check135
+  %n.vec138 = and i64 %124, 9223372036854775776
+  br label %vector.body139
+
+vector.body139:                                   ; preds = %vector.body139, %vector.ph136
+  %index140 = phi i64 [ 0, %vector.ph136 ], [ %index.next143, %vector.body139 ]
+  %135 = getelementptr i8, ptr %130, i64 %index140
+  %136 = getelementptr i8, ptr %.pre.i.i23, i64 %index140
+  %137 = getelementptr i8, ptr %136, i64 16
+  %wide.load141 = load <16 x i8>, ptr %136, align 1
+  %wide.load142 = load <16 x i8>, ptr %137, align 1
+  %138 = getelementptr i8, ptr %135, i64 16
+  store <16 x i8> %wide.load141, ptr %135, align 1
+  store <16 x i8> %wide.load142, ptr %138, align 1
+  %index.next143 = add nuw i64 %index140, 32
+  %139 = icmp eq i64 %index.next143, %n.vec138
+  br i1 %139, label %middle.block130, label %vector.body139, !llvm.loop !49
+
+middle.block130:                                  ; preds = %vector.body139
+  %cmp.n144 = icmp eq i64 %124, %n.vec138
+  br i1 %cmp.n144, label %.preheader.i.i24, label %vec.epilog.iter.check148
+
+vec.epilog.iter.check148:                         ; preds = %middle.block130
+  %n.vec.remaining149 = and i64 %124, 24
+  %min.epilog.iters.check150 = icmp eq i64 %n.vec.remaining149, 0
+  br i1 %min.epilog.iters.check150, label %.lr.ph5.i.i26.preheader, label %vec.epilog.ph147
+
+.lr.ph5.i.i26.preheader:                          ; preds = %vec.epilog.middle.block145, %iter.check133, %vec.epilog.iter.check148
+  %.14.i.i27.ph = phi i64 [ 0, %iter.check133 ], [ %n.vec138, %vec.epilog.iter.check148 ], [ %n.vec153, %vec.epilog.middle.block145 ]
   br label %.lr.ph5.i.i26
 
-vector.ph89:                                      ; preds = %.lr.ph5.i.i26.preheader
-  %n.vec91 = and i64 %109, 9223372036854775804
-  br label %vector.body93
+vec.epilog.ph147:                                 ; preds = %vector.main.loop.iter.check135, %vec.epilog.iter.check148
+  %vec.epilog.resume.val151 = phi i64 [ %n.vec138, %vec.epilog.iter.check148 ], [ 0, %vector.main.loop.iter.check135 ]
+  %n.vec153 = and i64 %124, 9223372036854775800
+  br label %vec.epilog.vector.body155
 
-vector.body93:                                    ; preds = %vector.body93, %vector.ph89
-  %index94 = phi i64 [ 0, %vector.ph89 ], [ %index.next96, %vector.body93 ]
-  %120 = getelementptr i8, ptr %115, i64 %index94
-  %121 = getelementptr i8, ptr %.pre.i.i23, i64 %index94
-  %wide.load95 = load <4 x i8>, ptr %121, align 1
-  store <4 x i8> %wide.load95, ptr %120, align 1
-  %index.next96 = add nuw i64 %index94, 4
-  %122 = icmp eq i64 %index.next96, %n.vec91
-  br i1 %122, label %middle.block86, label %vector.body93, !llvm.loop !29
+vec.epilog.vector.body155:                        ; preds = %vec.epilog.vector.body155, %vec.epilog.ph147
+  %index156 = phi i64 [ %vec.epilog.resume.val151, %vec.epilog.ph147 ], [ %index.next158, %vec.epilog.vector.body155 ]
+  %140 = getelementptr i8, ptr %130, i64 %index156
+  %141 = getelementptr i8, ptr %.pre.i.i23, i64 %index156
+  %wide.load157 = load <8 x i8>, ptr %141, align 1
+  store <8 x i8> %wide.load157, ptr %140, align 1
+  %index.next158 = add nuw i64 %index156, 8
+  %142 = icmp eq i64 %index.next158, %n.vec153
+  br i1 %142, label %vec.epilog.middle.block145, label %vec.epilog.vector.body155, !llvm.loop !50
 
-middle.block86:                                   ; preds = %vector.body93
-  %cmp.n97 = icmp eq i64 %109, %n.vec91
-  br i1 %cmp.n97, label %.preheader.i.i24, label %.lr.ph5.i.i26.preheader118
+vec.epilog.middle.block145:                       ; preds = %vec.epilog.vector.body155
+  %cmp.n159 = icmp eq i64 %124, %n.vec153
+  br i1 %cmp.n159, label %.preheader.i.i24, label %.lr.ph5.i.i26.preheader
 
-.preheader.i.i24:                                 ; preds = %.lr.ph5.i.i26, %middle.block86, %.preheader2.i.i22
+.preheader.i.i24:                                 ; preds = %.lr.ph5.i.i26, %middle.block130, %vec.epilog.middle.block145, %.preheader2.i.i22
   tail call void @free(ptr %.pre.i.i23)
-  store i64 %114, ptr %13, align 8
-  store ptr %115, ptr %0, align 8
+  store i64 %129, ptr %13, align 8
+  store ptr %130, ptr %0, align 8
   %.pre.i25 = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit31
 
-.lr.ph5.i.i26:                                    ; preds = %.lr.ph5.i.i26.preheader118, %.lr.ph5.i.i26
-  %.14.i.i27 = phi i64 [ %126, %.lr.ph5.i.i26 ], [ %.14.i.i27.ph, %.lr.ph5.i.i26.preheader118 ]
-  %123 = getelementptr i8, ptr %115, i64 %.14.i.i27
-  %124 = getelementptr i8, ptr %.pre.i.i23, i64 %.14.i.i27
-  %125 = load i8, ptr %124, align 1
-  store i8 %125, ptr %123, align 1
-  %126 = add nuw nsw i64 %.14.i.i27, 1
-  %127 = icmp slt i64 %126, %109
-  br i1 %127, label %.lr.ph5.i.i26, label %.preheader.i.i24, !llvm.loop !30
+.lr.ph5.i.i26:                                    ; preds = %.lr.ph5.i.i26.preheader, %.lr.ph5.i.i26
+  %.14.i.i27 = phi i64 [ %146, %.lr.ph5.i.i26 ], [ %.14.i.i27.ph, %.lr.ph5.i.i26.preheader ]
+  %143 = getelementptr i8, ptr %130, i64 %.14.i.i27
+  %144 = getelementptr i8, ptr %.pre.i.i23, i64 %.14.i.i27
+  %145 = load i8, ptr %144, align 1
+  store i8 %145, ptr %143, align 1
+  %146 = add nuw nsw i64 %.14.i.i27, 1
+  %147 = icmp slt i64 %146, %124
+  br i1 %147, label %.lr.ph5.i.i26, label %.preheader.i.i24, !llvm.loop !51
 
 rl_m_append__VectorTint8_tT_int8_t.exit31:        ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29, %.preheader.i.i24
-  %128 = phi ptr [ %.pre2.i30, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29 ], [ %115, %.preheader.i.i24 ]
-  %129 = phi i64 [ %109, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29 ], [ %.pre.i25, %.preheader.i.i24 ]
-  %130 = getelementptr i8, ptr %128, i64 %129
-  store i8 34, ptr %130, align 1
-  %131 = load i64, ptr %3, align 8
-  %132 = add i64 %131, 1
-  store i64 %132, ptr %3, align 8
-  %133 = add i64 %131, 2
-  %134 = load i64, ptr %13, align 8
-  %135 = icmp sgt i64 %134, %133
-  br i1 %135, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39, label %136
+  %148 = phi ptr [ %.pre2.i30, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29 ], [ %130, %.preheader.i.i24 ]
+  %149 = phi i64 [ %124, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i29 ], [ %.pre.i25, %.preheader.i.i24 ]
+  %150 = getelementptr i8, ptr %148, i64 %149
+  store i8 34, ptr %150, align 1
+  %151 = load i64, ptr %3, align 8
+  %152 = add i64 %151, 1
+  store i64 %152, ptr %3, align 8
+  %153 = add i64 %151, 2
+  %154 = load i64, ptr %13, align 8
+  %155 = icmp sgt i64 %154, %153
+  br i1 %155, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39, label %156
 
 .rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39: ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit31
   %.pre2.i40 = load ptr, ptr %0, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit41
 
-136:                                              ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit31
-  %137 = shl i64 %133, 1
-  %138 = tail call ptr @malloc(i64 %137)
-  %139 = ptrtoint ptr %138 to i64
-  %140 = icmp sgt i64 %137, 0
-  br i1 %140, label %.lr.ph.preheader.i.i38, label %.preheader2.i.i32
+156:                                              ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit31
+  %157 = shl i64 %153, 1
+  %158 = tail call ptr @malloc(i64 %157)
+  %159 = ptrtoint ptr %158 to i64
+  %160 = icmp sgt i64 %157, 0
+  br i1 %160, label %.lr.ph.preheader.i.i38, label %.preheader2.i.i32
 
-.lr.ph.preheader.i.i38:                           ; preds = %136
-  tail call void @llvm.memset.p0.i64(ptr align 1 %138, i8 0, i64 %137, i1 false)
+.lr.ph.preheader.i.i38:                           ; preds = %156
+  tail call void @llvm.memset.p0.i64(ptr align 1 %158, i8 0, i64 %157, i1 false)
   br label %.preheader2.i.i32
 
-.preheader2.i.i32:                                ; preds = %.lr.ph.preheader.i.i38, %136
-  %141 = icmp ult i64 %131, 9223372036854775807
+.preheader2.i.i32:                                ; preds = %.lr.ph.preheader.i.i38, %156
+  %161 = icmp ult i64 %151, 9223372036854775807
   %.pre.i.i33 = load ptr, ptr %0, align 8
-  br i1 %141, label %.lr.ph5.i.i36.preheader, label %.preheader.i.i34
+  br i1 %161, label %iter.check166, label %.preheader.i.i34
 
-.lr.ph5.i.i36.preheader:                          ; preds = %.preheader2.i.i32
-  %.pre.i.i3399 = ptrtoint ptr %.pre.i.i33 to i64
-  %min.iters.check103 = icmp ult i64 %132, 4
-  %142 = sub i64 %139, %.pre.i.i3399
-  %diff.check100 = icmp ult i64 %142, 4
-  %or.cond116 = select i1 %min.iters.check103, i1 true, i1 %diff.check100
-  br i1 %or.cond116, label %.lr.ph5.i.i36.preheader117, label %vector.ph104
+iter.check166:                                    ; preds = %.preheader2.i.i32
+  %.pre.i.i33161 = ptrtoint ptr %.pre.i.i33 to i64
+  %min.iters.check164 = icmp ult i64 %152, 8
+  %162 = sub i64 %159, %.pre.i.i33161
+  %diff.check162 = icmp ult i64 %162, 32
+  %or.cond196 = select i1 %min.iters.check164, i1 true, i1 %diff.check162
+  br i1 %or.cond196, label %.lr.ph5.i.i36.preheader, label %vector.main.loop.iter.check168
 
-.lr.ph5.i.i36.preheader117:                       ; preds = %middle.block101, %.lr.ph5.i.i36.preheader
-  %.14.i.i37.ph = phi i64 [ 0, %.lr.ph5.i.i36.preheader ], [ %n.vec106, %middle.block101 ]
+vector.main.loop.iter.check168:                   ; preds = %iter.check166
+  %min.iters.check167 = icmp ult i64 %152, 32
+  br i1 %min.iters.check167, label %vec.epilog.ph180, label %vector.ph169
+
+vector.ph169:                                     ; preds = %vector.main.loop.iter.check168
+  %n.vec171 = and i64 %152, -32
+  br label %vector.body172
+
+vector.body172:                                   ; preds = %vector.body172, %vector.ph169
+  %index173 = phi i64 [ 0, %vector.ph169 ], [ %index.next176, %vector.body172 ]
+  %163 = getelementptr i8, ptr %158, i64 %index173
+  %164 = getelementptr i8, ptr %.pre.i.i33, i64 %index173
+  %165 = getelementptr i8, ptr %164, i64 16
+  %wide.load174 = load <16 x i8>, ptr %164, align 1
+  %wide.load175 = load <16 x i8>, ptr %165, align 1
+  %166 = getelementptr i8, ptr %163, i64 16
+  store <16 x i8> %wide.load174, ptr %163, align 1
+  store <16 x i8> %wide.load175, ptr %166, align 1
+  %index.next176 = add nuw i64 %index173, 32
+  %167 = icmp eq i64 %index.next176, %n.vec171
+  br i1 %167, label %middle.block163, label %vector.body172, !llvm.loop !52
+
+middle.block163:                                  ; preds = %vector.body172
+  %cmp.n177 = icmp eq i64 %152, %n.vec171
+  br i1 %cmp.n177, label %.preheader.i.i34, label %vec.epilog.iter.check181
+
+vec.epilog.iter.check181:                         ; preds = %middle.block163
+  %n.vec.remaining182 = and i64 %152, 24
+  %min.epilog.iters.check183 = icmp eq i64 %n.vec.remaining182, 0
+  br i1 %min.epilog.iters.check183, label %.lr.ph5.i.i36.preheader, label %vec.epilog.ph180
+
+.lr.ph5.i.i36.preheader:                          ; preds = %vec.epilog.middle.block178, %iter.check166, %vec.epilog.iter.check181
+  %.14.i.i37.ph = phi i64 [ 0, %iter.check166 ], [ %n.vec171, %vec.epilog.iter.check181 ], [ %n.vec186, %vec.epilog.middle.block178 ]
   br label %.lr.ph5.i.i36
 
-vector.ph104:                                     ; preds = %.lr.ph5.i.i36.preheader
-  %n.vec106 = and i64 %132, -4
-  br label %vector.body108
+vec.epilog.ph180:                                 ; preds = %vector.main.loop.iter.check168, %vec.epilog.iter.check181
+  %vec.epilog.resume.val184 = phi i64 [ %n.vec171, %vec.epilog.iter.check181 ], [ 0, %vector.main.loop.iter.check168 ]
+  %n.vec186 = and i64 %152, -8
+  br label %vec.epilog.vector.body188
 
-vector.body108:                                   ; preds = %vector.body108, %vector.ph104
-  %index109 = phi i64 [ 0, %vector.ph104 ], [ %index.next111, %vector.body108 ]
-  %143 = getelementptr i8, ptr %138, i64 %index109
-  %144 = getelementptr i8, ptr %.pre.i.i33, i64 %index109
-  %wide.load110 = load <4 x i8>, ptr %144, align 1
-  store <4 x i8> %wide.load110, ptr %143, align 1
-  %index.next111 = add nuw i64 %index109, 4
-  %145 = icmp eq i64 %index.next111, %n.vec106
-  br i1 %145, label %middle.block101, label %vector.body108, !llvm.loop !31
+vec.epilog.vector.body188:                        ; preds = %vec.epilog.vector.body188, %vec.epilog.ph180
+  %index189 = phi i64 [ %vec.epilog.resume.val184, %vec.epilog.ph180 ], [ %index.next191, %vec.epilog.vector.body188 ]
+  %168 = getelementptr i8, ptr %158, i64 %index189
+  %169 = getelementptr i8, ptr %.pre.i.i33, i64 %index189
+  %wide.load190 = load <8 x i8>, ptr %169, align 1
+  store <8 x i8> %wide.load190, ptr %168, align 1
+  %index.next191 = add nuw i64 %index189, 8
+  %170 = icmp eq i64 %index.next191, %n.vec186
+  br i1 %170, label %vec.epilog.middle.block178, label %vec.epilog.vector.body188, !llvm.loop !53
 
-middle.block101:                                  ; preds = %vector.body108
-  %cmp.n112 = icmp eq i64 %132, %n.vec106
-  br i1 %cmp.n112, label %.preheader.i.i34, label %.lr.ph5.i.i36.preheader117
+vec.epilog.middle.block178:                       ; preds = %vec.epilog.vector.body188
+  %cmp.n192 = icmp eq i64 %152, %n.vec186
+  br i1 %cmp.n192, label %.preheader.i.i34, label %.lr.ph5.i.i36.preheader
 
-.preheader.i.i34:                                 ; preds = %.lr.ph5.i.i36, %middle.block101, %.preheader2.i.i32
+.preheader.i.i34:                                 ; preds = %.lr.ph5.i.i36, %middle.block163, %vec.epilog.middle.block178, %.preheader2.i.i32
   tail call void @free(ptr %.pre.i.i33)
-  store i64 %137, ptr %13, align 8
-  store ptr %138, ptr %0, align 8
+  store i64 %157, ptr %13, align 8
+  store ptr %158, ptr %0, align 8
   %.pre.i35 = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit41
 
-.lr.ph5.i.i36:                                    ; preds = %.lr.ph5.i.i36.preheader117, %.lr.ph5.i.i36
-  %.14.i.i37 = phi i64 [ %149, %.lr.ph5.i.i36 ], [ %.14.i.i37.ph, %.lr.ph5.i.i36.preheader117 ]
-  %146 = getelementptr i8, ptr %138, i64 %.14.i.i37
-  %147 = getelementptr i8, ptr %.pre.i.i33, i64 %.14.i.i37
-  %148 = load i8, ptr %147, align 1
-  store i8 %148, ptr %146, align 1
-  %149 = add nuw nsw i64 %.14.i.i37, 1
-  %150 = icmp slt i64 %149, %132
-  br i1 %150, label %.lr.ph5.i.i36, label %.preheader.i.i34, !llvm.loop !32
+.lr.ph5.i.i36:                                    ; preds = %.lr.ph5.i.i36.preheader, %.lr.ph5.i.i36
+  %.14.i.i37 = phi i64 [ %174, %.lr.ph5.i.i36 ], [ %.14.i.i37.ph, %.lr.ph5.i.i36.preheader ]
+  %171 = getelementptr i8, ptr %158, i64 %.14.i.i37
+  %172 = getelementptr i8, ptr %.pre.i.i33, i64 %.14.i.i37
+  %173 = load i8, ptr %172, align 1
+  store i8 %173, ptr %171, align 1
+  %174 = add nuw nsw i64 %.14.i.i37, 1
+  %175 = icmp slt i64 %174, %152
+  br i1 %175, label %.lr.ph5.i.i36, label %.preheader.i.i34, !llvm.loop !54
 
 rl_m_append__VectorTint8_tT_int8_t.exit41:        ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39, %.preheader.i.i34
-  %151 = phi ptr [ %.pre2.i40, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39 ], [ %138, %.preheader.i.i34 ]
-  %152 = phi i64 [ %132, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39 ], [ %.pre.i35, %.preheader.i.i34 ]
-  %153 = getelementptr i8, ptr %151, i64 %152
-  store i8 0, ptr %153, align 1
-  %154 = load i64, ptr %3, align 8
-  %155 = add i64 %154, 1
-  store i64 %155, ptr %3, align 8
+  %176 = phi ptr [ %.pre2.i40, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39 ], [ %158, %.preheader.i.i34 ]
+  %177 = phi i64 [ %152, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i39 ], [ %.pre.i35, %.preheader.i.i34 ]
+  %178 = getelementptr i8, ptr %176, i64 %177
+  store i8 0, ptr %178, align 1
+  %179 = load i64, ptr %3, align 8
+  %180 = add i64 %179, 1
+  store i64 %180, ptr %3, align 8
   ret void
 }
 
@@ -3405,8 +3990,8 @@ rl_m_pop__VectorTint8_tT_r_int8_t.exit.._crit_edge_crit_edge: ; preds = %rl_m_po
   br label %16
 
 16:                                               ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit, %.lr.ph
-  %17 = phi i64 [ %12, %.lr.ph ], [ %49, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %storemerge15 = phi i64 [ 0, %.lr.ph ], [ %48, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %17 = phi i64 [ %12, %.lr.ph ], [ %54, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %storemerge15 = phi i64 [ 0, %.lr.ph ], [ %53, %rl_m_append__VectorTint8_tT_int8_t.exit ]
   %18 = icmp slt i64 %storemerge15, %17
   br i1 %18, label %rl_m_get__String_int64_t_r_int8_tRef.exit, label %19
 
@@ -3442,153 +4027,217 @@ rl_m_get__String_int64_t_r_int8_tRef.exit:        ; preds = %16
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %27
   %32 = icmp sgt i64 %23, 0
   %.pre.i.i = load ptr, ptr %0, align 8
-  br i1 %32, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
+  br i1 %32, label %iter.check, label %.preheader.i.i
 
-.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+iter.check:                                       ; preds = %.preheader2.i.i
   %.pre.i.i16 = ptrtoint ptr %.pre.i.i to i64
-  %min.iters.check = icmp ult i64 %23, 4
+  %min.iters.check = icmp ult i64 %23, 8
   %33 = sub i64 %30, %.pre.i.i16
-  %diff.check = icmp ult i64 %33, 4
+  %diff.check = icmp ult i64 %33, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.preheader34, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.preheader34:                          ; preds = %middle.block, %.lr.ph5.i.i.preheader
-  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check17 = icmp ult i64 %23, 32
+  br i1 %min.iters.check17, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
-  %n.vec = and i64 %23, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %23, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %34 = getelementptr i8, ptr %29, i64 %index
   %35 = getelementptr i8, ptr %.pre.i.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %35, align 1
-  store <4 x i8> %wide.load, ptr %34, align 1
-  %index.next = add nuw i64 %index, 4
-  %36 = icmp eq i64 %index.next, %n.vec
-  br i1 %36, label %middle.block, label %vector.body, !llvm.loop !33
+  %36 = getelementptr i8, ptr %35, i64 16
+  %wide.load = load <16 x i8>, ptr %35, align 1
+  %wide.load18 = load <16 x i8>, ptr %36, align 1
+  %37 = getelementptr i8, ptr %34, i64 16
+  store <16 x i8> %wide.load, ptr %34, align 1
+  store <16 x i8> %wide.load18, ptr %37, align 1
+  %index.next = add nuw i64 %index, 32
+  %38 = icmp eq i64 %index.next, %n.vec
+  br i1 %38, label %middle.block, label %vector.body, !llvm.loop !55
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %23, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader34
+  br i1 %cmp.n, label %.preheader.i.i, label %vec.epilog.iter.check
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %23, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.preheader:                            ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec20, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec20 = and i64 %23, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index21 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next23, %vec.epilog.vector.body ]
+  %39 = getelementptr i8, ptr %29, i64 %index21
+  %40 = getelementptr i8, ptr %.pre.i.i, i64 %index21
+  %wide.load22 = load <8 x i8>, ptr %40, align 1
+  store <8 x i8> %wide.load22, ptr %39, align 1
+  %index.next23 = add nuw i64 %index21, 8
+  %41 = icmp eq i64 %index.next23, %n.vec20
+  br i1 %41, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !56
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n24 = icmp eq i64 %23, %n.vec20
+  br i1 %cmp.n24, label %.preheader.i.i, label %.lr.ph5.i.i.preheader
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre.i.i)
   store i64 %28, ptr %15, align 8
   store ptr %29, ptr %0, align 8
   %.pre.i = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader34, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %40, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader34 ]
-  %37 = getelementptr i8, ptr %29, i64 %.14.i.i
-  %38 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
-  %39 = load i8, ptr %38, align 1
-  store i8 %39, ptr %37, align 1
-  %40 = add nuw nsw i64 %.14.i.i, 1
-  %41 = icmp slt i64 %40, %23
-  br i1 %41, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !34
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %45, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader ]
+  %42 = getelementptr i8, ptr %29, i64 %.14.i.i
+  %43 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
+  %44 = load i8, ptr %43, align 1
+  store i8 %44, ptr %42, align 1
+  %45 = add nuw nsw i64 %.14.i.i, 1
+  %46 = icmp slt i64 %45, %23
+  br i1 %46, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !57
 
 rl_m_append__VectorTint8_tT_int8_t.exit:          ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i, %.preheader.i.i
-  %42 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %29, %.preheader.i.i ]
-  %43 = phi i64 [ %23, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
-  %44 = getelementptr i8, ptr %42, i64 %43
-  %45 = load i8, ptr %22, align 1
-  store i8 %45, ptr %44, align 1
-  %46 = load i64, ptr %3, align 8
-  %47 = add i64 %46, 1
-  store i64 %47, ptr %3, align 8
-  %48 = add nuw nsw i64 %storemerge15, 1
-  %49 = load i64, ptr %11, align 8
-  %50 = add i64 %49, -1
-  %51 = icmp slt i64 %48, %50
-  br i1 %51, label %16, label %._crit_edge
+  %47 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %29, %.preheader.i.i ]
+  %48 = phi i64 [ %23, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
+  %49 = getelementptr i8, ptr %47, i64 %48
+  %50 = load i8, ptr %22, align 1
+  store i8 %50, ptr %49, align 1
+  %51 = load i64, ptr %3, align 8
+  %52 = add i64 %51, 1
+  store i64 %52, ptr %3, align 8
+  %53 = add nuw nsw i64 %storemerge15, 1
+  %54 = load i64, ptr %11, align 8
+  %55 = add i64 %54, -1
+  %56 = icmp slt i64 %53, %55
+  br i1 %56, label %16, label %._crit_edge
 
 ._crit_edge:                                      ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit, %rl_m_pop__VectorTint8_tT_r_int8_t.exit.._crit_edge_crit_edge
-  %52 = phi i64 [ %.pre, %rl_m_pop__VectorTint8_tT_r_int8_t.exit.._crit_edge_crit_edge ], [ %47, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %53 = add i64 %52, 1
-  %54 = getelementptr i8, ptr %0, i64 16
-  %55 = load i64, ptr %54, align 8
-  %56 = icmp sgt i64 %55, %53
-  br i1 %56, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, label %57
+  %57 = phi i64 [ %.pre, %rl_m_pop__VectorTint8_tT_r_int8_t.exit.._crit_edge_crit_edge ], [ %52, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %58 = add i64 %57, 1
+  %59 = getelementptr i8, ptr %0, i64 16
+  %60 = load i64, ptr %59, align 8
+  %61 = icmp sgt i64 %60, %58
+  br i1 %61, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, label %62
 
 .rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8: ; preds = %._crit_edge
   %.pre2.i9 = load ptr, ptr %0, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit10
 
-57:                                               ; preds = %._crit_edge
-  %58 = shl i64 %53, 1
-  %59 = tail call ptr @malloc(i64 %58)
-  %60 = ptrtoint ptr %59 to i64
-  %61 = icmp sgt i64 %58, 0
-  br i1 %61, label %.lr.ph.preheader.i.i7, label %.preheader2.i.i1
+62:                                               ; preds = %._crit_edge
+  %63 = shl i64 %58, 1
+  %64 = tail call ptr @malloc(i64 %63)
+  %65 = ptrtoint ptr %64 to i64
+  %66 = icmp sgt i64 %63, 0
+  br i1 %66, label %.lr.ph.preheader.i.i7, label %.preheader2.i.i1
 
-.lr.ph.preheader.i.i7:                            ; preds = %57
-  tail call void @llvm.memset.p0.i64(ptr align 1 %59, i8 0, i64 %58, i1 false)
+.lr.ph.preheader.i.i7:                            ; preds = %62
+  tail call void @llvm.memset.p0.i64(ptr align 1 %64, i8 0, i64 %63, i1 false)
   br label %.preheader2.i.i1
 
-.preheader2.i.i1:                                 ; preds = %.lr.ph.preheader.i.i7, %57
-  %62 = icmp sgt i64 %52, 0
+.preheader2.i.i1:                                 ; preds = %.lr.ph.preheader.i.i7, %62
+  %67 = icmp sgt i64 %57, 0
   %.pre.i.i2 = load ptr, ptr %0, align 8
-  br i1 %62, label %.lr.ph5.i.i5.preheader, label %.preheader.i.i3
+  br i1 %67, label %iter.check31, label %.preheader.i.i3
 
-.lr.ph5.i.i5.preheader:                           ; preds = %.preheader2.i.i1
-  %.pre.i.i218 = ptrtoint ptr %.pre.i.i2 to i64
-  %min.iters.check22 = icmp ult i64 %52, 4
-  %63 = sub i64 %60, %.pre.i.i218
-  %diff.check19 = icmp ult i64 %63, 4
-  %or.cond32 = select i1 %min.iters.check22, i1 true, i1 %diff.check19
-  br i1 %or.cond32, label %.lr.ph5.i.i5.preheader33, label %vector.ph23
+iter.check31:                                     ; preds = %.preheader2.i.i1
+  %.pre.i.i226 = ptrtoint ptr %.pre.i.i2 to i64
+  %min.iters.check29 = icmp ult i64 %57, 8
+  %68 = sub i64 %65, %.pre.i.i226
+  %diff.check27 = icmp ult i64 %68, 32
+  %or.cond58 = select i1 %min.iters.check29, i1 true, i1 %diff.check27
+  br i1 %or.cond58, label %.lr.ph5.i.i5.preheader, label %vector.main.loop.iter.check33
 
-.lr.ph5.i.i5.preheader33:                         ; preds = %middle.block20, %.lr.ph5.i.i5.preheader
-  %.14.i.i6.ph = phi i64 [ 0, %.lr.ph5.i.i5.preheader ], [ %n.vec25, %middle.block20 ]
+vector.main.loop.iter.check33:                    ; preds = %iter.check31
+  %min.iters.check32 = icmp ult i64 %57, 32
+  br i1 %min.iters.check32, label %vec.epilog.ph45, label %vector.ph34
+
+vector.ph34:                                      ; preds = %vector.main.loop.iter.check33
+  %n.vec36 = and i64 %57, 9223372036854775776
+  br label %vector.body37
+
+vector.body37:                                    ; preds = %vector.body37, %vector.ph34
+  %index38 = phi i64 [ 0, %vector.ph34 ], [ %index.next41, %vector.body37 ]
+  %69 = getelementptr i8, ptr %64, i64 %index38
+  %70 = getelementptr i8, ptr %.pre.i.i2, i64 %index38
+  %71 = getelementptr i8, ptr %70, i64 16
+  %wide.load39 = load <16 x i8>, ptr %70, align 1
+  %wide.load40 = load <16 x i8>, ptr %71, align 1
+  %72 = getelementptr i8, ptr %69, i64 16
+  store <16 x i8> %wide.load39, ptr %69, align 1
+  store <16 x i8> %wide.load40, ptr %72, align 1
+  %index.next41 = add nuw i64 %index38, 32
+  %73 = icmp eq i64 %index.next41, %n.vec36
+  br i1 %73, label %middle.block28, label %vector.body37, !llvm.loop !58
+
+middle.block28:                                   ; preds = %vector.body37
+  %cmp.n42 = icmp eq i64 %57, %n.vec36
+  br i1 %cmp.n42, label %.preheader.i.i3, label %vec.epilog.iter.check46
+
+vec.epilog.iter.check46:                          ; preds = %middle.block28
+  %n.vec.remaining47 = and i64 %57, 24
+  %min.epilog.iters.check48 = icmp eq i64 %n.vec.remaining47, 0
+  br i1 %min.epilog.iters.check48, label %.lr.ph5.i.i5.preheader, label %vec.epilog.ph45
+
+.lr.ph5.i.i5.preheader:                           ; preds = %vec.epilog.middle.block43, %iter.check31, %vec.epilog.iter.check46
+  %.14.i.i6.ph = phi i64 [ 0, %iter.check31 ], [ %n.vec36, %vec.epilog.iter.check46 ], [ %n.vec51, %vec.epilog.middle.block43 ]
   br label %.lr.ph5.i.i5
 
-vector.ph23:                                      ; preds = %.lr.ph5.i.i5.preheader
-  %n.vec25 = and i64 %52, 9223372036854775804
-  br label %vector.body27
+vec.epilog.ph45:                                  ; preds = %vector.main.loop.iter.check33, %vec.epilog.iter.check46
+  %vec.epilog.resume.val49 = phi i64 [ %n.vec36, %vec.epilog.iter.check46 ], [ 0, %vector.main.loop.iter.check33 ]
+  %n.vec51 = and i64 %57, 9223372036854775800
+  br label %vec.epilog.vector.body53
 
-vector.body27:                                    ; preds = %vector.body27, %vector.ph23
-  %index28 = phi i64 [ 0, %vector.ph23 ], [ %index.next30, %vector.body27 ]
-  %64 = getelementptr i8, ptr %59, i64 %index28
-  %65 = getelementptr i8, ptr %.pre.i.i2, i64 %index28
-  %wide.load29 = load <4 x i8>, ptr %65, align 1
-  store <4 x i8> %wide.load29, ptr %64, align 1
-  %index.next30 = add nuw i64 %index28, 4
-  %66 = icmp eq i64 %index.next30, %n.vec25
-  br i1 %66, label %middle.block20, label %vector.body27, !llvm.loop !35
+vec.epilog.vector.body53:                         ; preds = %vec.epilog.vector.body53, %vec.epilog.ph45
+  %index54 = phi i64 [ %vec.epilog.resume.val49, %vec.epilog.ph45 ], [ %index.next56, %vec.epilog.vector.body53 ]
+  %74 = getelementptr i8, ptr %64, i64 %index54
+  %75 = getelementptr i8, ptr %.pre.i.i2, i64 %index54
+  %wide.load55 = load <8 x i8>, ptr %75, align 1
+  store <8 x i8> %wide.load55, ptr %74, align 1
+  %index.next56 = add nuw i64 %index54, 8
+  %76 = icmp eq i64 %index.next56, %n.vec51
+  br i1 %76, label %vec.epilog.middle.block43, label %vec.epilog.vector.body53, !llvm.loop !59
 
-middle.block20:                                   ; preds = %vector.body27
-  %cmp.n31 = icmp eq i64 %52, %n.vec25
-  br i1 %cmp.n31, label %.preheader.i.i3, label %.lr.ph5.i.i5.preheader33
+vec.epilog.middle.block43:                        ; preds = %vec.epilog.vector.body53
+  %cmp.n57 = icmp eq i64 %57, %n.vec51
+  br i1 %cmp.n57, label %.preheader.i.i3, label %.lr.ph5.i.i5.preheader
 
-.preheader.i.i3:                                  ; preds = %.lr.ph5.i.i5, %middle.block20, %.preheader2.i.i1
+.preheader.i.i3:                                  ; preds = %.lr.ph5.i.i5, %middle.block28, %vec.epilog.middle.block43, %.preheader2.i.i1
   tail call void @free(ptr %.pre.i.i2)
-  store i64 %58, ptr %54, align 8
-  store ptr %59, ptr %0, align 8
+  store i64 %63, ptr %59, align 8
+  store ptr %64, ptr %0, align 8
   %.pre.i4 = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit10
 
-.lr.ph5.i.i5:                                     ; preds = %.lr.ph5.i.i5.preheader33, %.lr.ph5.i.i5
-  %.14.i.i6 = phi i64 [ %70, %.lr.ph5.i.i5 ], [ %.14.i.i6.ph, %.lr.ph5.i.i5.preheader33 ]
-  %67 = getelementptr i8, ptr %59, i64 %.14.i.i6
-  %68 = getelementptr i8, ptr %.pre.i.i2, i64 %.14.i.i6
-  %69 = load i8, ptr %68, align 1
-  store i8 %69, ptr %67, align 1
-  %70 = add nuw nsw i64 %.14.i.i6, 1
-  %71 = icmp slt i64 %70, %52
-  br i1 %71, label %.lr.ph5.i.i5, label %.preheader.i.i3, !llvm.loop !36
+.lr.ph5.i.i5:                                     ; preds = %.lr.ph5.i.i5.preheader, %.lr.ph5.i.i5
+  %.14.i.i6 = phi i64 [ %80, %.lr.ph5.i.i5 ], [ %.14.i.i6.ph, %.lr.ph5.i.i5.preheader ]
+  %77 = getelementptr i8, ptr %64, i64 %.14.i.i6
+  %78 = getelementptr i8, ptr %.pre.i.i2, i64 %.14.i.i6
+  %79 = load i8, ptr %78, align 1
+  store i8 %79, ptr %77, align 1
+  %80 = add nuw nsw i64 %.14.i.i6, 1
+  %81 = icmp slt i64 %80, %57
+  br i1 %81, label %.lr.ph5.i.i5, label %.preheader.i.i3, !llvm.loop !60
 
 rl_m_append__VectorTint8_tT_int8_t.exit10:        ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, %.preheader.i.i3
-  %72 = phi ptr [ %.pre2.i9, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %59, %.preheader.i.i3 ]
-  %73 = phi i64 [ %52, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %.pre.i4, %.preheader.i.i3 ]
-  %74 = getelementptr i8, ptr %72, i64 %73
-  store i8 0, ptr %74, align 1
-  %75 = load i64, ptr %3, align 8
-  %76 = add i64 %75, 1
-  store i64 %76, ptr %3, align 8
+  %82 = phi ptr [ %.pre2.i9, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %64, %.preheader.i.i3 ]
+  %83 = phi i64 [ %57, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %.pre.i4, %.preheader.i.i3 ]
+  %84 = getelementptr i8, ptr %82, i64 %83
+  store i8 0, ptr %84, align 1
+  %85 = load i64, ptr %3, align 8
+  %86 = add i64 %85, 1
+  store i64 %86, ptr %3, align 8
   ret void
 }
 
@@ -3621,10 +4270,10 @@ rl_m_pop__VectorTint8_tT_r_int8_t.exit:           ; preds = %2
   br label %14
 
 14:                                               ; preds = %.lr.ph, %rl_m_append__VectorTint8_tT_int8_t.exit
-  %15 = phi i8 [ %12, %.lr.ph ], [ %45, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %16 = phi i64 [ %.pre14, %.lr.ph ], [ %41, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %17 = phi ptr [ %11, %.lr.ph ], [ %44, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %.012 = phi i64 [ 0, %.lr.ph ], [ %42, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %15 = phi i8 [ %12, %.lr.ph ], [ %50, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %16 = phi i64 [ %.pre14, %.lr.ph ], [ %46, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %17 = phi ptr [ %11, %.lr.ph ], [ %49, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %.012 = phi i64 [ 0, %.lr.ph ], [ %47, %rl_m_append__VectorTint8_tT_int8_t.exit ]
   %18 = add i64 %16, 1
   %19 = load i64, ptr %13, align 8
   %20 = icmp sgt i64 %19, %18
@@ -3648,39 +4297,71 @@ rl_m_pop__VectorTint8_tT_r_int8_t.exit:           ; preds = %2
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %21
   %26 = icmp sgt i64 %16, 0
   %.pre.i.i = load ptr, ptr %0, align 8
-  br i1 %26, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
+  br i1 %26, label %iter.check, label %.preheader.i.i
 
-.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+iter.check:                                       ; preds = %.preheader2.i.i
   %.pre.i.i15 = ptrtoint ptr %.pre.i.i to i64
-  %min.iters.check = icmp ult i64 %16, 4
+  %min.iters.check = icmp ult i64 %16, 8
   %27 = sub i64 %24, %.pre.i.i15
-  %diff.check = icmp ult i64 %27, 4
+  %diff.check = icmp ult i64 %27, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.preheader33, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.preheader33:                          ; preds = %middle.block, %.lr.ph5.i.i.preheader
-  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check16 = icmp ult i64 %16, 32
+  br i1 %min.iters.check16, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
-  %n.vec = and i64 %16, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %16, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %28 = getelementptr i8, ptr %23, i64 %index
   %29 = getelementptr i8, ptr %.pre.i.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %29, align 1
-  store <4 x i8> %wide.load, ptr %28, align 1
-  %index.next = add nuw i64 %index, 4
-  %30 = icmp eq i64 %index.next, %n.vec
-  br i1 %30, label %middle.block, label %vector.body, !llvm.loop !37
+  %30 = getelementptr i8, ptr %29, i64 16
+  %wide.load = load <16 x i8>, ptr %29, align 1
+  %wide.load17 = load <16 x i8>, ptr %30, align 1
+  %31 = getelementptr i8, ptr %28, i64 16
+  store <16 x i8> %wide.load, ptr %28, align 1
+  store <16 x i8> %wide.load17, ptr %31, align 1
+  %index.next = add nuw i64 %index, 32
+  %32 = icmp eq i64 %index.next, %n.vec
+  br i1 %32, label %middle.block, label %vector.body, !llvm.loop !61
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %16, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader33
+  br i1 %cmp.n, label %.preheader.i.i, label %vec.epilog.iter.check
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %16, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.preheader:                            ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec19, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec19 = and i64 %16, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index20 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next22, %vec.epilog.vector.body ]
+  %33 = getelementptr i8, ptr %23, i64 %index20
+  %34 = getelementptr i8, ptr %.pre.i.i, i64 %index20
+  %wide.load21 = load <8 x i8>, ptr %34, align 1
+  store <8 x i8> %wide.load21, ptr %33, align 1
+  %index.next22 = add nuw i64 %index20, 8
+  %35 = icmp eq i64 %index.next22, %n.vec19
+  br i1 %35, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !62
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n23 = icmp eq i64 %16, %n.vec19
+  br i1 %cmp.n23, label %.preheader.i.i, label %.lr.ph5.i.i.preheader
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre.i.i)
   store i64 %22, ptr %13, align 8
   store ptr %23, ptr %0, align 8
@@ -3688,115 +4369,147 @@ middle.block:                                     ; preds = %vector.body
   %.pre13 = load i8, ptr %17, align 1
   br label %rl_m_append__VectorTint8_tT_int8_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader33, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %34, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader33 ]
-  %31 = getelementptr i8, ptr %23, i64 %.14.i.i
-  %32 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
-  %33 = load i8, ptr %32, align 1
-  store i8 %33, ptr %31, align 1
-  %34 = add nuw nsw i64 %.14.i.i, 1
-  %35 = icmp slt i64 %34, %16
-  br i1 %35, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !38
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %39, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader ]
+  %36 = getelementptr i8, ptr %23, i64 %.14.i.i
+  %37 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
+  %38 = load i8, ptr %37, align 1
+  store i8 %38, ptr %36, align 1
+  %39 = add nuw nsw i64 %.14.i.i, 1
+  %40 = icmp slt i64 %39, %16
+  br i1 %40, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !63
 
 rl_m_append__VectorTint8_tT_int8_t.exit:          ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i, %.preheader.i.i
-  %36 = phi i8 [ %15, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre13, %.preheader.i.i ]
-  %37 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %23, %.preheader.i.i ]
-  %38 = phi i64 [ %16, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
-  %39 = getelementptr i8, ptr %37, i64 %38
-  store i8 %36, ptr %39, align 1
-  %40 = load i64, ptr %3, align 8
-  %41 = add i64 %40, 1
-  store i64 %41, ptr %3, align 8
-  %42 = add i64 %.012, 1
-  %43 = load ptr, ptr %1, align 8
-  %44 = getelementptr i8, ptr %43, i64 %42
-  %45 = load i8, ptr %44, align 1
-  %.not = icmp eq i8 %45, 0
+  %41 = phi i8 [ %15, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre13, %.preheader.i.i ]
+  %42 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %23, %.preheader.i.i ]
+  %43 = phi i64 [ %16, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
+  %44 = getelementptr i8, ptr %42, i64 %43
+  store i8 %41, ptr %44, align 1
+  %45 = load i64, ptr %3, align 8
+  %46 = add i64 %45, 1
+  store i64 %46, ptr %3, align 8
+  %47 = add i64 %.012, 1
+  %48 = load ptr, ptr %1, align 8
+  %49 = getelementptr i8, ptr %48, i64 %47
+  %50 = load i8, ptr %49, align 1
+  %.not = icmp eq i8 %50, 0
   br i1 %.not, label %._crit_edge, label %14
 
 ._crit_edge:                                      ; preds = %rl_m_append__VectorTint8_tT_int8_t.exit, %rl_m_pop__VectorTint8_tT_r_int8_t.exit
-  %46 = phi i64 [ %.pre14, %rl_m_pop__VectorTint8_tT_r_int8_t.exit ], [ %41, %rl_m_append__VectorTint8_tT_int8_t.exit ]
-  %47 = add i64 %46, 1
-  %48 = getelementptr i8, ptr %0, i64 16
-  %49 = load i64, ptr %48, align 8
-  %50 = icmp sgt i64 %49, %47
-  br i1 %50, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, label %51
+  %51 = phi i64 [ %.pre14, %rl_m_pop__VectorTint8_tT_r_int8_t.exit ], [ %46, %rl_m_append__VectorTint8_tT_int8_t.exit ]
+  %52 = add i64 %51, 1
+  %53 = getelementptr i8, ptr %0, i64 16
+  %54 = load i64, ptr %53, align 8
+  %55 = icmp sgt i64 %54, %52
+  br i1 %55, label %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, label %56
 
 .rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8: ; preds = %._crit_edge
   %.pre2.i9 = load ptr, ptr %0, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit10
 
-51:                                               ; preds = %._crit_edge
-  %52 = shl i64 %47, 1
-  %53 = tail call ptr @malloc(i64 %52)
-  %54 = ptrtoint ptr %53 to i64
-  %55 = icmp sgt i64 %52, 0
-  br i1 %55, label %.lr.ph.preheader.i.i7, label %.preheader2.i.i1
+56:                                               ; preds = %._crit_edge
+  %57 = shl i64 %52, 1
+  %58 = tail call ptr @malloc(i64 %57)
+  %59 = ptrtoint ptr %58 to i64
+  %60 = icmp sgt i64 %57, 0
+  br i1 %60, label %.lr.ph.preheader.i.i7, label %.preheader2.i.i1
 
-.lr.ph.preheader.i.i7:                            ; preds = %51
-  tail call void @llvm.memset.p0.i64(ptr align 1 %53, i8 0, i64 %52, i1 false)
+.lr.ph.preheader.i.i7:                            ; preds = %56
+  tail call void @llvm.memset.p0.i64(ptr align 1 %58, i8 0, i64 %57, i1 false)
   br label %.preheader2.i.i1
 
-.preheader2.i.i1:                                 ; preds = %.lr.ph.preheader.i.i7, %51
-  %56 = icmp sgt i64 %46, 0
+.preheader2.i.i1:                                 ; preds = %.lr.ph.preheader.i.i7, %56
+  %61 = icmp sgt i64 %51, 0
   %.pre.i.i2 = load ptr, ptr %0, align 8
-  br i1 %56, label %.lr.ph5.i.i5.preheader, label %.preheader.i.i3
+  br i1 %61, label %iter.check30, label %.preheader.i.i3
 
-.lr.ph5.i.i5.preheader:                           ; preds = %.preheader2.i.i1
-  %.pre.i.i217 = ptrtoint ptr %.pre.i.i2 to i64
-  %min.iters.check21 = icmp ult i64 %46, 4
-  %57 = sub i64 %54, %.pre.i.i217
-  %diff.check18 = icmp ult i64 %57, 4
-  %or.cond31 = select i1 %min.iters.check21, i1 true, i1 %diff.check18
-  br i1 %or.cond31, label %.lr.ph5.i.i5.preheader32, label %vector.ph22
+iter.check30:                                     ; preds = %.preheader2.i.i1
+  %.pre.i.i225 = ptrtoint ptr %.pre.i.i2 to i64
+  %min.iters.check28 = icmp ult i64 %51, 8
+  %62 = sub i64 %59, %.pre.i.i225
+  %diff.check26 = icmp ult i64 %62, 32
+  %or.cond57 = select i1 %min.iters.check28, i1 true, i1 %diff.check26
+  br i1 %or.cond57, label %.lr.ph5.i.i5.preheader, label %vector.main.loop.iter.check32
 
-.lr.ph5.i.i5.preheader32:                         ; preds = %middle.block19, %.lr.ph5.i.i5.preheader
-  %.14.i.i6.ph = phi i64 [ 0, %.lr.ph5.i.i5.preheader ], [ %n.vec24, %middle.block19 ]
+vector.main.loop.iter.check32:                    ; preds = %iter.check30
+  %min.iters.check31 = icmp ult i64 %51, 32
+  br i1 %min.iters.check31, label %vec.epilog.ph44, label %vector.ph33
+
+vector.ph33:                                      ; preds = %vector.main.loop.iter.check32
+  %n.vec35 = and i64 %51, 9223372036854775776
+  br label %vector.body36
+
+vector.body36:                                    ; preds = %vector.body36, %vector.ph33
+  %index37 = phi i64 [ 0, %vector.ph33 ], [ %index.next40, %vector.body36 ]
+  %63 = getelementptr i8, ptr %58, i64 %index37
+  %64 = getelementptr i8, ptr %.pre.i.i2, i64 %index37
+  %65 = getelementptr i8, ptr %64, i64 16
+  %wide.load38 = load <16 x i8>, ptr %64, align 1
+  %wide.load39 = load <16 x i8>, ptr %65, align 1
+  %66 = getelementptr i8, ptr %63, i64 16
+  store <16 x i8> %wide.load38, ptr %63, align 1
+  store <16 x i8> %wide.load39, ptr %66, align 1
+  %index.next40 = add nuw i64 %index37, 32
+  %67 = icmp eq i64 %index.next40, %n.vec35
+  br i1 %67, label %middle.block27, label %vector.body36, !llvm.loop !64
+
+middle.block27:                                   ; preds = %vector.body36
+  %cmp.n41 = icmp eq i64 %51, %n.vec35
+  br i1 %cmp.n41, label %.preheader.i.i3, label %vec.epilog.iter.check45
+
+vec.epilog.iter.check45:                          ; preds = %middle.block27
+  %n.vec.remaining46 = and i64 %51, 24
+  %min.epilog.iters.check47 = icmp eq i64 %n.vec.remaining46, 0
+  br i1 %min.epilog.iters.check47, label %.lr.ph5.i.i5.preheader, label %vec.epilog.ph44
+
+.lr.ph5.i.i5.preheader:                           ; preds = %vec.epilog.middle.block42, %iter.check30, %vec.epilog.iter.check45
+  %.14.i.i6.ph = phi i64 [ 0, %iter.check30 ], [ %n.vec35, %vec.epilog.iter.check45 ], [ %n.vec50, %vec.epilog.middle.block42 ]
   br label %.lr.ph5.i.i5
 
-vector.ph22:                                      ; preds = %.lr.ph5.i.i5.preheader
-  %n.vec24 = and i64 %46, 9223372036854775804
-  br label %vector.body26
+vec.epilog.ph44:                                  ; preds = %vector.main.loop.iter.check32, %vec.epilog.iter.check45
+  %vec.epilog.resume.val48 = phi i64 [ %n.vec35, %vec.epilog.iter.check45 ], [ 0, %vector.main.loop.iter.check32 ]
+  %n.vec50 = and i64 %51, 9223372036854775800
+  br label %vec.epilog.vector.body52
 
-vector.body26:                                    ; preds = %vector.body26, %vector.ph22
-  %index27 = phi i64 [ 0, %vector.ph22 ], [ %index.next29, %vector.body26 ]
-  %58 = getelementptr i8, ptr %53, i64 %index27
-  %59 = getelementptr i8, ptr %.pre.i.i2, i64 %index27
-  %wide.load28 = load <4 x i8>, ptr %59, align 1
-  store <4 x i8> %wide.load28, ptr %58, align 1
-  %index.next29 = add nuw i64 %index27, 4
-  %60 = icmp eq i64 %index.next29, %n.vec24
-  br i1 %60, label %middle.block19, label %vector.body26, !llvm.loop !39
+vec.epilog.vector.body52:                         ; preds = %vec.epilog.vector.body52, %vec.epilog.ph44
+  %index53 = phi i64 [ %vec.epilog.resume.val48, %vec.epilog.ph44 ], [ %index.next55, %vec.epilog.vector.body52 ]
+  %68 = getelementptr i8, ptr %58, i64 %index53
+  %69 = getelementptr i8, ptr %.pre.i.i2, i64 %index53
+  %wide.load54 = load <8 x i8>, ptr %69, align 1
+  store <8 x i8> %wide.load54, ptr %68, align 1
+  %index.next55 = add nuw i64 %index53, 8
+  %70 = icmp eq i64 %index.next55, %n.vec50
+  br i1 %70, label %vec.epilog.middle.block42, label %vec.epilog.vector.body52, !llvm.loop !65
 
-middle.block19:                                   ; preds = %vector.body26
-  %cmp.n30 = icmp eq i64 %46, %n.vec24
-  br i1 %cmp.n30, label %.preheader.i.i3, label %.lr.ph5.i.i5.preheader32
+vec.epilog.middle.block42:                        ; preds = %vec.epilog.vector.body52
+  %cmp.n56 = icmp eq i64 %51, %n.vec50
+  br i1 %cmp.n56, label %.preheader.i.i3, label %.lr.ph5.i.i5.preheader
 
-.preheader.i.i3:                                  ; preds = %.lr.ph5.i.i5, %middle.block19, %.preheader2.i.i1
+.preheader.i.i3:                                  ; preds = %.lr.ph5.i.i5, %middle.block27, %vec.epilog.middle.block42, %.preheader2.i.i1
   tail call void @free(ptr %.pre.i.i2)
-  store i64 %52, ptr %48, align 8
-  store ptr %53, ptr %0, align 8
+  store i64 %57, ptr %53, align 8
+  store ptr %58, ptr %0, align 8
   %.pre.i4 = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit10
 
-.lr.ph5.i.i5:                                     ; preds = %.lr.ph5.i.i5.preheader32, %.lr.ph5.i.i5
-  %.14.i.i6 = phi i64 [ %64, %.lr.ph5.i.i5 ], [ %.14.i.i6.ph, %.lr.ph5.i.i5.preheader32 ]
-  %61 = getelementptr i8, ptr %53, i64 %.14.i.i6
-  %62 = getelementptr i8, ptr %.pre.i.i2, i64 %.14.i.i6
-  %63 = load i8, ptr %62, align 1
-  store i8 %63, ptr %61, align 1
-  %64 = add nuw nsw i64 %.14.i.i6, 1
-  %65 = icmp slt i64 %64, %46
-  br i1 %65, label %.lr.ph5.i.i5, label %.preheader.i.i3, !llvm.loop !40
+.lr.ph5.i.i5:                                     ; preds = %.lr.ph5.i.i5.preheader, %.lr.ph5.i.i5
+  %.14.i.i6 = phi i64 [ %74, %.lr.ph5.i.i5 ], [ %.14.i.i6.ph, %.lr.ph5.i.i5.preheader ]
+  %71 = getelementptr i8, ptr %58, i64 %.14.i.i6
+  %72 = getelementptr i8, ptr %.pre.i.i2, i64 %.14.i.i6
+  %73 = load i8, ptr %72, align 1
+  store i8 %73, ptr %71, align 1
+  %74 = add nuw nsw i64 %.14.i.i6, 1
+  %75 = icmp slt i64 %74, %51
+  br i1 %75, label %.lr.ph5.i.i5, label %.preheader.i.i3, !llvm.loop !66
 
 rl_m_append__VectorTint8_tT_int8_t.exit10:        ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8, %.preheader.i.i3
-  %66 = phi ptr [ %.pre2.i9, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %53, %.preheader.i.i3 ]
-  %67 = phi i64 [ %46, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %.pre.i4, %.preheader.i.i3 ]
-  %68 = getelementptr i8, ptr %66, i64 %67
-  store i8 0, ptr %68, align 1
-  %69 = load i64, ptr %3, align 8
-  %70 = add i64 %69, 1
-  store i64 %70, ptr %3, align 8
+  %76 = phi ptr [ %.pre2.i9, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %58, %.preheader.i.i3 ]
+  %77 = phi i64 [ %51, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i8 ], [ %.pre.i4, %.preheader.i.i3 ]
+  %78 = getelementptr i8, ptr %76, i64 %77
+  store i8 0, ptr %78, align 1
+  %79 = load i64, ptr %3, align 8
+  %80 = add i64 %79, 1
+  store i64 %80, ptr %3, align 8
   ret void
 }
 
@@ -3812,32 +4525,68 @@ define void @rl_m_count__String_int8_t_r_int64_t(ptr nocapture writeonly %0, ptr
   %smax = tail call i64 @llvm.smax.i64(i64 %5, i64 0)
   %7 = add i64 %5, -2
   %.not9.not = icmp ugt i64 %smax, %7
-  br i1 %.not9.not, label %.lr.ph.preheader.split, label %13
+  br i1 %.not9.not, label %.lr.ph.preheader.split, label %23
 
 .lr.ph.preheader.split:                           ; preds = %.lr.ph.preheader
   %.pre = load ptr, ptr %1, align 8
   %.pre8 = load i8, ptr %2, align 1
+  %min.iters.check = icmp ult i64 %6, 4
+  br i1 %min.iters.check, label %.lr.ph.preheader12, label %vector.ph
+
+vector.ph:                                        ; preds = %.lr.ph.preheader.split
+  %n.vec = and i64 %6, -4
+  %broadcast.splatinsert = insertelement <2 x i8> poison, i8 %.pre8, i64 0
+  %broadcast.splat = shufflevector <2 x i8> %broadcast.splatinsert, <2 x i8> poison, <2 x i32> zeroinitializer
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %14, %vector.body ]
+  %vec.phi10 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %15, %vector.body ]
+  %8 = getelementptr i8, ptr %.pre, i64 %index
+  %9 = getelementptr i8, ptr %8, i64 2
+  %wide.load = load <2 x i8>, ptr %8, align 1
+  %wide.load11 = load <2 x i8>, ptr %9, align 1
+  %10 = icmp eq <2 x i8> %wide.load, %broadcast.splat
+  %11 = icmp eq <2 x i8> %wide.load11, %broadcast.splat
+  %12 = zext <2 x i1> %10 to <2 x i64>
+  %13 = zext <2 x i1> %11 to <2 x i64>
+  %14 = add <2 x i64> %vec.phi, %12
+  %15 = add <2 x i64> %vec.phi10, %13
+  %index.next = add nuw i64 %index, 4
+  %16 = icmp eq i64 %index.next, %n.vec
+  br i1 %16, label %middle.block, label %vector.body, !llvm.loop !67
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = add <2 x i64> %15, %14
+  %17 = tail call i64 @llvm.vector.reduce.add.v2i64(<2 x i64> %bin.rdx)
+  %cmp.n = icmp eq i64 %6, %n.vec
+  br i1 %cmp.n, label %._crit_edge, label %.lr.ph.preheader12
+
+.lr.ph.preheader12:                               ; preds = %middle.block, %.lr.ph.preheader.split
+  %.07.ph = phi i64 [ 0, %.lr.ph.preheader.split ], [ %17, %middle.block ]
+  %storemerge6.ph = phi i64 [ 0, %.lr.ph.preheader.split ], [ %n.vec, %middle.block ]
   br label %.lr.ph
 
-.lr.ph:                                           ; preds = %.lr.ph.preheader.split, %.lr.ph
-  %.07 = phi i64 [ %.1, %.lr.ph ], [ 0, %.lr.ph.preheader.split ]
-  %storemerge6 = phi i64 [ %12, %.lr.ph ], [ 0, %.lr.ph.preheader.split ]
-  %8 = getelementptr i8, ptr %.pre, i64 %storemerge6
-  %9 = load i8, ptr %8, align 1
-  %10 = icmp eq i8 %9, %.pre8
-  %11 = zext i1 %10 to i64
-  %.1 = add i64 %.07, %11
-  %12 = add nuw nsw i64 %storemerge6, 1
-  %.not = icmp eq i64 %12, %6
-  br i1 %.not, label %._crit_edge, label %.lr.ph
+.lr.ph:                                           ; preds = %.lr.ph.preheader12, %.lr.ph
+  %.07 = phi i64 [ %.1, %.lr.ph ], [ %.07.ph, %.lr.ph.preheader12 ]
+  %storemerge6 = phi i64 [ %22, %.lr.ph ], [ %storemerge6.ph, %.lr.ph.preheader12 ]
+  %18 = getelementptr i8, ptr %.pre, i64 %storemerge6
+  %19 = load i8, ptr %18, align 1
+  %20 = icmp eq i8 %19, %.pre8
+  %21 = zext i1 %20 to i64
+  %.1 = add i64 %.07, %21
+  %22 = add nuw nsw i64 %storemerge6, 1
+  %.not = icmp eq i64 %22, %6
+  br i1 %.not, label %._crit_edge, label %.lr.ph, !llvm.loop !68
 
-13:                                               ; preds = %.lr.ph.preheader
-  %14 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
+23:                                               ; preds = %.lr.ph.preheader
+  %24 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
   tail call void @llvm.trap()
   unreachable
 
-._crit_edge:                                      ; preds = %.lr.ph, %3
-  %.0.lcssa = phi i64 [ 0, %3 ], [ %.1, %.lr.ph ]
+._crit_edge:                                      ; preds = %.lr.ph, %middle.block, %3
+  %.0.lcssa = phi i64 [ 0, %3 ], [ %17, %middle.block ], [ %.1, %.lr.ph ]
   store i64 %.0.lcssa, ptr %0, align 1
   ret void
 }
@@ -3982,63 +4731,95 @@ rl_m_back__VectorTint8_tT_r_int8_tRef.exit:       ; preds = %2
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %17
   %22 = icmp sgt i64 %12, 0
   %.pre.i.i = load ptr, ptr %0, align 8
-  br i1 %22, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
+  br i1 %22, label %iter.check, label %.preheader.i.i
 
-.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+iter.check:                                       ; preds = %.preheader2.i.i
   %.pre.i.i1 = ptrtoint ptr %.pre.i.i to i64
-  %min.iters.check = icmp ult i64 %12, 4
+  %min.iters.check = icmp ult i64 %12, 8
   %23 = sub i64 %20, %.pre.i.i1
-  %diff.check = icmp ult i64 %23, 4
+  %diff.check = icmp ult i64 %23, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.preheader2, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.preheader2:                           ; preds = %middle.block, %.lr.ph5.i.i.preheader
-  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check2 = icmp ult i64 %12, 32
+  br i1 %min.iters.check2, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
-  %n.vec = and i64 %12, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %12, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %24 = getelementptr i8, ptr %19, i64 %index
   %25 = getelementptr i8, ptr %.pre.i.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %25, align 1
-  store <4 x i8> %wide.load, ptr %24, align 1
-  %index.next = add nuw i64 %index, 4
-  %26 = icmp eq i64 %index.next, %n.vec
-  br i1 %26, label %middle.block, label %vector.body, !llvm.loop !41
+  %26 = getelementptr i8, ptr %25, i64 16
+  %wide.load = load <16 x i8>, ptr %25, align 1
+  %wide.load3 = load <16 x i8>, ptr %26, align 1
+  %27 = getelementptr i8, ptr %24, i64 16
+  store <16 x i8> %wide.load, ptr %24, align 1
+  store <16 x i8> %wide.load3, ptr %27, align 1
+  %index.next = add nuw i64 %index, 32
+  %28 = icmp eq i64 %index.next, %n.vec
+  br i1 %28, label %middle.block, label %vector.body, !llvm.loop !69
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %12, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader2
+  br i1 %cmp.n, label %.preheader.i.i, label %vec.epilog.iter.check
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %12, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.preheader:                            ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec5, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec5 = and i64 %12, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index6 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next8, %vec.epilog.vector.body ]
+  %29 = getelementptr i8, ptr %19, i64 %index6
+  %30 = getelementptr i8, ptr %.pre.i.i, i64 %index6
+  %wide.load7 = load <8 x i8>, ptr %30, align 1
+  store <8 x i8> %wide.load7, ptr %29, align 1
+  %index.next8 = add nuw i64 %index6, 8
+  %31 = icmp eq i64 %index.next8, %n.vec5
+  br i1 %31, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !70
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n9 = icmp eq i64 %12, %n.vec5
+  br i1 %cmp.n9, label %.preheader.i.i, label %.lr.ph5.i.i.preheader
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre.i.i)
   store i64 %18, ptr %14, align 8
   store ptr %19, ptr %0, align 8
   %.pre.i = load i64, ptr %3, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader2, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %30, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader2 ]
-  %27 = getelementptr i8, ptr %19, i64 %.14.i.i
-  %28 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
-  %29 = load i8, ptr %28, align 1
-  store i8 %29, ptr %27, align 1
-  %30 = add nuw nsw i64 %.14.i.i, 1
-  %31 = icmp slt i64 %30, %12
-  br i1 %31, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !42
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %35, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader ]
+  %32 = getelementptr i8, ptr %19, i64 %.14.i.i
+  %33 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
+  %34 = load i8, ptr %33, align 1
+  store i8 %34, ptr %32, align 1
+  %35 = add nuw nsw i64 %.14.i.i, 1
+  %36 = icmp slt i64 %35, %12
+  br i1 %36, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !71
 
 rl_m_append__VectorTint8_tT_int8_t.exit:          ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i, %.preheader.i.i
-  %32 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %19, %.preheader.i.i ]
-  %33 = phi i64 [ %12, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
-  %34 = getelementptr i8, ptr %32, i64 %33
-  store i8 0, ptr %34, align 1
-  %35 = load i64, ptr %3, align 8
-  %36 = add i64 %35, 1
-  store i64 %36, ptr %3, align 8
+  %37 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %19, %.preheader.i.i ]
+  %38 = phi i64 [ %12, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
+  %39 = getelementptr i8, ptr %37, i64 %38
+  store i8 0, ptr %39, align 1
+  %40 = load i64, ptr %3, align 8
+  %41 = add i64 %40, 1
+  store i64 %41, ptr %3, align 8
   ret void
 }
 
@@ -4086,63 +4867,95 @@ rl_m_init__VectorTint8_tT.exit:                   ; preds = %.lr.ph.i
 .preheader2.i.i:                                  ; preds = %.lr.ph.preheader.i.i, %13
   %18 = icmp sgt i64 %10, 0
   %.pre.i.i = load ptr, ptr %0, align 8
-  br i1 %18, label %.lr.ph5.i.i.preheader, label %.preheader.i.i
+  br i1 %18, label %iter.check, label %.preheader.i.i
 
-.lr.ph5.i.i.preheader:                            ; preds = %.preheader2.i.i
+iter.check:                                       ; preds = %.preheader2.i.i
   %.pre.i.i1 = ptrtoint ptr %.pre.i.i to i64
-  %min.iters.check = icmp ult i64 %10, 4
+  %min.iters.check = icmp ult i64 %10, 8
   %19 = sub i64 %16, %.pre.i.i1
-  %diff.check = icmp ult i64 %19, 4
+  %diff.check = icmp ult i64 %19, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.preheader2, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.preheader2:                           ; preds = %middle.block, %.lr.ph5.i.i.preheader
-  %.14.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check2 = icmp ult i64 %10, 32
+  br i1 %min.iters.check2, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.preheader
-  %n.vec = and i64 %10, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %10, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %20 = getelementptr i8, ptr %15, i64 %index
   %21 = getelementptr i8, ptr %.pre.i.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %21, align 1
-  store <4 x i8> %wide.load, ptr %20, align 1
-  %index.next = add nuw i64 %index, 4
-  %22 = icmp eq i64 %index.next, %n.vec
-  br i1 %22, label %middle.block, label %vector.body, !llvm.loop !43
+  %22 = getelementptr i8, ptr %21, i64 16
+  %wide.load = load <16 x i8>, ptr %21, align 1
+  %wide.load3 = load <16 x i8>, ptr %22, align 1
+  %23 = getelementptr i8, ptr %20, i64 16
+  store <16 x i8> %wide.load, ptr %20, align 1
+  store <16 x i8> %wide.load3, ptr %23, align 1
+  %index.next = add nuw i64 %index, 32
+  %24 = icmp eq i64 %index.next, %n.vec
+  br i1 %24, label %middle.block, label %vector.body, !llvm.loop !72
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %10, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i, label %.lr.ph5.i.i.preheader2
+  br i1 %cmp.n, label %.preheader.i.i, label %vec.epilog.iter.check
 
-.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %.preheader2.i.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %10, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.preheader:                            ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec5, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec5 = and i64 %10, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index6 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next8, %vec.epilog.vector.body ]
+  %25 = getelementptr i8, ptr %15, i64 %index6
+  %26 = getelementptr i8, ptr %.pre.i.i, i64 %index6
+  %wide.load7 = load <8 x i8>, ptr %26, align 1
+  store <8 x i8> %wide.load7, ptr %25, align 1
+  %index.next8 = add nuw i64 %index6, 8
+  %27 = icmp eq i64 %index.next8, %n.vec5
+  br i1 %27, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !73
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n9 = icmp eq i64 %10, %n.vec5
+  br i1 %cmp.n9, label %.preheader.i.i, label %.lr.ph5.i.i.preheader
+
+.preheader.i.i:                                   ; preds = %.lr.ph5.i.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i.i
   tail call void @free(ptr %.pre.i.i)
   store i64 %14, ptr %3, align 8
   store ptr %15, ptr %0, align 8
   %.pre.i = load i64, ptr %2, align 8
   br label %rl_m_append__VectorTint8_tT_int8_t.exit
 
-.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader2, %.lr.ph5.i.i
-  %.14.i.i = phi i64 [ %26, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader2 ]
-  %23 = getelementptr i8, ptr %15, i64 %.14.i.i
-  %24 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
-  %25 = load i8, ptr %24, align 1
-  store i8 %25, ptr %23, align 1
-  %26 = add nuw nsw i64 %.14.i.i, 1
-  %27 = icmp slt i64 %26, %10
-  br i1 %27, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !44
+.lr.ph5.i.i:                                      ; preds = %.lr.ph5.i.i.preheader, %.lr.ph5.i.i
+  %.14.i.i = phi i64 [ %31, %.lr.ph5.i.i ], [ %.14.i.i.ph, %.lr.ph5.i.i.preheader ]
+  %28 = getelementptr i8, ptr %15, i64 %.14.i.i
+  %29 = getelementptr i8, ptr %.pre.i.i, i64 %.14.i.i
+  %30 = load i8, ptr %29, align 1
+  store i8 %30, ptr %28, align 1
+  %31 = add nuw nsw i64 %.14.i.i, 1
+  %32 = icmp slt i64 %31, %10
+  br i1 %32, label %.lr.ph5.i.i, label %.preheader.i.i, !llvm.loop !74
 
 rl_m_append__VectorTint8_tT_int8_t.exit:          ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i, %.preheader.i.i
-  %28 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %15, %.preheader.i.i ]
-  %29 = phi i64 [ %10, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
-  %30 = getelementptr i8, ptr %28, i64 %29
-  store i8 0, ptr %30, align 1
-  %31 = load i64, ptr %2, align 8
-  %32 = add i64 %31, 1
-  store i64 %32, ptr %2, align 8
+  %33 = phi ptr [ %.pre2.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %15, %.preheader.i.i ]
+  %34 = phi i64 [ %10, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i ], [ %.pre.i, %.preheader.i.i ]
+  %35 = getelementptr i8, ptr %33, i64 %34
+  store i8 0, ptr %35, align 1
+  %36 = load i64, ptr %2, align 8
+  %37 = add i64 %36, 1
+  store i64 %37, ptr %2, align 8
   ret void
 }
 
@@ -4460,8 +5273,8 @@ rl_m_get__String_int64_t_r_int8_tRef.exit.i7:     ; preds = %.lr.ph.i6.preheader
   %.not4.i = icmp eq i8 %32, 34
   br i1 %.not4.i, label %rl_m_substring_matches__String_strlit_int64_t_r_bool.exit, label %common.ret
 
-common.ret:                                       ; preds = %.backedge, %62, %rl__consume_space__String_int64_t.exit, %rl_m_substring_matches__String_strlit_int64_t_r_bool.exit, %rl_m_get__String_int64_t_r_int8_tRef.exit.i7, %117
-  %.sink = phi i8 [ 1, %117 ], [ 0, %rl_m_get__String_int64_t_r_int8_tRef.exit.i7 ], [ 0, %rl_m_substring_matches__String_strlit_int64_t_r_bool.exit ], [ 0, %rl__consume_space__String_int64_t.exit ], [ 0, %62 ], [ 0, %.backedge ]
+common.ret:                                       ; preds = %.backedge, %62, %rl__consume_space__String_int64_t.exit, %rl_m_substring_matches__String_strlit_int64_t_r_bool.exit, %rl_m_get__String_int64_t_r_int8_tRef.exit.i7, %122
+  %.sink = phi i8 [ 1, %122 ], [ 0, %rl_m_get__String_int64_t_r_int8_tRef.exit.i7 ], [ 0, %rl_m_substring_matches__String_strlit_int64_t_r_bool.exit ], [ 0, %rl__consume_space__String_int64_t.exit ], [ 0, %62 ], [ 0, %.backedge ]
   store i8 %.sink, ptr %0, align 1
   ret void
 
@@ -4471,7 +5284,7 @@ common.ret:                                       ; preds = %.backedge, %62, %rl
   br label %49
 
 49:                                               ; preds = %.lr.ph, %.backedge
-  %50 = phi i64 [ %41, %.lr.ph ], [ %115, %.backedge ]
+  %50 = phi i64 [ %41, %.lr.ph ], [ %120, %.backedge ]
   %51 = phi i64 [ %40, %.lr.ph ], [ %.be, %.backedge ]
   %52 = icmp sgt i64 %51, -1
   br i1 %52, label %55, label %53
@@ -4494,8 +5307,8 @@ rl_m_get__String_int64_t_r_int8_tRef.exit:        ; preds = %55
   %59 = load ptr, ptr %2, align 8
   %60 = getelementptr i8, ptr %59, i64 %51
   %61 = load i8, ptr %60, align 1
-  switch i8 %61, label %107 [
-    i8 34, label %117
+  switch i8 %61, label %112 [
+    i8 34, label %122
     i8 92, label %62
   ]
 
@@ -4521,7 +5334,7 @@ rl_m_get__String_int64_t_r_int8_tRef.exit9:       ; preds = %67
   %72 = getelementptr i8, ptr %71, i64 %63
   %73 = load i8, ptr %72, align 1
   %74 = icmp eq i8 %73, 34
-  br i1 %74, label %75, label %107
+  br i1 %74, label %75, label %112
 
 75:                                               ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit9
   %76 = load i64, ptr %47, align 8
@@ -4562,94 +5375,126 @@ rl_m_back__VectorTint8_tT_r_int8_tRef.exit.i:     ; preds = %75
 .preheader2.i.i.i:                                ; preds = %.lr.ph.preheader.i.i.i, %87
   %92 = icmp sgt i64 %83, 0
   %.pre.i.i.i = load ptr, ptr %1, align 8
-  br i1 %92, label %.lr.ph5.i.i.i.preheader, label %.preheader.i.i.i
+  br i1 %92, label %iter.check, label %.preheader.i.i.i
 
-.lr.ph5.i.i.i.preheader:                          ; preds = %.preheader2.i.i.i
+iter.check:                                       ; preds = %.preheader2.i.i.i
   %.pre.i.i.i77 = ptrtoint ptr %.pre.i.i.i to i64
-  %min.iters.check = icmp ult i64 %83, 4
+  %min.iters.check = icmp ult i64 %83, 8
   %93 = sub i64 %90, %.pre.i.i.i77
-  %diff.check = icmp ult i64 %93, 4
+  %diff.check = icmp ult i64 %93, 32
   %or.cond = select i1 %min.iters.check, i1 true, i1 %diff.check
-  br i1 %or.cond, label %.lr.ph5.i.i.i.preheader78, label %vector.ph
+  br i1 %or.cond, label %.lr.ph5.i.i.i.preheader, label %vector.main.loop.iter.check
 
-.lr.ph5.i.i.i.preheader78:                        ; preds = %middle.block, %.lr.ph5.i.i.i.preheader
-  %.14.i.i.i.ph = phi i64 [ 0, %.lr.ph5.i.i.i.preheader ], [ %n.vec, %middle.block ]
-  br label %.lr.ph5.i.i.i
+vector.main.loop.iter.check:                      ; preds = %iter.check
+  %min.iters.check78 = icmp ult i64 %83, 32
+  br i1 %min.iters.check78, label %vec.epilog.ph, label %vector.ph
 
-vector.ph:                                        ; preds = %.lr.ph5.i.i.i.preheader
-  %n.vec = and i64 %83, 9223372036854775804
+vector.ph:                                        ; preds = %vector.main.loop.iter.check
+  %n.vec = and i64 %83, 9223372036854775776
   br label %vector.body
 
 vector.body:                                      ; preds = %vector.body, %vector.ph
   %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
   %94 = getelementptr i8, ptr %89, i64 %index
   %95 = getelementptr i8, ptr %.pre.i.i.i, i64 %index
-  %wide.load = load <4 x i8>, ptr %95, align 1
-  store <4 x i8> %wide.load, ptr %94, align 1
-  %index.next = add nuw i64 %index, 4
-  %96 = icmp eq i64 %index.next, %n.vec
-  br i1 %96, label %middle.block, label %vector.body, !llvm.loop !45
+  %96 = getelementptr i8, ptr %95, i64 16
+  %wide.load = load <16 x i8>, ptr %95, align 1
+  %wide.load79 = load <16 x i8>, ptr %96, align 1
+  %97 = getelementptr i8, ptr %94, i64 16
+  store <16 x i8> %wide.load, ptr %94, align 1
+  store <16 x i8> %wide.load79, ptr %97, align 1
+  %index.next = add nuw i64 %index, 32
+  %98 = icmp eq i64 %index.next, %n.vec
+  br i1 %98, label %middle.block, label %vector.body, !llvm.loop !75
 
 middle.block:                                     ; preds = %vector.body
   %cmp.n = icmp eq i64 %83, %n.vec
-  br i1 %cmp.n, label %.preheader.i.i.i, label %.lr.ph5.i.i.i.preheader78
+  br i1 %cmp.n, label %.preheader.i.i.i, label %vec.epilog.iter.check
 
-.preheader.i.i.i:                                 ; preds = %.lr.ph5.i.i.i, %middle.block, %.preheader2.i.i.i
+vec.epilog.iter.check:                            ; preds = %middle.block
+  %n.vec.remaining = and i64 %83, 24
+  %min.epilog.iters.check = icmp eq i64 %n.vec.remaining, 0
+  br i1 %min.epilog.iters.check, label %.lr.ph5.i.i.i.preheader, label %vec.epilog.ph
+
+.lr.ph5.i.i.i.preheader:                          ; preds = %vec.epilog.middle.block, %iter.check, %vec.epilog.iter.check
+  %.14.i.i.i.ph = phi i64 [ 0, %iter.check ], [ %n.vec, %vec.epilog.iter.check ], [ %n.vec81, %vec.epilog.middle.block ]
+  br label %.lr.ph5.i.i.i
+
+vec.epilog.ph:                                    ; preds = %vector.main.loop.iter.check, %vec.epilog.iter.check
+  %vec.epilog.resume.val = phi i64 [ %n.vec, %vec.epilog.iter.check ], [ 0, %vector.main.loop.iter.check ]
+  %n.vec81 = and i64 %83, 9223372036854775800
+  br label %vec.epilog.vector.body
+
+vec.epilog.vector.body:                           ; preds = %vec.epilog.vector.body, %vec.epilog.ph
+  %index82 = phi i64 [ %vec.epilog.resume.val, %vec.epilog.ph ], [ %index.next84, %vec.epilog.vector.body ]
+  %99 = getelementptr i8, ptr %89, i64 %index82
+  %100 = getelementptr i8, ptr %.pre.i.i.i, i64 %index82
+  %wide.load83 = load <8 x i8>, ptr %100, align 1
+  store <8 x i8> %wide.load83, ptr %99, align 1
+  %index.next84 = add nuw i64 %index82, 8
+  %101 = icmp eq i64 %index.next84, %n.vec81
+  br i1 %101, label %vec.epilog.middle.block, label %vec.epilog.vector.body, !llvm.loop !76
+
+vec.epilog.middle.block:                          ; preds = %vec.epilog.vector.body
+  %cmp.n85 = icmp eq i64 %83, %n.vec81
+  br i1 %cmp.n85, label %.preheader.i.i.i, label %.lr.ph5.i.i.i.preheader
+
+.preheader.i.i.i:                                 ; preds = %.lr.ph5.i.i.i, %middle.block, %vec.epilog.middle.block, %.preheader2.i.i.i
   tail call void @free(ptr %.pre.i.i.i)
   store i64 %88, ptr %48, align 8
   store ptr %89, ptr %1, align 8
   %.pre.i.i = load i64, ptr %47, align 8
   br label %rl_m_append__String_int8_t.exit
 
-.lr.ph5.i.i.i:                                    ; preds = %.lr.ph5.i.i.i.preheader78, %.lr.ph5.i.i.i
-  %.14.i.i.i = phi i64 [ %100, %.lr.ph5.i.i.i ], [ %.14.i.i.i.ph, %.lr.ph5.i.i.i.preheader78 ]
-  %97 = getelementptr i8, ptr %89, i64 %.14.i.i.i
-  %98 = getelementptr i8, ptr %.pre.i.i.i, i64 %.14.i.i.i
-  %99 = load i8, ptr %98, align 1
-  store i8 %99, ptr %97, align 1
-  %100 = add nuw nsw i64 %.14.i.i.i, 1
-  %101 = icmp slt i64 %100, %83
-  br i1 %101, label %.lr.ph5.i.i.i, label %.preheader.i.i.i, !llvm.loop !46
+.lr.ph5.i.i.i:                                    ; preds = %.lr.ph5.i.i.i.preheader, %.lr.ph5.i.i.i
+  %.14.i.i.i = phi i64 [ %105, %.lr.ph5.i.i.i ], [ %.14.i.i.i.ph, %.lr.ph5.i.i.i.preheader ]
+  %102 = getelementptr i8, ptr %89, i64 %.14.i.i.i
+  %103 = getelementptr i8, ptr %.pre.i.i.i, i64 %.14.i.i.i
+  %104 = load i8, ptr %103, align 1
+  store i8 %104, ptr %102, align 1
+  %105 = add nuw nsw i64 %.14.i.i.i, 1
+  %106 = icmp slt i64 %105, %83
+  br i1 %106, label %.lr.ph5.i.i.i, label %.preheader.i.i.i, !llvm.loop !77
 
 rl_m_append__String_int8_t.exit:                  ; preds = %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i.i, %.preheader.i.i.i
-  %102 = phi ptr [ %.pre2.i.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i.i ], [ %89, %.preheader.i.i.i ]
-  %103 = phi i64 [ %83, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i.i ], [ %.pre.i.i, %.preheader.i.i.i ]
-  %104 = getelementptr i8, ptr %102, i64 %103
-  store i8 0, ptr %104, align 1
-  %105 = load i64, ptr %47, align 8
-  %106 = add i64 %105, 1
-  store i64 %106, ptr %47, align 8
+  %107 = phi ptr [ %.pre2.i.i, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i.i ], [ %89, %.preheader.i.i.i ]
+  %108 = phi i64 [ %83, %.rl_m__grow__VectorTint8_tT_int64_t.exit_crit_edge.i.i ], [ %.pre.i.i, %.preheader.i.i.i ]
+  %109 = getelementptr i8, ptr %107, i64 %108
+  store i8 0, ptr %109, align 1
+  %110 = load i64, ptr %47, align 8
+  %111 = add i64 %110, 1
+  store i64 %111, ptr %47, align 8
   br label %.backedge
 
-107:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit9, %rl_m_get__String_int64_t_r_int8_tRef.exit
-  %108 = phi ptr [ %59, %rl_m_get__String_int64_t_r_int8_tRef.exit ], [ %71, %rl_m_get__String_int64_t_r_int8_tRef.exit9 ]
-  %109 = phi i64 [ %50, %rl_m_get__String_int64_t_r_int8_tRef.exit ], [ %64, %rl_m_get__String_int64_t_r_int8_tRef.exit9 ]
-  %110 = phi i64 [ %51, %rl_m_get__String_int64_t_r_int8_tRef.exit ], [ %63, %rl_m_get__String_int64_t_r_int8_tRef.exit9 ]
-  %111 = icmp ult i64 %110, %109
-  br i1 %111, label %rl_m_get__String_int64_t_r_int8_tRef.exit10, label %112
+112:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit9, %rl_m_get__String_int64_t_r_int8_tRef.exit
+  %113 = phi ptr [ %59, %rl_m_get__String_int64_t_r_int8_tRef.exit ], [ %71, %rl_m_get__String_int64_t_r_int8_tRef.exit9 ]
+  %114 = phi i64 [ %50, %rl_m_get__String_int64_t_r_int8_tRef.exit ], [ %64, %rl_m_get__String_int64_t_r_int8_tRef.exit9 ]
+  %115 = phi i64 [ %51, %rl_m_get__String_int64_t_r_int8_tRef.exit ], [ %63, %rl_m_get__String_int64_t_r_int8_tRef.exit9 ]
+  %116 = icmp ult i64 %115, %114
+  br i1 %116, label %rl_m_get__String_int64_t_r_int8_tRef.exit10, label %117
 
-112:                                              ; preds = %107
-  %113 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
+117:                                              ; preds = %112
+  %118 = tail call i32 @puts(ptr nonnull dereferenceable(1) @str_9)
   tail call void @llvm.trap()
   unreachable
 
-rl_m_get__String_int64_t_r_int8_tRef.exit10:      ; preds = %107
-  %114 = getelementptr i8, ptr %108, i64 %110
-  tail call void @rl_m_append__String_int8_t(ptr %1, ptr %114)
+rl_m_get__String_int64_t_r_int8_tRef.exit10:      ; preds = %112
+  %119 = getelementptr i8, ptr %113, i64 %115
+  tail call void @rl_m_append__String_int8_t(ptr %1, ptr %119)
   br label %.backedge
 
 .backedge:                                        ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit10, %rl_m_append__String_int8_t.exit
   %.be.in = load i64, ptr %3, align 8
   %.be = add i64 %.be.in, 1
   store i64 %.be, ptr %3, align 8
-  %115 = load i64, ptr %23, align 8
-  %116 = add i64 %115, -2
-  %.not5 = icmp eq i64 %.be.in, %116
+  %120 = load i64, ptr %23, align 8
+  %121 = add i64 %120, -2
+  %.not5 = icmp eq i64 %.be.in, %121
   br i1 %.not5, label %common.ret, label %49
 
-117:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit
-  %118 = add nuw nsw i64 %51, 1
-  store i64 %118, ptr %3, align 8
+122:                                              ; preds = %rl_m_get__String_int64_t_r_int8_tRef.exit
+  %123 = add nuw nsw i64 %51, 1
+  store i64 %123, ptr %3, align 8
   br label %common.ret
 }
 
@@ -5728,6 +6573,9 @@ declare void @llvm.lifetime.start.p0(i64 immarg, ptr nocapture) #15
 ; Function Attrs: nocallback nofree nosync nounwind willreturn memory(argmem: readwrite)
 declare void @llvm.lifetime.end.p0(i64 immarg, ptr nocapture) #15
 
+; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare i64 @llvm.vector.reduce.add.v2i64(<2 x i64>) #13
+
 attributes #0 = { mustprogress nofree nounwind willreturn allockind("alloc,uninitialized") allocsize(0) memory(inaccessiblemem: readwrite) "alloc-family"="malloc" }
 attributes #1 = { nofree nounwind }
 attributes #2 = { mustprogress nounwind willreturn allockind("free") memory(argmem: readwrite, inaccessiblemem: readwrite) "alloc-family"="malloc" }
@@ -5755,42 +6603,73 @@ attributes #15 = { nocallback nofree nosync nounwind willreturn memory(argmem: r
 !5 = distinct !{!5, !2, !3}
 !6 = distinct !{!6, !2}
 !7 = distinct !{!7, !2, !3}
-!8 = distinct !{!8, !2}
-!9 = distinct !{!9, !2, !3}
-!10 = distinct !{!10, !2}
-!11 = distinct !{!11, !2, !3}
-!12 = distinct !{!12, !2}
+!8 = distinct !{!8, !2, !3}
+!9 = distinct !{!9, !2}
+!10 = distinct !{!10, !2, !3}
+!11 = distinct !{!11, !2}
+!12 = distinct !{!12, !2, !3}
 !13 = distinct !{!13, !2, !3}
 !14 = distinct !{!14, !2}
 !15 = distinct !{!15, !2, !3}
 !16 = distinct !{!16, !2}
 !17 = distinct !{!17, !2, !3}
-!18 = distinct !{!18, !2}
-!19 = distinct !{!19, !2, !3}
-!20 = distinct !{!20, !2}
-!21 = distinct !{!21, !22}
-!22 = !{!"llvm.loop.peeled.count", i32 1}
+!18 = distinct !{!18, !2, !3}
+!19 = distinct !{!19, !2}
+!20 = distinct !{!20, !2, !3}
+!21 = distinct !{!21, !2, !3}
+!22 = distinct !{!22, !2}
 !23 = distinct !{!23, !2, !3}
-!24 = distinct !{!24, !2}
-!25 = distinct !{!25, !2, !3}
-!26 = distinct !{!26, !2}
+!24 = distinct !{!24, !2, !3}
+!25 = distinct !{!25, !2}
+!26 = distinct !{!26, !2, !3}
 !27 = distinct !{!27, !2, !3}
 !28 = distinct !{!28, !2}
 !29 = distinct !{!29, !2, !3}
-!30 = distinct !{!30, !2}
-!31 = distinct !{!31, !2, !3}
-!32 = distinct !{!32, !2}
+!30 = distinct !{!30, !2, !3}
+!31 = distinct !{!31, !2}
+!32 = distinct !{!32, !2, !3}
 !33 = distinct !{!33, !2, !3}
 !34 = distinct !{!34, !2}
 !35 = distinct !{!35, !2, !3}
-!36 = distinct !{!36, !2}
-!37 = distinct !{!37, !2, !3}
-!38 = distinct !{!38, !2}
-!39 = distinct !{!39, !2, !3}
-!40 = distinct !{!40, !2}
+!36 = distinct !{!36, !2, !3}
+!37 = distinct !{!37, !2}
+!38 = distinct !{!38, !39}
+!39 = !{!"llvm.loop.peeled.count", i32 1}
+!40 = distinct !{!40, !2, !3}
 !41 = distinct !{!41, !2, !3}
 !42 = distinct !{!42, !2}
 !43 = distinct !{!43, !2, !3}
-!44 = distinct !{!44, !2}
-!45 = distinct !{!45, !2, !3}
-!46 = distinct !{!46, !2}
+!44 = distinct !{!44, !2, !3}
+!45 = distinct !{!45, !2}
+!46 = distinct !{!46, !2, !3}
+!47 = distinct !{!47, !2, !3}
+!48 = distinct !{!48, !2}
+!49 = distinct !{!49, !2, !3}
+!50 = distinct !{!50, !2, !3}
+!51 = distinct !{!51, !2}
+!52 = distinct !{!52, !2, !3}
+!53 = distinct !{!53, !2, !3}
+!54 = distinct !{!54, !2}
+!55 = distinct !{!55, !2, !3}
+!56 = distinct !{!56, !2, !3}
+!57 = distinct !{!57, !2}
+!58 = distinct !{!58, !2, !3}
+!59 = distinct !{!59, !2, !3}
+!60 = distinct !{!60, !2}
+!61 = distinct !{!61, !2, !3}
+!62 = distinct !{!62, !2, !3}
+!63 = distinct !{!63, !2}
+!64 = distinct !{!64, !2, !3}
+!65 = distinct !{!65, !2, !3}
+!66 = distinct !{!66, !2}
+!67 = distinct !{!67, !2, !3}
+!68 = distinct !{!68, !3, !2}
+!69 = distinct !{!69, !2, !3}
+!70 = distinct !{!70, !2, !3}
+!71 = distinct !{!71, !2}
+!72 = distinct !{!72, !2, !3}
+!73 = distinct !{!73, !2, !3}
+!74 = distinct !{!74, !2}
+!75 = distinct !{!75, !2, !3}
+!76 = distinct !{!76, !2, !3}
+!77 = distinct !{!77, !2}
