@@ -183,7 +183,7 @@ with compile(["./rockpaperscizzor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print("Here are the game actions:")
-    print([program.to_string(action) for action in env.actions()])
+    print([action for action in env.actions()])
 ```
 
 Running this program will print:

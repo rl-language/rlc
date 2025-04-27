@@ -88,7 +88,7 @@ def main():
                 else:
                     print("Cannot apply the following action:")
                     failed = True
-                    print(i, program.to_string(action), line)
+                    print(i, action, line)
                     break
 
             if args.pretty_print:
@@ -96,7 +96,7 @@ def main():
                 os.system("cls||clear")
                 state.pretty_print()
             if not args.print_all:
-                print(i, program.to_string(action))
+                print(i, action)
             state.step(action)
 
         if args.pretty_print:
@@ -107,7 +107,7 @@ def main():
         if args.output != "":
             state.write_binary(args.output)
         elif not args.pretty_print:
-            print(state.to_string())
+            print(state)
 
         if failed:
             exit(-1)

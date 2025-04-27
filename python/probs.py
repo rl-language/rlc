@@ -24,7 +24,7 @@ def print_probs(program, model, env):
         if prob == 0:
             break
         action = env.games[0].actions()[index.item()]
-        print(f"{current}: {program.to_string(action)} {prob.item()*100}%")
+        print(f"{current}: {action} {prob.item()*100}%")
         current = current + 1
 
     print("------------------------------")
@@ -77,7 +77,7 @@ def main():
                         action = select_action(program, model, env)
                 else:
                     action = select_action(program, model, env)
-                print(program.to_string(env.games[0].actions()[action]))
+                print(env.games[0].actions()[action])
 
                 env.step_one(0, action)
                 i = i + 1

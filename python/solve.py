@@ -82,7 +82,7 @@ def main():
                     exit(-1)
                 action = random.choice(actions)
                 state.step(action)
-                out.write(program.to_string(action))
+                out.write(str(action))
                 out.write("\n")
                 out.flush()
 

@@ -259,15 +259,58 @@ namespace mlir::rlc
 		w.writenl("]").endLine();
 	}
 
+	static void emitToString(
+			mlir::Type type,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table,
+			mlir::rlc::ModuleBuilder& builder)
+
+	{
+		mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), nullptr);
+		auto toStringOverload = resolver.findOverload(
+				mlir::UnknownLoc::get(type.getContext()), false, "to_string", { type });
+
+		if (not toStringOverload)
+			return;
+
+		auto overload = mlir::dyn_cast_or_null<mlir::rlc::FunctionOp>(
+				toStringOverload.getDefiningOp());
+		if (not overload or overload.getType().getNumResults() == 0)
+			return;
+
+		auto casted =
+				mlir::dyn_cast<mlir::rlc::ClassType>(overload.getType().getResult(0));
+
+		if (casted and casted.getName() == "String")
+		{
+			w.writenl("def __str__(self):");
+			auto _ = w.indent();
+			w.writenl("__string = String()");
+			w.writenl(
+					"lib.",
+					overload.getMangledName(),
+					"(ctypes.byref(__string), ctypes.byref(self))");
+			w.writenl("return ctypes.cast(__string.get(0), "
+								"ctypes.c_char_p).value.decode(\"utf-8\")")
+					.endLine();
+		}
+	}
+
 	// the three rlc special functions init, drop and assing must
 	// be special cased to ensure they are always called, otherwise
 	// the user could access invalid memory.
 	//
 	// In practice this means overriding python __init__, __del__ and
 	// clone so that we can dispatch to the proper rlc methods.
+	//
+	// Furthermore, if rlc to_string is available, we override python
 	void emitSpecialFunctions(
-			mlir::Type type, mlir::rlc::StreamWriter& w, MemberFunctionsTable& table)
+			mlir::Type type,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table,
+			mlir::rlc::ModuleBuilder& builder)
 	{
+		emitToString(type, w, table, builder);
 		if (not table.isTriviallyInitializable(type))
 		{
 			w.writenl("def __init__(self):");
@@ -434,7 +477,8 @@ namespace mlir::rlc
 	void emitDeclaration(
 			mlir::rlc::ClassType type,
 			mlir::rlc::StreamWriter& w,
-			MemberFunctionsTable& table)
+			MemberFunctionsTable& table,
+			mlir::rlc::ModuleBuilder& builder)
 	{
 		w.write("class ");
 		w.writeType(type);
@@ -442,7 +486,7 @@ namespace mlir::rlc
 		auto _ = w.indent();
 
 		emitMembers(type.getMemberTypes(), type.getMemberNames(), w, table);
-		emitSpecialFunctions(type, w, table);
+		emitSpecialFunctions(type, w, table, builder);
 		emitHinting(type.getMemberTypes(), type.getMemberNames(), w, table);
 		emitMemberFunctions(type, w, table);
 	}
@@ -450,7 +494,8 @@ namespace mlir::rlc
 	void emitDeclaration(
 			mlir::rlc::AlternativeType type,
 			mlir::rlc::StreamWriter& w,
-			MemberFunctionsTable& table)
+			MemberFunctionsTable& table,
+			mlir::rlc::ModuleBuilder& builder)
 	{
 		w.write("class _");
 		w.writeType(type);
@@ -469,7 +514,7 @@ namespace mlir::rlc
 		w.writeType(type);
 		w.writenl("), (\"resume_index\", ctypes.c_longlong)]");
 
-		emitSpecialFunctions(type, w, table);
+		emitSpecialFunctions(type, w, table, builder);
 
 		w.writenl("def __getitem__(self, key):");
 		{
@@ -894,7 +939,7 @@ namespace mlir::rlc
 				{
 					if (casted.getName() == "PyObject")
 						continue;
-					emitDeclaration(casted, matcher.getWriter(), table);
+					emitDeclaration(casted, matcher.getWriter(), table, builder);
 					if (builder.isClassOfAction(casted))
 					{
 						auto action = mlir::cast<mlir::rlc::ActionFunction>(
@@ -903,7 +948,7 @@ namespace mlir::rlc
 					}
 				}
 				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
-					emitDeclaration(casted, matcher.getWriter(), table);
+					emitDeclaration(casted, matcher.getWriter(), table, builder);
 			}
 
 			// emit declarations of free functions

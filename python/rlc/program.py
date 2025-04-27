@@ -67,7 +67,7 @@ class State:
     def legal_actions_indicies(self):
         x = []
         for i, action in enumerate(self.actions):
-            if self.program.can_apply_impl(action, self.state):
+            if self.program.module.can_apply_impl(action, self.state):
                 x.append(i)
         return x
 
@@ -122,8 +122,8 @@ class State:
     def is_done(self) -> bool:
         return self.state.resume_index == -1
 
-    def to_string(self) -> str:
-        return self.program.to_python_string(self.program.module.to_string(self.state))
+    def __str__(self) -> str:
+        return str(self.state)
 
     def pretty_print(self) -> str:
         return self.program.module.pretty_print(self.state)
@@ -176,12 +176,6 @@ class Program:
     def to_rl_string(self, string):
         return self.module.rl_s__strlit_r_String(string)
 
-    def to_python_string(self, string):
-        first_character = getattr(getattr(string, "_data"), "_data")
-        return self.module.ctypes.cast(first_character, self.module.ctypes.c_char_p).value.decode(
-            "utf-8"
-        )
-
     def __enter__(self):
         return self
 
@@ -193,9 +187,6 @@ class Program:
         import _ctypes
 
         libHandle = self.module.lib._handle
-
-    def to_string(self, action):
-        return self.to_python_string(self.module.to_string(action))
 
     def as_byte_vector(self, obj):
         result = self.module.as_byte_vector(obj)
@@ -212,7 +203,7 @@ class Program:
         vector = self.module.VectorTint8_tT()
         for byte in byte_vector:
             vector.append(byte - 128)
-        self.module.functions.from_byte_vector(obj, vector)
+        self.module.from_byte_vector(obj, vector)
 
     def write_binary(self, path: str, obj):
         with open(path, mode="wb") as file:

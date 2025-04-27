@@ -49,7 +49,7 @@ def main():
     output = sys.stdout if args.output == "" else open(args.output, "w")
     actions = program.parse_actions_from_binary_buffer(lines)
     for action in actions:
-        output.write(program.to_string(action))
+        output.write(str(action))
         output.write("\n")
 
 

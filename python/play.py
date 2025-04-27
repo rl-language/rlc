@@ -37,7 +37,7 @@ def play_out(program, env, model, print_scores, iterations, output, print_progre
         out.write(f"# game: {i}\n")
         while not env.games[0].is_done_underling():
             action, state_out = make_action(model, env, rnn_state)
-            out.write(program.to_string(action) + "\n")
+            out.write(str(action) + "\n")
         if print_scores:
             out.write("# score: ")
             out.write(str(env.current_score))
