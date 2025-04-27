@@ -18,6 +18,7 @@ limitations under the License.
 #include <clang/Driver/Job.h>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
@@ -144,6 +145,35 @@ static void runOptimizer(
 	if (printTimings)
 		TimePasses->registerCallbacks(PIC);
 
+	CodeGenOptLevel optLevel = optimize ? CodeGenOptLevel::Default : 
+		CodeGenOptLevel::None;
+	
+	std::cout << "Trying to get Arch\n";
+	Triple ModuleTriple(M.getTargetTriple());
+	std::string CPUStr, FeaturesStr;
+	std::unique_ptr<TargetMachine> TM;
+	if (ModuleTriple.getArch()) {
+		CPUStr = codegen::getCPUStr();
+		FeaturesStr = codegen::getFeaturesStr();
+		Expected<std::unique_ptr<TargetMachine>> ExpectedTM =
+			codegen::createTargetMachineForTriple(ModuleTriple.str(), optLevel);
+		if (auto E = ExpectedTM.takeError()) {
+			std::cout << ": WARNING: failed to create target machine for '"
+				/*<< ModuleTriple.str() << "': " << toString(std::move(E))*/ << "\n";
+		} else {
+			TM = std::move(*ExpectedTM);
+		}
+	} else if (ModuleTriple.getArchName() != "unknown" &&
+				ModuleTriple.getArchName() != "") {
+		std::cout<< ": unrecognized architecture '"
+			/*<< ModuleTriple.getArchName() */<< "' provided.\n";
+		return ;
+	}
+	
+	// Override function attributes based on CPUStr, FeaturesStr, and command line
+	// flags.
+	codegen::setFunctionAttributes(CPUStr, FeaturesStr, M);
+	
 	// Create the analysis managers.
 	LoopAnalysisManager LAM;
 	FunctionAnalysisManager FAM;
@@ -158,7 +188,7 @@ static void runOptimizer(
 	// Take a look at the PassBuilder constructor parameters for more
 	// customization, e.g. specifying a TargetMachine or various debugging
 	// options.
-	PassBuilder PB(nullptr, PTO, std::nullopt, &PIC);
+	PassBuilder PB(TM.get(), PTO, std::nullopt, &PIC);
 
 	// Register all the basic analyses with the managers.
 	PB.registerModuleAnalyses(MAM);
@@ -182,7 +212,8 @@ static void runOptimizer(
 			addFuzzerInstrumentationPass(passManager);
 		passManager.run(M, MAM);
 
-		ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+		std::cout << "Thin LTO enabled\n";
+		ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2, true);
 		// MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
 		// 	auto PassName = PIC.getPassNameForClassName(ClassName);
 		// 	return PassName.empty() ? ClassName : PassName;
