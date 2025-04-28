@@ -838,6 +838,10 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 			return rlc::mangledName(getUnmangledName(), getIsMemberFunction(), getType());
 		}
 
+		std::string getCanFunctionMangledName() {
+			return rlc::mangledName("can_" + getUnmangledName().str(), getIsMemberFunction(), mlir::FunctionType::get(getContext(), getFunctionType().getInputs(), {mlir::rlc::BoolType::get(getContext())}));
+		}
+
 		mlir::FunctionType getType() {
 			return getResult().getType().cast<mlir::FunctionType>();
 		}

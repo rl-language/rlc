@@ -2,6 +2,7 @@ import os
 import sys
 
 import lit.util
+import shutil
 
 from lit.llvm import llvm_config
 from lit.llvm.subst import ToolSubst
@@ -42,6 +43,9 @@ llvm_config.with_environment("PATH", config.llvm_tools_dir, append_path=True)
 tool_dirs = [config.rlc_tool_dir, config.rlc_opt_tool_dir, config.llvm_tools_dir]
 
 tools = ["clang", "rlc", "rlc-opt"]
+
+if shutil.which('mcs') and shutil.which('mono'):
+    config.available_features.add('has_mono')
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 

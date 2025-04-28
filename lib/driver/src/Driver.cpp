@@ -94,7 +94,8 @@ namespace mlir::rlc
 
 		if (request == Request::dumpCSharp)
 		{
-			manager.addPass(mlir::rlc::createPrintCSharpPass({ OS }));
+			manager.addPass(mlir::rlc::createPrintCSharpPass(
+					{ OS, targetInfo->isMacOS(), targetInfo->isWindows() }));
 			return;
 		}
 

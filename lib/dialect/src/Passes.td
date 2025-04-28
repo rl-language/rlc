@@ -198,7 +198,11 @@ def PrintCSharpPass : Pass<"rlc-print-c-sharp-pass", "mlir::ModuleOp"> {
   let summary = "prints the c sharp header on the provided stream";
   let options = [
     Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
-           "stream on which to print the module">
+           "stream on which to print the module">,
+    Option<"isMac", "true if target platform is mac", "bool", /*default=*/"false",
+           "true if target platform is mac">,
+    Option<"isWindows", "true if target platform is windows", "bool", /*default=*/"false",
+           "true if target platform is windows">,
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

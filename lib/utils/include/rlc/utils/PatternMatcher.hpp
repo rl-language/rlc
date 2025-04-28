@@ -251,6 +251,8 @@ namespace mlir::rlc
 
 		void addTypeSerializer() { OS.addTypeSerializer(); }
 
+		void clearMatchers() { patterns.clear(); }
+
 		private:
 		std::vector<std::unique_ptr<PatternImpl>> patterns;
 		StreamWriter OS;

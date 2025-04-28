@@ -1,0 +1,27 @@
+# REQUIRES: has_mono
+# RUN: split-file %s %t
+
+# RUN: rlc %t/source.rl -o %t/Lib%sharedext -i %stdlib --shared
+# RUN: rlc %t/source.rl -o %t/csharp.cs -i %stdlib --c-sharp
+
+# RUN: mcs -out:%t/executable.exe %t/csharp.cs %t/main.cs -unsafe
+# RUN: mono %t/executable.exe
+
+#--- source.rl
+
+act play() -> Game:
+    frm asd = 0
+    act pick(Int x)
+    asd = x
+
+#--- main.cs
+using System;
+class Tester {
+    public static int Main() {
+        Game pair = RLC.play();
+        long arg = 3;
+        pair.pick(ref arg);
+        return (int)(pair.asd - 3); 
+    }
+}
+

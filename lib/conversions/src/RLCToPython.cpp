@@ -454,7 +454,7 @@ namespace mlir::rlc
 				.endLine();
 	}
 
-	void emitMemberFunctions(
+	static void emitMemberFunctions(
 			mlir::Type type, mlir::rlc::StreamWriter& w, MemberFunctionsTable& table)
 	{
 		llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
@@ -474,11 +474,29 @@ namespace mlir::rlc
 			emitOverloadDispatcher(pair.first(), pair.second, w, true);
 	}
 
-	void emitDeclaration(
+	static void emitEnumDeclaration(
+			mlir::rlc::EnumDeclarationOp enumDecl,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table)
+	{
+		for (auto value : llvm::enumerate(
+						 enumDecl.getBody().getOps<mlir::rlc::EnumFieldDeclarationOp>()))
+		{
+			w.writenl(
+					"def ", value.value().getName(), "() -> '", enumDecl.getName(), "':");
+			auto _ = w.indent();
+			w.writenl("__result = ", enumDecl.getName(), "()");
+			w.writenl("__result.value = ", value.index());
+			w.writenl("return __result").endLine();
+		}
+	}
+
+	static void emitDeclaration(
 			mlir::rlc::ClassType type,
 			mlir::rlc::StreamWriter& w,
 			MemberFunctionsTable& table,
-			mlir::rlc::ModuleBuilder& builder)
+			mlir::rlc::ModuleBuilder& builder,
+			mlir::rlc::EnumDeclarationOp enumDeclaration = nullptr)
 	{
 		w.write("class ");
 		w.writeType(type);
@@ -489,6 +507,9 @@ namespace mlir::rlc
 		emitSpecialFunctions(type, w, table, builder);
 		emitHinting(type.getMemberTypes(), type.getMemberNames(), w, table);
 		emitMemberFunctions(type, w, table);
+
+		if (enumDeclaration)
+			emitEnumDeclaration(enumDeclaration, w, table);
 	}
 
 	void emitDeclaration(
@@ -932,6 +953,13 @@ namespace mlir::rlc
 			// emit includes
 			printPrelude(matcher.getWriter(), isMac, isWindows);
 
+			// discover all enums
+			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
+			for (auto op : getOperation().getOps<mlir::rlc::EnumDeclarationOp>())
+			{
+				enums[op.getName()] = op;
+			}
+
 			// emit declarations of types
 			for (auto t : ::rlc::postOrderTypes(getOperation()))
 			{
@@ -939,7 +967,13 @@ namespace mlir::rlc
 				{
 					if (casted.getName() == "PyObject")
 						continue;
-					emitDeclaration(casted, matcher.getWriter(), table, builder);
+					emitDeclaration(
+							casted,
+							matcher.getWriter(),
+							table,
+							builder,
+							enums.count(casted.getName()) ? enums[casted.getName()]
+																						: nullptr);
 					if (builder.isClassOfAction(casted))
 					{
 						auto action = mlir::cast<mlir::rlc::ActionFunction>(
