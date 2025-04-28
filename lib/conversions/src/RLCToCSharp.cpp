@@ -229,9 +229,18 @@ namespace mlir::rlc
 			mlir::TypeRange types,
 			llvm::ArrayRef<llvm::StringRef> args,
 			mlir::Type returnType,
-			mlir::rlc::StreamWriter& writer)
+			mlir::rlc::StreamWriter& writer,
+			bool isMac,
+			bool isWindows)
 	{
-		writer.writenl("[DllImport(\"Lib.so\")]");
+		writer.write("[DllImport(\"Lib.");
+		if (isMac)
+			writer.write("dylib");
+		else if (isWindows)
+			writer.write("dll");
+		else
+			writer.write("so");
+		writer.writenl("\")]");
 		writer.write("public static extern void ", mangledName);
 		writeFunctionArgs(types, args, returnType, writer, true);
 		writer.writenl(";");
@@ -405,7 +414,15 @@ namespace mlir::rlc
 	 */
 	class CSharpFunctionDeclarationMatcher
 	{
+		private:
+		bool isMac;
+		bool isWindows;
+
 		public:
+		CSharpFunctionDeclarationMatcher(bool isMac, bool isWindows)
+				: isMac(isMac), isWindows(isWindows)
+		{
+		}
 		void apply(mlir::rlc::FunctionOp op, mlir::rlc::StreamWriter& writer)
 		{
 			auto _ = writer.indent();
@@ -416,7 +433,9 @@ namespace mlir::rlc
 					op.getFunctionType().getInputs(),
 					op.getInfo().getArgNames(),
 					getResultType(op.getFunctionType()),
-					writer);
+					writer,
+					isMac,
+					isWindows);
 
 			if (not op.getPrecondition().empty())
 				declareFunction(
@@ -424,7 +443,9 @@ namespace mlir::rlc
 						op.getFunctionType().getInputs(),
 						op.getInfo().getArgNames(),
 						mlir::rlc::BoolType::get(op.getContext()),
-						writer);
+						writer,
+						isMac,
+						isWindows);
 		}
 	};
 
@@ -432,10 +453,13 @@ namespace mlir::rlc
 	{
 		private:
 		mlir::rlc::ModuleBuilder& builder;
+		bool isMac;
+		bool isWindows;
 
 		public:
-		CSharpActionDeclarationMatcher(mlir::rlc::ModuleBuilder& builder)
-				: builder(builder)
+		CSharpActionDeclarationMatcher(
+				mlir::rlc::ModuleBuilder& builder, bool isMac, bool isWindows)
+				: builder(builder), isMac(isMac), isWindows(isWindows)
 		{
 		}
 		void apply(mlir::rlc::ActionFunction op, mlir::rlc::StreamWriter& writer)
@@ -449,7 +473,9 @@ namespace mlir::rlc
 					op.getFunctionType().getInputs(),
 					op.getArgNames(),
 					getResultType(op.getFunctionType()),
-					writer);
+					writer,
+					isMac,
+					isWindows);
 			if (not op.getPrecondition().empty())
 			{
 				declareFunction(
@@ -457,7 +483,9 @@ namespace mlir::rlc
 						op.getFunctionType().getInputs(),
 						op.getArgNames(),
 						mlir::rlc::BoolType::get(op.getContext()),
-						writer);
+						writer,
+						isMac,
+						isWindows);
 			}
 
 			for (auto value : op.getActions())
@@ -474,7 +502,13 @@ namespace mlir::rlc
 				auto mangled = mangledName(actionStatement.getName(), true, fType);
 
 				declareFunction(
-						mangled, fType.getInputs(), argNames, getResultType(fType), writer);
+						mangled,
+						fType.getInputs(),
+						argNames,
+						getResultType(fType),
+						writer,
+						isMac,
+						isWindows);
 
 				auto canDoType = mlir::FunctionType::get(
 						fType.getContext(),
@@ -487,7 +521,9 @@ namespace mlir::rlc
 						canDoType.getInputs(),
 						argNames,
 						getResultType(canDoType),
-						writer);
+						writer,
+						isMac,
+						isWindows);
 			}
 
 			auto canFType = mlir::FunctionType::get(
@@ -500,7 +536,9 @@ namespace mlir::rlc
 					canFType.getInputs(),
 					{ "self" },
 					getResultType(canFType),
-					writer);
+					writer,
+					isMac,
+					isWindows);
 		}
 	};
 
@@ -989,8 +1027,8 @@ namespace mlir::rlc
 			registerTypeConversion(matcher.getWriter().getTypeSerializer());
 			registerTypeConversionRaw(matcher.getWriter().getTypeSerializer(1));
 			matcher.getWriter().writenl("unsafe class RLCNative {");
-			matcher.add<CSharpFunctionDeclarationMatcher>();
-			matcher.add<CSharpActionDeclarationMatcher>(builder);
+			matcher.add<CSharpFunctionDeclarationMatcher>(isMac, isWindows);
+			matcher.add<CSharpActionDeclarationMatcher>(builder, isMac, isWindows);
 			matcher.apply(getOperation());
 			matcher.getWriter().writenl("}").endLine();
 
