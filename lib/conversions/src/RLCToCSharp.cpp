@@ -250,28 +250,35 @@ namespace mlir::rlc
 	{
 		if (not mlir::isa<mlir::rlc::VoidType>(returnType))
 		{
-			writer.writeType(returnType);
-			size_t depth = depthOfReference(returnType);
-			for (size_t i = 0; i != depth; i++)
-				writer.write("*");
-			writer.write(" __result");
-			if (mlir::isa<mlir::rlc::ReferenceType>(returnType) or
-					mlir::isa<mlir::rlc::OwningPtrType>(returnType) or
-					mlir::isa<mlir::rlc::StringLiteralType>(returnType))
-				writer.writenl(" = null;");
-			else if (mlir::isa<mlir::rlc::BoolType>(returnType))
+			if (isCSharpBuiltinType(returnType))
 			{
-				writer.writenl(" = false;");
-			}
-			else if (isCSharpBuiltinType(returnType))
-			{
-				writer.writenl(" = 0;");
+				writer.writeType(returnType, 1);
+				writer.write(" __result");
+				if (mlir::isa<mlir::rlc::ReferenceType>(returnType) or
+						mlir::isa<mlir::rlc::OwningPtrType>(returnType) or
+						mlir::isa<mlir::rlc::StringLiteralType>(returnType))
+					writer.writenl(" = null;");
+				else if (mlir::isa<mlir::rlc::BoolType>(returnType))
+				{
+					writer.writenl(" = false;");
+				}
+				else
+				{
+					writer.writenl(" = 0;");
+				}
 			}
 			else
 			{
+				writer.writeType(returnType);
+				writer.write(" __result");
 				writer.write(" = new ");
 				writer.writeType(returnType);
-				writer.writenl("();");
+				writer.write("((");
+				writer.writeType(returnType, 1);
+				writer.write("*)");
+				writer.write("Marshal.AllocHGlobal(sizeof(");
+				writer.writeType(returnType, 1);
+				writer.writenl(")));");
 			}
 		}
 	}
@@ -303,13 +310,23 @@ namespace mlir::rlc
 			writer.write("RLCNative.", mangledName, "(");
 			if (not mlir::isa<mlir::rlc::VoidType>(returnType))
 			{
-				writer.write("ref ");
-				if (not isCSharpBuiltinType(returnType))
-					writer.write("*");
-				writer.write("__result");
+				if (isCSharpBuiltinType(returnType))
+				{
+					writer.write("ref __result");
+				}
+				else
+				{
+					writer.write("ref ");
+					if (depthOfReference(returnType) != 1 and
+							depthOfReference(returnType) != 0)
+						abort();
+					if (depthOfReference(returnType) == 0)
+					{
+						writer.write("*");
+					}
+					writer.write("__result.__content");
+				}
 
-				if (not isCSharpBuiltinType(returnType))
-					writer.write(".__content");
 				writer.write(", ");
 			}
 			writer.write("ref *this.__content");
@@ -332,11 +349,23 @@ namespace mlir::rlc
 			if (not mlir::isa<mlir::rlc::VoidType>(returnType))
 			{
 				writer.write("return ");
-				size_t depth = depthOfReference(returnType);
-				for (size_t i = 0; i != depth; i++)
-					writer.write("*");
-
-				writer.writenl("__result;");
+				if (depthOfReference(returnType) != 0)
+				{
+					if (isCSharpBuiltinType(dereferenceType(returnType)))
+					{
+						writer.writenl("* __result;");
+					}
+					else
+					{
+						writer.write("new ");
+						writer.writeType(returnType);
+						writer.writenl("(__result);");
+					}
+				}
+				else
+				{
+					writer.writenl("__result;");
+				}
 			}
 		}
 
@@ -626,11 +655,7 @@ namespace mlir::rlc
 				writer.write("private ");
 			else
 				writer.write("public ");
-			writer.writeType(memberType);
-			if (not isCSharpBuiltinType(memberType))
-			{
-				writer.write(".Content");
-			}
+			writer.writeType(memberType, 1);
 			writer.writenl(" ", memberName, ";");
 		}
 	}
@@ -746,8 +771,8 @@ namespace mlir::rlc
 			if (not isCSharpBuiltinType(alternative.value()))
 			{
 				writer.write("new ");
-				writer.writeType(type);
-				writer.write("(&");
+				writer.writeType(alternative.value());
+				writer.write("(&(");
 			}
 			else
 			{
@@ -760,7 +785,7 @@ namespace mlir::rlc
 			writer.write(alternative.index());
 			if (not isCSharpBuiltinType(alternative.value()))
 			{
-				writer.write(")");
+				writer.write("))");
 			}
 			writer.write(" : null");
 			// writer.write("; set => __content->", name, " = ");
@@ -825,12 +850,14 @@ namespace mlir::rlc
 			StreamWriter& writer,
 			MemberFunctionsTable& table)
 	{
-		writer.write("public class ");
+		writer.write("public unsafe class ");
 		writer.writeType(type);
 		writer.writenl("{");
 		auto _ = writer.indent();
 
 		{
+			writer.writenl("public Content* __content;");
+			writer.writenl("private bool owning;");
 			writer.writenl("[StructLayout(LayoutKind.Sequential)]");
 			writer.write("public struct Content {");
 			auto _ = writer.indent();
