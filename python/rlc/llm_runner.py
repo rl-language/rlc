@@ -43,7 +43,7 @@ class Gemini:
 
 
 class GeminiStateless:
-    def __init__(self, program: Program, model="gemini-2.0-flash", first_message=None):
+    def __init__(self, program: Program, model="gemini-2.5-flash-preview-04-17", first_message=None):
         from google import genai
 
         self.client = genai.Client()

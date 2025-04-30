@@ -13,8 +13,11 @@ using ThisOne = Int | Float
 
 #--- main.cs
 using System;
+using System.IO;
+using System.Reflection;
 class Tester {
     public static int Main() {
+        RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         ThisOne pair = new ThisOne();
         return 0; 
     }

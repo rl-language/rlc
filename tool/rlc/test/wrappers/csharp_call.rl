@@ -12,8 +12,12 @@ fun to_invoke() -> Int {true}:
   return 5
 
 #--- main.cs
+using System;
+using System.IO;
+using System.Reflection;
 class Tester {
     public static int Main() {
+        RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         long result = RLC.to_invoke();
         return ((int)(result)) - 5;
     }

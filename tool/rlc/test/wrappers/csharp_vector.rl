@@ -19,8 +19,11 @@ fun asd():
 
 #--- main.cs
 using System;
+using System.IO;
+using System.Reflection;
 class Tester {
     public static int Main() {
+        RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         VectorTint64_tT pair = new VectorTint64_tT();
         long x = 2;
         pair.append(ref x);

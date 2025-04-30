@@ -15,8 +15,11 @@ enum Signal:
 
 #--- main.cs
 using System;
+using System.IO;
+using System.Reflection;
 class Tester {
     public static int Main() {
+        RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         Signal pair = Signal.paper();
         return (int)(pair.value - 1); 
     }

@@ -548,6 +548,10 @@ int main(int argc, char *argv[])
 				<< "cannot write on a executable on stdout, specify a path with -o\n";
 		return errorCode(-1);
 	}
+	else
+	{
+		llvm::sys::fs::remove(outputFile);
+	}
 
 	error_code error;
 	raw_fd_ostream OS(outputFile, error);

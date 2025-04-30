@@ -16,8 +16,11 @@ act play() -> Game:
 
 #--- main.cs
 using System;
+using System.IO;
+using System.Reflection;
 class Tester {
     public static int Main() {
+        RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         Game pair = RLC.play();
         long arg = 3;
         pair.pick(ref arg);

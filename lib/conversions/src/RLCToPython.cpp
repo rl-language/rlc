@@ -284,15 +284,29 @@ namespace mlir::rlc
 		if (casted and casted.getName() == "String")
 		{
 			w.writenl("def __str__(self):");
+			{
+				auto _ = w.indent();
+				w.writenl("__string = String()");
+				w.writenl(
+						"lib.",
+						overload.getMangledName(),
+						"(ctypes.byref(__string), ctypes.byref(self))");
+				w.writenl("return ctypes.cast(__string.get(0), "
+									"ctypes.c_char_p).value.decode(\"utf-8\")")
+						.endLine();
+			}
+			w.writenl("def __repr__(self):");
 			auto _ = w.indent();
-			w.writenl("__string = String()");
-			w.writenl(
-					"lib.",
-					overload.getMangledName(),
-					"(ctypes.byref(__string), ctypes.byref(self))");
-			w.writenl("return ctypes.cast(__string.get(0), "
-								"ctypes.c_char_p).value.decode(\"utf-8\")")
-					.endLine();
+			{
+				w.writenl("__string = String()");
+				w.writenl(
+						"lib.",
+						overload.getMangledName(),
+						"(ctypes.byref(__string), ctypes.byref(self))");
+				w.writenl("return ctypes.cast(__string.get(0), "
+									"ctypes.c_char_p).value.decode(\"utf-8\")")
+						.endLine();
+			}
 		}
 	}
 

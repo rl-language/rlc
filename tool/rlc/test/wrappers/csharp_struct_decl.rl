@@ -23,8 +23,11 @@ cls Outer:
 
 #--- main.cs
 using System;
+using System.IO;
+using System.Reflection;
 class Tester {
     public static int Main() {
+        RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         Outer pair = new Outer();
         pair.inner.x = 2;
         pair.inner.y = 1;

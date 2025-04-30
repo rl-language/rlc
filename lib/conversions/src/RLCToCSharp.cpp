@@ -231,19 +231,16 @@ namespace mlir::rlc
 			mlir::Type returnType,
 			mlir::rlc::StreamWriter& writer,
 			bool isMac,
-			bool isWindows)
+			bool isWindows,
+			llvm::SmallVector<std::string>& declaredFunNames)
 	{
-		writer.write("[DllImport(\"Lib.");
-		if (isMac)
-			writer.write("dylib");
-		else if (isWindows)
-			writer.write("dll");
-		else
-			writer.write("so");
-		writer.writenl("\")]");
-		writer.write("public static extern void ", mangledName);
+		writer.write("public delegate void Delegate", mangledName);
 		writeFunctionArgs(types, args, returnType, writer, true);
 		writer.writenl(";");
+		writer.writenl(
+				"public static Delegate", mangledName, " ", mangledName, ";");
+
+		declaredFunNames.push_back(mangledName.str());
 	}
 
 	static void emitReturnVariable(mlir::Type returnType, StreamWriter& writer)
@@ -446,10 +443,14 @@ namespace mlir::rlc
 		private:
 		bool isMac;
 		bool isWindows;
+		llvm::SmallVector<std::string>& declaredFunNames;
 
 		public:
-		CSharpFunctionDeclarationMatcher(bool isMac, bool isWindows)
-				: isMac(isMac), isWindows(isWindows)
+		CSharpFunctionDeclarationMatcher(
+				bool isMac,
+				bool isWindows,
+				llvm::SmallVector<std::string>& declaredFunNames)
+				: isMac(isMac), isWindows(isWindows), declaredFunNames(declaredFunNames)
 		{
 		}
 		void apply(mlir::rlc::FunctionOp op, mlir::rlc::StreamWriter& writer)
@@ -464,7 +465,8 @@ namespace mlir::rlc
 					getResultType(op.getFunctionType()),
 					writer,
 					isMac,
-					isWindows);
+					isWindows,
+					declaredFunNames);
 
 			if (not op.getPrecondition().empty())
 				declareFunction(
@@ -474,7 +476,8 @@ namespace mlir::rlc
 						mlir::rlc::BoolType::get(op.getContext()),
 						writer,
 						isMac,
-						isWindows);
+						isWindows,
+						declaredFunNames);
 		}
 	};
 
@@ -484,11 +487,18 @@ namespace mlir::rlc
 		mlir::rlc::ModuleBuilder& builder;
 		bool isMac;
 		bool isWindows;
+		llvm::SmallVector<std::string>& declaredFunNames;
 
 		public:
 		CSharpActionDeclarationMatcher(
-				mlir::rlc::ModuleBuilder& builder, bool isMac, bool isWindows)
-				: builder(builder), isMac(isMac), isWindows(isWindows)
+				mlir::rlc::ModuleBuilder& builder,
+				bool isMac,
+				bool isWindows,
+				llvm::SmallVector<std::string>& declaredFunNames)
+				: builder(builder),
+					isMac(isMac),
+					isWindows(isWindows),
+					declaredFunNames(declaredFunNames)
 		{
 		}
 		void apply(mlir::rlc::ActionFunction op, mlir::rlc::StreamWriter& writer)
@@ -504,7 +514,8 @@ namespace mlir::rlc
 					getResultType(op.getFunctionType()),
 					writer,
 					isMac,
-					isWindows);
+					isWindows,
+					declaredFunNames);
 			if (not op.getPrecondition().empty())
 			{
 				declareFunction(
@@ -514,7 +525,8 @@ namespace mlir::rlc
 						mlir::rlc::BoolType::get(op.getContext()),
 						writer,
 						isMac,
-						isWindows);
+						isWindows,
+						declaredFunNames);
 			}
 
 			for (auto value : op.getActions())
@@ -537,7 +549,8 @@ namespace mlir::rlc
 						getResultType(fType),
 						writer,
 						isMac,
-						isWindows);
+						isWindows,
+						declaredFunNames);
 
 				auto canDoType = mlir::FunctionType::get(
 						fType.getContext(),
@@ -552,7 +565,8 @@ namespace mlir::rlc
 						getResultType(canDoType),
 						writer,
 						isMac,
-						isWindows);
+						isWindows,
+						declaredFunNames);
 			}
 
 			auto canFType = mlir::FunctionType::get(
@@ -567,7 +581,8 @@ namespace mlir::rlc
 					getResultType(canFType),
 					writer,
 					isMac,
-					isWindows);
+					isWindows,
+					declaredFunNames);
 		}
 	};
 
@@ -1036,6 +1051,121 @@ namespace mlir::rlc
 		writer.writenl("}").endLine();
 	}
 
+	static void emitSetTearDown(
+			llvm::SmallVector<std::string>& declaredFunNames, StreamWriter& writer)
+	{
+		writer.writenl("internal static string SharedLibExtension =>");
+		writer.writenl(
+				" RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? \".dll\" :");
+		writer.writenl(
+				"RuntimeInformation.IsOSPlatform(OSPlatform.OSX)     ? \".dylib\" :");
+		writer.writenl("/* default to Linux */ \".so\";");
+		writer.writenl("private static IntPtr _lib;");
+		auto _ = writer.indent();
+		writer.writenl("public static void setup(string libName) {");
+		{
+			writer.write("_lib = RLCNative.LoadLibrary(libName);");
+			writer.write(
+					"if (_lib == IntPtr.Zero) throw new Exception(\"Could not find "
+					"library \" + libName );");
+			auto _ = writer.indent();
+			for (auto& exposedSymbol : declaredFunNames)
+			{
+				writer.writenl(
+						"IntPtr ",
+						exposedSymbol,
+						"_ptr = GetProcAddress(_lib, \"",
+						exposedSymbol,
+						"\");");
+				writer.writenl(
+						"if (",
+						exposedSymbol,
+						"_ptr == IntPtr.Zero) throw new Exception(\"Could not find symbol ",
+						exposedSymbol,
+						"\");");
+				writer.writenl(
+						exposedSymbol,
+						" = Marshal.GetDelegateForFunctionPointer<Delegate",
+						exposedSymbol,
+						">(",
+						exposedSymbol,
+						"_ptr);");
+			}
+		}
+		writer.writenl("}").endLine();
+
+		writer.writenl("public static void teardown() {");
+		{
+			writer.writenl("if (_lib == IntPtr.Zero) return;");
+			auto _ = writer.indent();
+			for (auto& exposedSymbol : declaredFunNames)
+			{
+				writer.writenl(exposedSymbol, " = null;");
+			}
+
+			writer.write("RLCNative.FreeLibrary(_lib);");
+			writer.writenl("_lib = IntPtr.Zero;");
+		}
+		writer.writenl("}").endLine();
+	}
+
+	static void emitDLLImporters(bool isMac, bool isWindows, StreamWriter& writer)
+	{
+		if (isMac)
+		{
+			writer.writenl("const string LIBDL = \"libSystem.B.dylib\";");
+			writer.writenl("const int RTLD_NOW = 2;");
+			writer.writenl("[DllImport(LIBDL)] static extern IntPtr dlopen (string "
+										 "path, int flags);");
+			writer.writenl(
+					"[DllImport(LIBDL)] static extern int    dlclose(IntPtr handle);");
+			writer.writenl("[DllImport(LIBDL)] static extern IntPtr dlsym  (IntPtr "
+										 "handle, string name);");
+			writer.writenl(
+					"static IntPtr LoadLibrary (string p) => dlopen (p, RTLD_NOW);");
+			writer.writenl(
+					"static bool   FreeLibrary (IntPtr h)  { dlclose(h); return true; }");
+			writer.writenl(
+					"static IntPtr GetProcAddress(IntPtr h,string n)=>dlsym(h,n);");
+		}
+		else if (isWindows)
+		{
+			writer.writenl("const string KERNEL = \"kernel32\"\n");
+			writer.writenl("[DllImport(KERNEL, SetLastError = true)] static extern "
+										 "IntPtr LoadLibrary(string path) ");
+			writer.writenl("[DllImport(KERNEL, SetLastError = true)] static extern "
+										 "bool FreeLibrary(IntPtr hModule);");
+			writer.writenl("[DllImport(KERNEL)]                      static extern "
+										 "IntPtr GetProcAddress(IntPtr h, string name);");
+		}
+		else
+		{
+			writer.writenl("const string LIBDL = \"libdl.so.2\";");
+			writer.writenl("const int RTLD_NOW = 2;");
+			writer.writenl("[DllImport(LIBDL)] static extern IntPtr dlopen (string "
+										 "path, int flags);");
+			writer.writenl(
+					"[DllImport(LIBDL)] static extern int    dlclose(IntPtr handle);");
+			writer.writenl("[DllImport(LIBDL)] static extern IntPtr dlsym  (IntPtr "
+										 "handle, string name);");
+			writer.writenl(
+					"[DllImport(LIBDL, CharSet = CharSet.Ansi, ExactSpelling = true)]");
+			writer.writenl("static extern IntPtr dlerror();");
+			writer.writenl(
+					"static IntPtr LoadLibrary (string p) => dlopen (p, RTLD_NOW);");
+			writer.writenl("static string DlLastError()");
+			writer.writenl("{");
+			writer.writenl("    IntPtr p = dlerror();");
+			writer.writenl(
+					"    return p != IntPtr.Zero ? Marshal.PtrToStringAnsi(p) : null;");
+			writer.writenl("		}");
+			writer.writenl(
+					"static bool   FreeLibrary (IntPtr h)  { dlclose(h); return true; }");
+			writer.writenl(
+					"static IntPtr GetProcAddress(IntPtr h,string n)=>dlsym(h,n);");
+		}
+	}
+
 #define GEN_PASS_DEF_PRINTCSHARPPASS
 #include "rlc/dialect/Passes.inc"
 
@@ -1049,18 +1179,25 @@ namespace mlir::rlc
 			MemberFunctionsTable table(getOperation());
 			mlir::rlc::ModuleBuilder builder(getOperation());
 
+			llvm::SmallVector<std::string> declaredFunNames;
+
 			emitPrelude(matcher.getWriter());
 			matcher.addTypeSerializer();
 			registerTypeConversion(matcher.getWriter().getTypeSerializer());
 			registerTypeConversionRaw(matcher.getWriter().getTypeSerializer(1));
-			matcher.getWriter().writenl("unsafe class RLCNative {");
-			matcher.add<CSharpFunctionDeclarationMatcher>(isMac, isWindows);
-			matcher.add<CSharpActionDeclarationMatcher>(builder, isMac, isWindows);
+			matcher.getWriter().writenl("public unsafe class RLCNative {");
+			emitDLLImporters(isMac, isWindows, matcher.getWriter());
+			matcher.add<CSharpFunctionDeclarationMatcher>(
+					isMac, isWindows, declaredFunNames);
+			matcher.add<CSharpActionDeclarationMatcher>(
+					builder, isMac, isWindows, declaredFunNames);
 			matcher.apply(getOperation());
+			emitSetTearDown(declaredFunNames, matcher.getWriter());
 			matcher.getWriter().writenl("}").endLine();
 
 			matcher.clearMatchers();
 			matcher.getWriter().writenl("unsafe class RLC {");
+
 			matcher.add<CSharpFunctionWrappersMatcher>();
 			matcher.add<CSharpActionWrappersMatcher>();
 			matcher.apply(getOperation());

@@ -25,8 +25,11 @@ fun to_invoke(Outer self, Int to_add) -> Int {true}:
 
 #--- main.cs
 using System;
+using System.IO;
+using System.Reflection;
 class Tester {
     public static int Main() {
+        RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         Outer pair = new Outer();
         Console.WriteLine(pair.inner.x);
         

@@ -194,7 +194,7 @@ program = compile(["black_jack.rl"])
 state = program.start()
 
 # invokes directly the user defined function on the real state object
-while program.get_current_player(state.state) == -1:
+while program.module.get_current_player(state.state) == -1:
     # enumerate legal actions using the methods defined on the
     # wrapper
     action = random.choice(state.legal_actions)
