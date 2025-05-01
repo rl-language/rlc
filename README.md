@@ -5,7 +5,7 @@
 
 From a single simple description, generate all tools you may need. Test your rules with fuzzers, generate machine learning agents, use it in C or python, embed it in graphical engines and on the web. All automatically.
 
-Rulebook contains unique mechanisms that cannot be implemented in mainstream languages such as c, cpp and python that mathematically guarantees asymptotically less code to write the same rules. (paper to be released soon.)
+Rulebook contains unique mechanisms that cannot be implemented in mainstream languages such as c, cpp and python that mathematically guarantees asymptotically less code to write the same rules by allowing composition and reuse of sequences of actions.
 
 The following table compares the number of lines of code required to implement a given game in Rulebook and CPP, excluding their header files. The number of lines they require scales quadratically with respect to the complexity of the game. Our does not.
 ![RLC Logo](./imgs/lines_of_code.png)
@@ -53,6 +53,8 @@ It will to learn pass true to `win` to maximize `score`, as reported by the seco
 [Tutorial](./docs/tutorial.md)
 
 [Tutorial for GYM users](./docs/gym_tutorial.md)
+
+[Paper for Reinforcement Learning users](https://arxiv.org/abs/2504.19625)
 
 [Language reference and stdlib documentation](https://github.com/rl-language/rlc-stdlib-doc/tree/master)
 

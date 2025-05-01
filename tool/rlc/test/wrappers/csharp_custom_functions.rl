@@ -33,8 +33,7 @@ class Tester {
         Outer pair = new Outer();
         Console.WriteLine(pair.inner.x);
         
-        long x = 2 ;
-        return ((int) RLC.to_invoke(pair, ref x)) - 5;
+        return ((int) RLC.to_invoke(pair, 2)) - 5;
     }
 }
 

@@ -2,7 +2,7 @@
 
 The `Rulebook` (or `rl` for short) is a domain specific-language that tries to reduce the complexity of writing simulations, such as those used in reinforcement learning, game programming, and similar other domains. This document explains the rationale behind it.
 
-If you want to jump directly into the code, try it out as described in the main page instead instead. If you want to read about the project rationale, read it [here](./where_we_are_going.md). If you want to see a quick description of what the `rlc` tool is capable of, instead of the `rl` language, you can see video [here](https://www.youtube.com/watch?v=tMnBo3TGIbU). A less pratical and more rambly philosofical description of why `rl` is usefull can be found [here](./philosophy.md)
+If you want to jump directly into the code, try it out as described in the main page instead instead. If you want to read about the project rationale, read it [here](./where_we_are_going.md). If you want to see a quick description of what the `rlc` tool is capable of, instead of the `rl` language, you can see video [here](https://www.youtube.com/watch?v=tMnBo3TGIbU).
 
 ### The Complexity of writing games and rule heavy simulations.
 
@@ -237,11 +237,11 @@ We saw that `rl` has been created to solve the 4 issues of `inspectability`, `se
 * Actions, and actions parameters and actions preconditions
 
 then instrumentation can be written to generically exploit one or more of these elements. For example, since the compiler knows everything about how that simulation may evolve, even without human intervention, we can:
-* generate the wrapper for the simulation in different languages and for different frameworks (C and Python currently supported)
-* generate fuzzers that try random valid moves and look for bugs (currently being developed)
-* generate the network layer that allows to remotely interact with the simulation (future work)
-* statically prove that some actions can never be executed and thus the code is not right (already able to do so in simple situations)
-* automatically serialize and deserialize the state of the simulation (already implemented)
+* generate the wrapper for the simulation in different languages and for different frameworks (C, CPP, C# and Python currently supported)
+* generate fuzzers that try random valid moves and look for bugs.
+* generate the network layer that allows to remotely interact with the simulation [example here](https://github.com/rl-language/4Hammer/blob/master/examples/engine_driver.py).
+* statically prove that some actions can never be executed and thus the code is not right, just like unrechable code.
+* automatically serialize and deserialize the state of the simulation.
 
 ###  Conclusion
 

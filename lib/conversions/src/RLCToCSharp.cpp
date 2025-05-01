@@ -22,6 +22,7 @@ limitations under the License.
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/Types.hpp"
 #include "rlc/dialect/Visits.hpp"
+#include "rlc/dialect/conversion/TypeConverter.h"
 
 namespace mlir::rlc
 {
@@ -79,7 +80,7 @@ namespace mlir::rlc
 		matcher.add([](mlir::rlc::StringLiteralType type,
 									 llvm::raw_string_ostream& OS) { OS << "char*"; });
 		matcher.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
-			OS << matcher.convert(type.getUnderlying()) << "*";
+			OS << typeToMangled(type) << ".Content";
 		});
 		matcher.add(
 				[&](mlir::rlc::OwningPtrType type, llvm::raw_string_ostream& OS) {
@@ -213,7 +214,7 @@ namespace mlir::rlc
 		const int toDrop = int(isMemberFunction);
 		for (auto [type, name] : llvm::drop_begin(llvm::zip(types, args), toDrop))
 		{
-			if (isCSharpBuiltinType(type) or isBuiltinDeclaration)
+			if (isBuiltinDeclaration)
 				writer.write("ref ");
 			writer.writeType(type, isBuiltinDeclaration);
 			writer.write(" ");
@@ -270,12 +271,7 @@ namespace mlir::rlc
 				writer.write(" __result");
 				writer.write(" = new ");
 				writer.writeType(returnType);
-				writer.write("((");
-				writer.writeType(returnType, 1);
-				writer.write("*)");
-				writer.write("Marshal.AllocHGlobal(sizeof(");
-				writer.writeType(returnType, 1);
-				writer.writenl(")));");
+				writer.write("();");
 			}
 		}
 	}
@@ -756,7 +752,7 @@ namespace mlir::rlc
 
 		if (not table.isTriviallyCopiable(type))
 		{
-			writer.write("void assign(", name, " other) {");
+			writer.write("public void assign(", name, " other) {");
 			writer.indentOnce(1);
 			writer.writenl(
 					"RLCNative.",
@@ -863,7 +859,9 @@ namespace mlir::rlc
 	static void emitArrayDecl(
 			mlir::rlc::ArrayType type,
 			StreamWriter& writer,
-			MemberFunctionsTable& table)
+			MemberFunctionsTable& table,
+			size_t typeSize,
+			size_t elementSize)
 	{
 		writer.write("public unsafe class ");
 		writer.writeType(type);
@@ -874,15 +872,42 @@ namespace mlir::rlc
 			writer.writenl("public Content* __content;");
 			writer.writenl("private bool owning;");
 			writer.writenl("[StructLayout(LayoutKind.Sequential)]");
-			writer.write("public struct Content {");
+			writer.writenl("public struct Content {");
 			auto _ = writer.indent();
-			writer.write("public fixed ");
-			writer.writeType(type.getUnderlying());
+			writer.write("public fixed byte");
 			writer.write(" __content");
-			writer.write("[");
-			writer.writeType(type.getSize());
-			writer.writenl("];");
+			writer.writenl("[", typeSize, "];");
 			writer.writenl("}").endLine();
+
+			writer.write("public ");
+			if (isCSharpBuiltinType(type.getUnderlying()))
+			{
+				writer.write("ref ");
+			}
+			writer.writeType(type.getUnderlying());
+			writer.writenl(" this [int index] {");
+			writer.writenl("get {");
+			writer.writenl(
+					"if ((((uint) index) >= ",
+					type.getArraySize(),
+					")) throw new ArgumentOutOfRangeException(nameof(index));");
+			writer.writenl("return ");
+			if (isCSharpBuiltinType(type.getUnderlying()))
+			{
+				writer.write("ref (*(((");
+				writer.writeType(type.getUnderlying());
+				writer.write("*) __content) + index));");
+			}
+			else
+			{
+				writer.write("new ");
+				writer.writeType(type.getUnderlying());
+				writer.write("((((");
+				writer.writeType(type.getUnderlying(), 1);
+				writer.write("*) __content) + index));");
+			}
+			writer.writenl("}");
+			writer.writenl("}");
 		}
 
 		emitSpecialFunctions(type, writer, table);
@@ -1166,6 +1191,14 @@ namespace mlir::rlc
 		}
 	}
 
+	static size_t getSizeTypeInBytes(
+			const mlir::DataLayout& dl,
+			mlir::Type type,
+			mlir::TypeConverter& converterToLLVMIR)
+	{
+		return dl.getTypeSize(converterToLLVMIR.convertType(type));
+	}
+
 #define GEN_PASS_DEF_PRINTCSHARPPASS
 #include "rlc/dialect/Passes.inc"
 
@@ -1178,8 +1211,11 @@ namespace mlir::rlc
 			PatternMatcher matcher(*OS);
 			MemberFunctionsTable table(getOperation());
 			mlir::rlc::ModuleBuilder builder(getOperation());
+			mlir::TypeConverter converter;
+			mlir::rlc::registerConversions(converter, getOperation());
 
 			llvm::SmallVector<std::string> declaredFunNames;
+			const auto& dl = mlir::DataLayout::closest(getOperation());
 
 			emitPrelude(matcher.getWriter());
 			matcher.addTypeSerializer();
@@ -1234,7 +1270,12 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 				{
-					emitArrayDecl(casted, matcher.getWriter(), table);
+					emitArrayDecl(
+							casted,
+							matcher.getWriter(),
+							table,
+							getSizeTypeInBytes(dl, casted, converter),
+							getSizeTypeInBytes(dl, casted.getUnderlying(), converter));
 				}
 			}
 		}

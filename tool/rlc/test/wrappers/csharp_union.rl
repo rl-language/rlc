@@ -23,8 +23,7 @@ class Tester {
     public static int Main() {
         RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         Outer pair = new Outer();
-        double x = 2.2;
-        pair.inner.x.assign(ref x);
+        pair.inner.x.assign(2.2);
         if (pair.inner.x.get_long != null) {
             return -10;
         }

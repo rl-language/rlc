@@ -26,9 +26,9 @@ class Tester {
         RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         VectorTint64_tT pair = new VectorTint64_tT();
         long x = 2;
-        pair.append(ref x);
-        pair.append(ref x);
-        pair.append(ref x);
+        pair.append(x);
+        pair.append(x);
+        pair.append(x);
         return (int)(pair.size() - 3);
     }
 }

@@ -22,8 +22,7 @@ class Tester {
     public static int Main() {
         RLCNative.setup(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "/Lib" + RLCNative.SharedLibExtension);
         Game pair = RLC.play();
-        long arg = 3;
-        pair.pick(ref arg);
+        pair.pick(3);
         return (int)(pair.asd - 3); 
     }
 }
