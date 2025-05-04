@@ -99,7 +99,7 @@ site_packages_path = (
     target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
 )
 
-version="0.3.2"
+version="0.3.3"
 setup(
     name="rl_language_core",
     version=version,
