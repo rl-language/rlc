@@ -450,6 +450,16 @@ namespace mlir::rlc
 				w.write(" and isinstance(args[", argument.index() - isMethod, "], ");
 				w.writeType(argument.value());
 				w.write(")");
+
+				// bool in python are integers too, so we have to guard against bools
+				// when we can accept a int
+				if (argument.value().isa<mlir::rlc::IntegerType>())
+				{
+					w.write(
+							" and not isinstance(args[",
+							argument.index() - isMethod,
+							"], builtins.bool)");
+				}
 			}
 			w.writenl(":");
 			auto _ = w.indent();
