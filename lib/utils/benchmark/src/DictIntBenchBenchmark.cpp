@@ -30,7 +30,7 @@ static std::random_device rd;
 static std::mt19937 gen(rd());
 
 constexpr std::size_t minRange = 1 << 2;
-constexpr std::size_t maxRange = 1 << 10;
+constexpr std::size_t maxRange = 1 << 20;
 
 // Helper function to generate random unique integers
 static std::vector<int64_t> GenerateRandomIntegers(int n)
