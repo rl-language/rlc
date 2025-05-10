@@ -6,7 +6,7 @@ import none
 import range
 import serialization.print
 
-const NUM_KEYS = 50
+const NUM_KEYS = 5000
 
 # DICTIONARY FUNCTIONS
 # fun insert(KeyType key, ValueType value) -> Bool:
@@ -37,7 +37,7 @@ fun main() -> Int:
     for key in range(NUM_KEYS):
         dic.insert(key, key * key)
     
-    for k in range(5):
+    for k in range(NUM_KEYS/10):
         let key = k * 10
         if dic.contains(key):
             print("Found entry with key "s + to_string(key) + 
