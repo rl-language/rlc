@@ -1,18 +1,20 @@
 # RLC
 
+**Rulebook** is a language for complex interactive subsystems (reinforcement learning environments, videogames, UIs with graph-like transitions, multistep procedures, ...).
 
-![RLC Logo](./imgs/generation.png)
+Rulebook is compiled and statically checked, the key and innovative feature of the language are [Action functions with SPIN properties](anonymous), which help to:
 
-From a single simple description, generate all tools you may need. Test your rules with fuzzers, generate machine learning agents, use it in C or python, embed it in graphical engines and on the web. All automatically.
+* [store, load, print, replay, modify](anonymous) both execution traces and the program state
+* **automatically test** your interactive code using off-the-shelf [fuzzers](anonymous), [proofs](anonymous) and [reinforcement learning](anonymous)
+* write [self-configuring UIs](anonymous), where UIs can inspect the underlying program they present and configure themselves accordingly.
+* [automatically remote execute](anonymous) interactive code over the network.
 
-Rulebook contains unique mechanisms that cannot be implemented in mainstream languages such as c, cpp and python that mathematically guarantees asymptotically less code to write the same rules by allowing composition and reuse of sequences of actions.
+Rulebook:
 
-The following table compares the number of lines of code required to implement a given game in Rulebook and CPP, excluding their header files. The number of lines they require scales quadratically with respect to the complexity of the game. Our does not.
-![RLC Logo](./imgs/lines_of_code.png)
+* **aids**, not replaces [C, C++, C#, Python, and Godot Script](https://rl-language.github.io/language_tour.html#compatibility)  (just like SQL aids but not replaces those languages)
+* produces a single shared library (or webassembly if targeting the web) with the same ABI as C that you can embed in your software, wrapped into generated file native to your language.
 
-Furthermore, we have performances comparable to CPP implementations.
-The following is the time required to play out 1024 game traces generated ahead of time, thus only measuiring the time required construct a game and to apply actions.
-![RLC Logo](./imgs/performance.png)
+Our key proof of concept example is [4Hammer](https://github.com/rl-language/4Hammer) . A never before implemented reinforcement learning environment with huge amounts of user actions in only ~5k lines of code (including graphical code). It runs in the browser and on desktop and all the features described in this section are present.
 
 ### Installation
 
