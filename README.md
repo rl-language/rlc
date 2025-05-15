@@ -2,12 +2,12 @@
 
 **Rulebook** is a language for complex interactive subsystems (reinforcement learning environments, videogames, UIs with graph-like transitions, multistep procedures, ...).
 
-Rulebook is compiled and statically checked, the key and innovative feature of the language are [Action functions with SPIN properties](anonymous), which help to:
+Rulebook is compiled and statically checked, the key and innovative feature of the language are [Action functions with SPIN properties](https://rl-language.github.io/language_tour.html#action-functions), which help to:
 
-* [store, load, print, replay, modify](anonymous) both execution traces and the program state
-* **automatically test** your interactive code using off-the-shelf [fuzzers](anonymous), [proofs](anonymous) and [reinforcement learning](anonymous)
-* write [self-configuring UIs](anonymous), where UIs can inspect the underlying program they present and configure themselves accordingly.
-* [automatically remote execute](anonymous) interactive code over the network.
+* [store, load, print, replay, modify](https://rl-language.github.io/language_tour.html#spin-functions-implications) both execution traces and the program state
+* **automatically test** your interactive code using off-the-shelf [fuzzers](https://rl-language.github.io/language_tour.html#automatic-testing), [proofs](https://rl-language.github.io/language_tour.html#finite-interactive-programs) and [reinforcement learning](https://rl-language.github.io/language_tour.html#reinforcement-learning)
+* write [self-configuring UIs](https://rl-language.github.io//language_tour.html#self-configuring-uis), where UIs can inspect the underlying program they present and configure themselves accordingly.
+* [automatically remote execute](https://rl-language.github.io/language_tour.html#remote-execution) interactive code over the network.
 
 Rulebook:
 
