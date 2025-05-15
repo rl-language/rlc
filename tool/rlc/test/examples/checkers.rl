@@ -249,7 +249,6 @@ fun pretty_print(Game g):
         print(s)
         x = x + 1
 
-
 fun fuzz(Vector<Byte> input):
     let state = play()
     let x : AnyGameAction

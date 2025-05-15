@@ -207,6 +207,8 @@ fun score(Game g, Int player_id) -> Float:
         return -1.0
     return 0.0  # Draw
 
+
+
 # Return number of players
 fun get_num_players() -> Int:
     return 2

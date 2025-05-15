@@ -165,7 +165,6 @@ fun score(Game g, Int player_id) -> Float:
 fun get_num_players() -> Int:
     return 2
 
-
 fun fuzz(Vector<Byte> input):
     if input.size() == 0:
         return

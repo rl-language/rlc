@@ -180,7 +180,6 @@ fun fuzz(Vector<Byte> input):
     let action : AnyGameAction 
     parse_and_execute(state, action, input) 
 
-
 fun pretty_print(Game g):
     print(g.player_hands)
     print(g.highest_card_played)
