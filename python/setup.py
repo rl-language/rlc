@@ -134,7 +134,6 @@ setup(
             "rlc-play=impl.play:main",
             "rlc-random=impl.solve:main",
             "rlc-probs=impl.probs:main",
-            "rlc-fix-ray=impl.fix_ray:main",
             "rlc-make-report=impl.make_report:main",
             "rlc-llmplayer=impl.llmplayer:main",
         ],
