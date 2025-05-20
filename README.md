@@ -1,5 +1,7 @@
 # RLC
 
+[rationale, tutorials and documentation](https://rl-language.github.io)
+
 **Rulebook** is a language for complex interactive subsystems (reinforcement learning environments, videogames, UIs with graph-like transitions, multistep procedures, ...).
 
 Rulebook is compiled and statically checked, the key and innovative feature of the language are [Action functions with SPIN properties](https://rl-language.github.io/language_tour.html#action-functions), which help to:

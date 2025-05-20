@@ -292,6 +292,21 @@ static void printMethodsOfType(
 						attrs,
 						builder,
 						isDecl);
+
+                auto can_type = mlir::FunctionType::get(value.getContext(), 
+						value.getType().cast<mlir::FunctionType>().getInputs(), {mlir::rlc::BoolType::get(value.getContext())});
+				printMethodOfType(
+						OS,
+						type,
+						can_type,
+					    "can_" + action.getName().str(),
+						mlir::rlc::mangledName(
+								"can_" + action.getName().str(),
+								true,
+								can_type),
+						attrs,
+						builder,
+						isDecl);
 			}
 		}
 	}
@@ -661,8 +676,6 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 		if (fun.isInternal())
 			continue;
 		if (fun.getUnmangledName() == "main")
-			continue;
-		if (fun.isDeclaration())
 			continue;
 		std::string cShortName =
 				((not fun.getFunctionType().getInputs().empty() and

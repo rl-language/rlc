@@ -336,6 +336,10 @@ namespace mlir::rlc
 			destructorsToCreate.push_back(t);
 		};
 
+        for (auto classDecl : op.getOps <mlir::rlc::ClassDeclaration>()) {
+            collectToCreate(classDecl.getDeclaredType());
+            classDecl.getDeclaredType().walk(collectToCreate);
+        }
 		op.walk([&](mlir::rlc::TypeAliasOp op) {
 			auto type = op.getAliased();
 			collectToCreate(type);
