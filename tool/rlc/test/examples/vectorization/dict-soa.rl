@@ -1,7 +1,7 @@
 # RUN: rlc %s -o %t -i %stdlib
 # RUN: %t%exeext
 
-import collections.dictionary
+import collections.SoA_dictionary
 import none
 import range
 import serialization.print
@@ -32,7 +32,7 @@ const NUM_KEYS = 5000
 # drop()
 
 fun main():
-    let dic: Dict<Int,Int>
+    let dic: Dict_SoA<Int,Int>
     let counter = 0
     while counter < NUM_KEYS:
         dic.insert(counter, counter * counter)
@@ -53,7 +53,7 @@ fun main():
     let keys = dic.keys()
     let values = dic.values()
 
-    let dicExc: Dict<Int, Int>
+    let dicExc: Dict_SoA<Int, Int>
     
     counter = 0
     while counter < keys.size():
