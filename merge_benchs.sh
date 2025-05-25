@@ -31,7 +31,7 @@ replace_name(){
 }
 
 # Check if at least one argument is provided
-if [ $# -lt 1 ]; then
+if [ $# -lt 2 ]; then
     echo "Usage: $0 file1.csv file2.csv [file3.csv ...]"
     echo "This script processes multiple CSV files by:"
     echo "  1. Keeping the header from the first file, removing headers from others"
