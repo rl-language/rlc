@@ -1929,6 +1929,22 @@ class FunctionRewriter
 		}
 
 		rewriter.eraseOp(op);
+		mlir::StringAttr noaliasAttr = rewriter.getStringAttr("llvm.noalias");
+		
+		for (size_t i = 1; i < newF.getFunctionBody().getNumArguments(); i++){
+			newF.setArgAttr(
+							i,
+							mlir::LLVM::LLVMDialect::getNoAliasAttrName(),
+							rewriter.getUnitAttr());
+			newF.setArgAttr(
+							i,
+							mlir::LLVM::LLVMDialect::getNoUndefAttrName(),
+							rewriter.getUnitAttr());
+			newF.setArgAttr(
+							i,
+							mlir::LLVM::LLVMDialect::getNonNullAttrName(),
+							rewriter.getUnitAttr());
+		}
 
 		return mlir::success();
 	}

@@ -270,7 +270,6 @@ cls<KeyType, ValueType> Dict:
             return
         
         if self._capacity == 1:
-            let old_capacity = self._capacity
             let old_entries = self._entries
             let old_size = self._size
 
