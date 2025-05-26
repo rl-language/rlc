@@ -9,8 +9,7 @@
 
 # Replace part of first column with filename without extension
 replace_name(){
-    filename_noext="${filename%.csv}"
-    tail -n +2 "$current_file" | awk -F, -v filename="$filename_noext" '{
+    tail -n +2 "$current_file" | awk -F, -v filename=$filename_noext '{
         # Replace part of first field up to and including "_rlc" with filename (without .csv)
         # Use sub() to replace the pattern in the first field
         if (index($1, "_rlc") > 0) {
@@ -20,15 +19,22 @@ replace_name(){
             # If "_rlc" is not found, just prepend the filename
             $1 = filename"_"$1;
         }
+        
+        # Remove quotes
+        gsub(/"/, "", $1);
+        
         # Output first field
-        printf "\"%s", $1;
+        printf "%s", $1;
+        
         # Output remaining fields with commas
         for (i=2; i<=NF; i++) {
             printf ",%s", $i;
         }
         printf "\n";
-    }' >> "$output_file"
+    }' >> "$filename_noext"_renamed.csv
 }
+
+
 
 # Check if at least one argument is provided
 if [ $# -lt 2 ]; then
@@ -41,9 +47,10 @@ if [ $# -lt 2 ]; then
 fi
 
 # Setup variables
-output_file="merged_output.csv"
+header=$(head -1 $1)
 
 echo "Processing CSV files..."
+
 
 # Process each file
 for (( i=1; i<=$#; i++ )); do
@@ -51,16 +58,63 @@ for (( i=1; i<=$#; i++ )); do
     filename=$(basename "$current_file")
     
     echo "- Processing $filename"
-    
+
     # Remove file extension
     filename_noext="${filename%.csv}"
+    renamed_file="$filename_noext"_renamed.csv
     
+    echo $header > $renamed_file
+
+    replace_name
+
     # First file: Keep header 
     if [ $i -eq 1 ]; then
-        head -1 "$current_file" > "$output_file"
+        tail -n +2 $renamed_file |awk -F, -v header=$header '
+            BEGIN{i = 0; file = "bench_"i; print header >> file}
+            /RMS/ {change_file = 1}
+            /./{print >> file}
+            {if (change_file == 1){
+                close(file);
+                i++;
+                file = "bench_"i ;
+                {if (getline != 0){print header >> file}}
+                change_file = 0;
+                next;
+            }}
+        '
+    else  
+        tail -n +2 $renamed_file |awk -F, '
+            BEGIN{i = 0; file = "bench_"i}
+            /RMS/ {change_file = 1}
+            /./{print >> file}
+            {if (change_file == 1){
+                close(file);
+                i++;
+                file = "bench_"i ;
+                change_file = 0;
+                next;
+            }}
+        '
     fi
-        replace_name
+
+
+
 done
 
+echo
+echo "Cleaning intermediate files"
+rm *_renamed.csv
 
-echo "Done! Combined CSV saved as $output_file"
+
+echo
+echo "Done!"
+
+# echo
+# echo "Entering venv"
+# source ../.venv/bin/activate || exit 1
+
+# echo
+# echo "Opening plotter for every file"
+# for bench in ./bench_* ; do
+#     python3 plot.py -f $benc &
+# done
