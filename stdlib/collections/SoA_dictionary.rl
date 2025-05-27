@@ -51,19 +51,13 @@ cls<KeyType, ValueType> Dict_SoA:
         let index = hash % self._capacity
         let distance = 0
         let probe_count = 0  # Add safety counter
+        let stride = 16
         
         # Create local copies of key and value to avoid modifying the input parameters
         let current_key = key
         let current_value = value
 
-        while true:
-            # Add safety check to prevent infinite loops
-            if probe_count >= self._capacity:
-                assert(false, "Maximum probe count exceeded - likely an implementation bug")
-                return
-            probe_count = probe_count + 1
-            
-            
+        while probe_count < self._capacity:
             if self._hashes[index] == 0:
                 __builtin_construct_do_not_use(self._keys[index])
                 __builtin_construct_do_not_use(self._values[index])
@@ -72,12 +66,29 @@ cls<KeyType, ValueType> Dict_SoA:
                 self._values[index] = current_value
                 self._size = self._size + 1
                 return
-            else if self._hashes[index] == hash and compute_equal_of(self._keys[index], current_key):
-                self._values[index] = current_value # Update the actual entry in entries
-                return
-            else:
-                let existing_entry_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
-                if existing_entry_distance < distance:
+
+            let diff = self._capacity - index - stride
+            if diff >= 0:
+                let counter = 0
+                let sum = false
+                let pos_bit = 0
+                while counter < stride :
+                    sum = sum + (self._hashes[index + counter] == hash)
+                    sum = sum + (compute_equal_of(self._keys[index + counter], current_key))
+                    if sum :
+                        pos_bit = pos_bit + 1 << counter
+                    counter = counter + 1
+                
+                if sum :
+                    index = pos_bit & (-pos_bit)
+                    self._values[index] = current_value # Update the actual entry in entries
+                    return
+                
+                index = index + stride
+                let last_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
+                probe_count = probe_count + stride
+                distance = probe_count - 1
+                if last_distance < distance:
                     let tmp_hash = hash
                     let tmp_key = current_key
                     let tmp_val = current_value
@@ -89,11 +100,41 @@ cls<KeyType, ValueType> Dict_SoA:
                     self._values[index] = tmp_val 
                     self._keys[index] = tmp_key
                     self._hashes[index] = tmp_hash
-
                     
-                    distance = existing_entry_distance
-                distance = distance + 1
-                index = (index + 1) % self._capacity
+                    distance = last_distance                
+            else:
+                while index < self._capacity:
+                    if self._hashes[index] == 0:
+                        __builtin_construct_do_not_use(self._keys[index])
+                        __builtin_construct_do_not_use(self._values[index])
+                        self._hashes[index] = hash
+                        self._keys[index] = current_key
+                        self._values[index] = current_value
+                        self._size = self._size + 1
+                        return
+                    else if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
+                        self._values[index] = current_value # Update the actual entry in entries
+                        return
+                    let existing_entry_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
+                    if existing_entry_distance < distance:
+                        let tmp_hash = hash
+                        let tmp_key = current_key
+                        let tmp_val = current_value
+
+                        current_value = self._values[index]
+                        current_key = self._keys[index]
+                        hash = self._hashes[index]
+                        
+                        self._values[index] = tmp_val 
+                        self._keys[index] = tmp_key
+                        self._hashes[index] = tmp_hash
+                        
+                        distance = existing_entry_distance    
+                    index = index + 1
+                    distance = distance + 1
+                index = 0
+                probe_count = probe_count - (diff)
+
     
     fun get(KeyType key) -> ValueType:
         # Quick return for empty dictionary
@@ -135,6 +176,8 @@ cls<KeyType, ValueType> Dict_SoA:
         let probe_count = 0  # Add safety counter
 
         while probe_count < self._capacity:
+            if self._hashes[index] == 0:
+                return false
             let diff = self._capacity - index - stride
             if diff >= 0:
                 let counter = 0
@@ -154,14 +197,13 @@ cls<KeyType, ValueType> Dict_SoA:
                 while index < self._capacity:
                     if self._hashes[index] == 0:
                         return false
-                    else if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
+                    if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
                         return true
-                    else:
-                        let existing_entry_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
-                        if existing_entry_distance < probe_count:
-                            return false
-                        index = index + 1
-                        probe_count = probe_count + 1
+                    let existing_entry_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
+                    if existing_entry_distance < probe_count:
+                        return false
+                    index = index + 1
+                    probe_count = probe_count + 1
                 index = 0
 
         return false
@@ -275,6 +317,7 @@ cls<KeyType, ValueType> Dict_SoA:
             self._keys = __builtin_malloc_do_not_use<KeyType>(self._capacity)
             self._values = __builtin_malloc_do_not_use<ValueType>(self._capacity)
             self._hashes = __builtin_malloc_do_not_use<Int>(self._capacity) 
+            self._hashes[0] = 0
             return
         
         if self._capacity == 1:
@@ -309,7 +352,7 @@ cls<KeyType, ValueType> Dict_SoA:
         let old_keys = self._keys
         let old_size = self._size
         
-        # Create new, larger entries array
+        # Create new, larger array
         self._capacity = self._capacity << 1
         self._keys = __builtin_malloc_do_not_use<KeyType>(self._capacity)
         self._values = __builtin_malloc_do_not_use<ValueType>(self._capacity)
