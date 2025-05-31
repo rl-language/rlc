@@ -42,8 +42,9 @@ namespace mlir::rlc
 			mlir::rlc::IRBuilder rewriter(&getContext());
 			for (auto loop : loops)
 			{
-				auto tmpVar = mlir::dyn_cast<mlir::rlc::ForLoopVarDeclOp>(
-						loop.getBody().front().front());
+				auto tmpVars = loop.getBody().getOps<mlir::rlc::ForLoopVarDeclOp>();
+				assert(!tmpVars.empty());
+				auto tmpVar = *tmpVars.begin();
 				rewriter.setInsertionPoint(loop);
 				// var = 0
 				auto index = rewriter.createUninitializedConstruct(

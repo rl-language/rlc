@@ -143,7 +143,8 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 		mlir::Location callPoint,
 		mlir::TypeRange callSiteArgumentTypes,
-		mlir::FunctionType possibleCallee)
+		mlir::FunctionType possibleCallee,
+		mlir::TypeRange caleeTemplateArguments)
 {
 	llvm::DenseMap<mlir::rlc::TemplateParameterType, mlir::Type> substitutions;
 	for (auto [callSiteArgument, calleeArgument] :
@@ -153,6 +154,18 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 						callPoint, substitutions, calleeArgument, callSiteArgument)
 						.failed())
 			return nullptr;
+	}
+
+	for (auto templateParameter : caleeTemplateArguments)
+	{
+		auto templateArg =
+				mlir::dyn_cast<mlir::rlc::TemplateParameterType>(templateParameter);
+		if (not templateArg)
+			continue;
+		if (not substitutions.contains(templateArg))
+		{
+			return nullptr;
+		}
 	}
 
 	if (possibleCallee.getNumResults() == 0)
@@ -262,6 +275,19 @@ static bool locsAreInSameFile(mlir::Location l, mlir::Location r)
 	return casted1.getFilename() == catsed2.getFilename();
 }
 
+static llvm::SmallVector<mlir::Type, 2> templateArguments(mlir::Operation* op)
+{
+	llvm::SmallVector<mlir::Type, 2> toReturn;
+	auto function = llvm::dyn_cast<mlir::rlc::FunctionOp>(op);
+	if (!function)
+		return toReturn;
+	for (auto parameter : function.getTemplateParameters())
+	{
+		toReturn.push_back(mlir::cast<mlir::TypeAttr>(parameter).getValue());
+	}
+	return toReturn;
+}
+
 llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 		mlir::Location callPoint,
 		bool isMemberCall,
@@ -291,7 +317,8 @@ llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 		if (deduceTemplateCallSiteType(
 						callPoint,
 						arguments,
-						candidate.getType().cast<mlir::FunctionType>()) != nullptr)
+						candidate.getType().cast<mlir::FunctionType>(),
+						templateArguments(candidate.getDefiningOp())) != nullptr)
 		{
 			matching.push_back(candidate);
 		}
@@ -311,7 +338,10 @@ mlir::Value mlir::rlc::OverloadResolver::instantiateOverload(
 		return overload;
 
 	auto instantiated = deduceTemplateCallSiteType(
-			loc, arguments, overload.getType().cast<mlir::FunctionType>());
+			loc,
+			arguments,
+			overload.getType().cast<mlir::FunctionType>(),
+			templateArguments(overload.getDefiningOp()));
 	if (isTemplateType(overload.getType(), isTemplate).failed())
 		return overload;
 

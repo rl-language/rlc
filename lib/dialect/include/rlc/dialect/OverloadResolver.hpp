@@ -56,7 +56,8 @@ namespace mlir::rlc
 		mlir::Type deduceTemplateCallSiteType(
 				mlir::Location callPoint,
 				mlir::TypeRange callSiteArgumentTypes,
-				mlir::FunctionType possibleCallee);
+				mlir::FunctionType possibleCallee,
+				mlir::TypeRange templateParameters);
 
 		mlir::LogicalResult deduceSubstitutions(
 				mlir::Location callPoint,
