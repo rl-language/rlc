@@ -743,6 +743,20 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
   }];
 }
 
+def RLC_SubActionInfo : RLC_Dialect<"subaction_info", [NoTerminator, NoRegionArguments]> {
+
+  let arguments = (ins TypeAttr:$type);
+
+  let assemblyFormat = [{
+	$type $body attr-dict 
+  }];
+
+
+  let regions = (region
+    AnyRegion:$body
+  );
+}
+
 def RLC_SubActionStatement : RLC_Dialect<"subaction", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getRegionInvocationBounds"]>]> {
   let summary = "subaction.";
 
@@ -1573,6 +1587,20 @@ def RLC_AsByteArrayOp : RLC_Dialect<"as_byte_array", [DeclareOpInterfaceMethods<
   let assemblyFormat = [{
 	$lhs `:` type($lhs) `->` type($result) attr-dict
   }];
+}
+
+def RLC_IsDoneOp : RLC_Dialect<"is_done"> {
+  let arguments = (ins  AnyType:$coro_frame);
+  let results = (outs RLC_BoolType:$result);
+
+  let assemblyFormat = [{
+	$coro_frame `:` type($coro_frame) `->` type($result) attr-dict
+  }];
+
+  let builders = [
+        OpBuilder<(ins "mlir::Value":$coro_frame), [{
+            build($_builder, $_state, mlir::rlc::BoolType::get($_builder.getContext()), coro_frame);
+    }]>];
 }
 
 def RLC_CastOp : RLC_Dialect<"cast", [DeclareOpInterfaceMethods<TypeCheckable>]> {

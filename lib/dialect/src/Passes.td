@@ -16,6 +16,11 @@ def LowerArrayCallsPass : Pass<"rlc-lower-array-calls", "mlir::ModuleOp"> {
   let dependentDialects = ["mlir::rlc::RLCDialect"];
 }
 
+def LowerSubActionStatements : Pass<"rlc-lower-sub-action-statements", "mlir::ModuleOp"> {
+  let summary = "lower subaction statments";
+  let dependentDialects = ["mlir::rlc::RLCDialect"];
+}
+
 def LowerToCfPass : Pass<"rlc-to-cf", "mlir::ModuleOp"> {
   let summary = "lower to cf";
   let dependentDialects = ["rlc::RLCDialect"];

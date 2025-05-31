@@ -32,16 +32,17 @@ namespace mlir::rlc
 			return;
 		}
 
+		manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
+		manager.addPass(mlir::rlc::createMemberFunctionsToRegularFunctionsPass());
+		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
+		manager.addPass(mlir::rlc::createTypeCheckPass());
 		if (request == Request::dumpDot)
 		{
 			manager.addPass(mlir::rlc::createUncheckedAstToDotPass({ OS }));
 			return;
 		}
 
-		manager.addPass(mlir::rlc::createEmitEnumEntitiesPass());
-		manager.addPass(mlir::rlc::createMemberFunctionsToRegularFunctionsPass());
-		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
-		manager.addPass(mlir::rlc::createTypeCheckPass());
+		manager.addPass(mlir::rlc::createLowerSubActionStatements());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 
 		if (request == Request::format)

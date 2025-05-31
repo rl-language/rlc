@@ -879,6 +879,38 @@ class LeftShiftRewriter
 	}
 };
 
+class LowerIsDoneOp: public mlir::OpConversionPattern<mlir::rlc::IsDoneOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::IsDoneOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::IsDoneOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		auto alloca = makeAlloca(rewriter, rewriter.getI8Type(), op.getLoc());
+		auto loadedIndex = makeAlignedLoad(
+				rewriter, rewriter.getI64Type(), adaptor.getCoroFrame(), op.getLoc());
+		auto mask = rewriter.create<mlir::LLVM::ConstantOp>(
+				op.getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(-1));
+
+		auto result = rewriter.create<mlir::LLVM::ICmpOp>(
+				op.getLoc(),
+				rewriter.getI1Type(),
+				mlir::LLVM::ICmpPredicate::eq,
+				loadedIndex,
+				mask);
+
+		auto extended = rewriter.create<mlir::LLVM::ZExtOp>(
+				op.getLoc(), rewriter.getI8Type(), result);
+
+		makeAlignedStore(rewriter, extended, alloca, op.getLoc());
+
+		rewriter.replaceOp(op, alloca);
+		return mlir::LogicalResult::success();
+	}
+};
+
 class BitAndRewriter: public mlir::OpConversionPattern<mlir::rlc::BitAndOp>
 {
 	using mlir::OpConversionPattern<mlir::rlc::BitAndOp>::OpConversionPattern;
@@ -2265,6 +2297,7 @@ namespace mlir::rlc
 							converter, &getContext(), diGenerator, debug_info)
 					.add<ReferenceRewriter>(converter, &getContext())
 					.add<BuiltinAsPtrRewriter>(converter, &getContext())
+					.add<LowerIsDoneOp>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
 					.add<AbortRewriter>(

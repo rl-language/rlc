@@ -128,8 +128,7 @@ namespace mlir::rlc
 					propagateIfChanged(after, after->visitAction(action));
 				else if (auto action = mlir::dyn_cast<mlir::rlc::ActionsStatement>(op))
 					propagateIfChanged(after, after->visitAction(action));
-				else if (
-						auto action = mlir::dyn_cast<mlir::rlc::SubActionStatement>(op))
+				else if (auto action = mlir::dyn_cast<mlir::rlc::SubActionInfo>(op))
 					propagateIfChanged(after, after->visitAction(action));
 				else
 					propagateIfChanged(after, after->copy(before));
@@ -163,8 +162,8 @@ namespace mlir::rlc
 								 action && not regionFrom.has_value())
 					propagateIfChanged(after, after->visitAction(action));
 				else if (
-						auto action = mlir::dyn_cast<mlir::rlc::SubActionStatement>(
-								branch.getOperation()))
+						auto action =
+								mlir::dyn_cast<mlir::rlc::SubActionInfo>(branch.getOperation()))
 					propagateIfChanged(after, after->visitAction(action));
 				else
 					propagateIfChanged(after, after->join(before));
@@ -234,7 +233,7 @@ namespace mlir::rlc
 					return "diamond";
 				if (llvm::isa<mlir::rlc::ActionStatement>(currentOperation))
 					return "box";
-				if (llvm::isa<mlir::rlc::SubActionStatement>(currentOperation))
+				if (llvm::isa<mlir::rlc::SubActionInfo>(currentOperation))
 					return "box";
 				if (llvm::isa<mlir::rlc::Yield>(currentOperation))
 					return "ellipse";
@@ -245,7 +244,7 @@ namespace mlir::rlc
 
 			std::string style() const
 			{
-				if (llvm::isa<mlir::rlc::SubActionStatement>(currentOperation))
+				if (llvm::isa<mlir::rlc::SubActionInfo>(currentOperation))
 					return "dotted";
 				return "solid";
 			}
@@ -262,8 +261,8 @@ namespace mlir::rlc
 								llvm::dyn_cast<mlir::rlc::ActionStatement>(currentOperation))
 					return casted.getName().str();
 				if (auto casted =
-								llvm::dyn_cast<mlir::rlc::SubActionStatement>(currentOperation))
-					return casted.getName().str();
+								llvm::dyn_cast<mlir::rlc::SubActionInfo>(currentOperation))
+					return prettyType(casted.getType());
 				if (auto casted = llvm::dyn_cast<mlir::rlc::Yield>(currentOperation))
 					return "ret";
 				currentOperation->dump();
@@ -300,7 +299,7 @@ namespace mlir::rlc
 				action.walk([&](mlir::Operation* op) {
 					if (mlir::isa<mlir::rlc::ActionStatement>(op) or
 							mlir::isa<mlir::rlc::ActionsStatement>(op) or
-							mlir::isa<mlir::rlc::SubActionStatement>(op))
+							mlir::isa<mlir::rlc::SubActionInfo>(op))
 						makeNode(op);
 				});
 
@@ -393,18 +392,50 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			std::map<
-					mlir::rlc::ActionStatement,
-					llvm::SmallVector<mlir::rlc::ActionStatement, 4>>
-					dependencies;
+			// drop the content of sub actions so we don't see them
+			getOperation().walk([](mlir::rlc::SubActionInfo info) {
+				info.getBody().front().erase();
+			});
 
-			*OS << " digraph g {\n";
-
+			std::map<const void*, ActionFlowGraph> map;
 			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
 			{
-				ActionFlowGraph graph(op);
-				for (auto& node : graph)
+				map.emplace(op.getClassType().getAsOpaquePointer(), op);
+			}
+			*OS << " digraph g {\n";
+			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
+			{
+				for (const auto& node : map.at(op.getClassType().getAsOpaquePointer()))
 					node.second->print(*OS);
+
+				for (const auto& node : map.at(op.getClassType().getAsOpaquePointer()))
+				{
+					if (auto subAction =
+									mlir::dyn_cast<mlir::rlc::SubActionInfo>(node.first))
+					{
+						if (auto alternative = mlir::dyn_cast<mlir::rlc::AlternativeType>(
+										subAction.getType()))
+						{
+							for (auto entry : alternative.getUnderlying())
+							{
+								*OS << "\"" << subAction.getOperation() << "\"" << " -> "
+										<< "\""
+										<< map.at(entry.getAsOpaquePointer())
+													 .getEntryNode()
+													 .getOperation()
+										<< "\"[style=\"dashed\", constraint=false]";
+							}
+						}
+						else
+						{
+							*OS << "\"" << subAction.getOperation() << "\"" << " -> " << "\""
+									<< map.at(subAction.getType().getAsOpaquePointer())
+												 .getEntryNode()
+												 .getOperation()
+									<< "\"[style=\"dashed\", constraint=false]";
+						}
+					}
+				}
 			}
 
 			*OS << " }";
