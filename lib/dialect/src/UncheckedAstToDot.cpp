@@ -262,7 +262,13 @@ namespace mlir::rlc
 					return casted.getName().str();
 				if (auto casted =
 								llvm::dyn_cast<mlir::rlc::SubActionInfo>(currentOperation))
-					return prettyType(casted.getType());
+				{
+					std::string result;
+					for (auto type : casted.getTypes())
+						result += prettyType(type.cast<mlir::TypeAttr>().getValue()) + " ";
+					return result;
+				}
+
 				if (auto casted = llvm::dyn_cast<mlir::rlc::Yield>(currentOperation))
 					return "ret";
 				currentOperation->dump();
@@ -413,26 +419,31 @@ namespace mlir::rlc
 					if (auto subAction =
 									mlir::dyn_cast<mlir::rlc::SubActionInfo>(node.first))
 					{
-						if (auto alternative = mlir::dyn_cast<mlir::rlc::AlternativeType>(
-										subAction.getType()))
+						for (auto typeAttr : subAction.getTypes())
 						{
-							for (auto entry : alternative.getUnderlying())
+							auto type = typeAttr.cast<mlir::TypeAttr>().getValue();
+							if (auto alternative =
+											mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
+							{
+								for (auto entry : alternative.getUnderlying())
+								{
+									*OS << "\"" << subAction.getOperation() << "\"" << " -> "
+											<< "\""
+											<< map.at(entry.getAsOpaquePointer())
+														 .getEntryNode()
+														 .getOperation()
+											<< "\"[style=\"dashed\", constraint=false]";
+								}
+							}
+							else
 							{
 								*OS << "\"" << subAction.getOperation() << "\"" << " -> "
 										<< "\""
-										<< map.at(entry.getAsOpaquePointer())
+										<< map.at(type.getAsOpaquePointer())
 													 .getEntryNode()
 													 .getOperation()
 										<< "\"[style=\"dashed\", constraint=false]";
 							}
-						}
-						else
-						{
-							*OS << "\"" << subAction.getOperation() << "\"" << " -> " << "\""
-									<< map.at(subAction.getType().getAsOpaquePointer())
-												 .getEntryNode()
-												 .getOperation()
-									<< "\"[style=\"dashed\", constraint=false]";
 						}
 					}
 				}

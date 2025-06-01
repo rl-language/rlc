@@ -745,10 +745,10 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
 
 def RLC_SubActionInfo : RLC_Dialect<"subaction_info", [NoTerminator, NoRegionArguments]> {
 
-  let arguments = (ins TypeAttr:$type);
+  let arguments = (ins TypeArrayAttr:$types);
 
   let assemblyFormat = [{
-	$type $body attr-dict 
+	$types $body attr-dict 
   }];
 
 

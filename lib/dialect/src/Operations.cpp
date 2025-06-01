@@ -747,6 +747,7 @@ namespace mlir::rlc
 
 	static mlir::Value make_frame_access(
 			mlir::rlc::SubActionStatement statement,
+			mlir::Value frameInYield,
 			mlir::IRRewriter &rewiter,
 			mlir::Type underlyingType,
 			mlir::Type alternativeEntry = nullptr)
@@ -755,12 +756,9 @@ namespace mlir::rlc
 		for (auto &op : llvm::drop_end(statement.getBody().front().getOperations()))
 			rewiter.clone(op, mapping);
 
-		auto yielded = mlir::cast<mlir::rlc::Yield>(
-											 statement.getBody().front().getTerminator())
-											 .getArguments()[0];
-		mlir::Value frame = mapping.getValueMap().contains(yielded)
-														? mapping.getValueMap().at(yielded)
-														: yielded;
+		mlir::Value frame = mapping.getValueMap().contains(frameInYield)
+														? mapping.getValueMap().at(frameInYield)
+														: frameInYield;
 
 		auto cast = rewiter.create<mlir::rlc::StorageCast>(
 				statement.getLoc(), underlyingType, frame);
@@ -775,157 +773,234 @@ namespace mlir::rlc
 			mlir::rlc::ModuleBuilder &builder,
 			mlir::IRRewriter &rewiter,
 			mlir::rlc::ActionFunction parent,
-			mlir::Type underlying,
+			mlir::ValueRange frames,
 			mlir::rlc::SubActionStatement statement,
 			mlir::Location loc,
 			mlir::Type activeAlternativeType)
 	{
-		auto actionFunction =
-				builder
-						.getActionOf(
-								activeAlternativeType ? activeAlternativeType : underlying)
-						.getDefiningOp<mlir::rlc::ActionFunction>();
-		llvm::SmallVector<mlir::Value, 2> actionValues =
-				actionFunction.getActions();
-		auto actions =
-				rewiter.create<mlir::rlc::ActionsStatement>(loc, actionValues.size());
-
-		for (size_t i = 0; i < actionValues.size(); i++)
+		size_t countTotalActions = 0;
+		llvm::SmallVector<mlir::rlc::ActionFunction, 2> actionFunctions;
+		for (auto frame : frames)
 		{
-			auto *bb = rewiter.createBlock(
-					&actions.getActions()[i], actions.getActions()[i].begin());
-			rewiter.setInsertionPoint(bb, bb->begin());
-			mlir::Value toCall = actionValues[i];
-			mlir::rlc::ActionStatement referred =
-					mlir::cast<mlir::rlc::ActionStatement>(
-							*builder.actionFunctionValueToActionStatement(toCall)[0]);
+			mlir::Type underlying = decayCtxFrmType(frame.getType());
+			auto actionFunction =
+					builder
+							.getActionOf(
+									activeAlternativeType ? activeAlternativeType : underlying)
+							.getDefiningOp<mlir::rlc::ActionFunction>();
+			actionFunctions.push_back(actionFunction);
+			countTotalActions += actionFunction.getActions().size();
+		}
 
-			llvm::SmallVector<mlir::Type, 4> resultTypes;
-			llvm::SmallVector<mlir::Location, 4> resultLoc;
-			llvm::SmallVector<mlir::rlc::FunctionArgumentAttr> nameAttrs;
+		auto actions =
+				rewiter.create<mlir::rlc::ActionsStatement>(loc, countTotalActions);
+		size_t currentActionSlot = 0;
+		for (auto [frameIndex, frame] : llvm::enumerate(frames))
+		{
+			mlir::Type underlying = decayCtxFrmType(frame.getType());
+			auto actionFunction = actionFunctions[frameIndex];
+			llvm::SmallVector<mlir::Value, 2> actionValues =
+					actionFunction.getActions();
 
-			for (auto arg :
-					 llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
+			for (size_t i = 0; i < actionValues.size(); i++)
 			{
-				auto type = std::get<0>(arg);
-				if (type.isa<mlir::rlc::ContextType>())
+				auto *bb = rewiter.createBlock(
+						&actions.getActions()[currentActionSlot],
+						actions.getActions()[currentActionSlot].begin());
+				currentActionSlot++;
+				rewiter.setInsertionPoint(bb, bb->begin());
+				mlir::Value toCall = actionValues[i];
+				mlir::rlc::ActionStatement referred =
+						mlir::cast<mlir::rlc::ActionStatement>(
+								*builder.actionFunctionValueToActionStatement(toCall)[0]);
+
+				llvm::SmallVector<mlir::Type, 4> resultTypes;
+				llvm::SmallVector<mlir::Location, 4> resultLoc;
+				llvm::SmallVector<mlir::rlc::FunctionArgumentAttr> nameAttrs;
+
+				for (auto arg :
+						 llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 				{
-					resultTypes.push_back(type);
-					nameAttrs.push_back(mlir::rlc::FunctionArgumentAttr::get(
-							type.getContext(), std::get<1>(arg), nullptr, nullptr));
-					resultLoc.push_back(parent.getLoc());
+					auto type = std::get<0>(arg);
+					if (type.isa<mlir::rlc::ContextType>())
+					{
+						resultTypes.push_back(type);
+						nameAttrs.push_back(mlir::rlc::FunctionArgumentAttr::get(
+								type.getContext(), std::get<1>(arg), nullptr, nullptr));
+						resultLoc.push_back(parent.getLoc());
+					}
 				}
-			}
-			size_t contextArgsCount = resultTypes.size();
-			if (statement.forwardedArgsCount() > referred.getResultTypes().size())
-			{
-				return mlir::rlc::logError(
-						statement.getOperation(),
-						(llvm::Twine("subaction statements is trying to forward ") +
-						 llvm::Twine(statement.forwardedArgsCount()) +
-						 llvm::Twine(" arguments, but the invoked action only accepts ") +
-						 llvm::Twine(referred.getResultTypes().size()))
-								.str());
-			}
-
-			for (auto type : llvm::drop_begin(
-							 referred.getResultTypes(), statement.forwardedArgsCount()))
-			{
-				if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
-					resultTypes.push_back(casted.getUnderlying());
-				else
-					resultTypes.push_back(type);
-				resultLoc.push_back(actions.getLoc());
-			}
-
-			for (auto arg : llvm::drop_begin(
-							 referred.getInfo().getArguments(),
-							 statement.forwardedArgsCount()))
-			{
-				nameAttrs.push_back(arg);
-			}
-
-			auto fixed = rewiter.create<mlir::rlc::ActionStatement>(
-					referred.getLoc(),
-					resultTypes,
-					referred.getName(),
-					mlir::rlc::FunctionInfoAttr::get(referred.getContext(), nameAttrs),
-					referred.getId(),
-					referred.getResumptionPoint());
-
-			auto *newBody = rewiter.createBlock(
-					&fixed.getPrecondition(),
-					fixed.getPrecondition().begin(),
-					resultTypes,
-					resultLoc);
-			mlir::IRMapping mapping;
-			for (auto &op : statement.getForwardedArgs().front())
-				rewiter.clone(op, mapping);
-			auto terminator =
-					mlir::dyn_cast<mlir::rlc::Yield>(mapping.getOperationMap().at(
-							statement.getForwardedArgs().front().getTerminator()));
-
-			llvm::SmallVector<mlir::Value, 4> canArgs(
-					terminator.getArguments().begin(), terminator.getArguments().end());
-			for (auto [forwardedArg, toCallArg] :
-					 llvm::zip_first(canArgs, referred.getResultTypes()))
-			{
-				if (forwardedArg.getType() != mlir::rlc::decayCtxFrmType(toCallArg))
+				size_t contextArgsCount = resultTypes.size();
+				if (statement.forwardedArgsCount() > referred.getResultTypes().size())
 				{
-					return logError(
+					return mlir::rlc::logError(
 							statement.getOperation(),
-							"forwarded arg type missmatch, expected: " +
-									prettyType(toCallArg) + " got " +
-									prettyType(decayCtxFrmType(forwardedArg.getType())));
+							(llvm::Twine("subaction statements is trying to forward ") +
+							 llvm::Twine(statement.forwardedArgsCount()) +
+							 llvm::Twine(" arguments, but the invoked action only accepts ") +
+							 llvm::Twine(referred.getResultTypes().size()))
+									.str());
 				}
+
+				for (auto type : llvm::drop_begin(
+								 referred.getResultTypes(), statement.forwardedArgsCount()))
+				{
+					if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+						resultTypes.push_back(casted.getUnderlying());
+					else
+						resultTypes.push_back(type);
+					resultLoc.push_back(actions.getLoc());
+				}
+
+				for (auto arg : llvm::drop_begin(
+								 referred.getInfo().getArguments(),
+								 statement.forwardedArgsCount()))
+				{
+					nameAttrs.push_back(arg);
+				}
+
+				auto fixed = rewiter.create<mlir::rlc::ActionStatement>(
+						referred.getLoc(),
+						resultTypes,
+						referred.getName(),
+						mlir::rlc::FunctionInfoAttr::get(referred.getContext(), nameAttrs),
+						referred.getId(),
+						referred.getResumptionPoint());
+
+				auto *newBody = rewiter.createBlock(
+						&fixed.getPrecondition(),
+						fixed.getPrecondition().begin(),
+						resultTypes,
+						resultLoc);
+				mlir::IRMapping mapping;
+				for (auto &op : statement.getForwardedArgs().front())
+					rewiter.clone(op, mapping);
+				auto terminator =
+						mlir::dyn_cast<mlir::rlc::Yield>(mapping.getOperationMap().at(
+								statement.getForwardedArgs().front().getTerminator()));
+
+				llvm::SmallVector<mlir::Value, 4> canArgs(
+						terminator.getArguments().begin(), terminator.getArguments().end());
+				for (auto [forwardedArg, toCallArg] :
+						 llvm::zip_first(canArgs, referred.getResultTypes()))
+				{
+					if (forwardedArg.getType() != mlir::rlc::decayCtxFrmType(toCallArg))
+					{
+						return logError(
+								statement.getOperation(),
+								"forwarded arg type missmatch, expected: " +
+										prettyType(toCallArg) + " got " +
+										prettyType(decayCtxFrmType(forwardedArg.getType())));
+					}
+				}
+				terminator.erase();
+
+				for (auto arg :
+						 llvm::drop_begin(newBody->getArguments(), contextArgsCount))
+					canArgs.push_back(arg);
+
+				canArgs.insert(
+						canArgs.begin(),
+						make_frame_access(
+								statement, frame, rewiter, underlying, activeAlternativeType));
+
+				auto casted =
+						rewiter.create<mlir::rlc::CanOp>(actions.getLoc(), toCall);
+				auto result = rewiter.create<mlir::rlc::CallOp>(
+						actions.getLoc(), casted, false, canArgs);
+				rewiter.create<mlir::rlc::Yield>(
+						actions.getLoc(), mlir::ValueRange({ result.getResult(0) }));
+				rewiter.setInsertionPointAfter(fixed);
+				auto expression =
+						rewiter.create<mlir::rlc::ExpressionStatement>(fixed.getLoc());
+
+				// yield of the action statements
+				rewiter.create<mlir::rlc::Yield>(actions.getLoc());
+
+				rewiter.createBlock(&expression.getBody());
+
+				mlir::IRMapping mapping2;
+				for (auto &op : statement.getForwardedArgs().front())
+					rewiter.clone(op, mapping2);
+				terminator =
+						mlir::dyn_cast<mlir::rlc::Yield>(mapping2.getOperationMap().at(
+								statement.getForwardedArgs().front().getTerminator()));
+
+				llvm::SmallVector<mlir::Value, 4> args(
+						terminator.getArguments().begin(), terminator.getArguments().end());
+				terminator.erase();
+				for (auto result :
+						 llvm::drop_begin(fixed.getResults(), contextArgsCount))
+					args.push_back(result);
+
+				args.insert(
+						args.begin(),
+						make_frame_access(
+								statement, frame, rewiter, underlying, activeAlternativeType));
+
+				rewiter.create<mlir::rlc::CallOp>(
+						actions.getLoc(), toCall, false, args);
+
+				// yield for the expression statement
+				rewiter.create<mlir::rlc::Yield>(actions.getLoc());
 			}
-			terminator.erase();
+			rewiter.setInsertionPointAfter(actions);
+		}
+		return mlir::success();
+	}
 
-			for (auto arg :
-					 llvm::drop_begin(newBody->getArguments(), contextArgsCount))
-				canArgs.push_back(arg);
-
-			canArgs.insert(
-					canArgs.begin(),
+	static mlir::LogicalResult emitSubActionsInvocations(
+			mlir::rlc::ModuleBuilder &builder,
+			mlir::IRRewriter &rewiter,
+			mlir::rlc::ActionFunction parent,
+			mlir::ValueRange frames,
+			mlir::rlc::SubActionStatement statement,
+			mlir::Location loc)
+	{
+		auto frameTypes = frames.getTypes();
+		auto alterantiveFrames =
+				mlir::dyn_cast<mlir::rlc::AlternativeType>(frameTypes[0]);
+		// if the argument is directly the coroutine frames, just emit
+		// the actions for those
+		if (not alterantiveFrames or frameTypes.size() != 1)
+			return emitSubActionsInvocations(
+					builder,
+					rewiter,
+					parent,
+					frames,
+					statement,
+					statement.getLoc(),
+					nullptr);
+		// otherwise emit the switch that depending on
+		// the current active alternative, resolves that entry of the alternative
+		for (auto alternative : alterantiveFrames.getUnderlying())
+		{
+			auto ifStmt = rewiter.create<mlir::rlc::IfStatement>(statement.getLoc());
+			rewiter.createBlock(&ifStmt.getCondition());
+			auto isOp = rewiter.create<mlir::rlc::IsOp>(
+					statement.getLoc(),
 					make_frame_access(
-							statement, rewiter, underlying, activeAlternativeType));
+							statement, frames[0], rewiter, decayCtxFrmType(frameTypes[0])),
+					alternative);
 
-			auto casted = rewiter.create<mlir::rlc::CanOp>(actions.getLoc(), toCall);
-			auto result = rewiter.create<mlir::rlc::CallOp>(
-					actions.getLoc(), casted, false, canArgs);
 			rewiter.create<mlir::rlc::Yield>(
-					actions.getLoc(), mlir::ValueRange({ result.getResult(0) }));
-			rewiter.setInsertionPointAfter(fixed);
-			auto expression =
-					rewiter.create<mlir::rlc::ExpressionStatement>(fixed.getLoc());
-
-			// yield of the action statements
-			rewiter.create<mlir::rlc::Yield>(actions.getLoc());
-
-			rewiter.createBlock(&expression.getBody());
-
-			mlir::IRMapping mapping2;
-			for (auto &op : statement.getForwardedArgs().front())
-				rewiter.clone(op, mapping2);
-			terminator =
-					mlir::dyn_cast<mlir::rlc::Yield>(mapping2.getOperationMap().at(
-							statement.getForwardedArgs().front().getTerminator()));
-
-			llvm::SmallVector<mlir::Value, 4> args(
-					terminator.getArguments().begin(), terminator.getArguments().end());
-			terminator.erase();
-			for (auto result : llvm::drop_begin(fixed.getResults(), contextArgsCount))
-				args.push_back(result);
-
-			args.insert(
-					args.begin(),
-					make_frame_access(
-							statement, rewiter, underlying, activeAlternativeType));
-
-			rewiter.create<mlir::rlc::CallOp>(actions.getLoc(), toCall, false, args);
-
-			// yield for the expression statement
-			rewiter.create<mlir::rlc::Yield>(actions.getLoc());
+					statement.getLoc(), mlir::ValueRange({ isOp }));
+			auto *bb1 = rewiter.createBlock(&ifStmt.getTrueBranch());
+			rewiter.create<mlir::rlc::Yield>(statement.getLoc());
+			rewiter.setInsertionPointToStart(bb1);
+			if (emitSubActionsInvocations(
+							builder,
+							rewiter,
+							parent,
+							frames,
+							statement,
+							statement.getLoc(),
+							alternative)
+							.failed())
+				return mlir::failure();
+			auto *bb = rewiter.createBlock(&ifStmt.getElseBranch());
+			rewiter.create<mlir::rlc::Yield>(statement.getLoc());
+			rewiter.setInsertionPointToStart(bb);
 		}
 		return mlir::success();
 	}
@@ -936,19 +1011,18 @@ namespace mlir::rlc
 			mlir::rlc::SubActionStatement statement,
 			mlir::Type underlyingType)
 	{
-		if (not statement.getName().empty())
-		{
-			rewiter.setInsertionPoint(statement);
-			auto varDecl = rewiter.create<mlir::rlc::DeclarationStatement>(
-					statement.getLoc(),
-					mlir::rlc::FrameType::get(underlyingType),
-					statement.getName());
-			varDecl.getBody().takeBody(statement.getBody());
-			builder.getSymbolTable().add(statement.getName(), varDecl);
-			rewiter.createBlock(&statement.getBody());
-			rewiter.create<mlir::rlc::Yield>(
-					statement.getLoc(), mlir::ValueRange({ varDecl }));
-		}
+		if (statement.getName().empty())
+			return;
+		rewiter.setInsertionPoint(statement);
+		auto varDecl = rewiter.create<mlir::rlc::DeclarationStatement>(
+				statement.getLoc(),
+				mlir::rlc::FrameType::get(underlyingType),
+				statement.getName());
+		varDecl.getBody().takeBody(statement.getBody());
+		builder.getSymbolTable().add(statement.getName(), varDecl);
+		rewiter.createBlock(&statement.getBody());
+		rewiter.create<mlir::rlc::Yield>(
+				statement.getLoc(), mlir::ValueRange({ varDecl }));
 	}
 }	 // namespace mlir::rlc
 
@@ -973,27 +1047,30 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 	mlir::rlc::Yield yield =
 			mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
-	mlir::Value frameVar = yield.getArguments()[0];
-	if ((not frameVar.getType().isa<mlir::rlc::ClassType>() or
-			 not builder.isClassOfAction(frameVar.getType())) and
-			not frameVar.getType().isa<mlir::rlc::AlternativeType>())
+	for (auto frameVar : yield.getArguments())
 	{
-		return logError(
-				*this,
-				"Subaction statement must refer to a action, not a " +
-						prettyType(frameVar.getType()));
+		if ((not frameVar.getType().isa<mlir::rlc::ClassType>() or
+				 not builder.isClassOfAction(frameVar.getType())) and
+				not frameVar.getType().isa<mlir::rlc::AlternativeType>())
+		{
+			return logError(
+					*this,
+					"Subaction statement must refer to a action, not a " +
+							prettyType(frameVar.getType()));
+		}
 	}
-	auto underlyingType = frameVar.getType();
 
 	mlir::IRRewriter &rewiter = builder.getRewriter();
 
 	// emit the var decl if the subaction statement is in the form
 	// subaction name = exp
-	emitVarDecl(rewiter, builder, *this, underlyingType);
+	emitVarDecl(rewiter, builder, *this, yield.getArguments().front().getType());
+	// reset the yield because emitting the var decl may have changed it
+	yield = mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
 
 	rewiter.setInsertionPoint(*this);
-	auto subActionInfo =
-			rewiter.create<mlir::rlc::SubActionInfo>(getLoc(), underlyingType);
+	auto subActionInfo = rewiter.create<mlir::rlc::SubActionInfo>(
+			getLoc(), rewiter.getTypeArrayAttr(yield.getArguments().getTypes()));
 	mlir::Block *expansionBlock = rewiter.createBlock(&subActionInfo.getBody());
 	rewiter.setInsertionPointToEnd(expansionBlock);
 
@@ -1004,10 +1081,21 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		auto loop = rewiter.create<mlir::rlc::WhileStatement>(getLoc());
 		rewiter.createBlock(&loop.getCondition());
 
-		auto isDone = rewiter.create<mlir::rlc::IsDoneOp>(
-				getLoc(), make_frame_access(*this, rewiter, underlyingType));
+		mlir::Value result;
+		for (mlir::Value frame : yield.getArguments())
+		{
+			auto isDone = rewiter.create<mlir::rlc::IsDoneOp>(
 
-		auto isNotDone = rewiter.create<mlir::rlc::NotOp>(getLoc(), isDone);
+					getLoc(),
+					make_frame_access(
+							*this, frame, rewiter, decayCtxFrmType(frame.getType())));
+			if (result == nullptr)
+				result = isDone;
+
+			result = rewiter.create<mlir::rlc::AndOp>(getLoc(), result, isDone);
+		}
+
+		auto isNotDone = rewiter.create<mlir::rlc::NotOp>(getLoc(), result);
 
 		rewiter.create<mlir::rlc::Yield>(getLoc(), mlir::ValueRange({ isNotDone }));
 
@@ -1017,46 +1105,10 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 		rewiter.setInsertionPoint(finalYield);
 	}
 
-	auto alterantiveFrames =
-			mlir::dyn_cast<mlir::rlc::AlternativeType>(underlyingType);
-	if (not alterantiveFrames)
-	{
-		if (emitSubActionsInvocations(
-						builder, rewiter, parent, underlyingType, *this, getLoc(), nullptr)
-						.failed())
-			return mlir::failure();
-	}
-	else
-	{
-		for (auto alternative : alterantiveFrames.getUnderlying())
-		{
-			auto ifStmt = rewiter.create<mlir::rlc::IfStatement>(getLoc());
-			rewiter.createBlock(&ifStmt.getCondition());
-			auto isOp = rewiter.create<mlir::rlc::IsOp>(
-					getLoc(),
-					make_frame_access(*this, rewiter, underlyingType),
-					alternative);
-
-			rewiter.create<mlir::rlc::Yield>(getLoc(), mlir::ValueRange({ isOp }));
-			auto bb1 = rewiter.createBlock(&ifStmt.getTrueBranch());
-			rewiter.create<mlir::rlc::Yield>(getLoc());
-			rewiter.setInsertionPointToStart(bb1);
-			if (emitSubActionsInvocations(
-							builder,
-							rewiter,
-							parent,
-							underlyingType,
-							*this,
-							getLoc(),
-							alternative)
-							.failed())
-				return mlir::failure();
-			auto bb = rewiter.createBlock(&ifStmt.getElseBranch());
-			rewiter.create<mlir::rlc::Yield>(getLoc());
-			rewiter.setInsertionPointToStart(bb);
-		}
-	}
-
+	if (emitSubActionsInvocations(
+					builder, rewiter, parent, yield.getArguments(), *this, getLoc())
+					.failed())
+		return mlir::failure();
 	rewiter.setInsertionPointAfter(*this);
 	erase();
 

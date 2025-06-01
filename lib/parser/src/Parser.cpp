@@ -1055,9 +1055,15 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 			mlir::dyn_cast<mlir::rlc::UnresolvedReference>(*exp->getDefiningOp());
 	if (!maybeName or not accept(Token::Equal))
 	{
+		llvm::SmallVector<mlir::Value, 4> expressions;
+		expressions.push_back(*exp);
+		while (accept<Token::Comma>())
+		{
+			TRY(exp, expression(), onExit(false));
+			expressions.push_back(*exp);
+		}
 		EXPECT(Token::Newline);
-		builder.create<mlir::rlc::Yield>(
-				getCurrentSourcePos(), mlir::ValueRange(*exp));
+		builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), expressions);
 		return onExit(true);
 	}
 
