@@ -18,7 +18,8 @@ import serialization.key_equal
 import collections.vector
 
 const _max_load_factor = 0.75
-const init_capacity = 4
+const _init_capacity = 4
+const _stride = 17
 
 cls<KeyType, ValueType> Dict_SoA:
     OwningPtr<KeyType> _keys
@@ -28,13 +29,13 @@ cls<KeyType, ValueType> Dict_SoA:
     Int _capacity
     
     fun init():
-        self._capacity = init_capacity
+        self._capacity = _init_capacity
         self._size = 0
         self._keys = __builtin_malloc_do_not_use<KeyType>(self._capacity)
         self._values = __builtin_malloc_do_not_use<ValueType>(self._capacity)
         self._hashes = __builtin_malloc_do_not_use<Int>(self._capacity)
         let counter = 0
-        while counter < self._capacity:
+        while counter < _init_capacity:
             self._hashes[counter] = 0
             counter = counter + 1
     
@@ -51,7 +52,7 @@ cls<KeyType, ValueType> Dict_SoA:
         let index = hash % self._capacity
         let distance = 0
         let probe_count = 0  # Add safety counter
-        let stride = 16
+        # let stride = 64
         
         # Create local copies of key and value to avoid modifying the input parameters
         let current_key = key
@@ -67,7 +68,7 @@ cls<KeyType, ValueType> Dict_SoA:
                 self._size = self._size + 1
                 return
 
-            let diff = self._capacity - index - stride
+            let diff = self._capacity - index - _stride
             if diff >= 0:
                 let counter = 0
                 let to_update = false
@@ -76,28 +77,30 @@ cls<KeyType, ValueType> Dict_SoA:
                 let acc_update = 0
                 let acc_insert = 0
                 let acc_substitute = 0
-                while counter < stride :
+                while counter < _stride :
                     to_insert = to_insert + (self._hashes[index + counter] == 0)
-                    to_update = to_update + (self._hashes[index + counter] == hash)
-                            * (compute_equal_of(self._keys[index + counter], current_key))
+                    to_update = to_update + (self._hashes[index + counter] == hash) * (compute_equal_of(self._keys[index + counter], current_key))
                     to_substitute = (((index + counter + self._capacity - (self._hashes[index + counter] % self._capacity)) % self._capacity)
                                     <= (distance + counter))
                     
-                    if to_substitute:
-                        acc_substitute = acc_substitute + 1
-                    if to_insert:
-                        acc_insert = acc_insert + 1
+                    # if to_substitute:
+                    acc_substitute = acc_substitute + (int(to_substitute) << counter) 
+                    # if to_insert:
+                    acc_insert = acc_insert + (int(to_insert) << counter)
                     # acc_update = int(to_update) * (acc_update + 1)
-                    if to_update :
-                        acc_update = acc_update + 1
+                    # if to_update :
+                    acc_update = acc_update + (int(to_update) << counter)
                         
                     counter = counter + 1
                 
-                
+                acc_insert = acc_insert & (-acc_insert)
+                acc_substitute = acc_substitute & (-acc_substitute)
+                acc_update = acc_update & (-acc_update)
                 # Insert
-                if acc_insert > acc_update and
-                    acc_insert >= acc_substitute:
-                    index = stride - acc_insert
+                if acc_insert > acc_update and acc_insert >= acc_substitute:
+                    # index = stride - acc_insert
+                    
+                    index = self._index_binary_search(acc_insert)
                     self._hashes[index] = hash
                     self._keys[index] = current_key
                     self._values[index] = current_value
@@ -106,14 +109,18 @@ cls<KeyType, ValueType> Dict_SoA:
 
                 # Update
                 if acc_update > acc_substitute :
-                    index = stride - acc_update
+                    # index = stride - acc_update
+                    
+                    index = self._index_binary_search(acc_update)
                     self._values[index] = current_value # Update the actual entry in entries
                     return
                 
-                distance = distance + stride
+                distance = distance + _stride
                 # Substitute
-                if to_substitute :
-                    index = stride - acc_substitute
+                if acc_substitute > 0 :
+                    # index = stride - acc_substitute
+                    
+                    index = self._index_binary_search(acc_substitute)
                     let tmp_hash = hash
                     let tmp_key = current_key
                     let tmp_val = current_value
@@ -127,10 +134,8 @@ cls<KeyType, ValueType> Dict_SoA:
                     self._hashes[index] = tmp_hash
                     distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
                     
-
-                index = index + stride
-                probe_count = probe_count + stride
-                # distance = probe_count - 1
+                index = index + _stride
+                probe_count = probe_count + _stride
             else:
                 while index < self._capacity:
                     if self._hashes[index] == 0:
@@ -165,7 +170,53 @@ cls<KeyType, ValueType> Dict_SoA:
                 probe_count = probe_count - (diff)
         assert(false, "Maximum probe count exceeded - likely an implementation bug")
 
-    
+    fun _index_binary_search(Int acc) -> Int:
+        # Binary search
+        let upper = _stride
+        let lower = 0
+        let tmp = 0
+        let index = 0
+        while tmp != 1:
+            index = (upper + lower) >> 1
+            tmp = acc >> index
+            # upper = upper * int(tmp != 0) + index * int(tmp == 0)
+            # lower = lower * int(tmp != 1) + index * int(tmp == 1)
+            if tmp == 0:
+                upper = index
+            else if tmp == 1:
+                lower = index
+        return index
+
+    fun _index_of(Int hash, KeyType key, Int index) -> Int:
+        # let stride = 65
+        let counter = 0
+        let found = false
+        let acc_found = 0
+        while counter < _stride :
+            found = found + (self._hashes[index + counter] == hash) * (compute_equal_of(self._keys[index + counter], key))
+            # if found:
+            #     acc_found = acc_found + 1
+            acc_found = acc_found + (int(found) << counter)
+            counter = counter + 1
+        
+        if found :
+            acc_found = acc_found & (-acc_found)
+            # Binary search
+            let upper = _stride
+            let lower = 0
+            let tmp = 0
+            while tmp != 1:
+                index = (upper + lower) >> 1
+                tmp = acc_found >> index
+                # upper = upper * int(tmp != 0) + index * int(tmp == 0)
+                # lower = lower * int(tmp != 1) + index * int(tmp == 1)
+                if tmp == 0:
+                    upper = index
+                else if tmp == 1:
+                    lower = index
+            return index
+        return -1
+
     fun get(KeyType key) -> ValueType:
         # Quick return for empty dictionary
         if self._size == 0:
@@ -175,32 +226,59 @@ cls<KeyType, ValueType> Dict_SoA:
         let index = hash % self._capacity
         let distance = 0
         let probe_count = 0  # Add safety counter
-        let stride = 16
+        # let stride = 17
 
         while probe_count < self._capacity:
             if self._hashes[index] == 0:
                 assert(false, "key not found")
 
-            let diff = self._capacity - index - stride
+            let diff = self._capacity - index - _stride
             if diff >= 0:
-                let counter = 0
-                let found = false
-                let acc_found = 0
-                while counter < stride :
-                    found = found + (self._hashes[index + counter] == hash)
-                            * (compute_equal_of(self._keys[index + counter], key))
-                    counter = counter + 1
-                    if found:
-                        acc_found = acc_found + 1
-                if found :
-                    index = stride - acc_found
-                    return self._values[index]
+                # let counter = 0
+                # let found = false
+                # let acc_found = 0
+                # while counter < stride :
+                #     found = found + (self._hashes[index + counter] == hash) * (compute_equal_of(self._keys[index + counter], key))
+                #     # if found:
+                #     #     acc_found = acc_found + 1
+                #     acc_found = acc_found + (int(found) << counter)
+                #     counter = counter + 1
+                
+                # if found :
+                #     # index = 0
+                #     # let lsb = 0
+                #     # while lsb < 1:
+                #     #     lsb = (acc_found >> index) & 1
+                #     #     index = index + 1
 
-                let last_distance = (index + stride + self._capacity - (self._hashes[index + stride] % self._capacity)) % self._capacity
-                probe_count = probe_count + stride
+                #     acc_found = acc_found & (-acc_found)
+                #     #This vectorizes
+                #     # index = 0
+                #     # while acc_found > 1:
+                #     #     acc_found = acc_found >> 1
+                #     #     index = index + 1
+
+                #     # Binary search
+                #     let upper = stride
+                #     let lower = 0
+                #     let tmp = 0
+                #     while tmp != 1:
+                #         index = (upper + lower) >> 1
+                #         tmp = acc_found >> index
+                #         if tmp == 0:
+                #             upper = index
+                #         else if tmp == 1:
+                #             lower = index
+                let tmp_index = self._index_of(hash, key, index)
+                if tmp_index >= 0:
+                    # index = stride - acc_found
+                    return self._values[tmp_index]
+
+                let last_distance = (index + _stride + self._capacity - (self._hashes[index + _stride] % self._capacity)) % self._capacity
+                probe_count = probe_count + _stride
                 if last_distance < probe_count - 1:
                     assert(false, "key not found")
-                index = index + stride
+                index = index + _stride
             else:
                 while index < self._capacity:
                     if self._hashes[index] == 0:
@@ -215,6 +293,7 @@ cls<KeyType, ValueType> Dict_SoA:
                 index = 0
 
         assert(false, "GET: Maximum probe count exceeded - likely an implementation bug")
+        return self._values[0]
     
     fun contains(KeyType key) -> Bool:
         # Quick return for empty dictionary
@@ -224,27 +303,26 @@ cls<KeyType, ValueType> Dict_SoA:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let start_index = index
-        let stride = 16
+        # let stride = 32
         let probe_count = 0  # Add safety counter
 
         while probe_count < self._capacity:
             if self._hashes[index] == 0:
                 return false
-            let diff = self._capacity - index - stride
+            let diff = self._capacity - index - _stride
             if diff >= 0:
                 let counter = 0
                 let sum = false
-                while counter < stride :
-                    sum = sum + (self._hashes[index + counter] == hash)
-                            * (compute_equal_of(self._keys[index + counter], key))
+                while counter < _stride :
+                    sum = sum + (self._hashes[index + counter] == hash) * (compute_equal_of(self._keys[index + counter], key))
                     counter = counter + 1
                 if sum :
                     return true
-                let last_distance = (index + stride + self._capacity - (self._hashes[index + stride] % self._capacity)) % self._capacity
-                probe_count = probe_count + stride
+                index = index + _stride
+                probe_count = probe_count + _stride
+                let last_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
                 if last_distance < probe_count - 1:
                     return false
-                index = index + stride
             else:
                 while index < self._capacity:
                     if self._hashes[index] == 0:
@@ -259,134 +337,102 @@ cls<KeyType, ValueType> Dict_SoA:
                 index = 0
 
         assert(false, "CONTAINS: Maximum probe count exceeded - likely an implementation bug")
+        return false
+
+    fun _shift_back(Int index):
+        self._size = self._size - 1
+                        
+        # Perform backward-shift operation
+        let next_index = (index + 1) % self._capacity
+        let current_index = index
+        
+        # Shift elements until we find an empty slot or an element with probe distance 0
+        while true:
+            let next_hash = self._hashes[next_index]
+            let next_key = self._keys[next_index]
+            let next_val = self._values[next_index]
+            
+            if next_hash == 0:
+                self._hashes[current_index] = 0
+                return
+            
+            # Calculate probe distance of the next element
+            let next_probe_distance = (next_index + self._capacity - (next_hash % self._capacity)) % self._capacity
+            
+            # If probe distance is 0, it's already at its ideal position
+            if next_probe_distance == 0:
+                self._hashes[current_index] = 0
+                return
+            
+            # Move the element back
+            self._keys[current_index] = next_key
+            self._values[current_index] = next_val
+            self._hashes[current_index] = next_hash
+            
+            # Move to next positions
+            current_index = next_index
+            next_index = (next_index + 1) % self._capacity
+        
+        return
 
     fun remove(KeyType key) -> Bool:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
-        let distance = 0
         let probe_count = 0  # Add safety counter
+        # let stride = 17
 
         while probe_count < self._capacity:
             if self._hashes[index] == 0:
                 return false
 
-            let diff = self._capacity - index - stride
+            let diff = self._capacity - index - _stride
             if diff >= 0:
-                let counter = 0
-                let to_update = false
-                let to_insert = false
-                let to_substitute = false
-                let acc_update = 0
-                let acc_insert = 0
-                let acc_substitute = 0
-                while counter < stride :
-                    to_insert = to_insert + (self._hashes[index + counter] == 0)
-                    to_update = to_update + (self._hashes[index + counter] == hash)
-                            * (compute_equal_of(self._keys[index + counter], current_key))
-                    to_substitute = (((index + counter + self._capacity - (self._hashes[index + counter] % self._capacity)) % self._capacity)
-                                    <= (distance + counter))
-                    
-                    if to_substitute:
-                        acc_substitute = acc_substitute + 1
-                    if to_insert:
-                        acc_insert = acc_insert + 1
-                    # acc_update = int(to_update) * (acc_update + 1)
-                    if to_update :
-                        acc_update = acc_update + 1
+                # let counter = 0
+                # let to_remove = false
+                # # let acc_remove: Byte[64]
+                # let acc_remove = 0
+                # while counter < stride :
+                #     to_remove = to_remove + (self._hashes[index + counter] == hash) * (compute_equal_of(self._keys[index + counter], key))
+                #     # acc_remove[counter] = byte(0)
+                #     acc_remove = acc_remove + int(to_remove)
+                #     # if to_remove :
+                #     #     acc_remove = acc_remove + 1
+                #     # acc_remove[counter] = byte(1)
                         
-                    counter = counter + 1
-                
-                
-                # Insert
-                if acc_insert > acc_update and
-                    acc_insert >= acc_substitute:
-                    index = stride - acc_insert
-                    self._hashes[index] = hash
-                    self._keys[index] = current_key
-                    self._values[index] = current_value
-                    self._size = self._size + 1
-                    return
+                #     counter = counter + 1
 
-                # Update
-                if acc_update > acc_substitute :
-                    index = stride - acc_update
-                    self._values[index] = current_value # Update the actual entry in entries
-                    return
-                
-                distance = distance + stride
-                # Substitute
-                if to_substitute :
-                    index = stride - acc_substitute
-                    let tmp_hash = hash
-                    let tmp_key = current_key
-                    let tmp_val = current_value
+                let tmp_index = self._index_of(hash, key, index)
+                if tmp_index >= 0:
+                    index = tmp_index
+                    self._shift_back(index)
+                    return true
 
-                    current_value = self._values[index]
-                    current_key = self._keys[index]
-                    hash = self._hashes[index]
-                    
-                    self._values[index] = tmp_val 
-                    self._keys[index] = tmp_key
-                    self._hashes[index] = tmp_hash
-                    distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
-                    
-
-                index = index + stride
-                probe_count = probe_count + stride
-                # distance = probe_count - 1
+                index = index + _stride
+                probe_count = probe_count + _stride
+                let last_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
+                if last_distance < probe_count - 1:
+                    return false
             else:
                 while index < self._capacity:
                     if self._hashes[index] == 0:
                         return false
                     if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
-                        self._size = self._size - 1
-                        
-                        # Perform backward-shift operation
-                        let next_index = (index + 1) % self._capacity
-                        let current_index = index
-                        
-                        # Shift elements until we find an empty slot or an element with probe distance 0
-                        while true:
-                            let next_hash = self._hashes[next_index]
-                            let next_key = self._keys[next_index]
-                            let next_val = self._values[next_index]
-                            
-                            if next_hash == 0:
-                                self._hashes[current_index] = 0
-                                break
-                            
-                            # Calculate probe distance of the next element
-                            let next_probe_distance = (next_index + self._capacity - (next_hash % self._capacity)) % self._capacity
-                            
-                            # If probe distance is 0, it's already at its ideal position
-                            if next_probe_distance == 0:
-                                self._hashes[current_index] = 0
-                                break
-                            
-                            # Move the element back
-                            self._keys[current_index] = next_key
-                            self._values[current_index] = next_val
-                            self._hashes[current_index] = next_hash
-                            
-                            # Move to next positions
-                            current_index = next_index
-                            next_index = (next_index + 1) % self._capacity
-                        
+                        self._shift_back(index)
                         return true
                     
                     let existing_entry_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
-                    if existing_entry_distance < distance:
+                    if existing_entry_distance < probe_count:
                         return false
-                    distance = distance + 1
                     index = index + 1
+                    probe_count = probe_count + 1
                 index = 0
-                probe_count = probe_count - (diff)
         assert(false, "REMOVE: Maximum probe count exceeded - likely an implementation bug")
+        return false
 
     
     fun keys() -> Vector<KeyType>:
         let to_return : Vector<KeyType>
-        to_return.resize(self.size)
+        to_return.resize(self._size)
         let counter = 0
         let index = 0
         while counter < self._size:
@@ -398,7 +444,7 @@ cls<KeyType, ValueType> Dict_SoA:
 
     fun values() -> Vector<ValueType>:
         let to_return : Vector<ValueType>
-        to_return.resize(self.size)
+        to_return.resize(self._size)
         let counter = 0
         let index = 0
         while counter < self._size:
