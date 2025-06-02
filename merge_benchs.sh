@@ -1,8 +1,13 @@
 #!/bin/bash
 
-# This script merges multiple benchmark .csv files into 1
-# in order to call plot.py on the output and see on the same 
-# graph one different curve per benchmark file
+# This script is meant to use on multiple versions of the same
+# benchmark file.
+# This script renames the firs field of multiple benchmark .csv files.
+# Then it divides every file into multiple bench subfiles in order
+# to have only one type of measure per file.
+# In this way, calling plot.py on one of the output files, we obtain
+# on the same graph only one type of measurement 
+
 
 # It replaces the name column with the .csv file name so 
 # choose meaningful names
@@ -67,8 +72,9 @@ for (( i=1; i<=$#; i++ )); do
 
     replace_name
 
-    # First file: Keep header 
+    # Now split every file in bench_*
     if [ $i -eq 1 ]; then
+        # First file: Keep header 
         tail -n +2 $renamed_file |awk -F, -v header=$header '
             BEGIN{i = 0; file = "bench_"i; print header >> file}
             /RMS/ {change_file = 1}
