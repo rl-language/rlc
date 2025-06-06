@@ -1,6 +1,6 @@
 function(rlc TARGET_NAME)
     set(options OPTIONAL SHARED COMPILE FUZ OPTIMIZE DEBUG_INFO)
-    set(oneValueArgs DESTINATION INPUT OUTPUT HEADER PYTHON GODOT)
+    set(oneValueArgs DESTINATION INPUT OUTPUT HEADER PYTHON GODOT GRAPH)
     set(multiValueArgs EXTRA_ARGS)
     cmake_parse_arguments(RLC
         "${options}" "${oneValueArgs}" "${multiValueArgs}"
@@ -35,6 +35,18 @@ function(rlc TARGET_NAME)
         )
 
         list(APPEND CREATED_FILES ${RLC_OUTPUT})
+    endif()
+
+    if (NOT ${RLC_GRAPH} STREQUAL "")
+        add_custom_command(
+            OUTPUT ${RLC_GRAPH} ${RLC_GRAPH}.dep
+            COMMAND rlc ${RLC_INPUT} -o ${RLC_GRAPH} --graph ${RLC_EXTRA_ARGS} -MD
+            DEPFILE ${RLC_GRAPH}.dep
+            DEPENDS ${RLC_INPUT}
+        )
+
+    add_custom_target(${TARGET_NAME}_GRAPH DEPENDS ${RLC_GRAPH})
+    list(APPEND CREATED_FILES ${RLC_GRAPH})
     endif()
 
     if (NOT ${RLC_GODOT} STREQUAL "")

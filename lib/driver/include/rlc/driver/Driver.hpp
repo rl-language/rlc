@@ -14,6 +14,7 @@ namespace mlir::rlc
 			printIncludedFiles,
 			dumpUncheckedAST,
 			dumpDot,
+			dumpParsableGraph,
 			dumpCheckedAST,
 			dumpCWrapper,
 			dumpCSharp,
@@ -71,6 +72,9 @@ namespace mlir::rlc
 		{
 			hideStandardLibFiles = doIt;
 		}
+		void setGraphInlineCalls(bool doIt) { graphInlineCalls = doIt; }
+		void setGraphKeepOnlyActions(bool doIt) { graphKeepOnlyActions = doIt; }
+		void setGraphRegexFilter(std::string s) { graphRegexFilter = s; }
 
 		Driver(
 				llvm::SourceMgr &srcManager,
@@ -110,6 +114,10 @@ namespace mlir::rlc
 		llvm::raw_ostream *OS;
 		bool dumpIR = false;
 		bool verbose = false;
+
+		bool graphInlineCalls = false;
+		bool graphKeepOnlyActions = false;
+		std::string graphRegexFilter = ".*";
 
 		const mlir::rlc::TargetInfo *targetInfo = nullptr;
 	};

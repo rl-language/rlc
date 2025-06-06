@@ -67,7 +67,7 @@ class State:
     def legal_actions_indicies(self):
         x = []
         for i, action in enumerate(self.actions):
-            if self.program.module.can_apply_impl(action, self.state):
+            if self.program.module.can_apply(action, self.state):
                 x.append(i)
         return x
 
@@ -75,7 +75,7 @@ class State:
     def legal_actions(self):
         x = []
         for action in self.actions:
-            if self.program.module.can_apply_impl(action, self.state):
+            if self.program.module.can_apply(action, self.state):
                 x.append(action)
         return x
 
@@ -270,6 +270,58 @@ def get_included_contents(
         return None
     return result.stdout
 
+def _make_cl_args(
+    output_dir,
+    sources=[],
+    rlc_compiler="rlc",
+    rlc_includes=[],
+    rlc_runtime_lib="",
+    pyrlc_runtime_lib=None,
+    optimized=True,
+    gen_python_methods=True,
+    stdlib=None,
+    extra_rlc_args=[],
+):
+    s = [source for source in sources]
+    if gen_python_methods:
+        s.append(stdlib_file("learn.rl", rlc_compiler, stdlib=stdlib))
+
+    include_args = []
+    for arg in rlc_includes:
+        include_args.append("-i")
+        include_args.append(arg)
+    if stdlib != None:
+        include_args.append("-i")
+        include_args.append(stdlib)
+
+    command_line_python = [
+                rlc_compiler,
+                *s,
+                "--python",
+                "-o",
+                Path(output_dir) / Path("wrapper.py"),
+                "-O2" if optimized else "",
+            ] + include_args + extra_rlc_args
+    lib_name = (
+        "lib.dll"
+        if os.name == "nt"
+        else ("lib.dylib" if sys.platform == "darwin" else "lib.so")
+    )
+    args = [
+        rlc_compiler,
+        *s,
+        "--shared",
+        "--pylib",
+        "-o",
+        Path(output_dir) / Path(lib_name),
+        "-O2" if optimized else "",
+    ]
+    if rlc_runtime_lib != "":
+        args = args + ["--runtime-lib", rlc_runtime_lib]
+    if pyrlc_runtime_lib != None:
+        args = args + ["--pyrlc-lib", pyrlc_runtime_lib]
+    args = args + include_args
+    return (command_line_python, args)
 
 def compile(
     sources=[],
@@ -282,51 +334,8 @@ def compile(
     stdlib=None,
     extra_rlc_args=[],
 ) -> Program:
-    s = [source for source in sources]
-    if gen_python_methods:
-        s.append(stdlib_file("learn.rl", rlc_compiler, stdlib=stdlib))
-
-    include_args = []
-    for arg in rlc_includes:
-        include_args.append("-i")
-        include_args.append(arg)
-    if stdlib != None:
-        include_args.append("-i")
-        include_args.append(stdlib)
     tmp_dir = mkdtemp()
-
-    assert (
-        run(
-            [
-                rlc_compiler,
-                *s,
-                "--python",
-                "-o",
-                Path(tmp_dir) / Path("wrapper.py"),
-                "-O2" if optimized else "",
-            ]
-            + include_args
-            + extra_rlc_args
-        ).returncode
-        == 0
-    )
-    lib_name = (
-        "lib.dll"
-        if os.name == "nt"
-        else ("lib.dylib" if sys.platform == "darwin" else "lib.so")
-    )
-    args = [
-        rlc_compiler,
-        *s,
-        "--shared",
-        "--pylib",
-        "-o",
-        Path(tmp_dir) / Path(lib_name),
-        "-O2" if optimized else "",
-    ]
-    if rlc_runtime_lib != "":
-        args = args + ["--runtime-lib", rlc_runtime_lib]
-    if pyrlc_runtime_lib != None:
-        args = args + ["--pyrlc-lib", pyrlc_runtime_lib]
-    assert run(args + include_args).returncode == 0
+    (command_line_python, compiler) = _make_cl_args(tmp_dir, sources=sources, rlc_compiler=rlc_compiler, rlc_includes=rlc_includes, rlc_runtime_lib=rlc_runtime_lib, optimized=optimized, gen_python_methods=gen_python_methods, stdlib=stdlib, extra_rlc_args=extra_rlc_args)
+    assert run(command_line_python).returncode == 0
+    assert run(compiler).returncode == 0
     return Program(str(Path(tmp_dir) / Path("wrapper.py")), tmp_dir)

@@ -43,7 +43,7 @@ static void genGame(std::vector<int64_t>& out, std::mt19937& gen)
 		std::vector<int64_t> validActions;
 		for (int64_t i = 0; i < actions.size(); i++)
 		{
-			if (can_apply_impl(*actions.get(i), state))
+			if (can_apply(*actions.get(i), state))
 				validActions.push_back(i);
 		}
 

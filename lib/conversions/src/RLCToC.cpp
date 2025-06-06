@@ -293,23 +293,70 @@ static void printMethodsOfType(
 						builder,
 						isDecl);
 
-                auto can_type = mlir::FunctionType::get(value.getContext(), 
-						value.getType().cast<mlir::FunctionType>().getInputs(), {mlir::rlc::BoolType::get(value.getContext())});
+				auto can_type = mlir::FunctionType::get(
+						value.getContext(),
+						value.getType().cast<mlir::FunctionType>().getInputs(),
+						{ mlir::rlc::BoolType::get(value.getContext()) });
 				printMethodOfType(
 						OS,
 						type,
 						can_type,
-					    "can_" + action.getName().str(),
+						"can_" + action.getName().str(),
 						mlir::rlc::mangledName(
-								"can_" + action.getName().str(),
-								true,
-								can_type),
+								"can_" + action.getName().str(), true, can_type),
 						attrs,
 						builder,
 						isDecl);
 			}
 		}
 	}
+}
+
+static void printCPPOverloadPrecondition(
+		llvm::raw_ostream& OS,
+		mlir::FunctionType type,
+		llvm::StringRef name,
+		llvm::StringRef mangledName,
+		llvm::ArrayRef<llvm::StringRef> argNames,
+		mlir::rlc::ModuleBuilder& builder)
+{
+	// do not emit a proper wrapper for arrays, it is not clear how to do that
+	for (auto t : type.getInputs())
+		if (t.isa<mlir::rlc::ArrayType>())
+			return;
+
+	if (name == "main")
+		return;
+
+	OS << "inline ";
+
+	OS << "bool can_" << name << "(";
+
+	for (size_t i = 0; i < argNames.size(); i++)
+	{
+		printTypeField(argNames[i], type.getInput(i), OS, true);
+		if (i + 1 != argNames.size())
+			OS << ", ";
+	}
+	OS << ")";
+	OS << " {\nbool toReturn;\n";
+	OS.indent(1);
+	OS << mangledName << "(";
+	OS << "&toReturn ";
+	if (0 != argNames.size())
+		OS << ", ";
+	for (size_t i = 0; i < argNames.size(); i++)
+	{
+		OS << "&" << argNames[i];
+		if (i + 1 != argNames.size())
+			OS << ", ";
+	}
+
+	OS << ");\n";
+	OS.indent(1);
+	OS << "return toReturn;\n";
+
+	OS << "}\n";
 }
 
 static void printCPPOverload(
@@ -646,13 +693,6 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 #include "stdint.h"
 #define RLC_GET_FUNCTION_DECLS
 #define RLC_GET_TYPE_DECLS
-#define RLC_VISIT_FUNCTION(name, mangled_name, cShortName, return_type, ...)   \
-	static inline return_type cShortName(RLC_ARGUMENTS)                         \
-	{                                                                            \
-		return_type ret_value;
-		mangled_name(&ret_value, __VA_ARGS__);                                          \
-		return ret_value;
-	} 
 #endif
 )"""";
 	OS << "#endif\n";
@@ -802,6 +842,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 				(not op.getIsMemberFunction() or
 				 (not op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() and
 					not op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>())))
+		{
 			printCPPOverload(
 					OS,
 					op.getFunctionType(),
@@ -809,6 +850,15 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 					op.getMangledName(),
 					op.getArgNames(),
 					builder);
+			if (not op.getPrecondition().empty())
+				printCPPOverloadPrecondition(
+						OS,
+						op.getFunctionType(),
+						op.getUnmangledName(),
+						op.getCanFunctionMangledName(),
+						op.getArgNames(),
+						builder);
+		}
 
 	for (auto op : Module.getOps<mlir::rlc::ActionFunction>())
 		printCPPOverload(

@@ -82,6 +82,30 @@ static cl::opt<bool> dumpDot(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<std::string> graphRegexFilter(
+		"graph-filter",
+		cl::desc("filter the dot dump by the name of the action function"),
+		cl::init(".*"),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> graphKeepOnlyActions(
+		"graph-only-actions",
+		cl::desc("remove from the graph non actions"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> graphInlineCalls(
+		"graph-inline",
+		cl::desc("inline calls graph"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> dumpParsableGraph(
+		"graph",
+		cl::desc("dump machine parsable graph"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpUncheckedAST(
 		"unchecked",
 		cl::desc("dumps the unchcked ast and exits"),
@@ -334,6 +358,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpUncheckedAST;
 	if (dumpDot)
 		return Driver::Request::dumpDot;
+	if (dumpParsableGraph)
+		return Driver::Request::dumpParsableGraph;
 	if (dumpCheckedAST)
 		return Driver::Request::dumpCheckedAST;
 	if (dumpCWrapper)
@@ -461,6 +487,9 @@ static mlir::rlc::Driver configureDriver(
 	driver.setVerbose(verbose);
 	driver.setAbortSymbol(abortSymbol);
 	driver.setHideStandardLibFiles(hideStandardLibFiles);
+	driver.setGraphInlineCalls(graphInlineCalls);
+	driver.setGraphKeepOnlyActions(graphKeepOnlyActions);
+	driver.setGraphRegexFilter(graphRegexFilter);
 
 	return driver;
 }

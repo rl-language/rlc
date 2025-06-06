@@ -36,9 +36,14 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createMemberFunctionsToRegularFunctionsPass());
 		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckPass());
-		if (request == Request::dumpDot)
+		if (request == Request::dumpDot or request == Request::dumpParsableGraph)
 		{
-			manager.addPass(mlir::rlc::createUncheckedAstToDotPass({ OS }));
+			manager.addPass(mlir::rlc::createUncheckedAstToDotPass(
+					{ OS,
+						request == Request::dumpParsableGraph,
+						graphInlineCalls,
+						graphKeepOnlyActions,
+						graphRegexFilter }));
 			return;
 		}
 

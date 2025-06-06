@@ -161,7 +161,15 @@ def UncheckedAstToDotPass : Pass<"rlc-unchecked-ast-to-dot-pass", "mlir::ModuleO
   let summary = "makes a dot graph of the various actions";
   let options = [
     Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
-           "stream on which to print the module">
+           "stream on which to print the module">,
+    Option<"print_parsable", "print in a machine parsable format that includes informations", "bool", /*default=*/"false",
+           "print in a machine parsable format">,
+    Option<"inline_calls", "inline all callees into their callsites", "bool", /*default=*/"false",
+           "inline calls">,
+    Option<"drop_non_actions", "drop non actions and only show actions", "bool", /*default=*/"false",
+           "drop non actions">,
+    Option<"regex_filter", "filter out actions functions not matching", "llvm::StringRef", /*default=*/"\".*\"",
+           "filter">
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

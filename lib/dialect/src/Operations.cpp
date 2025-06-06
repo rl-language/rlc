@@ -400,11 +400,141 @@ static std::string snakeCaseToCamelCase(llvm::StringRef str)
 	return toReturn;
 }
 
+static void defineApplyFunctionAlternative(
+		mlir::rlc::ActionFunction function,
+		mlir::rlc::ModuleBuilder &builder,
+		mlir::rlc::AlternativeType alternative,
+		llvm::MutableArrayRef<mlir::rlc::FunctionOp> applyFunctions)
+{
+	builder.getRewriter().setInsertionPoint(function);
+	llvm::SmallVector<mlir::Type, 4> types(
+			{ alternative, function.getClassType() });
+	llvm::SmallVector<llvm::StringRef, 4> names({ "self", "frame" });
+	llvm::SmallVector<mlir::Location, 4> locs(
+			{ function.getLoc(), function.getLoc() });
+
+	for (auto [actionType, name] :
+			 llvm::zip(function.getType().getInputs(), function.getArgNames()))
+	{
+		if (auto casted = actionType.dyn_cast<mlir::rlc::ContextType>())
+		{
+			types.push_back(casted.getUnderlying());
+			names.push_back(name);
+			locs.push_back(function.getLoc());
+		}
+	}
+
+	// fun apply(ActionType self, FrameType frame) { casted = can(action);
+	// casted(frame, self...) }
+	//   action(frame, self...)
+	//
+	auto applyFunctionType =
+			mlir::FunctionType::get(function.getContext(), types, {});
+	auto applyFunction = builder.getRewriter().create<mlir::rlc::FunctionOp>(
+			function.getLoc(),
+			"apply",
+			applyFunctionType,
+			mlir::rlc::FunctionInfoAttr::get(applyFunctionType.getContext(), names),
+			false);
+
+	{
+		auto *preconditionBB = builder.getRewriter().createBlock(
+				&applyFunction.getPrecondition(), {}, types, locs);
+
+		builder.getRewriter().setInsertionPointToStart(preconditionBB);
+
+		for (auto [type, applyFunction] :
+				 llvm::zip(alternative.getUnderlying(), applyFunctions))
+		{
+			auto orOp = builder.getRewriter().create<mlir::rlc::ShortCircuitingOr>(
+					function.getLoc());
+			builder.getRewriter().create<mlir::rlc::Yield>(
+					function.getLoc(), mlir::ValueRange({ orOp }));
+			auto orLHS = builder.getRewriter().createBlock(&orOp.getLhs());
+
+			auto andOp = builder.getRewriter().create<mlir::rlc::ShortCircuitingAnd>(
+					function.getLoc());
+
+			builder.getRewriter().createBlock(&andOp.getLhs());
+
+			auto actionType = type.cast<mlir::rlc::ClassType>();
+			auto isOp = builder.getRewriter().create<mlir::rlc::IsOp>(
+					function.getLoc(), preconditionBB->getArgument(0), actionType);
+			builder.getRewriter().create<mlir::rlc::Yield>(
+					function.getLoc(), mlir::ValueRange({ isOp }));
+			builder.getRewriter().createBlock(&andOp.getRhs());
+			auto canExecuteAction = builder.getRewriter().create<mlir::rlc::CanOp>(
+					function.getLoc(), applyFunction);
+
+			auto frame = builder.getRewriter().create<mlir::rlc::ValueUpcastOp>(
+					function.getLoc(), actionType, preconditionBB->getArgument(0));
+
+			llvm::SmallVector<mlir::Value, 4> args = { frame };
+			for (auto *arg = std::next(preconditionBB->args_begin());
+					 arg != preconditionBB->args_end();
+					 arg++)
+				args.push_back(*arg);
+
+			auto result = builder.getRewriter().create<mlir::rlc::CallOp>(
+					function.getLoc(), canExecuteAction, false, args);
+			builder.getRewriter().create<mlir::rlc::Yield>(
+					function.getLoc(), mlir::ValueRange({ result.getResult(0) }));
+			builder.getRewriter().setInsertionPointToEnd(orLHS);
+			builder.getRewriter().create<mlir::rlc::Yield>(
+					function.getLoc(), mlir::ValueRange({ andOp }));
+			builder.getRewriter().createBlock(&orOp.getRhs());
+		}
+
+		auto falseConstant = builder.getRewriter().create<mlir::rlc::Constant>(
+				function.getLoc(), false);
+		builder.getRewriter().create<mlir::rlc::Yield>(
+				function.getLoc(), mlir::ValueRange({ falseConstant }));
+	}
+
+	{
+		auto *bodyBB = builder.getRewriter().createBlock(
+				&applyFunction.getBody(), {}, types, locs);
+
+		for (auto [type, applyFunction] :
+				 llvm::zip(alternative.getUnderlying(), applyFunctions))
+		{
+			auto ifStmt = builder.getRewriter().create<mlir::rlc::IfStatement>(
+					function.getLoc());
+			builder.getRewriter().createBlock(&ifStmt.getCondition());
+
+			auto actionType = type.cast<mlir::rlc::ClassType>();
+			auto isOp = builder.getRewriter().create<mlir::rlc::IsOp>(
+					function.getLoc(), bodyBB->getArgument(0), actionType);
+			builder.getRewriter().create<mlir::rlc::Yield>(
+					function.getLoc(), mlir::ValueRange({ isOp }));
+			builder.getRewriter().createBlock(&ifStmt.getTrueBranch());
+
+			auto frame = builder.getRewriter().create<mlir::rlc::ValueUpcastOp>(
+					function.getLoc(), actionType, bodyBB->getArgument(0));
+
+			llvm::SmallVector<mlir::Value, 4> args = { frame };
+			for (auto *arg = std::next(bodyBB->args_begin());
+					 arg != bodyBB->args_end();
+					 arg++)
+				args.push_back(*arg);
+
+			auto result = builder.getRewriter().create<mlir::rlc::CallOp>(
+					function.getLoc(), applyFunction, false, args);
+			builder.getRewriter().create<mlir::rlc::Yield>(function.getLoc());
+			builder.getRewriter().createBlock(&ifStmt.getElseBranch());
+
+			builder.getRewriter().create<mlir::rlc::Yield>(function.getLoc());
+			builder.getRewriter().setInsertionPointToEnd(bodyBB);
+		}
+		builder.getRewriter().create<mlir::rlc::Yield>(function.getLoc());
+	}
+}
+
 static mlir::Type declareActionStatementType(
 		mlir::rlc::ActionFunction function,
 		mlir::rlc::ModuleBuilder &builder,
 		mlir::Value action,
-		llvm::SmallVector<mlir::rlc::FunctionOp, 4> applyFunctions)
+		llvm::SmallVector<mlir::rlc::FunctionOp, 4> &applyFunctions)
 {
 	builder.getRewriter().setInsertionPoint(function);
 	auto statement = mlir::dyn_cast<mlir::rlc::ActionStatement>(
@@ -496,7 +626,11 @@ static mlir::LogicalResult declareActionTypes(
 			("Any" + function.getClassType().getName() + "Action").str());
 
 	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
+
 			function.getLoc(), alternative.getName(), alternative, nullptr, nullptr);
+
+	defineApplyFunctionAlternative(
+			function, builder, alternative, applyFunctions);
 
 	return mlir::success();
 }
@@ -675,6 +809,12 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 
 	builder.getConverter().registerType(getName(), deducedType);
 	this->setAliased(deducedType);
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::IsOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
 	return mlir::success();
 }
 
@@ -1070,7 +1210,9 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 	rewiter.setInsertionPoint(*this);
 	auto subActionInfo = rewiter.create<mlir::rlc::SubActionInfo>(
-			getLoc(), rewiter.getTypeArrayAttr(yield.getArguments().getTypes()));
+			getLoc(),
+			rewiter.getTypeArrayAttr(yield.getArguments().getTypes()),
+			getRunOnce());
 	mlir::Block *expansionBlock = rewiter.createBlock(&subActionInfo.getBody());
 	rewiter.setInsertionPointToEnd(expansionBlock);
 
@@ -1587,9 +1729,31 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
 		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
+	auto yield =
+			mlir::cast<mlir::rlc::Yield>(getLhs().getBlocks().back().getTerminator());
+
+	if (yield.getArguments().size() != 1 or
+			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+	{
+		return logError(
+				yield.getArguments().front().getDefiningOp(),
+				"Left hand operand of or must be Bool");
+	}
+
 	for (auto *op : ops(getRhs()))
 		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
+
+	yield =
+			mlir::cast<mlir::rlc::Yield>(getRhs().getBlocks().back().getTerminator());
+
+	if (yield.getArguments().size() != 1 or
+			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+	{
+		return logError(
+				yield.getArguments().front().getDefiningOp(),
+				"Right hand operand of or must be Bool");
+	}
 
 	return mlir::success();
 }
@@ -1602,9 +1766,31 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
 		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
+	auto yield =
+			mlir::cast<mlir::rlc::Yield>(getLhs().getBlocks().back().getTerminator());
+
+	if (yield.getArguments().size() != 1 or
+			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+	{
+		return logError(
+				yield.getArguments().front().getDefiningOp(),
+				"Left hand operand of and must be Bool");
+	}
+
 	for (auto *op : ops(getRhs()))
 		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
+
+	yield =
+			mlir::cast<mlir::rlc::Yield>(getRhs().getBlocks().back().getTerminator());
+
+	if (yield.getArguments().size() != 1 or
+			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+	{
+		return logError(
+				yield.getArguments().front().getDefiningOp(),
+				"Right hand operand of and must be Bool");
+	}
 
 	return mlir::success();
 }

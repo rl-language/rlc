@@ -201,7 +201,7 @@ class SingleRLCEnvironment:
         return self.current_score[player_id] - self.last_score[player_id]
 
     def can_apply(self, action) -> bool:
-        return self.module.can_apply_impl(action, self.state.state)
+        return self.module.can_apply(action, self.state.state)
 
     def _resolve_randomness(self):
         if not self.solve_randomess:
@@ -209,7 +209,7 @@ class SingleRLCEnvironment:
         while self.get_current_player() == -1:  # random player
             action_index = self.random_valid_action_index()
             action = self.actions()[action_index]
-            assert self.module.can_apply_impl(action, self.state.state)
+            assert self.module.can_apply(action, self.state.state)
             self.module.apply(action, self.state.state)
 
     def reset(self, seed=None, options=None, path_to_binary_state=None):

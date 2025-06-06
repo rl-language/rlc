@@ -702,7 +702,7 @@ def RLC_UncheckedIsOp : RLC_Dialect<"UncheckedIsOp", [DeclareOpInterfaceMethods<
     }]>];
 }
 
-def RLC_IsOp : RLC_Dialect<"IsOp", [DeclareOpInterfaceMethods<TypeUser>]> {
+def RLC_IsOp : RLC_Dialect<"IsOp", [DeclareOpInterfaceMethods<TypeUser>, DeclareOpInterfaceMethods<TypeCheckable>]> {
   let summary = "implement is operator";
 
   let description = [{
@@ -745,10 +745,10 @@ def RLC_UninitializedConstruct  : RLC_Dialect<"uninit_construct"> {
 
 def RLC_SubActionInfo : RLC_Dialect<"subaction_info", [NoTerminator, NoRegionArguments]> {
 
-  let arguments = (ins TypeArrayAttr:$types);
+  let arguments = (ins TypeArrayAttr:$types, BoolAttr:$run_once);
 
   let assemblyFormat = [{
-	$types $body attr-dict 
+	$types $body $run_once attr-dict 
   }];
 
 

@@ -64,7 +64,7 @@ class GameState
 		std::vector<int64_t> to_return;
 		for (int64_t i = 0; i < actions_count; i++)
 		{
-			if (can_apply_impl(*actions.get(i), state))
+			if (can_apply(*actions.get(i), state))
 			{
 				to_return.push_back(i);
 			}
@@ -76,7 +76,7 @@ class GameState
 	void applyAction(int64_t action)
 	{
 		lastActionTaken = action;
-		assert(can_apply_impl(*actions.get(action), state));
+		assert(can_apply(*actions.get(action), state));
 		apply(*actions.get(action), state);
 		owner_id = get_current_player(state);
 	}

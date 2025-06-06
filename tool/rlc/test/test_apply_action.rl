@@ -17,6 +17,8 @@ fun main() -> Int:
     any_action = actual_action
 
     let frame = example()
+    if !can apply(any_action, frame):
+        return -3
     apply(any_action, frame)
     if frame.to_return == 1:
        return 0 

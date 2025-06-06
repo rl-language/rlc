@@ -15,7 +15,11 @@ limitations under the License.
 */
 #include <set>
 
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/DirectedGraph.h"
+#include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/Regex.h"
 #include "mlir/Analysis/DataFlow/ConstantPropagationAnalysis.h"
 #include "mlir/Analysis/DataFlow/DeadCodeAnalysis.h"
 #include "mlir/Analysis/DataFlow/DenseAnalysis.h"
@@ -23,6 +27,7 @@ limitations under the License.
 #include "mlir/Interfaces/ControlFlowInterfaces.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
+#include "rlc/dialect/ProgramGraph.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
 
 namespace mlir::rlc
@@ -41,16 +46,16 @@ namespace mlir::rlc
 			}
 
 			mlir::ChangeResult meet(
-					const mlir::dataflow::AbstractDenseLattice& val) override
+					const mlir::dataflow::AbstractDenseLattice &val) override
 			{
 				assert(false);
 				return mlir::ChangeResult::NoChange;
 			}
 
 			mlir::ChangeResult join(
-					const mlir::dataflow::AbstractDenseLattice& val) override
+					const mlir::dataflow::AbstractDenseLattice &val) override
 			{
-				const auto& r = *static_cast<const LastActionsTakenLattice*>(&val);
+				const auto &r = *static_cast<const LastActionsTakenLattice *>(&val);
 
 				auto copy = content;
 				for (auto entry : r.content)
@@ -61,7 +66,7 @@ namespace mlir::rlc
 				return mlir::ChangeResult::Change;
 			}
 
-			mlir::ChangeResult copy(const LastActionsTakenLattice& before)
+			mlir::ChangeResult copy(const LastActionsTakenLattice &before)
 			{
 				if (content == before.content)
 					return mlir::ChangeResult::NoChange;
@@ -69,10 +74,10 @@ namespace mlir::rlc
 				return mlir::ChangeResult::Change;
 			}
 
-			void print(raw_ostream& os) const override
+			void print(raw_ostream &os) const override
 			{
 				os << "LastActions = {";
-				for (auto* entry : content)
+				for (auto *entry : content)
 				{
 					entry->print(os);
 					os << ",";
@@ -81,12 +86,12 @@ namespace mlir::rlc
 				os << "}\n";
 			}
 
-			bool operator==(const LastActionsTakenLattice& other) const
+			bool operator==(const LastActionsTakenLattice &other) const
 			{
 				return content == other.content;
 			}
 
-			mlir::ChangeResult visitAction(mlir::Operation* statement)
+			mlir::ChangeResult visitAction(mlir::Operation *statement)
 			{
 				if (content.contains(statement) and content.size() == 1)
 					return mlir::ChangeResult::NoChange;
@@ -96,15 +101,15 @@ namespace mlir::rlc
 				return mlir::ChangeResult::Change;
 			}
 
-			[[nodiscard]] llvm::SmallVector<mlir::Operation*, 4> getPredecessors()
+			[[nodiscard]] llvm::SmallVector<mlir::Operation *, 4> getPredecessors()
 					const
 			{
-				return llvm::SmallVector<mlir::Operation*, 4>(
+				return llvm::SmallVector<mlir::Operation *, 4>(
 						content.begin(), content.end());
 			}
 
 			private:
-			std::set<mlir::Operation*> content;
+			std::set<mlir::Operation *> content;
 		};
 
 		class LastActionAnalysis
@@ -117,9 +122,9 @@ namespace mlir::rlc
 
 			private:
 			void visitOperation(
-					mlir::Operation* op,
-					const LastActionsTakenLattice& before,
-					LastActionsTakenLattice* after) override
+					mlir::Operation *op,
+					const LastActionsTakenLattice &before,
+					LastActionsTakenLattice *after) override
 			{
 				assert(after != nullptr);
 				if (auto action = mlir::dyn_cast<mlir::rlc::ActionStatement>(op))
@@ -137,8 +142,8 @@ namespace mlir::rlc
 			void visitCallControlFlowTransfer(
 					CallOpInterface call,
 					mlir::dataflow::CallControlFlowAction action,
-					const LastActionsTakenLattice& before,
-					LastActionsTakenLattice* after) final
+					const LastActionsTakenLattice &before,
+					LastActionsTakenLattice *after) final
 			{
 				propagateIfChanged(after, after->copy(before));
 			}
@@ -147,8 +152,8 @@ namespace mlir::rlc
 					mlir::RegionBranchOpInterface branch,
 					std::optional<unsigned> regionFrom,
 					std::optional<unsigned> regionTo,
-					const LastActionsTakenLattice& before,
-					LastActionsTakenLattice* after) override
+					const LastActionsTakenLattice &before,
+					LastActionsTakenLattice *after) override
 			{
 				if (auto action = mlir::dyn_cast<mlir::rlc::ActionStatement>(
 								branch.getOperation()))
@@ -170,222 +175,305 @@ namespace mlir::rlc
 			}
 
 			// no action is executed at the starting entry point
-			void setToEntryState(LastActionsTakenLattice* lattice) override
+			void setToEntryState(LastActionsTakenLattice *lattice) override
 			{
 				// propagateIfChanged(lattice, lattice->visitAction(nullptr));
 			}
 
 			public:
-			llvm::SmallVector<mlir::Operation*, 4> getPredecessors(
-					mlir::Operation* op)
+			llvm::SmallVector<mlir::Operation *, 4> getPredecessors(
+					mlir::Operation *op)
 			{
-				auto* lattice = op->getPrevNode() != nullptr
+				auto *lattice = op->getPrevNode() != nullptr
 														? getLattice(mlir::ProgramPoint(op->getPrevNode()))
 														: getLattice(op->getBlock());
 				return lattice->getPredecessors();
 			}
 		};
 
-		class ActionFlowNode
+		llvm::SmallVector<ActionFlowNode *> findPredecessors(
+				ActionFlowGraph &Graph, const ActionFlowNode *Target)
 		{
-			public:
-			ActionFlowNode(mlir::Operation* current)
-					: currentOperation(current), successors()
+			llvm::SmallVector<ActionFlowNode *> Preds;
+			for (const auto &Node : Graph)
 			{
+				auto &Candidate = *Node;
+				if (Candidate.hasSuccessor(*Target))
+					Preds.push_back(&Candidate);
 			}
+			return Preds;
+		}
 
-			mlir::Operation* getOperation() const { return currentOperation; }
-
-			void addSuccessor(const ActionFlowNode& other)
-			{
-				successors.insert(&other);
-			}
-
-			void removeSuccessor(const ActionFlowNode& other)
-			{
-				successors.erase(&other);
-			}
-
-			auto begin() const { return successors.begin(); }
-			auto end() const { return successors.end(); }
-
-			void dump() const { print(llvm::errs()); }
-
-			void print(llvm::raw_ostream& os) const
-			{
-				os << "\"" << currentOperation << "\"[shape=" << shape() << ", label=\""
-					 << name() << "\", style=" << style() << "]\n";
-				for (auto* successor : successors)
-				{
-					os << "\"" << currentOperation << "\" -> \""
-						 << successor->currentOperation << "\"\n";
-				}
-			}
-
-			void setOperation(mlir::Operation* op) { this->currentOperation = op; }
-
-			private:
-			std::string shape() const
-			{
-				if (llvm::isa<mlir::rlc::ActionFunction>(currentOperation))
-					return "ellipse";
-				if (llvm::isa<mlir::rlc::ActionsStatement>(currentOperation))
-					return "diamond";
-				if (llvm::isa<mlir::rlc::ActionStatement>(currentOperation))
-					return "box";
-				if (llvm::isa<mlir::rlc::SubActionInfo>(currentOperation))
-					return "box";
-				if (llvm::isa<mlir::rlc::Yield>(currentOperation))
-					return "ellipse";
-
-				currentOperation->dump();
-				abort();
-			}
-
-			std::string style() const
-			{
-				if (llvm::isa<mlir::rlc::SubActionInfo>(currentOperation))
-					return "dotted";
-				return "solid";
-			}
-
-			std::string name() const
-			{
-				if (auto casted =
-								llvm::dyn_cast<mlir::rlc::ActionFunction>(currentOperation))
-					return casted.getUnmangledName().str();
-				if (auto casted =
-								llvm::dyn_cast<mlir::rlc::ActionsStatement>(currentOperation))
-					return "";
-				if (auto casted =
-								llvm::dyn_cast<mlir::rlc::ActionStatement>(currentOperation))
-					return casted.getName().str();
-				if (auto casted =
-								llvm::dyn_cast<mlir::rlc::SubActionInfo>(currentOperation))
-				{
-					std::string result;
-					for (auto type : casted.getTypes())
-						result += prettyType(type.cast<mlir::TypeAttr>().getValue()) + " ";
-					return result;
-				}
-
-				if (auto casted = llvm::dyn_cast<mlir::rlc::Yield>(currentOperation))
-					return "ret";
-				currentOperation->dump();
-				abort();
-			}
-
-			mlir::Operation* currentOperation;
-			llvm::DenseSet<const ActionFlowNode*> successors;
-		};
-
-		class ActionFlowGraph
+		using InliningCache =
+				std::unordered_map<const ActionFlowNode *, ActionFlowNode *>;
+		ActionFlowNode *cloneCalleeCFG(
+				const ActionFlowNode &ToInlineEntry,
+				ActionFlowGraph &IntoGraph,
+				InliningCache &cache)
 		{
-			public:
-			explicit ActionFlowGraph(mlir::rlc::ActionFunction action): entry(action)
+			ActionFlowNode *newExit = nullptr;
+			for (const ActionFlowNode *node : llvm::depth_first(&ToInlineEntry))
 			{
-				mlir::IRRewriter rewriter(action.getContext());
-				rewriter.setInsertionPointToStart(&action.getBody().front());
-				auto proxyEntry = rewriter.create<mlir::rlc::ActionStatement>(
-						action.getLoc(),
-						mlir::TypeRange({}),
-						"proxy",
-						mlir::rlc::FunctionInfoAttr::get(action.getContext()),
-						0,
-						0);
+				auto &clone = *IntoGraph.addNode(*node);
+				cache[node] = &clone;
+				if (clone.getKind() == ActionFlowNode::Kind::exit)
+					newExit = &clone;
+			}
 
-				DataFlowConfig config;
-				config.setInterprocedural(false);
-				DataFlowSolver solver(config);
-				solver.load<mlir::dataflow::DeadCodeAnalysis>();
-				solver.load<mlir::dataflow::SparseConstantPropagation>();
-				auto* analsyis = solver.load<mlir::rlc::LastActionAnalysis>();
-				auto res = solver.initializeAndRun(action);
+			return newExit;
+		}
 
-				action.walk([&](mlir::Operation* op) {
-					if (mlir::isa<mlir::rlc::ActionStatement>(op) or
-							mlir::isa<mlir::rlc::ActionsStatement>(op) or
-							mlir::isa<mlir::rlc::SubActionInfo>(op))
-						makeNode(op);
-				});
+		void redirectClonedEdges(
+				const ActionFlowNode &ToInlineEntry, InliningCache &cache)
+		{
+			for (const ActionFlowNode *node : llvm::depth_first(&ToInlineEntry))
+			{
+				ActionFlowNode *Clone = cache.at(node);	 // must exist
 
-				auto* end = makeNode(action.getBody().front().getTerminator());
+				llvm::SmallVector<const ActionFlowNode *, 8> oldSuccessors(
+						Clone->begin(), Clone->end());
+				Clone->clearSuccessors();
 
-				for (auto& pair : nodes)
+				/* 2. rebuild it with re-mapped targets -------------------------- */
+				for (const ActionFlowNode *oldSuccessor : oldSuccessors)
+					Clone->addSuccessor(*cache.at(oldSuccessor));
+			}
+		}
+
+		void cloneFunction(
+				InliningCache &entryToExit,
+				InliningCache &originalToClone,
+				const ActionFlowNode &callSite,
+				ActionFlowGraph &callerGraph)
+		{
+			for (const auto &callee : callSite.callees_range())
+				entryToExit[callee.first] =
+						cloneCalleeCFG(*callee.first, callerGraph, originalToClone);
+			for (const auto &callee : callSite.callees_range())
+				redirectClonedEdges(*callee.first, originalToClone);
+		}
+
+		bool isToErase(const ActionFlowGraph &graph, const ActionFlowNode &node)
+		{
+			return (&graph.getEntryNode() != &node and
+							node.getKind() == ActionFlowNode::Kind::entry) or
+						 (node.getKind() == ActionFlowNode::Kind::exit and
+							node.numSuccessors() != 0);
+		}
+
+		bool isNonAction(const ActionFlowGraph &graph, const ActionFlowNode &node)
+		{
+			return node.getKind() != ActionFlowNode::Kind::action and
+						 node.getKind() != ActionFlowNode::Kind::exit;
+		}
+
+		void eraseNodesIf(ActionFlowGraph &graph, auto &&filter)
+		{
+			llvm::DenseSet<const ActionFlowNode *> toErase;
+			for (const auto &pair : graph)
+			{
+				ActionFlowNode &node = *pair;
+
+				llvm::DenseSet<const ActionFlowNode *> successorSuccessors;
+				for (const ActionFlowNode *successor : node)
 				{
-					auto* successor = pair.first;
-					auto pred = analsyis->getPredecessors(successor);
-
-					for (auto* predecessor : pred)
-						nodes[predecessor]->addSuccessor(*nodes[successor]);
-				}
-
-				// connect the predeccessors of return statements to the exit node
-				action.walk([&](mlir::rlc::ReturnStatement op) {
-					for (auto* predecessor : analsyis->getPredecessors(op))
-						nodes[predecessor]->addSuccessor(*end);
-				});
-
-				auto* begin = makeNode(action);
-				const auto isEdgeToBegin = [&](const ActionFlowNode* successor) {
-					return successor->getOperation() == proxyEntry;
-				};
-				for (Content::iterator::value_type& node : nodes)
-				{
-					if (llvm::any_of(*node.second, isEdgeToBegin))
+					if (filter(graph, *successor))
 					{
-						node.second->addSuccessor(*begin);
+						toErase.insert(successor);
+						for (const ActionFlowNode *successorSuccessor : *successor)
+							successorSuccessors.insert(successorSuccessor);
 					}
 				}
-				for (const ActionFlowNode* succ : *nodes[proxyEntry])
+
+				for (const ActionFlowNode *successorSuccessor : successorSuccessors)
+					node.addSuccessor(*successorSuccessor);
+			}
+
+			for (const ActionFlowNode *node : toErase)
+				graph.unlinkAndErase(*node);
+		}
+
+		void dropUselessBeginAndEnd(ActionFlowGraph &graph)
+		{
+			eraseNodesIf(graph, isToErase);
+		}
+
+		void dropNonActions(ActionFlowGraph &graph)
+		{
+			eraseNodesIf(graph, isNonAction);
+		}
+
+		void inlineCalls(ActionFlowGraph &callerGraph)
+		{
+			llvm::SmallVector<const ActionFlowNode *, 4> callSites;
+			for (const auto &pair : callerGraph)
+			{
+				const ActionFlowNode &node = *pair;
+				if (node.getKind() != ActionFlowNode::Kind::call)
+					continue;
+				callSites.push_back(&node);
+			}
+
+			for (const ActionFlowNode *callSite : callSites)
+			{
+				InliningCache originalToClone;
+				InliningCache entryToExit;
+				cloneFunction(entryToExit, originalToClone, *callSite, callerGraph);
+
+				// connect inlined entry to predecessor of callsite
+				auto predecessors = findPredecessors(callerGraph, callSite);
+				for (ActionFlowNode *predecessor : predecessors)
 				{
-					begin->addSuccessor(*succ);
+					predecessor->removeSuccessor(*callSite);
+					for (const auto &callee : callSite->callees_range())
+						predecessor->addSuccessor(*originalToClone[callee.first]);
 				}
 
-				eraseNode(proxyEntry);
-				proxyEntry.erase();
+				// connect inlined exit to successors of callsite
+				for (const auto &callee : callSite->callees_range())
+					for (const ActionFlowNode *successor : *callSite)
+						entryToExit[callee.first]->addSuccessor(*successor);
+
+				callerGraph.eraseNode(*callSite);
+				dropUselessBeginAndEnd(callerGraph);
 			}
+		}
 
-			void eraseNode(mlir::Operation* op)
-			{
-				for (auto& pair : nodes)
-					pair.second->removeSuccessor(*nodes[op]);
-				nodes.erase(op);
-			}
+		void inlineRegularCalls(ActionFlowForest &Forest)
+		{
+			Forest.cacheCallees();
+			llvm::SmallVector<ActionFlowGraph *, 4> sorted;
+			llvm::DenseSet<ActionFlowGraph *> visited;
 
-			[[nodiscard]] const ActionFlowNode& getEntryNode() const
-			{
-				return *nodes.at(entry);
-			}
+			for (auto &graph : Forest)
+				for (auto *graph : llvm::post_order(&graph.second))
+				{
+					if (not visited.contains(graph))
+						sorted.push_back(graph);
+					visited.insert(graph);
+				}
 
-			auto begin() const { return nodes.begin(); }
-
-			auto end() const { return nodes.end(); }
-
-			void dump() const { print(llvm::errs()); }
-
-			void print(llvm::raw_ostream& os) const
-			{
-				llvm::outs() << "digraph g {\n";
-				for (auto& node : nodes)
-					node.second->print(os);
-				llvm::outs() << "}\n";
-			}
-
-			private:
-			using Content =
-					std::map<mlir::Operation*, std::unique_ptr<ActionFlowNode>>;
-			ActionFlowNode* makeNode(mlir::Operation* current)
-			{
-				assert(not nodes.contains(current));
-				nodes[current] = std::make_unique<ActionFlowNode>(current);
-				return nodes[current].get();
-			}
-
-			mlir::rlc::ActionFunction entry;
-			Content nodes;
-		};
+			for (auto &graph : sorted)
+				inlineCalls(*graph);
+		}
 	}	 // namespace
+	ActionFlowGraph::ActionFlowGraph(mlir::rlc::ActionFunction action)
+			: entry(action)
+	{
+		mlir::IRRewriter rewriter(action.getContext());
+		rewriter.setInsertionPointToStart(&action.getBody().front());
+		auto proxyEntry = rewriter.create<mlir::rlc::ActionStatement>(
+				action.getLoc(),
+				mlir::TypeRange({}),
+				"proxy",
+				mlir::rlc::FunctionInfoAttr::get(action.getContext()),
+				0,
+				0);
+
+		DataFlowConfig config;
+		config.setInterprocedural(false);
+		DataFlowSolver solver(config);
+		solver.load<mlir::dataflow::DeadCodeAnalysis>();
+		solver.load<mlir::dataflow::SparseConstantPropagation>();
+		auto *analsyis = solver.load<mlir::rlc::LastActionAnalysis>();
+		auto res = solver.initializeAndRun(action);
+
+		action.walk([&](mlir::Operation *op) {
+			if (mlir::isa<mlir::rlc::ActionStatement>(op) or
+					mlir::isa<mlir::rlc::ActionsStatement>(op) or
+					mlir::isa<mlir::rlc::SubActionInfo>(op))
+				makeNode(op);
+		});
+
+		auto *end = makeNode(action.getBody().front().getTerminator());
+
+		for (auto &pair : nodes)
+		{
+			const ActionFlowNode &successor = *pair;
+			auto pred = analsyis->getPredecessors(successor.getOperation());
+
+			for (auto *predecessor : pred)
+				get(predecessor).addSuccessor(get(successor.getOperation()));
+		}
+
+		// connect the predeccessors of return statements to the exit node
+		action.walk([&](mlir::rlc::ReturnStatement op) {
+			for (auto *predecessor : analsyis->getPredecessors(op))
+				get(predecessor).addSuccessor(*end);
+		});
+
+		const auto isEdgeToBegin = [&](const ActionFlowNode *successor) {
+			return successor->getOperation() == proxyEntry;
+		};
+		auto *begin = makeNode(action);
+		nodes.insert(nodes.begin(), std::move(nodes.back()));
+		nodes.pop_back();
+
+		for (auto &node : nodes)
+		{
+			if (llvm::any_of(*node, isEdgeToBegin))
+			{
+				node->addSuccessor(*begin);
+			}
+		}
+		for (const ActionFlowNode *succ : get(proxyEntry))
+		{
+			begin->addSuccessor(*succ);
+		}
+
+		eraseNode(get(proxyEntry));
+		proxyEntry.erase();
+	}
+
+	void ActionFlowForest::print(llvm::raw_ostream &OS, llvm::StringRef regex)
+	{
+		llvm::Regex r(regex);
+		OS << " digraph g {\n";
+		for (auto &pair : map)
+		{
+			if (not r.match(pair.second.actionName()))
+				continue;
+			for (const auto &node : pair.second)
+				node->print(OS);
+		}
+
+		OS << " }";
+	}
+
+	void ActionFlowNode::printParsable(llvm::raw_ostream &os) const
+	{
+		os << kindToString() << " " << this << " " << name() << "\n";
+		for (const auto *successor : successors)
+		{
+			os << "s " << successor << "\n";
+		}
+
+		for (const auto &callee : callees)
+		{
+			os << "c " << callee.first << "\n";
+		}
+	}
+
+	void ActionFlowForest::printParsable(
+			llvm::raw_ostream &OS, llvm::StringRef regexFilter)
+	{
+		llvm::Regex r(regexFilter);
+		for (auto &pair : map)
+		{
+			if (not r.match(pair.second.actionName()))
+				continue;
+			for (const auto &node : pair.second)
+				node->printParsable(OS);
+		}
+	}
+
+	void dropNonActions(ActionFlowForest &forest)
+	{
+		for (auto &graph : forest)
+		{
+			dropNonActions(graph.second);
+		}
+	}
 
 #define GEN_PASS_DEF_UNCHECKEDASTTODOTPASS
 #include "rlc/dialect/Passes.inc"
@@ -402,54 +490,15 @@ namespace mlir::rlc
 			getOperation().walk([](mlir::rlc::SubActionInfo info) {
 				info.getBody().front().erase();
 			});
-
-			std::map<const void*, ActionFlowGraph> map;
-			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
-			{
-				map.emplace(op.getClassType().getAsOpaquePointer(), op);
-			}
-			*OS << " digraph g {\n";
-			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
-			{
-				for (const auto& node : map.at(op.getClassType().getAsOpaquePointer()))
-					node.second->print(*OS);
-
-				for (const auto& node : map.at(op.getClassType().getAsOpaquePointer()))
-				{
-					if (auto subAction =
-									mlir::dyn_cast<mlir::rlc::SubActionInfo>(node.first))
-					{
-						for (auto typeAttr : subAction.getTypes())
-						{
-							auto type = typeAttr.cast<mlir::TypeAttr>().getValue();
-							if (auto alternative =
-											mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
-							{
-								for (auto entry : alternative.getUnderlying())
-								{
-									*OS << "\"" << subAction.getOperation() << "\"" << " -> "
-											<< "\""
-											<< map.at(entry.getAsOpaquePointer())
-														 .getEntryNode()
-														 .getOperation()
-											<< "\"[style=\"dashed\", constraint=false]";
-								}
-							}
-							else
-							{
-								*OS << "\"" << subAction.getOperation() << "\"" << " -> "
-										<< "\""
-										<< map.at(type.getAsOpaquePointer())
-													 .getEntryNode()
-													 .getOperation()
-										<< "\"[style=\"dashed\", constraint=false]";
-							}
-						}
-					}
-				}
-			}
-
-			*OS << " }";
+			mlir::rlc::ActionFlowForest forest(getOperation());
+			if (inline_calls)
+				inlineRegularCalls(forest);
+			if (drop_non_actions)
+				dropNonActions(forest);
+			if (print_parsable)
+				forest.printParsable(*OS, regex_filter);
+			else
+				forest.print(*OS, regex_filter);
 		}
 	};
 }	 // namespace mlir::rlc

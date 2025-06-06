@@ -25,36 +25,20 @@ import enum_utils
 trait<FrameType, ActionType> ApplicableTo:
     fun apply(ActionType action, FrameType frame)
 
-fun<FrameType, ActionType> can_apply_impl(ActionType action, FrameType frame) -> Bool:
-    for alternative of action:
-        using Type = type(alternative)
-        if action is Type:
-            if action is ApplicableTo<FrameType>:
-                return can action.apply(frame)
-    return false
-
-fun<FrameType, ActionType> apply(ActionType action, FrameType frame) { can_apply_impl(action, frame) }: 
-    for alternative of action:
-        using Type = type(alternative)
-        if action is Type:
-            if action is ApplicableTo<FrameType>:
-                action.apply(frame)
-
-
 fun<FrameType, ActionType> apply(Vector<ActionType> action, FrameType frame) -> Bool: 
-    let x = 0
-    while x != action.size():
-        if !can apply(action.get(x), frame):
-            return false
-        apply(action.get(x), frame)
-        x = x + 1
+    for current in action:
+        if current is ApplicableTo<FrameType>:
+            if !can apply(current, frame):
+                return false
+            apply(current, frame)
     return true
 
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input, Int read_bytes):
     while read_bytes + 8 <= input.size():
         if from_byte_vector(variant, input, read_bytes):
-            if can apply(variant, state):
-                apply(variant, state)
+            if variant is ApplicableTo<FrameType>:
+                if can apply(variant, state):
+                    apply(variant, state)
 
 fun<AllActionsVariant> parse_actions(AllActionsVariant variant, Vector<Byte> input, Int read_bytes) -> Vector<AllActionsVariant>:
     let to_return : Vector<AllActionsVariant>
@@ -122,11 +106,12 @@ fun<FrameType, ActionType> make_valid_actions_vector(Vector<ActionType> all_acti
 
 fun<FrameType, ActionType> get_valid_actions(Vector<Byte> valid_actions, Vector<ActionType> all_actions, FrameType state):
     let i = 0
-    while i != all_actions.size():
-        if can_apply_impl(all_actions[i], state):
-            valid_actions[i] = byte(1)
-        else:
-            valid_actions[i] = byte(0)
+    for action in all_actions:
+        if action is ApplicableTo<FrameType>:
+            if can apply(action, state):
+                valid_actions[i] = byte(1)
+            else:
+                valid_actions[i] = byte(0)
         i = i + 1
 
 
@@ -137,7 +122,6 @@ fun<FrameType, AllActionsVariant> gen_python_methods(FrameType state, AllActions
     let serialized = as_byte_vector(state)
     from_byte_vector(state, serialized)
     let x : AllActionsVariant
-    apply(x, state)
     to_string(state)
     to_string(x)
     from_string(x, ""s)
