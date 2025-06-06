@@ -145,6 +145,9 @@ namespace mlir::rlc
 			SmallVector<Type, 2> fields;
 			for (auto arg : type.getMembers())
 				fields.push_back(converter.convertType(arg.getType()));
+			// make sure that empty structs are not zero size in llvm
+			if (fields.empty())
+				fields.push_back(mlir::IntegerType::get(type.getContext(), 8));
 
 			return mlir::LLVM::LLVMStructType::getNewIdentified(
 					type.getContext(), type.getName(), fields);
