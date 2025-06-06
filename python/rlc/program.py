@@ -335,7 +335,7 @@ def compile(
     extra_rlc_args=[],
 ) -> Program:
     tmp_dir = mkdtemp()
-    (command_line_python, compiler) = _make_cl_args(tmp_dir, sources=sources, rlc_compiler=rlc_compiler, rlc_includes=rlc_includes, rlc_runtime_lib=rlc_runtime_lib, optimized=optimized, gen_python_methods=gen_python_methods, stdlib=stdlib, extra_rlc_args=extra_rlc_args)
+    (command_line_python, compiler) = _make_cl_args(tmp_dir, sources=sources, rlc_compiler=rlc_compiler, rlc_includes=rlc_includes, rlc_runtime_lib=rlc_runtime_lib, optimized=optimized, gen_python_methods=gen_python_methods, stdlib=stdlib, extra_rlc_args=extra_rlc_args, pyrlc_runtime_lib=pyrlc_runtime_lib)
     assert run(command_line_python).returncode == 0
     assert run(compiler).returncode == 0
     return Program(str(Path(tmp_dir) / Path("wrapper.py")), tmp_dir)
