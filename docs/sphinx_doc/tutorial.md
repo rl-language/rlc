@@ -18,9 +18,9 @@ Optionally, you can install:
 ## Installation
 You can install the `RL` compiler, autocomplete support, and machine learning dependencies by opening a terminal and running:
 ```bash
-mkdir rl_example
-cd rl_example
-python3 -m venv .venv
+mkdir rl_example # or simply create a folder in windows
+cd rl_example # or open a vscode in that folder
+python3 -m venv .venv # from vscode shell, or another shell
 source .venv/bin/activate
 pip install rl_language
 ```
@@ -51,7 +51,7 @@ rlc example.rl -o executable
 
 ## Training and Running
 
-Now that you've ensured your system works, download the `black jack` example from [here](https://github.com/rl-language/rlc/tool/rlc/test/examples/black_jack.rl) and save it in a file in the directory we created at the start of this example.
+Now that you've ensured your system works, download the `black jack` example from [here](https://github.com/rl-language/rlc/blob/master/tool/rlc/test/examples/black_jack.rl) and save it in a file in the directory we created at the start of this example.
 
 Black jack is example that shows how to handle games with randomness and imperfect information. Indeed the actions taken by the real user are usually just one or two, while most of the game is spent by the `randomness player` shuffling the deck, which is a fake player that performs actions at random.
 
@@ -90,7 +90,7 @@ From there, you should see a website that looks like this:
 
 ![tensorboard example](./imgs/tensorboard.png)
 
-In the search bar, write `episode_reward_mean`.
+In the search bar, write `EpRewMean`.
 
 You should see a graph that looks similar to the following:
 
@@ -155,7 +155,7 @@ while not state.is_done():
 
     state.pretty_print()
 
-print(f"Your final score is: {program.score(state.state, 0)}")
+print(f"Your final score is: {program.module.score(state.state, 0)}")
 ```
 
 You can run this program with the following command, using a shell with the activated environment:

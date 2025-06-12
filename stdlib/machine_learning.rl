@@ -54,8 +54,17 @@ cls<T> HiddenInformation:
     fun assign(T content):
         self.value = content
 
+    fun is_visible_to_all() -> Bool:
+        return self.owner == -1
+
+    fun set_visible_by_all():
+        self.owner = -1
+
+    fun set_visible_by_player(Int player_id):
+        self.owner = player_id
+
 fun<T> write_in_observation_tensor(HiddenInformation<T> obj, Int observer_id, Vector<Float> output, Int index):
-    if observer_id == obj.owner:
+    if observer_id == obj.owner or obj.owner == -1:
         to_observation_tensor(obj.value, observer_id, output, index)
 
 fun<T> size_as_observation_tensor(HiddenInformation<T> obj) -> Int:

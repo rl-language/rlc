@@ -162,6 +162,8 @@ namespace mlir::rlc
 				return casted.getRunOnce() ? Kind::call_once : Kind::call;
 			if (mlir::isa<mlir::rlc::Yield>(op))
 				return Kind::exit;
+			if (mlir::isa<mlir::rlc::ReturnStatement>(op))
+				return Kind::exit;
 
 			op->dump();
 			abort();
@@ -245,6 +247,9 @@ namespace mlir::rlc
 			}
 
 			if (auto casted = llvm::dyn_cast<mlir::rlc::Yield>(currentOperation))
+				return "ret";
+			if (auto casted =
+							llvm::dyn_cast<mlir::rlc::ReturnStatement>(currentOperation))
 				return "ret";
 			currentOperation->dump();
 			abort();

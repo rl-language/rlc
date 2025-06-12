@@ -498,6 +498,45 @@ fun main() -> Int:
 ```
 
 This example shows how to share state between two subactions. The inner vending machines have their `target_cost` variable marked as `ctx`, and thus owned by the caller. The caller, `vending_machine_first_times_two`, uses two `subaction*` to execute both actions until the `target_cost` reaches 0. Since `target_cost` is zero, they will reach zero at the same time, so when the `first_machine` terminates, so immediately does `second_machine`, and thus `vending_machine_times_two`. The significant improvement is that with the syntax `subaction*(first)`, we are forwarding `first` to every invocation of methods of the subactions, removing the requirement for the function `main` to do so. `main` can simply invoke `state.insert_5_coin()`, unaware of how the state is organized within vending machines.
+
+#### Alternative subaction statement
+Sometimes you may require to execute one subaction among many depending on the state of the program. For example, maybe the user can select if they wish to play tic tac toe or chess, and then they play the selected game. In this case you can use a subaction statement on a alternative type, provided that all the types of the alternative describe a action function.
+
+Here is a example
+```rlc
+act tic_tac_toe() -> TicTacToe:
+    # omitted
+
+act chess() -> Chess:
+    # omitted
+
+act play() -> Game:
+    frm game : TicTacToe | Chess
+    act play_chess(Bool do_it)
+    if do_it:
+       game = tic_tac_toe()
+    else:
+        game = chess
+    subaction* game
+```
+
+#### Subaction statements on multiple values
+Sometimes you may wish to express the concept that multiple sub actions are executing in parallel, and that the user can advance any of them in any order. For example, immagine a game where any player can perform its own actions indipendently from other players. In that situation you can use subaction statements with multiple values. Here is a example where player can play both tic tac toe and chess at the same time.
+
+```rlc
+act tic_tac_toe() -> TicTacToe:
+    # omitted
+
+act chess() -> Chess:
+    # omitted
+
+act play() -> Game:
+    frm tic = tic_tac_toe()
+    frm chess = chess
+    subaction* tic, chess
+```
+
+
 ### Context Variables in Subaction Statements
 
 An important language feature built into subaction statements and context variables is the ability to share data between distinct subactions. Let's look at an example:

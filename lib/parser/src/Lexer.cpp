@@ -311,9 +311,25 @@ optional<Token> Lexer::eatSpaces()
 Token Lexer::eatNumber()
 {
 	string number;
-
-	while (isdigit(*in) != 0)
+	bool isHex = false;
+	number += eatChar();
+	if (number[0] == '0' and *in == 'x')
+	{
+		isHex = true;
 		number += eatChar();
+	}
+
+	while (isdigit(*in) != 0 or (isHex and isxdigit(*in)))
+		number += eatChar();
+
+	if (isHex)
+	{
+		std::uint64_t value = 0;
+		if (llvm::StringRef(number).getAsInteger(0, value))
+			return Token::Error;
+		memcpy(&lInt64, &value, sizeof(value));
+		return Token::Int64;
+	}
 
 	if (*in != '.')
 	{
