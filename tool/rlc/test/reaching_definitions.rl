@@ -1,4 +1,4 @@
-# RUN: rlc %s -o %t -i %stdlib --sanitize
+# RUN: rlc %s -o %t -i %stdlib --sanitize -g
 # RUN: %t%exeext
 
 import collections.vector

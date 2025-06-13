@@ -231,7 +231,7 @@ def main():
             "--depth",
             "1",
             "-b",
-            "release/19.x",
+            "release/20.x",
         )
 
     if debug_llvm and not exists(llvm_install_debug_dir) and args.llvm_dir == "":

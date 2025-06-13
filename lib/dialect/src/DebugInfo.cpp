@@ -169,7 +169,6 @@ namespace mlir::rlc
 			return mlir::LLVM::DICompositeTypeAttr::get(
 					type.getContext(),
 					llvm::dwarf::DW_TAG_array_type,
-					/*recursive_id=*/{},
 					/*name=*/nullptr,
 					/*file=*/nullptr,
 					/*line=*/0,
@@ -222,7 +221,6 @@ namespace mlir::rlc
 			auto diUnion = mlir::LLVM::DICompositeTypeAttr::get(
 					type.getContext(),
 					llvm::dwarf::DW_TAG_union_type,
-					/*recursive_id=*/{},
 					/*name=*/
 					mlir::StringAttr::get(type.getContext(), ""),
 					/*file=*/nullptr,
@@ -273,7 +271,6 @@ namespace mlir::rlc
 			return mlir::LLVM::DICompositeTypeAttr::get(
 					type.getContext(),
 					llvm::dwarf::DW_TAG_structure_type,
-					/*recursive_id=*/{},
 					/*name=*/
 					mlir::StringAttr::get(type.getContext(), ""),
 					/*file=*/nullptr,
@@ -327,7 +324,6 @@ namespace mlir::rlc
 			return mlir::LLVM::DICompositeTypeAttr::get(
 					type.getContext(),
 					llvm::dwarf::DW_TAG_structure_type,
-					/*recursive_id=*/{},
 					/*name=*/
 					mlir::StringAttr::get(type.getContext(), originalType.getName()),
 					/*file=*/nullptr,
@@ -387,16 +383,18 @@ namespace mlir::rlc
 		auto file = getFileOfLoc(location);
 		auto subprogramAttr = LLVM::DISubprogramAttr::get(
 				op.getContext(),
-				id,
-				compileUnitAttr,
-				file,
-				funcNameAttr,
-				rewriter.getStringAttr(mangledName),
+				/*id=*/id,
+				/*compileUnit=*/compileUnitAttr,
+				/*file=*/file,
+				/*name=*/funcNameAttr,
+				/*linkageName=*/rewriter.getStringAttr(mangledName),
 				file,
 				/*line=*/loc.getLine(),
 				/*scopeline=*/loc.getLine(),
-				subprogramFlags,
-				type);
+				/*subProgramFlags=*/subprogramFlags,
+				/*type=*/type,
+				{},
+				{});
 
 		return subprogramAttr;
 	}
@@ -477,7 +475,8 @@ namespace mlir::rlc
 				location.getLine(),
 				0,
 				0,
-				DIType);
+				DIType,
+				LLVM::DIFlags());
 	}
 
 	mlir::LLVM::DILocalVariableAttr DebugInfoGenerator::getLocalVar(
@@ -511,7 +510,8 @@ namespace mlir::rlc
 				location.getLine(),
 				0,
 				0,
-				DIType);
+				DIType,
+				LLVM::DIFlags());
 	}
 
 }	 // namespace mlir::rlc

@@ -30,10 +30,7 @@ namespace mlir
 		{
 			public:
 			MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ReachingDefinitionsLattice);
-			explicit ReachingDefinitionsLattice(mlir::ProgramPoint point)
-					: mlir::dataflow::AbstractDenseLattice(point)
-			{
-			}
+			using dataflow::AbstractDenseLattice::AbstractDenseLattice;
 
 			mlir::ChangeResult meet(
 					const mlir::dataflow::AbstractDenseLattice& val) override
@@ -100,7 +97,7 @@ namespace mlir
 			using mlir::dataflow::DenseForwardDataFlowAnalysis<
 					ReachingDefinitionsLattice>::DenseForwardDataFlowAnalysis;
 
-			void visitOperation(
+			mlir::LogicalResult visitOperation(
 					mlir::Operation* op,
 					const ReachingDefinitionsLattice& before,
 					ReachingDefinitionsLattice* after) override
@@ -132,6 +129,7 @@ namespace mlir
 					propagateIfChanged(after, ChangeResult::Change);
 				else
 					propagateIfChanged(after, ChangeResult::NoChange);
+				return success();
 			}
 
 			void visitCallControlFlowTransfer(
@@ -147,7 +145,7 @@ namespace mlir
 				}
 				else
 				{
-					visitOperation(call, before, after);
+					auto _ = visitOperation(call, before, after);
 				}
 			}
 			void visitRegionBranchControlFlowTransfer(
@@ -159,16 +157,14 @@ namespace mlir
 			{
 				// when we are leaving the operation, we add our just defined operation
 				// to the list of things to destroy
-				visitOperation(branch, before, after);
+				auto _ = visitOperation(branch, before, after);
 			}
 
 			void setToEntryState(ReachingDefinitionsLattice* lattice) override {}
 
 			bool reachesOperation(mlir::Value value, mlir::Operation* op)
 			{
-				auto* lattice = op->getPrevNode() != nullptr
-														? getLattice(mlir::ProgramPoint(op->getPrevNode()))
-														: getLattice(op->getBlock());
+				auto* lattice = getLattice(LatticeAnchor(getProgramPointBefore(op)));
 				if (value.getType().isa<mlir::rlc::ContextType>() or
 						value.getType().isa<mlir::rlc::FrameType>())
 					return true;

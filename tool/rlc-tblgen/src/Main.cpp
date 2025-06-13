@@ -49,7 +49,7 @@ static std::string toCamelCase(const llvm::StringRef &input)
 	return result;
 }
 
-static bool isTypeContraint(llvm::DefInit *init)
+static bool isTypeContraint(const llvm::DefInit *init)
 {
 	for (auto c : init->getDef()->getSuperClasses())
 	{
@@ -61,11 +61,13 @@ static bool isTypeContraint(llvm::DefInit *init)
 	return false;
 }
 
-static void printArgType(mlir::raw_ostream &os, Init *init, bool isOpArgument)
+static void printArgType(
+		mlir::raw_ostream &os, const Init *init, bool isOpArgument)
 {
-	if (DefInit *defInit = dyn_cast<DefInit>(init))
+	if (const DefInit *defInit = dyn_cast<DefInit>(init))
 	{
 		auto record = defInit->getDef();
+
 		if (isOpArgument and isTypeContraint(defInit))
 		{
 			os << "mlir::Value";
@@ -76,6 +78,11 @@ static void printArgType(mlir::raw_ostream &os, Init *init, bool isOpArgument)
 								->getAsUnquotedString();
 		}
 		else if (auto storageType = record->getValue("cppAccessorType"))
+		{
+			os << cast<llvm::StringInit>(storageType->getValue())
+								->getAsUnquotedString();
+		}
+		else if (auto storageType = record->getValue("cppType"))
 		{
 			os << cast<llvm::StringInit>(storageType->getValue())
 								->getAsUnquotedString();
@@ -99,7 +106,7 @@ static void printArgType(mlir::raw_ostream &os, Init *init, bool isOpArgument)
 		return;
 	}
 
-	if (StringInit *_ = dyn_cast<StringInit>(init))
+	if (const StringInit *_ = dyn_cast<StringInit>(init))
 	{
 		os << init->getAsUnquotedString();
 		os << " ";
@@ -111,7 +118,7 @@ static void printArgType(mlir::raw_ostream &os, Init *init, bool isOpArgument)
 
 static void printArgName(
 		mlir::raw_ostream &os,
-		StringInit *init,
+		const StringInit *init,
 		size_t argNumber,
 		bool optionalParameter)
 {
@@ -130,9 +137,9 @@ static void printArgName(
 	os << " = {}";
 }
 
-static bool isParameterOptional(Init *init)
+static bool isParameterOptional(const Init *init)
 {
-	DefInit *defInit = dyn_cast_or_null<DefInit>(init);
+	const DefInit *defInit = dyn_cast_or_null<DefInit>(init);
 	if (not defInit)
 		return false;
 	return (llvm::any_of(defInit->getDef()->getSuperClasses(), [](auto i) {
@@ -141,7 +148,7 @@ static bool isParameterOptional(Init *init)
 }
 
 static bool isParameterOptionalAndFollowedByOptionals(
-		DagInit *args, size_t curr)
+		const DagInit *args, size_t curr)
 {
 	if (not isParameterOptional(args->getArg(curr)))
 		return false;
@@ -156,7 +163,10 @@ static bool isParameterOptionalAndFollowedByOptionals(
 }
 
 static void printArguments(
-		mlir::raw_ostream &os, DagInit *args, bool printTypes, bool areOpArgument)
+		mlir::raw_ostream &os,
+		const DagInit *args,
+		bool printTypes,
+		bool areOpArgument)
 {
 	for (size_t i = 0; i != args->arg_size(); i++)
 	{
@@ -175,8 +185,8 @@ static void printArguments(
 
 static void printArguments(
 		mlir::raw_ostream &os,
-		DagInit *results,
-		DagInit *params,
+		const DagInit *results,
+		const DagInit *params,
 		bool printTypes,
 		bool isOp,
 		bool inferredContext)
@@ -213,7 +223,7 @@ static void printTypeBuilder(
 		mlir::raw_ostream &os,
 		llvm::StringRef ns,
 		llvm::StringRef opName,
-		DagInit *params,
+		const DagInit *params,
 		bool declaration,
 		bool inteferredContext)
 {
@@ -236,8 +246,8 @@ static void printBuilder(
 		mlir::raw_ostream &os,
 		llvm::StringRef ns,
 		llvm::StringRef opName,
-		DagInit *results,
-		DagInit *params,
+		const DagInit *results,
+		const DagInit *params,
 		bool declaration)
 {
 	os << ns << "::" << toCamelCase(opName) << " create" << toCamelCase(opName);
@@ -257,7 +267,7 @@ static void printBuilder(
 }
 
 static void printBuildersSignature(
-		mlir::raw_ostream &os, Record *opDecl, llvm::StringRef ns)
+		mlir::raw_ostream &os, const Record *opDecl, llvm::StringRef ns)
 {
 	printBuilder(
 			os,
@@ -278,7 +288,7 @@ static void printBuildersSignature(
 }
 
 static void printTypeSignatures(
-		mlir::raw_ostream &os, Record *opDecl, llvm::StringRef ns)
+		mlir::raw_ostream &os, const Record *opDecl, llvm::StringRef ns)
 {
 	if (opDecl->isValueUnset("builders"))
 		return;

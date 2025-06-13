@@ -834,8 +834,9 @@ namespace mlir::rlc
 		}
 		else
 		{
-			this->ranges.insert(std::make_pair(
-					keyToInsert, createRange(min.value_or(MIN), max.value_or(MAX))));
+			this->ranges.insert(
+					std::make_pair(
+							keyToInsert, createRange(min.value_or(MIN), max.value_or(MAX))));
 			return true;
 		}
 	}
@@ -844,7 +845,7 @@ namespace mlir::rlc
 	// ConstraintsAnalysis METHODS
 	//////////////////////////////////////////////////////////////////////////////
 
-	void ConstraintsAnalysis::visitOperation(
+	mlir::LogicalResult ConstraintsAnalysis::visitOperation(
 			mlir::Operation* op,
 			const ConstraintsLattice& after,
 			ConstraintsLattice* before)
@@ -868,6 +869,7 @@ namespace mlir::rlc
 		{
 			propagateIfChanged(before, before->copy(after));
 		}
+		return mlir::success();
 	}
 
 	void ConstraintsAnalysis::visitCallControlFlowTransfer(
@@ -898,8 +900,9 @@ namespace mlir::rlc
 	// Useful debugging method
 	void ConstraintsAnalysis::printRanges(mlir::Operation* op)
 	{
-		auto* lattice = op != nullptr ? getLattice(mlir::ProgramPoint(op))
-																	: getLattice(op->getBlock());
+		assert(op != nullptr);
+		auto* lattice = getLattice(LatticeAnchor(getProgramPointBefore(op)));
+
 		lattice->print(llvm::outs());
 	}
 
@@ -909,14 +912,15 @@ namespace mlir::rlc
 			mlir::rlc::ConstraintsLattice::IntegerRange>&
 	ConstraintsAnalysis::getUnderlyingLattice(mlir::Operation* op)
 	{
-		return this->getLattice(mlir::ProgramPoint(op))->getUnderlyingLattice();
+		return getLattice(LatticeAnchor(getProgramPointBefore(op)))
+				->getUnderlyingLattice();
 	}
 
 	// Useful method
 	const mlir::rlc::ConstraintsLattice* ConstraintsAnalysis::getObjLattice(
 			mlir::Operation* op)
 	{
-		return this->getLattice(mlir::ProgramPoint(op));
+		return getLattice(LatticeAnchor(getProgramPointBefore(op)));
 	}
 
 	// Class which starts the analysis

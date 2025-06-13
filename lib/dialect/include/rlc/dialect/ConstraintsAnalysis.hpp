@@ -153,10 +153,7 @@ namespace mlir::rlc
 		}
 
 		MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ConstraintsLattice);
-		explicit ConstraintsLattice(mlir::ProgramPoint point)
-				: mlir::dataflow::AbstractDenseLattice(point)
-		{
-		}
+		using dataflow::AbstractDenseLattice::AbstractDenseLattice;
 
 		// Method for returning the lattice (useful only at the end) <- maybe can do
 		// everything in the class
@@ -227,7 +224,7 @@ namespace mlir::rlc
 				ConstraintsLattice>::DenseBackwardDataFlowAnalysis;
 
 		private:
-		void visitOperation(
+		mlir::LogicalResult visitOperation(
 				mlir::Operation* op,
 				const ConstraintsLattice& after,
 				ConstraintsLattice* before) override;

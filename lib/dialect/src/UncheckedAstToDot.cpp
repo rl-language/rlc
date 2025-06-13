@@ -40,10 +40,7 @@ namespace mlir::rlc
 		{
 			public:
 			MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(LastActionsTakenLattice);
-			explicit LastActionsTakenLattice(mlir::ProgramPoint point)
-					: mlir::dataflow::AbstractDenseLattice(point)
-			{
-			}
+			using dataflow::AbstractDenseLattice::AbstractDenseLattice;
 
 			mlir::ChangeResult meet(
 					const mlir::dataflow::AbstractDenseLattice &val) override
@@ -121,7 +118,7 @@ namespace mlir::rlc
 					LastActionsTakenLattice>::DenseForwardDataFlowAnalysis;
 
 			private:
-			void visitOperation(
+			mlir::LogicalResult visitOperation(
 					mlir::Operation *op,
 					const LastActionsTakenLattice &before,
 					LastActionsTakenLattice *after) override
@@ -137,6 +134,7 @@ namespace mlir::rlc
 					propagateIfChanged(after, after->visitAction(action));
 				else
 					propagateIfChanged(after, after->copy(before));
+				return mlir::success();
 			}
 
 			void visitCallControlFlowTransfer(
@@ -184,9 +182,7 @@ namespace mlir::rlc
 			llvm::SmallVector<mlir::Operation *, 4> getPredecessors(
 					mlir::Operation *op)
 			{
-				auto *lattice = op->getPrevNode() != nullptr
-														? getLattice(mlir::ProgramPoint(op->getPrevNode()))
-														: getLattice(op->getBlock());
+				auto *lattice = getLattice(LatticeAnchor(getProgramPointBefore(op)));
 				return lattice->getPredecessors();
 			}
 		};
