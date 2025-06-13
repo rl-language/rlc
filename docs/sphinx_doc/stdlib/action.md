@@ -2,8 +2,6 @@
 
 ## Free Functions
 
-- **Function**: `can_apply_impl<FrameType, ActionType>(ActionType action, FrameType frame)  -> Bool`
-- **Function**: `apply<FrameType, ActionType>(ActionType action, FrameType frame) `
 - **Function**: `apply<FrameType, ActionType>(Vector<ActionType> action, FrameType frame)  -> Bool`
 - **Function**: `parse_and_execute<FrameType, AllActionsVariant>(FrameType state, AllActionsVariant variant, Vector<Byte> input, Int read_bytes) `
 - **Function**: `parse_actions<AllActionsVariant>(AllActionsVariant variant, Vector<Byte> input, Int read_bytes)  -> Vector<AllActionsVariant>`

@@ -24,6 +24,9 @@
 
 ### Methods
 - **Function**: `assign(T content) `
+- **Function**: `is_visible_to_all()  -> Bool`
+- **Function**: `set_visible_by_all() `
+- **Function**: `set_visible_by_player(Int player_id) `
 
 ## Free Functions
 

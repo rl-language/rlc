@@ -52,15 +52,15 @@ fun make_rng(Int seed) -> RNG:
 
 act configure_rng() -> ConfigureRNG:
     frm rng : RNG
+    frm seed : Int
     frm i : Int
     frm entry : Int
-    while entry != 4:
-        while i != 64:
-            act set_rng_bit(Bool bit)
-            rng.s[entry] = rng.s[entry] << 1
-            rng.s[entry] = rng.s[entry] | int(bit)
-            i = i + 1
-        entry = entry + 1
+    while i != 64:
+        act set_rng_bit(Bool bit)
+        seed = seed << 1
+        seed = seed | int(bit)
+        i = i + 1
+    rng.set_seed(seed)
         
 
 fun size_as_observation_tensor(RNG obj) -> Int:
