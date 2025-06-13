@@ -1,4 +1,4 @@
-rlcAddLibrary(fuzzer STATIC src/fuzz_target.cpp)
+rlcAddLibrary(fuzzer STATIC src/fuzz_target.c)
 llvm_map_components_to_libnames(llvm_utils_libs Support)
 target_link_libraries(fuzzer)
 if(APPLE)

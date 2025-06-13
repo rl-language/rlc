@@ -1,6 +1,5 @@
 import os
 import time
-import resource
 
 import numpy as np
 import torch as th
@@ -122,9 +121,6 @@ class LogSaveHelper:
         logger.logkv("IPS_total", Δic / Δtime)
         logger.logkv("del_time", Δtime)
         logger.logkv("Iter", self.log_idx)
-        logger.logkv(
-            "CpuMaxMemory", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1000
-        )
         if th.cuda.is_available():
             logger.logkv("GpuMaxMemory", th.cuda.max_memory_allocated())
             th.cuda.reset_max_memory_allocated()

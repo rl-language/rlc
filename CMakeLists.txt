@@ -66,7 +66,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter -Wno-comment -Wno-unused-function -Wno-deprecated-this-capture -Wno-dangling-assignment-gsl")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-int-float-conversion -Wno-reserved-macro-identifier -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-old-style-cast -Wno-sign-conversion -Wshadow-field-in-constructor -Wno-language-extension-token -Wno-deprecated-declarations -Wno-invalid-offsetof")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-implicit-int-float-conversion -Wno-reserved-macro-identifier -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-old-style-cast -Wno-sign-conversion -Wshadow-field-in-constructor -Wno-language-extension-token -Wno-deprecated-declarations -Wno-invalid-offsetof -Wno-unused-variable -Wno-unused-parameter -Wno-comment -Wno-unused-function -Wno-deprecated-this-capture -Wno-switch")
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
@@ -112,6 +112,16 @@ if (APPLE)
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python
         DEPENDS install)
 endif()
+
+
+add_custom_target(pip_package
+    COMMAND ${CMAKE_COMMAND}
+        -DPython3_EXECUTABLE=${Python3_EXECUTABLE}
+        -DCMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
+        -P "${CMAKE_SOURCE_DIR}/build_pip_package.cmake"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
+    DEPENDS install)
 
 ##############################
 ###       STDLIBDOC        ###

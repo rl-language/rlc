@@ -99,7 +99,11 @@ site_packages_path = (
     target_bin_dir if os.name != "nt" else os.path.join("Lib", "site-packages")
 )
 
+<<<<<<< HEAD
 version="0.3.9"
+=======
+version="0.3.8"
+>>>>>>> 8ef9435 (windows support)
 setup(
     name="rl_language_core",
     version=version,

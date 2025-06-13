@@ -14,31 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <math.h>
+#include "stdint.h"
 
-#include "stdio.h"
-
-struct VectorByte
+typedef struct VectorByte
 {
 	const char* data;
 	int64_t size;
 	int64_t capacity;
-};
+} VectorByte;
 
 // This is implemented by RLC.
-extern "C" void rl_fuzz__VectorTint8_tT(VectorByte* input);
-
-extern "C" int LLVMFuzzerTestOneInput(const char* Data, size_t Size)
+void rl_fuzz__VectorTint8_tT(struct VectorByte* input);
+int LLVMFuzzerTestOneInput(const char* Data, size_t Size)
 {
 	// this is a struc with the same layout as rl Vector<Byte>, so we can send it
 	// as a parameter to rl functions using it
-	VectorByte vector;
+	struct VectorByte vector;
 	vector.data = Data;
-	vector.capacity = static_cast<int64_t>(Size);
-	vector.size = static_cast<int64_t>(Size);
+	vector.capacity = (int64_t)Size;
+	vector.size = (int64_t)Size;
 
 	rl_fuzz__VectorTint8_tT(&vector);
 	return 0;

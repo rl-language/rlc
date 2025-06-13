@@ -7,6 +7,7 @@ from ml.ppg.envs import RLCMultiEnv, exit_on_invalid_env, get_num_players
 
 from tensorboard.program import TensorBoard
 from ml.ppg.train import train
+from ml.ppg.torch_util import have_cuda
 from os import makedirs, path
 import tempfile
 from datetime import datetime
@@ -65,6 +66,11 @@ def main():
         tempfile.gettempdir(), "ppg", str(datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
     )
     league_play_nets_dir = path.join(tmp_dir, "nets")
+
+    if have_cuda():
+        print ("cuda found")
+    else:
+        print ("cuda not found")
 
     if not args.no_tensorboard:
         tb = TensorBoard()
