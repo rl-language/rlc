@@ -122,7 +122,7 @@ To recap, Space Hulk is a game of average complexity that has difficult properti
 
 ## RL implementation
 
-[This](../tool/rlc/test/examples/space_hulk/) folder contains the implementation of Space Hulk used for the training. The most significant file is the [main.rl](../tool/rlc/test/examples/space_hulk/main.rl) file. Ignoring test functions, the whole implementation of space hulk ammounts to ~1000 lines of code.
+[This](../tool/rlc/test/examples/space_hulk/) folder contains the implementation of Space Hulk used for the training. The most significant file is the [main.rl](../tool/rlc/test/examples/space_hulk/main.rl) file. Ignoring test functions, the whole implementation of space hulk amounts to ~1000 lines of code.
 Of course since space hulk is a real game and not just a proof of concept, the files are not trivial to read.
 
 There are two points we want to put under the spotlight:
@@ -143,7 +143,7 @@ The action toggle door takes as argument the id of the unit that is trying to to
 
 This piece of code is the entire implementation of toggling a door in the game. By writing this piece of code the machine learning components are automatically aware that this is something they can do. You do not need to specify anything else.
 
-If you remove that block of code, the possibility of removing a door will disapear from existance and the machine learning will no longer be allowed to toggle them.
+If you remove that block of code, the possibility of removing a door will disappear from existence and the machine learning will no longer be allowed to toggle them.
 
 Look now at the shoot action:
 
@@ -168,7 +168,7 @@ The shoot action specifies that it needs two argument, the ID of the source and 
 
 * Notice as well that while the game contains some obscure keywords that are specific to this language, the files contain no code that is specific to machine learning. Every line of code is expressing game concepts, and is doing so in a imperative manner. If you can understand the previous two illustrated functions, you can edit them and you can replicate the results presented in this document.
 
-If you want a more in depth tutorial to create a RL file for your game, you can read more here [Tutorial comming soon!].
+If you want a more in depth tutorial to create a RL file for your game, you can read more here [Tutorial coming soon!].
 If you are interested in the theoretical side of how we achieve our results, you can read more [here](./rationale.md), and you can see easier examples which have both entry points at the function called play() [here](../tool/rlc/test/tic_tac_toe.rl ) and [here](../tool/rlc/test/pebble_game.rl)
 
 

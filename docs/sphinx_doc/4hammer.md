@@ -721,7 +721,7 @@ class RerrolableRoll {
         is_non_cp_rerollable(is_non_cp_rerollable),
         current_player(current_player) {}
     void roll(GameState& state, Dice dice) {
-        assert(can_roll(state), sate);
+        assert(can_roll(state), state);
         result = dice;
         if (suspensionPoint == 0){ // if this is the first time we roll the dice
             is_non_cp_rerollable = can_reroll or (can_reroll_1s and result == 1) // figure out if we can reroll for free
@@ -751,7 +751,7 @@ class RerrolableRoll {
     bool can_keep_it(GameState& state, Bool do_it) {
         return suspensionPoint == 1;
     }
-    struct ActionRoll { // a class that rappresents a action, in a way that can be stored and executed later
+    struct ActionRoll { // a class that rappresents an action, in a way that can be stored and executed later
         Dice roll;
         void apply(RerollableDiceRoll rollBeingResolved, GameState& state) {
            rollBeingResolved.roll(state, roll);
@@ -903,7 +903,7 @@ The rulebook libraries have been designed to expose a [finite interactive progra
 
 ## Self configuring UI
 
-One of the objective of the Rulebook is to be able to modify rules and have the UI automatically adapt to them. We achieve this using the language [action classes](./language_tour.md#action-statements-classes). Here is a example, the godot script that handles the [game board](https://github.com/rl-language/4Hammer/blob/master/scripts/boardl.gd#L22) so that whenever a action related to selecting the board is possible, the elegible locations glow yellow.
+One of the objective of the Rulebook is to be able to modify rules and have the UI automatically adapt to them. We achieve this using the language [action classes](./language_tour.md#action-statements-classes). Here is a example, the godot script that handles the [game board](https://github.com/rl-language/4Hammer/blob/master/scripts/boardl.gd#L22) so that whenever an action related to selecting the board is possible, the eligible locations glow yellow.
 
 ```godot
 # triggers after every action
@@ -924,12 +924,12 @@ func on_state_changed():
 		quads[board_position.get_x().get_value() * 100 + board_position.get_y().get_value()].visible = true
 ```
 
-The UI only can introspect valid actions, make sure that they have the expected shape of only requring a single `BoardPosition` argument, and then highlight that particular board location.
+The UI only can introspect valid actions, make sure that they have the expected shape of only requiring a single `BoardPosition` argument, and then highlight that particular board location.
 
-This meas that the rule writer can write rules such as the current implementation of moving a game piece on the board
+This means that the rule writer can write rules such as the current implementation of moving a game piece on the board
 
 ```rlc
-# core rules movement rules, including the possiblity
+# core rules movement rules, including the possibility
 # of advancing and the triggering of overwatches
 act move(ctx Board board, ctx UnitID unit, frm StatModifier additional_movement) -> Move:
     if board[unit.get()].models.size() == 0:
@@ -941,22 +941,22 @@ act move(ctx Board board, ctx UnitID unit, frm StatModifier additional_movement)
     ...
 ```
 
-Without knowing anything related to the UI, the user declared a `move_to` action, never referenced by any godot specific code. Since it accepts a `BoardPosion`, it is auto detected by the UI code.
+Without knowing anything related to the UI, the user declared a `move_to` action, never referenced by any Godot-specific code. Since it accepts a `BoardPosition`, it is auto detected by the UI code.
 
-Of course, this is very inefficient. In practice it does not matter since the objective of 4hammer is not to draw billions of polygons on screen, but it one wished to make it more efficient it could have enumerated all possible types of valid actions instead of introspecting actions at run time, and then checked if those particular actions where valid.
+Of course, this is very inefficient. In practice it does not matter since the objective of 4hammer is not to draw billions of polygons on screen, but if one wished to make it more efficient it could have enumerated all possible types of valid actions instead of introspecting actions at run time, and then checked if those particular actions were valid.
 
-A even more efficient, but less flexible implementation would have been to to directly invoke a call back from RLC code yielding the most optimal implementation, but that would require some extra trickery to make sure machine learning stuff still works.
+An even more efficient, but less flexible implementation would have been to directly invoke a callback from RLC code yielding the most optimal implementation, but that would require some extra trickery to make sure machine learning stuff still works.
 
 ### Supported autoconfigurations
 * all actions that accepts a single BoardPosition are interpreted as the user being allowed to click on the board.
-* all actions that accept a UnitID are interpred as the user wishing to click on a unit. All valid units glow and can be clicked.
-* all actions taht accept a ModelID display the model glowing and allow the user to click on it. The rule writer must specify which unit that model belongs to, to be able to tell them apart.
-* all actions that accepts 2 UnitID are interpretd as the user wishing to make interact the first unit with the second unit. For example shooting with a unit onto another. The UI allows to drag a arrow from the start unit torward the target unit.
-* actions that accept a single bool display to the user the name of the action phraased as a question.
-* actions that accept a enum display the valid choises on screen for the player to select.
+* all actions that accept a UnitID are interpreted as the user wishing to click on a unit. All valid units glow and can be clicked.
+* all actions that accept a ModelID display the model glowing and allow the user to click on it. The rule writer must specify which unit that model belongs to, to be able to tell them apart.
+* all actions that accept 2 UnitID are interpreted as the user wishing to make the first unit interact with the second unit. For example shooting with a unit onto another. The UI allows you to drag an arrow from the start unit toward the target unit.
+* actions that accept a single bool display to the user the name of the action phrased as a question.
+* actions that accept an enum display the valid choices on screen for the player to select.
 
 ## Remote execution
-Since the entirety of the game rules are writte into Rulebook action functions, we obtain for free remote execution. [Here](https://github.com/rl-language/4Hammer/blob/master/scripts/server.gd#L1) is the trivial implementation of the server component on the side of godot, that waits for connections that then issue server commands. Some special server commands are handle nativelly by godot, such as exfiltrating the current image on screen and send it over network or stopping the rendering of the screen entirelly.
+Since the entirety of the game rules are written into Rulebook action functions, we obtain for free remote execution. [Here](https://github.com/rl-language/4Hammer/blob/master/scripts/server.gd#L1) is the trivial implementation of the server component on the side of Godot, that waits for connections that then issue server commands. Some special server commands are handled natively by Godot, such as exfiltrating the current image on screen and sending it over the network or stopping the rendering of the screen entirely.
 
 Every other action is simply a rulebook action implied by the rules of the game. Every time a rule programmer changes one of those rules, the remote execution mechanism updates itself automatically. Furthermore, since the network is issuing commands exactly like in process graphical elements are, the only thing that cannot be tested over network is the act on interacting on ui elements themselves.
 

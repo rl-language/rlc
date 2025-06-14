@@ -7,7 +7,7 @@ This page describes how you can connect Rulebook to other languages. It is not p
 We achieve interoperability with C almost trivially since Rulebook has the same ABI as C.
 
 ### Calling rulebook from C
-* Each Rulebook class is mapped onto a C struct. Each alternative is mapped on a struct with a union and a integer inside. You have to manually invoke the init, assign and drop method whenever you allocate, copy or destroy a rlc dastructure (unless the method is not available at all, which means that the datastruture is trivially initializable, copiable or destructible).
+* Each Rulebook class is mapped onto a C struct. Each alternative is mapped on a struct with a union and a integer inside. You have to manually invoke the init, assign and drop method whenever you allocate, copy or destroy a rlc datastructure (unless the method is not available at all, which means that the datastructure is trivially initializable, copiable or destructible).
 * Every enum is mapped on a struct with a integer inside.
 * Every Action Function frame is mapped on a struct with the frm variables and a integer inside.
 * All arguments of functions are taken by pointer, the return value is passed as first argument. The return value does not need to be initialized by the caller, but it must be destroyed by the caller.
@@ -25,12 +25,12 @@ rlc file.rl -o lib.a --compile # uses linux naming conventions
 rlc file.rl -o header.h --header
 ```
 
-Then you can use the header from C by inlcuding it, with a couple of macro definitions to specify what you want in particular from the header.
+Then you can use the header from C by including it, with a couple of macro definitions to specify what you want in particular from the header.
 ```c
 // file.c
 #include <stdint.h>
 #include <stdbool.h>
-#define RLC_GET_FUNCTION_DECLS // required or the header does not emit function delcs
+#define RLC_GET_FUNCTION_DECLS // required or the header does not emit function decls
 #define RLC_GET_TYPE_DEFS // required or the header does not emit the types.
 #include "./header.h"
 
@@ -47,7 +47,7 @@ clang file.c lib.a -o executable
 ./executable
 ```
 
-Here is a example that uses the most imporant features of rlc:
+Here is a example that uses the most important features of rlc:
 ```rlc
 # file.rl
 import collections.vector
@@ -72,7 +72,7 @@ act sequence(ctx Context context) -> Sequence:
 #include <stdbool.h>
 #include <stdint.h>
 #define RLC_GET_FUNCTION_DECLS // required or the header does not emit function
-                               // delcs
+                               // decls
 #define RLC_GET_TYPE_DECLS
 #define RLC_GET_TYPE_DEFS // required or the header does not emit the wrapper.
 #include "./header.h"
@@ -104,7 +104,7 @@ rlc /tmp/file.rl /tmp/lib.a -o /tmp/exec
 /tmp/exec # [15]
 ```
 
-This example shows most of the functinalities you may need in C, there is only one missing thing, which is how do you call C from rulebook.
+This example shows most of the functionalities you may need in C, there is only one missing thing, which is how do you call C from rulebook.
 
 ### Calling C from rulebook
 
@@ -132,7 +132,7 @@ write the c
 #include <stdbool.h>
 #include <stdint.h>
 #define RLC_GET_FUNCTION_DECLS // required or the header does not emit function
-                               // delcs
+                               // decls
 #define RLC_GET_TYPE_DECLS
 #define RLC_GET_TYPE_DEFS // required or the header does not emit the wrapper.
 #include "./header.h"
@@ -151,9 +151,9 @@ rlc /tmp/file.rl -o /tmp/exec /tmp/lib.a
 
 ## Interop with CPP
 
-The interop with cpp is identical to the one with C, except the generated header detects cpp is available so it will remove the need for manual managment of constructors and destructors.
+The interop with cpp is identical to the one with C, except the generated header detects cpp is available so it will remove the need for manual management of constructors and destructors.
 
-Let us revisig the previous example in cpp.
+Let us revisit the previous example in cpp.
 
 ```rlc
 # file.rl
@@ -179,7 +179,7 @@ act sequence(ctx Context context) -> Sequence:
 #include <stdbool.h>
 #include <stdint.h>
 #define RLC_GET_FUNCTION_DECLS // required or the header does not emit function
-                               // delcs
+                               // decls
 #define RLC_GET_TYPE_DECLS
 #define RLC_GET_TYPE_DEFS // required or the header does not emit the wrapper.
 #include "./header.h"
@@ -310,11 +310,11 @@ Our large example [4Hammer](./4hammer.md) shows interop with godot and cmake.
 
 ## Interop with unreal
 
-Unfortunatelly there is no way for a unreal engine plugin to hook inside the the build system of unreal. We have no way to package Rulebook in a way that can be hot reloaded from Unreal without the unreal programmer providing some code themselves. For unreal you have to start from the CPP interop and build from there.
+Unfortunately there is no way for an Unreal engine plugin to hook into the build system of Unreal. We have no way to package Rulebook in a way that can be hot reloaded from Unreal without the Unreal programmer providing some code themselves. For Unreal you have to start from the CPP interop and build from there.
 
 ## CMake
 
-We expose typical actions one my wish to perform from cmake as a cmake config file. This includes correct managment of imported files in rulebook for incremental builds, the various wrappers generators and so on. You can see examples in the [godot plugin cmake file](https://github.com/rl-language/4Hammer/blob/master/CMakeLists.txt) of 4hammer.
+We expose typical actions one may wish to perform from CMake as a CMake config file. This includes correct management of imported files in Rulebook for incremental builds, the various wrapper generators and so on. You can see examples in the [godot plugin CMake file](https://github.com/rl-language/4Hammer/blob/master/CMakeLists.txt) of 4hammer.
 
 ## Cross compiling
 

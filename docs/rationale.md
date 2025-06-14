@@ -115,7 +115,7 @@ Indeed, this is the case for most projects trying to solve this issue:
 * The [Game Description Language](https://en.wikipedia.org/wiki/Game_Description_Language) also distinguishes `legal moves`, `update rules`, and `termination`.
 * Games with millions of copies sold, such as [CK2](https://ck2.paradoxwikis.com/Ze_Lunatic_(Conclave)) have their own custom language where they can express `events` that are composed of `trigger conditions` that must be satisfied before they can manifest, `decisions` the player can select and `effects` that are applied if that `decision` is taken, and `flags` used to coordinate different events.
 
-We live in a world where billion dollar companies write code for custom hardware accellerators in Python and then turn around and implement TicTacToe in C.
+We live in a world where billion dollar companies write code for custom hardware accelerators in Python and then turn around and implement TicTacToe in C.
 
 The four properties identified before, `inspectability`, `serializability`, `precondition checkability`, and `no main loop ownership` generate this pattern discovered again and again by different programmers in different contexts. Simulations and games that exist in the mind of developers as normal-looking programs end up rewritten in such a way that those four properties are respected, by explicating the underlying control flow diagram that describes them.
 
@@ -200,7 +200,7 @@ class TicTacToe:
       self.resumption_index = -1 # -1 means we reached the end of the function
 
   def can_mark(self, x: int, y: int) -> Bool:
-    # implied by `act mark` being rechable from the entry point of `play()`
+    # implied by `act mark` being reachable from the entry point of `play()`
     if self.resumption_index != 0:
       return False
 
@@ -228,7 +228,7 @@ class TicTacToe:
    return self.resumption_index == 1
 ```
 
-This is it, the whole Raison d'etre of the `rl` language is just that, to automatize the tedious and error-prone process of translating a procedure-like description of a simulation into a class-like description.
+This is it, the whole raison d'être of the `rl` language is just that, to automate the tedious and error-prone process of translating a procedure-like description of a simulation into a class-like description.
 
 ## Building on top of it
 We saw that `rl` has been created to solve the 4 issues of `inspectability`, `serializability`, `precondition checkability`, and `no main loop ownership` described earlier.  Of course, having a tool able to perform this transformation is not the end of the story. Since that simple implementation `TicTacToe` describes in a compact way
@@ -240,7 +240,7 @@ then instrumentation can be written to generically exploit one or more of these 
 * generate the wrapper for the simulation in different languages and for different frameworks (C, CPP, C# and Python currently supported)
 * generate fuzzers that try random valid moves and look for bugs.
 * generate the network layer that allows to remotely interact with the simulation [example here](https://github.com/rl-language/4Hammer/blob/master/examples/engine_driver.py).
-* statically prove that some actions can never be executed and thus the code is not right, just like unrechable code.
+* statically prove that some actions can never be executed and thus the code is not right, just like unreachable code.
 * automatically serialize and deserialize the state of the simulation.
 
 ###  Conclusion

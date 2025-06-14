@@ -65,7 +65,7 @@ Rules are therefore:
 
 All of these issues impede machine learning adoption in the game programming space. In the next section, we will see what solution we propose.
 
-### Unifing games and machine learning.
+### Unifying games and machine learning.
 
 From the previous sections we have seen that the requirements imposed by machine learning and game programming are very different, let us recap them here. Game rules must be
 * **inspectable data structures**: the state of the game is of interest to the machine learning engine, so it must be inspectable, serializable, and copiable.

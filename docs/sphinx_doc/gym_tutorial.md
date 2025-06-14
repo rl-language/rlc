@@ -19,7 +19,7 @@ Specifically, we will cover:
 - Checking for the end of a game.
 - Managing secret information and handling randomness.
 
-Since there are too many GYM-like wrappers, we provide general functions that you can reuse to write the wrapper with the right interface for your usecase.
+Since there are many Gym-like wrappers, we provide general functions that you can reuse to implement a wrapper with the interface that best fits your use case.
 
 
 ## Installing `rl_language_core`
@@ -41,11 +41,11 @@ pip install numpy
 Let’s begin with a simple RLC program and build on top of it. Below is an implementation of the classic game *rock-paper-scissors*. Note that this example does not define the number of players or specify how the game state maps to the current player—these details are left implicit.
 
 ```rlc
-# rockpaperscizzor.rl
+# rockpaperscissor.rl
 enum Gesture:
     paper
     rock
-    scizzor
+    scissor
 
 @classes
 act play() -> Game:
@@ -79,10 +79,10 @@ Now that we have a Rulebook file, let's write a Python module to load it:
 
 from rlc import compile
 
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
 ```
 
-This snippet compiles the `rockpaperscizzor.rl` file on the fly and returns a `Program` object—a wrapper that provides useful utilities like string conversions and formatted printing.
+This snippet compiles the `rockpaperscissor.rl` file on the fly and returns a `Program` object—a wrapper that provides useful utilities like string conversions and formatted printing.
 
 If you prefer not to use just-in-time (JIT) compilation—for example, if you don’t want to include the RLC compiler with your distribution—you can precompile the Rulebook program ahead of time and load it directly. *(TODO: Show how to do this.)*
 
@@ -92,7 +92,7 @@ However, our goal is not just to load the program and access its functions direc
 from rlc import compile
 from ml.env import SingleRLCEnvironment, exit_on_invalid_env
 
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
 ```
@@ -144,7 +144,7 @@ A `SingleRLCEnvironment` includes:
 You can print the current game state as follows:
 
 ```python
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     env.print()
@@ -157,7 +157,7 @@ with compile(["./rockpaperscizzor.rl"]) as program:
 To obtain a tensor serialization of the state, use `get_state()`:
 
 ```python
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print(env.get_state())
@@ -180,7 +180,7 @@ In this example, the serialized state is a one-hot representation:
 ## All Actions
 
 ```python
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print("Here are the game actions:")
@@ -191,13 +191,13 @@ Running this program will print:
 
 ```
 Here are the game actions:
-['player1_move {g1: paper} ', 'player1_move {g1: rock} ', 'player1_move {g1: scizzor} ', 'player2_move {g2: paper} ', 'player2_move {g2: rock} ', 'player2_move {g2: scizzor} ']
+['player1_move {g1: paper} ', 'player1_move {g1: rock} ', 'player1_move {g1: scissor} ', 'player2_move {g2: paper} ', 'player2_move {g2: rock} ', 'player2_move {g2: scissor} ']
 ```
 
 ## Valid Actions
 
 ```python
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print("Here is a NumPy array indicating which actions are currently valid:")
@@ -213,9 +213,9 @@ As expected, only the three actions available to player 0 are valid at the start
 
 ## Applying actions
 
-To advance the state, there is a very simple function, `step` which accepts the index of the action to execute and returns the reward of that action, measure as the different between the score before the action has been executed and the score after the action has been executed.
+To advance the state, there is a very simple function, `step` which accepts the index of the action to execute and returns the reward of that action, measured as the difference between the score before the action has been executed and the score after the action has been executed.
 ```
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     env.print()
@@ -224,7 +224,7 @@ with compile(["./rockpaperscizzor.rl"]) as program:
 ```
 ```
 {resume_index: 1, g1: paper, g2: paper}
-{resume_index: 2, g1: scizzor, g2: paper}
+{resume_index: 2, g1: scissor, g2: paper}
 ```
 
 ## Score
@@ -232,7 +232,7 @@ with compile(["./rockpaperscizzor.rl"]) as program:
 You can view the total score using:
 
 ```python
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     env.step(1)
@@ -244,14 +244,14 @@ with compile(["./rockpaperscizzor.rl"]) as program:
 This prints an array where the *i*-th element represents the total score of player *i*. In the example, player 0 plays rock, player 1 plays scissors, and player 0 receives a score of 1.0:
 
 ```
-{resume_index: -1, g1: rock, g2: scizzor}
+{resume_index: -1, g1: rock, g2: scissor}
 [1.0]
 ```
 
 You can also query the score obtained in the most recent step, instead of the cumulative score:
 
 ```python
-with compile(["./rockpaperscizzor.rl"]) as program:
+with compile(["./rockpaperscissor.rl"]) as program:
     exit_on_invalid_env(program)
     env = SingleRLCEnvironment(program, solve_randomness=True)
     print(env.last_score)
@@ -408,7 +408,7 @@ import machine_learning
 enum Gesture:
     paper
     rock
-    scizzor
+    scissor
 
 @classes
 act play() -> Game:

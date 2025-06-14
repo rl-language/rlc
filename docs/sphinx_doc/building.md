@@ -6,7 +6,7 @@ Building on windows is supported but at the moment undocumented.
 
 ## Downloading sources
 
-Execute line by line the content of [setup.sh](https://github.com/rl-language/rlc/blob/master/setup.sh). If you are on a "normal enough" linux or mac machine you can just download the file and execute it, but the stranger is your machine configuration the more likelly is to break.
+Execute line by line the content of [setup.sh](https://github.com/rl-language/rlc/blob/master/setup.sh). If you are on a "normal enough" linux or mac machine you can just download the file and execute it, but the stranger is your machine configuration the more likely is to break.
 
 **setup.sh** will
 * check that you have python3, ninja and cmake.
@@ -31,7 +31,7 @@ source rlc-infrastructure/rlc/environment.sh
 Beside making sure that you have the correct python virtual environment enabled, this command will make sure that when we build LLVM it is available to RLC, even without installing LLVM.
 
 ## Building
-A properly compiled RLC minimal installation depends on nothing except typical cpp libraries, but when building RLC itself we need a specific configuration of LLVM. For this reason we provide a build script that will configure the directories in a resonable configuration.
+A properly compiled RLC minimal installation depends on nothing except typical cpp libraries, but when building RLC itself we need a specific configuration of LLVM. For this reason we provide a build script that will configure the directories in a reasonable configuration.
 
 to do so, you can run
 
@@ -71,7 +71,7 @@ rlc-release
 rlc-release/install # here is the installation you care about, probably
 ```
 
-After this has compleated successfully, you can disregard build.py, use regular ninja commands
+After this has completed successfully, you can disregard build.py, use regular ninja commands
 
 ## Successive builds
 
@@ -97,7 +97,7 @@ lit --verbose tool/rlc/test --filter NAME # run end to end compiler tests
 ```
 
 ## Running the built rlc
-If you have built rlc from sources there are two ways of doing it. You can first install it, and use it from the insall directory
+If you have built rlc from sources there are two ways of doing it. You can first install it, and use it from the install directory
 ```
 cd rlc-infrastructure
 ninja all

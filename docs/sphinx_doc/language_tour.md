@@ -3,7 +3,7 @@
 [Rulebook](https://github.com/rl-language/rlc) is a compiled and statically checked language.
 
 ```rlc
-# rlc hellow world
+# rlc hello world
 import serialization.print
 
 cls SimpleRegularCode:
@@ -90,7 +90,7 @@ fun main() -> Int:
 
 In Rulebook, **suspension points** inside action functions are called **action statements**. These can take arguments and may include a **boolean condition** that defines when the action is valid. By using the `can` operator, the framework can check whether a given user input is valid **before** applying it—without complicating the action function with manual validation logic.
 
-Beside `can` operator invocations, the spirit of Rulebook is to be used by other languages, so depending on your use case you configure how rulebook behaves when a precondition is not met but a function is called anyway.
+Besides `can` operator invocations, the spirit of Rulebook is to be used by other languages, so depending on your use case you configure how Rulebook behaves when a precondition is not met but a function is called anyway.
 * By default rulebook emits checks that invoke `rlc_abort`, a function that can be customized. The customization allows us for example to print a python stack trace when rulebook is used with full python interoperability. In our [4Hammer example](https://github.com/rl-language/4Hammer/blob/master/src/gdexample.cpp#L30) we customize for linux only the stack printing mechanism so we can see what is going on inside godot.
 * If you need maximum speed, or you know that the caller will never invoke wrong actions by construction (for example,the c# wrapper checks for preconditions too and emits a exception if they are not met), you can disable checks from within rulebook code.
 
@@ -108,7 +108,7 @@ Let’s say you wrote a simple rock-paper-scissors game. After player 1 selects 
 enum Gesture:
     rock
     paper
-    scizor
+    scissor
 
 act play() -> Game:
     act select(frm Gesture player1)
@@ -126,7 +126,7 @@ fun main() -> Int:
     copy.select(Gesture::rock)   # you lose
 
     copy = state
-    copy.select(Gesture::scizor) # you lose
+    copy.select(Gesture::scissor) # you lose
 
     copy = state
     copy.select(Gesture::paper)  # you win
@@ -146,7 +146,7 @@ Revisiting the rock-paper-scissors example, suppose you want to read which move 
 enum Gesture:
     rock
     paper
-    scizor
+    scissor
 
 act play() -> Game:
     act select(frm Gesture player1)

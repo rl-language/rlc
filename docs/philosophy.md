@@ -48,13 +48,13 @@ Since design principles are themselves designed, we should have a general rule f
 ##### Interoperability
 The problem we are trying to solve is that reusing code written for a given engine in another context is hard. This implies that interoperability is the whole point of what we are trying to do. RL must be a simple-to-integrate language, ideally as simple as integrating C.
 
-##### Indipendence from the underlying machine
+##### Independence from the underlying machine
 The abstract machine of the language should not talk in terms of the underlying machine, because that will make porting programs that rely on a specific machine's behavior hard, defeating the whole point of the language.
 
 ##### Speed
 We cannot know who will use this language, we cannot make an if statement run slower than it runs in C, if we do, people will sometimes need to go back to C to achieve the performance required.
 
-##### Memory indipendence
+##### Memory independence
  We should not make assumptions on anything related to memory other than the existence of malloc. The code emitted should not introduce more malloc invocations than it would be done by writing the code in C.
 
 ##### Composability

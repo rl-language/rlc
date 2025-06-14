@@ -1,6 +1,6 @@
 # Tutorial for RL people
 
-The `Rulebook` language is designed, among other things, to help you use reinforcement learning techniques. It does so by helping you write simulated environments in which machine learning agents can learn, without requiring the user to write any code related to machine learning, beside specificing minimal and maximal bounds of variables.
+The `Rulebook` language is designed, among other things, to help you use reinforcement learning techniques. It does so by helping you write simulated environments in which machine learning agents can learn, without requiring the user to write any code related to machine learning, beside specifying minimal and maximal bounds of variables.
 
 The `RL` language does not provide new reinforcement learning methods; instead, it concerns itself with the issue of writing simulations only. You can use any learning algorithm you wish when using an `RL` language simulation.
 
@@ -51,29 +51,29 @@ rlc example.rl -o executable
 
 ## Training and Running
 
-Now that you've ensured your system works, download the `black jack` example from [here](https://github.com/rl-language/rlc/blob/master/tool/rlc/test/examples/black_jack.rl) and save it in a file in the directory we created at the start of this example.
+Now that you've ensured your system works, download the `Blackjack` example from [here](https://github.com/rl-language/rlc/blob/master/tool/rlc/test/examples/black_jack.rl) and save it in the directory we created at the start of this example.
 
-Black jack is example that shows how to handle games with randomness and imperfect information. Indeed the actions taken by the real user are usually just one or two, while most of the game is spent by the `randomness player` shuffling the deck, which is a fake player that performs actions at random.
+Blackjack is an example that shows how to handle games with randomness and imperfect information. Indeed, the actions taken by the real user are usually just one or two, while most of the game is spent by the `randomness player` shuffling the deck—a fake player that performs actions at random.
 
 
-After you have copied it, let us make sure we can run generate a random game.
+After you have copied it, let us make sure we can generate a random game.
 
 ```
 rlc-random black_jack.rl
 ```
 
-You will see that it prints the actions to be executed in a game, this include the shuffling of the deck.
-You can visualize what is happeing with
+You will see that it prints the actions to be executed in a game, this includes the shuffling of the deck.
+You can visualize what is happening with
 
 ```
 rlc-random black_jack.rl -o game.log
 rlc-action black_jack.rl game.log -pp
 ```
 
-You will be able to visualize the evolution of the deck while it is being suffled, and then see which action the player will take.
+You will be able to visualize the evolution of the deck while it is being shuffled, and then see which action the player will take.
 
 
-Now that we have visualized a random game, we can start learning! Tou can run `rlc-learn` to do so:
+Now that we have visualized a random game, we can start learning! You can run `rlc-learn` to do so:
 ```bash
 rlc-learn black_jack.rl |& tee log.txt
 ```
@@ -96,9 +96,9 @@ You should see a graph that looks similar to the following:
 
 ![tensorboard example](./imgs/mean_reward.png)
 
-The x-axis is the number of actions played. In the case of our game, it means the number of `hits` and `stand` executed, the y-axis is instead the average score obtained. As exepected the average score is increasing, that is: it is learning to play.
+The x-axis is the number of actions played. In the case of our game, it means the number of `hits` and `stand` executed, the y-axis is instead the average score obtained. As expected the average score is increasing, that is: it is learning to play.
 
-Of course, the machine will never achieve a average score of one, because there is no guarantee you can always hit 21 points, not even if you knew the order of the cards in the deck. Furthermore, the size of the neural network has been defaulted to a reasonable size, but there is no guarantee that the problem is solvable given the default size.
+Of course, the machine will never achieve an average score of one, because there is no guarantee you can always hit 21 points—even if you knew the order of the cards in the deck. Furthermore, the size of the neural network has been defaulted to a reasonable value, but there is no guarantee that the problem is solvable given the default size.
 
 Still, with very few commands and a very simple `.rl` file, we managed to have a reasonably configured network up and learning.
 
@@ -120,7 +120,7 @@ This command will run one action at a time and let you visualize the game by inv
 
 ## Building on Top of It
 
-Until now, we have seen how to write, train, run, and visualize a game. Of course, this is not the end of the road. After you have trained a network, you probably wish to use the rules you have written in a real environment. Let us see how to do so by writing a Python script that can interact with the `RL` black jack implementation.
+Until now, we have seen how to write, train, run, and visualize a game. Of course, this is not the end of the road. After you have trained a network, you probably wish to use the rules you have written in a real environment. Let us see how to do so by writing a Python script that can interact with the `RL` Blackjack implementation.
 
 Create a file called `example.py`, and write the following content:
 ```python
@@ -130,7 +130,7 @@ import random
 # load the rl file
 program = compile(["black_jack.rl"])
 # starts a rlc program invoking the user defined play
-# function and wraps it in object for with some usefull methods
+# function and wraps it in object for with some useful methods
 state = program.start()
 
 # invokes directly the user defined function on the real state object
@@ -163,7 +163,7 @@ You can run this program with the following command, using a shell with the acti
 python example.py
 ```
 
-As you can see, you are able to play black jack driven by a Python script. Of course, you could already do so with the `rlc-action` command provided by the `rl_language` package, but this example shows that `RL` programs can be easily used from other languages such as Python or C++. This allows you to reuse the same `RL` code you have written to train the network in production too, building other tools on top of it!
+As you can see, you are able to play Blackjack driven by a Python script. Of course, you could already do so with the `rlc-action` command provided by the `rl_language` package, but this example shows that `RL` programs can be easily used from other languages such as Python or C++. This allows you to reuse the same `RL` code you have written to train the network in production too, building other tools on top of it!
 
 You can also load the network you have trained and use it to play games, but such a setup is a little too complex to include in this introductory document and will be shown later.
 
