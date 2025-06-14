@@ -76,6 +76,8 @@ def build_rlc(
         "-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument",
         "-DRUN_HAVE_STD_REGEX=1",
         "-DPython3_EXECUTABLE:FILEPATH={}".format("./.venv/bin/python"),
+        "-DPython3_ROOT_DIR={}".format("./.venv/"),
+        "-DPython_FIND_VIRTUALENV=ONLY",
         (
             "-DCMAKE_EXE_LINKER_FLAGS=-static-libgcc -static-libstdc++"
             if build_type == "Release" and not is_windows and not is_mac
