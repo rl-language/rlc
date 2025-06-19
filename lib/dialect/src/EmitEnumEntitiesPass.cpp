@@ -345,6 +345,8 @@ namespace mlir::rlc
 
 					mlir::rlc::FunctionInfoAttr::get(rewriter.getContext()),
 					true);
+
+			markSynthetic(op);
 			rewriter.createBlock(&op.getBody());
 			auto retStm = rewriter.create<mlir::rlc::ReturnStatement>(
 					op.getLoc(), mlir::rlc::UnknownType::get(op.getContext()));
@@ -425,7 +427,8 @@ namespace mlir::rlc
 						ifStatement.getLoc(),
 						mlir::rlc::UnknownType::get(ifStatement.getContext()));
 
-				retStm.getBody().takeBody(expression.getBody());
+				mlir::IRMapping mapping;
+				expression.getBody().cloneInto(&retStm.getBody(), mapping);
 			}
 			currentFieldIndex++;
 		}

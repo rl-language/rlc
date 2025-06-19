@@ -2,14 +2,14 @@
 # RUN: %t%exeext
 
 act action() -> Action:
-	frm counter = 0
-	while true:
-		act sub()
-		counter = counter + 1	
-
+  frm counter = 0
+  while true:
+    act sub()
+    counter = counter + 1
 
 fun main() -> Int:
-	let frame = action()
-	frame.sub()
-	frame.sub()
-	return frame.counter - 2
+  let frame = action()
+  frame.sub()
+  frame.sub()
+  return frame.counter - 2
+

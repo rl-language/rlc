@@ -6,7 +6,6 @@ cls CustomDestructor:
   fun drop():
     self.a = 2
 
-
 # CHECK: rlc.flat_fun "main"
 fun main() -> Int:
   # CHECK: rlc.ref @rl_m_drop__CustomDestructor

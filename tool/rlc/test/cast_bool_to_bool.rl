@@ -2,4 +2,5 @@
 # RUN: %t%exeext
 
 fun main() -> Int:
-	return int(bool(false))
+  return int(bool(false))
+

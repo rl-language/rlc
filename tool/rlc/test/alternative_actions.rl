@@ -2,15 +2,16 @@
 # RUN: %t%exeext
 
 act play() -> Play:
-	frm z = 0
-	actions:
-		act mark(Int x, Int y) {x == 2}
-		z = y	
+  frm z = 0
+  actions:
+    act mark(Int x, Int y) { x == 2 }
+    z = y
 
-		act other_mark(Int x, Int y) {y == 2}
-		z = x
+    act other_mark(Int x, Int y) { y == 2 }
+    z = x
 
 fun main() -> Int:
-	let state = play()
-	state.other_mark(3, 2)
-	return state.z - 3
+  let state = play()
+  state.other_mark(3, 2)
+  return state.z - 3
+

@@ -2,9 +2,10 @@
 # RUN: %t%exeext
 
 cls<T> TemplatedEntity:
-	T asd
+  T asd
 
 fun main() -> Int:
-	let var : TemplatedEntity<Int>
-	var.asd = 2	
-	return var.asd - 2
+  let var : TemplatedEntity<Int>
+  var.asd = 2
+  return var.asd - 2
+

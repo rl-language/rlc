@@ -16,3 +16,4 @@ fun main() -> Int:
   x.remove_node(x.get_node(0))
   x.remove_node(x.get_node(0))
   return x.get_nodes_size()
+

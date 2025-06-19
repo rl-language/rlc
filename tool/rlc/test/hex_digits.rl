@@ -2,5 +2,5 @@
 # RUN: %t%exeext
 
 fun main() -> Int:
-    return 0xFF - 255
+  return 0xFF - 255
 

@@ -39,5 +39,6 @@ fun main() -> Int:
     return -1
   else if frame.counter != 4:
     return 1
+
   return 0
 

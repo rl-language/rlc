@@ -2,28 +2,29 @@
 # RUN: %t%exeext
 
 fun main() -> Int:
-    let x = 0
-    while x != 3:
-      while x != 10:
-        x = x + 1
-        if x == 1:
-            continue 
-        else:
-            break
+  let x = 0
+  while x != 3:
+    while x != 10:
       x = x + 1
+      if x == 1:
+        continue
+      else:
+        break
 
-    if x != 3:
-        return -1
+    x = x + 1
 
-    while x != 13:
-      x = x + 5
-      continue
+  if x != 3:
+    return -1
 
-    if x != 13:
-        return -1
+  while x != 13:
+    x = x + 5
+    continue
 
-    while x != 18:
-      x = x + 5
+  if x != 13:
+    return -1
 
-    return x - 18
+  while x != 18:
+    x = x + 5
+
+  return x - 18
 

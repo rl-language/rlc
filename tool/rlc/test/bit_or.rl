@@ -2,5 +2,6 @@
 # RUN: %t%exeext
 
 fun main() -> Int:
-    let x = 2 | 3
-    return x - 3
+  let x = 2 | 3
+  return x - 3
+

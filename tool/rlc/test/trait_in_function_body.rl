@@ -2,21 +2,22 @@
 # RUN: %t%exeext
 
 trait<T> HasF:
-    fun f(T arg)
+  fun f(T arg)
 
 cls A:
-    Int b
+  Int b
 
 fun f(A a):
-   a.b 
+  a.b
 
 fun<HasF G> invoke_twice(G a):
-    let d = a
-    d.f()
-    d.f()
+  let d = a
+  d.f()
+  d.f()
 
 fun main() -> Int:
-    let a : A
-    if a is HasF :
-        return 0
-    return -1
+  let a : A
+  if a is HasF:
+    return 0
+  return -1
+

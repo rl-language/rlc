@@ -4,7 +4,8 @@
 # RUN: rlc %s -o %t --python
 
 fun f() -> StringLiteral:
-    return "asd"
+  return "asd"
 
 fun main() -> Int:
-    return int(f()[0] == "asda"[3]) - 1
+  return int(f()[0] == "asda"[3]) - 1
+

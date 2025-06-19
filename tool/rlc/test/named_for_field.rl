@@ -6,11 +6,12 @@ import serialization.print
 # CHECK: first 
 # CHECK-NEXT: second
 cls Asd:
-    Int first
-    Int second
+  Int first
+  Int second
 
 fun main() -> Int:
-    let x : Asd
-    for name, value of x:
-        print(name)
-    return 0
+  let x : Asd
+  for name, value of x:
+    print(name)
+  return 0
+

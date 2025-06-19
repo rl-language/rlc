@@ -1,12 +1,12 @@
 # RUN: rlc %s -o %t -i %stdlib 
 # RUN: %t%exeext
 act play() -> Game:
+  act f()
 
-    act f()
-
-    while true: 
-        1
+  while true:
+    1
 
 fun main() -> Int:
-    let x = play()
-    return 0
+  let x = play()
+  return 0
+

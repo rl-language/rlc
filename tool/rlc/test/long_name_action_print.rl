@@ -6,11 +6,12 @@ import serialization.print
 
 @classes
 act asd() -> Name:
-    act veeeeeereey_looooong()
+  act veeeeeereey_looooong()
 
 fun main() -> Int:
-    let x : AnyNameAction
-    print(x)
-    if to_string(x) == "veeeeeereey_looooong {}":
-        return 0
-    return 1
+  let x : AnyNameAction
+  print(x)
+  if to_string(x) == "veeeeeereey_looooong {}":
+    return 0
+  return 1
+

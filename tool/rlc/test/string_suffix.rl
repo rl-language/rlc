@@ -4,5 +4,6 @@
 import string
 
 fun main() -> Int:
-    let x = "hey"s 
-    return x.size() - 3
+  let x = "hey"s
+  return x.size() - 3
+

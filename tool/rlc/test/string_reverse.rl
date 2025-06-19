@@ -4,8 +4,9 @@
 import string
 
 fun main() -> Int:
-    let str = "hey"s
-    str.reverse()
-    if str == "yeh"s:
-        return 0
-    return 1
+  let str = "hey"s
+  str.reverse()
+  if str == "yeh"s:
+    return 0
+  return 1
+

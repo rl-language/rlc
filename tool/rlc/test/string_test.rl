@@ -4,7 +4,6 @@
 import string
 
 fun main() -> Int:
-    let x : String
-    return x.size()
-
+  let x : String
+  return x.size()
 

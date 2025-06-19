@@ -4,6 +4,7 @@
 import serialization.print
 
 fun main() -> Int:
-    let x = 2 & 3
-    print(x)
-    return x - 2
+  let x = 2 & 3
+  print(x)
+  return x - 2
+

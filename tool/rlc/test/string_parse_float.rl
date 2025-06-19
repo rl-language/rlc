@@ -4,6 +4,7 @@
 import string
 
 fun main() -> Int:
-    if to_string(-285.4) == "-285.400000":
-        return 0
-    return 1
+  if to_string(-285.4) == "-285.400000":
+    return 0
+  return 1
+

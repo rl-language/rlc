@@ -6,9 +6,9 @@ import collections.vector
 using T = Int | Vector<Int>
 
 fun main() -> Int:
-	let asd : T
-	asd = 10
-    if asd is Int:
-        return asd - 10
-    return -10
+  let asd : T
+  asd = 10
+  if asd is Int:
+    return asd - 10
+  return -10
 

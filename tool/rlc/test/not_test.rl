@@ -2,7 +2,8 @@
 # RUN: %t%exeext
 
 fun main() -> Int:
-	let a = false
-	if !a:
-		return 0
-	return 1
+  let a = false
+  if !a:
+    return 0
+  return 1
+

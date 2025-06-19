@@ -12,3 +12,4 @@ fun main() -> Int:
   let state = enumerate(x)
   print(state)
   return 0
+

@@ -2,14 +2,14 @@
 # RUN: %t%exeext
 
 cls Outer:
-	Int inner
+  Int inner
 
 fun take_ref(Outer val) -> ref Int:
-	return val.inner
+  return val.inner
 
 fun main() -> Int:
-	let var : Outer
-	var.inner = 4
-	take_ref(var) = 3
-	return var.inner - 3
+  let var : Outer
+  var.inner = 4
+  take_ref(var) = 3
+  return var.inner - 3
 

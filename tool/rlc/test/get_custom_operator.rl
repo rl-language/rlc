@@ -4,6 +4,7 @@
 import collections.vector
 
 fun main() -> Int:
-    let t : Vector<Int>
-    t.append(2)
-    return t[0] - 2
+  let t : Vector<Int>
+  t.append(2)
+  return t[0] - 2
+

@@ -573,7 +573,7 @@ def RLC_EnumDeclarationOp : RLC_Dialect<"enum_declaration_op", [NoTerminator, No
   }];
 }
 
-def RLC_EnumFieldExpressionOp : RLC_Dialect<"enum_field_expression", [NoRegionArguments, HasOnlyGraphRegion]> {
+def RLC_EnumFieldExpressionOp : RLC_Dialect<"enum_field_expression", [NoRegionArguments, HasOnlyGraphRegion, DeclareOpInterfaceMethods<Serializable>]> {
   let summary = "implement malloc";
 
   let description = [{
@@ -593,7 +593,7 @@ def RLC_EnumFieldExpressionOp : RLC_Dialect<"enum_field_expression", [NoRegionAr
   }];
 }
 
-def RLC_EnumFieldDeclarationOp : RLC_Dialect<"enum_field_declaration", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion, DeclareOpInterfaceMethods<Serializable>]> {
+def RLC_EnumFieldDeclarationOp : RLC_Dialect<"enum_field_declaration", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion, DeclareOpInterfaceMethods<Serializable>, DeclareOpInterfaceMethods<RangeBased>]> {
   let summary = "implement malloc";
 
   let description = [{

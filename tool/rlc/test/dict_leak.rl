@@ -3,10 +3,11 @@
 import collections.dictionary
 
 act asd() -> Move:
-    let dictionary : Dict<Int, Int> 
-    dictionary.insert(1, 1)
-    act inner()
+  let dictionary : Dict<Int, Int>
+  dictionary.insert(1, 1)
+  act inner()
 
 fun main() -> Int:
-    asd()
-    return 0
+  asd()
+  return 0
+

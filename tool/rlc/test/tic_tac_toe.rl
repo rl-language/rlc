@@ -56,6 +56,7 @@ cls Board:
     self.playerTurn = !self.playerTurn
 
 # tic tac toe implementation
+
 @classes
 act play() -> Game:
   frm board : Board
@@ -63,9 +64,7 @@ act play() -> Game:
   while !board.full():
     # sets the indicated board as beloning 
     # to the current player
-    act mark(BInt<0, 3> x, BInt<0, 3> y) {
-      board.get(x.value, y.value) == 0
-    }
+    act mark(BInt<0, 3> x, BInt<0, 3> y) { board.get(x.value, y.value) == 0 }
 
     score = score - 1
     board.set(x.value, y.value, board.current_player())
@@ -78,12 +77,13 @@ fun get_current_player(Game g) -> Int:
   return int(g.board.playerTurn)
 
 fun score(Game g, Int player_id) -> Float:
-  if !g.is_done(): 
-    return 0.0 
+  if !g.is_done():
+    return 0.0
   if g.board.three_in_a_line_player(player_id + 1):
     return 1.0
-  else if g.board.three_in_a_line_player(((player_id + 1)% 2) + 1):
+  else if g.board.three_in_a_line_player(((player_id + 1) % 2) + 1):
     return -1.0
+
   return 0.0
 
 fun get_num_players() -> Int:
@@ -93,8 +93,8 @@ fun fuzz(Vector<Byte> input):
   if input.size() == 0:
     return
   let state = play()
-  let action : AnyGameAction 
-  parse_and_execute(state, action, input) 
+  let action : AnyGameAction
+  parse_and_execute(state, action, input)
 
 fun main() -> Int:
   let game = play()
@@ -137,7 +137,7 @@ fun pretty_print(Game g):
     let y = 0
     while y != 3:
       to_print.append(to_string(g.board.get(i, y)))
-      y = y + 1 
+      y = y + 1
     print(to_print)
     i = i + 1
 

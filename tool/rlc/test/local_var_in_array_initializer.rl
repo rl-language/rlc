@@ -2,5 +2,6 @@
 # RUN: %t%exeext
 
 fun main() -> Int:
-	let counter = 4
-	return [counter][0] - 4
+  let counter = 4
+  return [counter][0] - 4
+

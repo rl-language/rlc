@@ -9,5 +9,6 @@ act test() -> Test:
 
 fun main() -> Int:
   let frame = test()
-  frame.asd(1) 
+  frame.asd(1)
   return frame.x - 1
+

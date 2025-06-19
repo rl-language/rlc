@@ -4,17 +4,18 @@
 
 import action
 
-fun crash_on_five(Byte input) -> Int {input != byte(5)}:
-	return 0
+fun crash_on_five(Byte input) -> Int { input != byte(5) }:
+  return 0
 
 @classes
 act play() -> Play:
-	frm current = 0
-	while current != 7:
-        act that(Byte a) {a >= byte(0), a < byte(100)}
-        crash_on_five(a)
+  frm current = 0
+  while current != 7:
+    act that(Byte a) { a >= byte(0), a < byte(100) }
+    crash_on_five(a)
 
 fun fuzz(Vector<Byte> input):
-    let frame = play()
-    let action : AnyPlayAction
-    parse_and_execute(frame, action, input)
+  let frame = play()
+  let action : AnyPlayAction
+  parse_and_execute(frame, action, input)
+

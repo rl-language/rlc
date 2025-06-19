@@ -2,17 +2,17 @@
 # RUN: %t%exeext
 
 cls<T> Vector:
-    Int content
+  Int content
 
-    fun init():
-        self.content = 3
+  fun init():
+    self.content = 3
 
-    fun drop():
-        self.content = 3
+  fun drop():
+    self.content = 3
 
 cls VectorContainer:
-    Vector<Int> asd
-
+  Vector<Int> asd
 
 fun main() -> Int:
-    return 0
+  return 0
+

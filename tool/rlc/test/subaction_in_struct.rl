@@ -2,14 +2,15 @@
 # RUN: %t%exeext
 
 act inner() -> Inner:
-    act asd()
+  act asd()
 
 cls Cont:
-    Inner content
+  Inner content
 
 act outer() -> Outer:
-    frm asd : Cont
-    subaction* asd.content
+  frm asd : Cont
+  subaction* asd.content
 
 fun main() -> Int:
-    return 0
+  return 0
+

@@ -1424,6 +1424,8 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		if (!newCall)
 			return mlir::failure();
 		replaceAllUsesWith(newCall);
+		newCall->setAttr(
+				"array_access_syntax", builder.getRewriter().getUnitAttr());
 		erase();
 		return mlir::success();
 	}

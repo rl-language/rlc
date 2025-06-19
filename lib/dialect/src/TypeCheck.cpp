@@ -470,6 +470,37 @@ static mlir::LogicalResult checkReturnsPath(mlir::rlc::FunctionOp fun)
 	return mlir::success();
 }
 
+// enum field expressions are already moved to their proper location
+// when we type check, but we type check them again here
+// so that we can reserialize properly the file if we need to
+static mlir::LogicalResult deduceEnumFieldTypes(mlir::ModuleOp op)
+{
+	mlir::rlc::ModuleBuilder builder(op);
+
+	mlir::IRRewriter rewriter(op.getContext());
+	llvm::SmallVector<mlir::rlc::EnumDeclarationOp, 4> funs(
+			op.getOps<mlir::rlc::EnumDeclarationOp>());
+
+	for (auto enumDecl : funs)
+	{
+		for (auto field : enumDecl.getOps<mlir::rlc::EnumFieldDeclarationOp>())
+		{
+			for (auto exp : field.getOps<mlir::rlc::EnumFieldExpressionOp>())
+			{
+				llvm::SmallVector<mlir::Operation*, 4> ops;
+				for (auto& op : exp.getBody().front())
+					ops.push_back(&op);
+				for (auto& op : ops)
+				{
+					if (mlir::rlc::typeCheck(*op, builder).failed())
+						return mlir::failure();
+				}
+			}
+		}
+	}
+	return mlir::success();
+}
+
 static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 {
 	mlir::rlc::ModuleBuilder builder(op);
@@ -764,6 +795,12 @@ namespace mlir::rlc
 			}
 
 			if (deduceOperationTypes(getOperation()).failed())
+			{
+				signalPassFailure();
+				return;
+			}
+
+			if (deduceEnumFieldTypes(getOperation()).failed())
 			{
 				signalPassFailure();
 				return;

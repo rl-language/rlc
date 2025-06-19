@@ -2,5 +2,6 @@
 # RUN: %t%exeext
 
 fun main() -> Int:
-    [true]
-    return 0
+  [true]
+  return 0
+

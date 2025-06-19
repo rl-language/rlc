@@ -8,6 +8,7 @@ fun<T> template(T to_add) -> Bool:
   for field of to_add:
     if field is Trait:
       return field.function()
+
   return false
 
 cls Entity:

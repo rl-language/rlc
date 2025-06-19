@@ -2129,8 +2129,10 @@ Expected<mlir::rlc::EnumFieldDeclarationOp> Parser::enumFieldDeclaration()
 
 		EXPECT(Token::Equal, onExit());
 		TRY(exp, expression(), onExit());
+		current->setLoc((*exp).getLoc());
 
-		builder.create<mlir::rlc::Yield>(loc, mlir::ValueRange({ *exp }));
+		builder.create<mlir::rlc::Yield>(
+				getLastTokenEndPos(), mlir::ValueRange({ *exp }));
 		EXPECT_EOL(onExit());
 	} while (not accept(Token::Deindent));
 

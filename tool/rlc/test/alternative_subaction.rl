@@ -8,6 +8,7 @@ fun<T> wrap(T arg) -> AnyCardMechanic:
     if arg is Type:
       to_return = arg
       return to_return
+
   return to_return
 
 act first_card_mechanic() -> FirstCard:
@@ -21,10 +22,11 @@ act second_card_mechanic() -> SecondCard:
 using AnyCardMechanic = FirstCard | SecondCard
 
 enum GameCard:
- first_card:
-  AnyCardMechanic mechanic = wrap(first_card_mechanic())
- second_card:
-  AnyCardMechanic mechanic = wrap(second_card_mechanic())
+  first_card:
+    AnyCardMechanic mechanic = wrap(first_card_mechanic())
+  second_card:
+    AnyCardMechanic mechanic = wrap(second_card_mechanic())
+
 
 act play(GameCard card) -> Game:
   frm current_state = card.mechanic()

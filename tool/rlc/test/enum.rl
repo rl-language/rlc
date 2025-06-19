@@ -2,8 +2,8 @@
 # RUN: %t%exeext
 
 enum Asd:
-  first	
-  second	
+  first
+  second
 
 fun main() -> Int:
   let asd : Asd

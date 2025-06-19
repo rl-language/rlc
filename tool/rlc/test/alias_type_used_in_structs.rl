@@ -2,16 +2,16 @@
 # RUN: %t%exeext
 
 cls Asd:
-    Int content
+  Int content
 
-using T = Asd 
+using T = Asd
 
 cls Tasd:
-    T content
+  Asd content
 
 fun main() -> Int:
-    let x : Tasd
-    if x.content is Asd:
-        return 0
-    return 1
+  let x : Tasd
+  if x.content is Asd:
+    return 0
+  return 1
 

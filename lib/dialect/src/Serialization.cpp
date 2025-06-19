@@ -380,11 +380,32 @@ void mlir::rlc::IsAlternativeTypeOp::serialize(
 	OS << " is Alternative";
 }
 
+void mlir::rlc::EnumFieldExpressionOp::serialize(
+		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
+{
+	ctx.indent(OS);
+	OS << prettyType(getType());
+	OS << " " << getName() << " = ";
+
+	auto yield = mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
+	serializeExpression(yield.getArguments()[0], OS, ctx);
+	OS << "\n";
+}
+
 void mlir::rlc::EnumFieldDeclarationOp::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
 	ctx.indent(OS);
-	OS << getName() << "\n";
+	OS << getName();
+	if (getBody().empty())
+	{
+		OS << "\n";
+		return;
+	}
+
+	OS << ":\n";
+	auto _ = ctx.increaseIndent();
+	serializeBlock(getBody().front(), OS, ctx, true);
 }
 
 void mlir::rlc::EnumDeclarationOp::serialize(
@@ -443,6 +464,14 @@ void mlir::rlc::TraitDefinition::serialize(
 void mlir::rlc::CallOp::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
+	if (getOperation()->hasAttr("array_access_syntax"))
+	{
+		serializeExpression(getArgs()[0], OS, ctx);
+		OS << "[";
+		serializeExpression(getArgs()[1], OS, ctx);
+		OS << "]";
+		return;
+	}
 	if (getOperation()->hasAttr("post_fix_call"))
 	{
 		serializeExpression(getArgs()[0], OS, ctx);
@@ -868,8 +897,16 @@ void mlir::rlc::ForFieldStatement::serialize(
 		 << " of ";
 
 	auto terminator = mlir::cast<mlir::rlc::Yield>(getCondition().front().back());
-	serializeExpression(terminator.getArguments()[0], OS, ctx);
+
+	for (auto exp : llvm::drop_end(terminator.getArguments()))
+	{
+		serializeExpression(exp, OS, ctx);
+		OS << ", ";
+	}
+	serializeExpression(terminator.getArguments().back(), OS, ctx);
+
 	OS << ":\n";
+
 	{
 		auto _ = ctx.increaseIndent();
 		serializeBlock(getBody().front(), OS, ctx, true);
@@ -906,6 +943,16 @@ void mlir::rlc::WhileStatement::serialize(
 		auto _ = ctx.increaseIndent();
 		serializeBlock(getBody().front(), OS, ctx, true);
 	}
+}
+
+mlir::Location mlir::rlc::EnumFieldDeclarationOp::getEndLocation()
+{
+	if (getBody().empty())
+	{
+		return getLoc();
+	}
+	// get end location of the final expression of this field
+	return ::getEndLocation(&getBody().front().back());
 }
 
 mlir::Location mlir::rlc::ActionStatement::getEndLocation()
@@ -1114,6 +1161,7 @@ void mlir::rlc::FunctionOp::serialize(
 				mlir::cast<mlir::rlc::Yield>(getPrecondition().front().back());
 		if (not terminator.getArguments().empty())
 		{
+			auto _ = ctx.startEmittingPrecondition();
 			assert(terminator.getArguments().size() == 1);
 			OS << " { ";
 
@@ -1186,6 +1234,7 @@ void mlir::rlc::ActionStatement::serialize(
 				mlir::cast<mlir::rlc::Yield>(getPrecondition().front().back());
 		if (not terminator.getArguments().empty())
 		{
+			auto _ = ctx.startEmittingPrecondition();
 			OS << " { ";
 
 			serializeExpression(terminator.getArguments()[0], OS, ctx);
@@ -1218,12 +1267,20 @@ void mlir::rlc::ActionsStatement::serialize(
 void mlir::rlc::ShortCircuitingAnd::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
-	serializeExpression(
-			mlir::cast<mlir::rlc::Yield>(getLhs().front().getTerminator())
-					.getArguments()[0],
-			OS,
-			ctx);
-	OS << " and ";
+	bool topLevelAnd = ctx.isInPrecondition();
+
+	{
+		auto _ = ctx.startEmittingPrecondition();
+		serializeExpression(
+				mlir::cast<mlir::rlc::Yield>(getLhs().front().getTerminator())
+						.getArguments()[0],
+				OS,
+				ctx);
+	}
+	if (topLevelAnd)
+		OS << ", ";
+	else
+		OS << " and ";
 	serializeExpression(
 			mlir::cast<mlir::rlc::Yield>(getRhs().front().getTerminator())
 					.getArguments()[0],
@@ -1341,6 +1398,7 @@ void mlir::rlc::ActionFunction::serialize(
 				mlir::cast<mlir::rlc::Yield>(getPrecondition().front().back());
 		if (not terminator.getArguments().empty())
 		{
+			auto _ = ctx.startEmittingPrecondition();
 			OS << " { ";
 
 			serializeExpression(terminator.getArguments()[0], OS, ctx);

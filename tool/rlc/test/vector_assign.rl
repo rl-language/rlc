@@ -2,11 +2,12 @@
 # RUN: %t%exeext
 
 cls Asd:
-    Int value
+  Int value
 
 fun main() -> Int:
-    let x : Asd[10]
-    let y : Asd[10]
-    x[3].value = 1
-    y = x
-    return y[3].value - 1
+  let x : Asd[10]
+  let y : Asd[10]
+  x[3].value = 1
+  y = x
+  return y[3].value - 1
+

@@ -13,7 +13,6 @@ cls Range:
   fun set_size(Int new_size):
     self._size = new_size
 
-
 fun range(Int size) -> Range:
   let range : Range
   range.set_size(size)
@@ -25,6 +24,7 @@ fun main() -> Int:
     if i == 5:
       break
     sum = sum + i
+
   if sum == 10:
     return 0
   return 1

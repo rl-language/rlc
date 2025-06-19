@@ -4,8 +4,9 @@
 const global = 3
 
 fun main() -> Int:
-    let x : Int[global]
-    if global == 3:
-        return 0
-    else:
-        return -1
+  let x : Int[global]
+  if global == 3:
+    return 0
+  else:
+    return -1
+

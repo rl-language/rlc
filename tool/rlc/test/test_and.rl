@@ -2,8 +2,9 @@
 # RUN: %t%exeext
 
 fun return_true() -> Bool:
-	return 4 * 12 == 48
+  return 4 * 12 == 48
 
 fun main() -> Int:
-	let yes = return_true() and true
-	return 0
+  let yes = return_true() and true
+  return 0
+

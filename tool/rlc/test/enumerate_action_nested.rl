@@ -4,17 +4,18 @@
 import action
 
 cls Asd:
-    Bool i
+  Bool i
 
 cls Asd2:
-    Asd i
+  Asd i
 
 cls Asd3:
-    Asd2 i
+  Asd2 i
 
 fun main() -> Int:
-    let asd : Asd2
-    let result = enumerate(asd)
-    if result.size() != 2:
-        return 1
-    return 0
+  let asd : Asd2
+  let result = enumerate(asd)
+  if result.size() != 2:
+    return 1
+  return 0
+

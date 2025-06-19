@@ -2,6 +2,8 @@
 # RUN: %t%exeext
 
 cls<T> Class:
+  T _field
+
   fun get_field() -> T:
     return self._field
 
@@ -10,8 +12,6 @@ cls<T> Class:
 
   fun<R> identity(R val) -> R:
     return val
-
-  T _field
 
 fun main() -> Int:
   let x : Class<Int>

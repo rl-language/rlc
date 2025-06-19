@@ -6,12 +6,13 @@ import string
 
 @classes
 act to_run() -> ToRun:
-    act first(Bool asd)
-    act second(Int tasd)
+  act first(Bool asd)
+  act second(Int tasd)
 
 fun main() -> Int:
-    let x : ToRunFirst | ToRunSecond
-    print(to_string(x))
-    if to_string(x) == "first {asd: false}":
-        return 0
-    return 1
+  let x : ToRunFirst | ToRunSecond
+  print(to_string(x))
+  if to_string(x) == "first {asd: false}":
+    return 0
+  return 1
+
