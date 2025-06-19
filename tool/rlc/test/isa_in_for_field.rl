@@ -2,25 +2,26 @@
 # RUN: %t%exeext
 
 trait<T> Trait:
-    fun function(T a) -> Bool
+  fun function(T a) -> Bool
 
 fun<T> template(T to_add) -> Bool:
-    for field of to_add:
-        if field is Trait:
-            return field.function()
-    return false
+  for field of to_add:
+    if field is Trait:
+      return field.function()
+  return false
 
 cls Entity:
-    Int x 
+  Int x
 
 cls Outer:
-    Entity x 
+  Entity x
 
 fun function(Entity a) -> Bool:
-    return true
+  return true
 
 fun main() -> Int:
-    let entity : Outer 
-    if template(entity):
-        return 0
-    return 1
+  let entity : Outer
+  if template(entity):
+    return 0
+  return 1
+

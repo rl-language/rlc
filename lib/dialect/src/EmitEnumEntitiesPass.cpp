@@ -42,6 +42,7 @@ namespace mlir::rlc
 				mlir::rlc::FunctionInfoAttr::get(
 						intType.getContext(), { argName, valueName }),
 				false);
+		f->setAttr("synthetic", rewriter.getUnitAttr());
 
 		auto* bb = rewriter.createBlock(
 				&f.getBody(),
@@ -76,6 +77,7 @@ namespace mlir::rlc
 						rewriter.getContext(), { argType }, { returnType }),
 				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
+		f->setAttr("synthetic", rewriter.getUnitAttr());
 
 		auto* bb = rewriter.createBlock(
 				&f.getBody(), f.getBody().begin(), { argType }, { enumOp.getLoc() });
@@ -112,6 +114,7 @@ namespace mlir::rlc
 						rewriter.getContext(), { argType }, { returnType }),
 				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
+		f->setAttr("synthetic", rewriter.getUnitAttr());
 
 		auto* bb = rewriter.createBlock(
 				&f.getBody(), f.getBody().begin(), { argType }, { enumOp.getLoc() });
@@ -145,6 +148,7 @@ namespace mlir::rlc
 						rewriter.getContext(), { argType }, { returnType }),
 				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
+		f->setAttr("synthetic", rewriter.getUnitAttr());
 
 		auto* bb = rewriter.createBlock(
 				&f.getBody(), f.getBody().begin(), { argType }, { enumOp.getLoc() });
@@ -181,6 +185,7 @@ namespace mlir::rlc
 
 				mlir::rlc::FunctionInfoAttr::get(enumOp.getContext(), { argName }),
 				false);
+		f->setAttr("synthetic", rewriter.getUnitAttr());
 
 		// Create function block and set insertion point
 		auto* bb = rewriter.createBlock(
@@ -468,6 +473,8 @@ namespace mlir::rlc
 						fieldsDecl,
 						mlir::ArrayRef<mlir::Type>({}),
 						*declaration.getTypeLocation());
+
+				op->setAttr("synthetic", rewriter.getUnitAttr());
 				moveAllFunctionDeclsToNewClass(declaration, op, rewriter);
 				if (moveAllMethodExpressionToNewClassFunctions(
 								declaration, op, rewriter)
@@ -511,7 +518,7 @@ namespace mlir::rlc
 					auto type = mlir::rlc::ClassType::getIdentified(
 							getOperation().getContext(), use.getEnumName(), {});
 					rewriter.replaceOpWithNewOp<mlir::rlc::EnumUse>(
-							use, type, rewriter.getI64IntegerAttr(i));
+							use, type, rewriter.getI64IntegerAttr(i), use.getEnumValueAttr());
 					break;
 				}
 				if (failed)

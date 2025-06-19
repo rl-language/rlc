@@ -18,6 +18,61 @@ limitations under the License.
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 
+namespace
+{
+	bool areConsecutive(mlir::Location l, mlir::Location r)
+	{
+		auto first = mlir::dyn_cast<mlir::FileLineColLoc>(l);
+		auto second = mlir::dyn_cast<mlir::FileLineColLoc>(r);
+		if (not first or not second)
+			return false;
+		return first.getLine() + 1 == second.getLine();
+	}
+
+	void reinjectMemberFunctions(
+			mlir::ModuleOp op, mlir::rlc::ModuleBuilder& builder)
+	{
+		mlir::IRRewriter rewriter(op);
+		mlir::DenseMap<mlir::Type, mlir::rlc::ClassDeclaration> typeToClass;
+		mlir::DenseMap<mlir::Type, mlir::rlc::EnumDeclarationOp> typeToEnum;
+		mlir::DenseMap<llvm::StringRef, mlir::Type> nameToType;
+		llvm::SmallVector<mlir::rlc::FunctionOp, 2> funs;
+		for (auto fun : op.getOps<mlir::rlc::FunctionOp>())
+			if (fun.getIsMemberFunction())
+				funs.push_back(fun);
+
+		for (auto cls : op.getOps<mlir::rlc::ClassDeclaration>())
+		{
+			typeToClass[cls.getDeclaredType()] = cls;
+			rewriter.createBlock(&cls.getBody());
+			nameToType[cls.getName()] = cls.getDeclaredType();
+		}
+
+		for (auto enumT : op.getOps<mlir::rlc::EnumDeclarationOp>())
+		{
+			typeToEnum[nameToType[enumT.getName()]] = enumT;
+		}
+
+		for (auto fun : funs)
+		{
+			auto selfType = fun.getArgumentTypes()[0];
+			auto decl = typeToClass[selfType];
+			if (typeToEnum.contains(selfType))
+			{
+				auto casted = typeToEnum[selfType];
+				fun->moveBefore(
+						&casted.getBody().front(), casted.getBody().front().end());
+			}
+			else
+			{
+				auto casted = mlir::cast<mlir::rlc::ClassDeclaration>(decl);
+				fun->moveBefore(
+						&casted.getBody().front(), casted.getBody().front().end());
+			}
+		}
+	}
+}	 // namespace
+
 namespace mlir::rlc
 {
 #define GEN_PASS_DEF_SERIALIZERLPASS
@@ -29,42 +84,25 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			for (auto op :
-					 getOperation().getBody()->getOps<mlir::rlc::ClassDeclaration>())
-			{
-				auto type = op.getResult().getType().cast<mlir::rlc::ClassType>();
-				*OS << "cls";
-				if (not type.getExplicitTemplateParameters().empty())
-				{
-					*OS << "<";
-					for (auto parameter :
-							 llvm::drop_end(type.getExplicitTemplateParameters()))
-					{
-						parameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(
-								*OS, SerializationContext());
-						*OS << ", ";
-					}
-					type.getExplicitTemplateParameters()
-							.back()
-							.cast<mlir::rlc::RLCSerializable>()
-							.rlc_serialize(*OS, SerializationContext());
-					*OS << ">";
-				}
+			mlir::rlc::ModuleBuilder builder(getOperation());
+			mlir::rlc::SerializationContext ctx(builder);
+			reinjectMemberFunctions(getOperation(), builder);
 
-				*OS << " " << type.getName() << ":\n";
-				for (auto field : type.getMembers())
+			for (auto& op : getOperation().getOps())
+			{
+				if (mlir::rlc::isSynthetic(&op))
+					continue;
+				auto loc = mlir::cast<mlir::FileLineColLoc>(op.getLoc());
+				if (not file_to_serialize.empty() and
+						loc.getFilename() != file_to_serialize)
+					continue;
+				if (auto casted = mlir::dyn_cast<mlir::rlc::Serializable>(op))
 				{
-					(*OS).indent(2);
-					type.cast<mlir::rlc::RLCSerializable>().rlc_serialize(
-							*OS, SerializationContext());
-					*OS << " " << field.getName() << "\n";
+					casted.serialize(*OS, ctx);
+					if (op.getNextNode() == nullptr or
+							not areConsecutive(casted.getLoc(), op.getNextNode()->getLoc()))
+						*OS << "\n";
 				}
-				if (type.getMembers().empty())
-				{
-					(*OS).indent(2);
-					*OS << "pass\n";
-				}
-				*OS << "\n";
 			}
 		}
 	};

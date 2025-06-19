@@ -2,12 +2,13 @@
 # RUN: %t%exeext
 
 enum Asd:
-	first	
-	second	
+  first	
+  second	
 
 fun main() -> Int:
-	let asd : Asd
-	asd = Asd::second
-    if max(asd) != 1:
-        return -2
-	return asd.value - 1
+  let asd : Asd
+  asd = Asd::second
+  if max(asd) != 1:
+    return -2
+  return asd.value - 1
+

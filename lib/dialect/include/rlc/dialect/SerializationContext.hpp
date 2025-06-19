@@ -16,11 +16,32 @@ limitations under the License.
 
 #pragma once
 
+#include "llvm/Support/raw_ostream.h"
 namespace mlir::rlc
 {
+	class ModuleBuilder;
 	class SerializationContext
 	{
 		public:
+		SerializationContext(ModuleBuilder& builder): builder(&builder) {}
+		SerializationContext(): builder(nullptr) {}
+		class IndentGuard
+		{
+			public:
+			IndentGuard(SerializationContext& ctx): ctx(&ctx) { ctx.indentLevel++; }
+			~IndentGuard() { ctx->indentLevel--; }
+
+			private:
+			SerializationContext* ctx;
+		};
+
+		void indent(llvm::raw_ostream& OS) { OS.indent(indentLevel * 2); }
+		IndentGuard increaseIndent() { return IndentGuard(*this); }
+
+		ModuleBuilder& getBuilder() { return *builder; }
+
 		private:
+		int indentLevel = 0;
+		ModuleBuilder* builder;
 	};
 }	 // namespace mlir::rlc

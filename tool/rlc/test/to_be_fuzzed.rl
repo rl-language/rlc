@@ -7,6 +7,7 @@ import action
 fun crash_on_five(Byte input) -> Int {input != byte(5)}:
 	return 0
 
+@classes
 act play() -> Play:
 	frm current = 0
 	while current != 7:

@@ -26,6 +26,7 @@ namespace mlir
 
 namespace mlir::rlc
 {
+	class SerializationContext;
 	class ConstraintsLattice;
 	class SourceRangeAttr;
 	class ConstraintsAnalysis;

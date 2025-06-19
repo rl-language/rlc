@@ -8,9 +8,10 @@ import bounded_arg
 using Alt = Bool | BInt<0, 10>
 
 fun main() -> Int:
-    let content : Alt 
-    let result = enumerate(content)
-    print(result)
-    if result.size() != 12:
-        return 1
-    return 0
+  let content : Alt
+  let result = enumerate(content)
+  print(result)
+  if result.size() != 12:
+    return 1
+  return 0
+

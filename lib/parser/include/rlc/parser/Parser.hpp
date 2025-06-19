@@ -50,8 +50,8 @@ namespace rlc
 		[[nodiscard]] mlir::Location getCurrentSourcePos() const;
 		[[nodiscard]] mlir::Location getLastTokenEndPos() const;
 
-		void setComment(mlir::Operation* op, llvm::StringRef comment);
 		llvm::Expected<mlir::Value> primaryExpression();
+		llvm::Expected<mlir::rlc::Comment> comment();
 		llvm::Expected<mlir::Value> postFixExpression();
 		llvm::Expected<mlir::rlc::AssertOp> assertStatement();
 		llvm::Expected<mlir::Value> canCallExpression();
@@ -145,6 +145,8 @@ namespace rlc
 			return accept(T);
 		}
 		llvm::Expected<Token> expect(Token t);
+		llvm::Expected<Token> expectEndOfLine();
+		bool acceptEndOfLine();
 
 		Token current;
 		mlir::Location pos;
@@ -157,7 +159,6 @@ namespace rlc
 		double lDouble{ 0 };
 		std::string lIdent;
 		std::string lString;
-		std::string accumulatedComments;
 		bool attachComments{ false };
 
 		llvm::SmallVector<std::string, 4> importedFiles;

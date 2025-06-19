@@ -189,7 +189,9 @@ def SerializeRLPass : Pass<"rlc-serialize-ir-pass", "mlir::ModuleOp"> {
   let summary = "prints the ir on the provided stream";
   let options = [
     Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"&llvm::outs()",
-           "stream on which to print the module">
+           "stream on which to print the module">,
+    Option<"file_to_serialize", "file to serialize", "llvm::StringRef", /*default=*/"\"\"",
+           "particular file that must be serialized">
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }
@@ -248,6 +250,8 @@ def ParseFilePass : Pass<"rlc-parse-file-pass", "mlir::ModuleOp"> {
            "input files">,
     Option<"srcManager", "source manager", "llvm::SourceMgr*", /*default=*/"nullptr",
            "source manager">,
+    Option<"keepComments", "keep comments", "bool", /*default=*/"false",
+           "keep comments">,
     Option<"dependencyFile", "dependency file", "std::string", /*default=*/"\"\"",
            "dependency file">
   ];

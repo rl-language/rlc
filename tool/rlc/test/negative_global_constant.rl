@@ -4,5 +4,5 @@
 const x = -1
 
 fun main() -> Int:
-    return x + 1
+  return x + 1
 

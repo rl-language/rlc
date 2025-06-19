@@ -14,16 +14,19 @@ namespace mlir::rlc
 	{
 		if (not skipParsing)
 		{
-			manager.addPass(mlir::rlc::createParseFilePass(
-					{ &includeDirs,
-						inputFile,
-						srcManager,
-						emitDependencyFile ? outputFile : "" }));
+			manager.addPass(
+					mlir::rlc::createParseFilePass(
+							{ &includeDirs,
+								inputFile,
+								srcManager,
+								keepComments,
+								emitDependencyFile ? outputFile : "" }));
 		}
 		if (request == Request::printIncludedFiles)
 		{
-			manager.addPass(mlir::rlc::createPrintIncludedFilesPass(
-					{ &includeDirs, inputFile, srcManager, OS }));
+			manager.addPass(
+					mlir::rlc::createPrintIncludedFilesPass(
+							{ &includeDirs, inputFile, srcManager, OS }));
 			return;
 		}
 		if (request == Request::dumpUncheckedAST)
@@ -38,23 +41,26 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createTypeCheckPass());
 		if (request == Request::dumpDot or request == Request::dumpParsableGraph)
 		{
-			manager.addPass(mlir::rlc::createUncheckedAstToDotPass(
-					{ OS,
-						request == Request::dumpParsableGraph,
-						graphInlineCalls,
-						graphKeepOnlyActions,
-						graphRegexFilter }));
+			manager.addPass(
+					mlir::rlc::createUncheckedAstToDotPass(
+							{ OS,
+								request == Request::dumpParsableGraph,
+								graphInlineCalls,
+								graphKeepOnlyActions,
+								graphRegexFilter }));
+			return;
+		}
+
+		if (request == Request::format)
+		{
+			manager.addPass(
+					mlir::rlc::createSerializeRLPass(
+							{ OS, llvm::StringRef(inputFile.front()) }));
 			return;
 		}
 
 		manager.addPass(mlir::rlc::createLowerSubActionStatements());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
-
-		if (request == Request::format)
-		{
-			manager.addPass(mlir::rlc::createSerializeRLPass({ OS }));
-			return;
-		}
 
 		if (request == Request::dumpCheckedAST)
 		{
@@ -100,8 +106,9 @@ namespace mlir::rlc
 
 		if (request == Request::dumpCSharp)
 		{
-			manager.addPass(mlir::rlc::createPrintCSharpPass(
-					{ OS, targetInfo->isMacOS(), targetInfo->isWindows() }));
+			manager.addPass(
+					mlir::rlc::createPrintCSharpPass(
+							{ OS, targetInfo->isMacOS(), targetInfo->isWindows() }));
 			return;
 		}
 
@@ -114,8 +121,9 @@ namespace mlir::rlc
 		if (request == Request::dumpPythonWrapper)
 		{
 			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
-			manager.addPass(mlir::rlc::createPrintPythonPass(
-					{ OS, targetInfo->isMacOS(), targetInfo->isWindows() }));
+			manager.addPass(
+					mlir::rlc::createPrintPythonPass(
+							{ OS, targetInfo->isMacOS(), targetInfo->isWindows() }));
 			return;
 		}
 
@@ -169,18 +177,19 @@ namespace mlir::rlc
 		}
 		if (debug)
 			manager.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
-		manager.addPass(mlir::rlc::createRLCBackEndPass(
-				mlir::rlc::RLCBackEndPassOptions{ OS,
-																					clangPath,
-																					outputFile,
-																					&extraObjectFiles,
-																					dumpIR,
-																					Request::compile == request,
-																					emitSanitizer,
-																					emitFuzzer,
-																					&rPath,
-																					targetInfo,
-																					verbose }));
+		manager.addPass(
+				mlir::rlc::createRLCBackEndPass(
+						mlir::rlc::RLCBackEndPassOptions{ OS,
+																							clangPath,
+																							outputFile,
+																							&extraObjectFiles,
+																							dumpIR,
+																							Request::compile == request,
+																							emitSanitizer,
+																							emitFuzzer,
+																							&rPath,
+																							targetInfo,
+																							verbose }));
 	}
 
 }	 // namespace mlir::rlc

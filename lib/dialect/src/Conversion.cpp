@@ -573,6 +573,62 @@ class IsOpRewriter: public mlir::OpConversionPattern<mlir::rlc::IsOp>
 	}
 };
 
+class BracketEraser: public mlir::OpConversionPattern<mlir::rlc::BracketsOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::BracketsOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::BracketsOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.replaceOp(op, { adaptor.getInput() });
+		return mlir::success();
+	}
+};
+
+class UsingTypeEraser: public mlir::OpConversionPattern<mlir::rlc::UsingTypeOp>
+{
+	using mlir::OpConversionPattern<mlir::rlc::UsingTypeOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::UsingTypeOp op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
+class ImportEraser: public mlir::OpConversionPattern<mlir::rlc::Import>
+{
+	using mlir::OpConversionPattern<mlir::rlc::Import>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::Import op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
+class CommentEraser: public mlir::OpConversionPattern<mlir::rlc::Comment>
+{
+	using mlir::OpConversionPattern<mlir::rlc::Comment>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(
+			mlir::rlc::Comment op,
+			OpAdaptor adaptor,
+			mlir::ConversionPatternRewriter& rewriter) const final
+	{
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class AliasTypeEraser: public mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>
 {
 	using mlir::OpConversionPattern<mlir::rlc::TypeAliasOp>::OpConversionPattern;
@@ -2301,6 +2357,9 @@ namespace mlir::rlc
 					.add<NullLowerer>(converter, &getContext())
 					.add<YieldReferenceRewriter>(converter, &getContext())
 					.add<AliasTypeEraser>(converter, &getContext())
+					.add<CommentEraser>(converter, &getContext())
+					.add<ImportEraser>(converter, &getContext())
+					.add<BracketEraser>(converter, &getContext())
 					.add<CopyRewriter>(converter, &getContext())
 					.add<ArrayAccessRewriter>(converter, &getContext())
 					.add<UninitializedConstructRewriter>(converter, &getContext())
@@ -2310,6 +2369,7 @@ namespace mlir::rlc
 					.add<VarNameLowerer>(
 							converter, &getContext(), diGenerator, debug_info)
 					.add<ReferenceRewriter>(converter, &getContext())
+					.add<UsingTypeEraser>(converter, &getContext())
 					.add<BuiltinAsPtrRewriter>(converter, &getContext())
 					.add<LowerIsDoneOp>(converter, &getContext())
 					.add<ClassDeclarationRewriter>(converter, &getContext())

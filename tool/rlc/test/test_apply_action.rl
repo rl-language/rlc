@@ -5,21 +5,22 @@ import action
 
 @classes
 act example() -> Name:
-    act first(Int x)
-    frm to_return = x
-    act second(Bool x, Float y)
+  act first(Int x)
+  frm to_return = x
+  act second(Bool x, Float y)
 
 fun main() -> Int:
-    let any_action : AnyNameAction
+  let any_action : AnyNameAction
 
-    let actual_action : NameFirst
-    actual_action.x = 1
-    any_action = actual_action
+  let actual_action : NameFirst
+  actual_action.x = 1
+  any_action = actual_action
 
-    let frame = example()
-    if !can apply(any_action, frame):
-        return -3
-    apply(any_action, frame)
-    if frame.to_return == 1:
-       return 0 
-    return 1
+  let frame = example()
+  if !can apply(any_action, frame):
+    return -3
+  apply(any_action, frame)
+  if frame.to_return == 1:
+    return 0
+  return 1
+

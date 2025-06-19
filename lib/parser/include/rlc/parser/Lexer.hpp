@@ -54,6 +54,7 @@ namespace rlc
 		KeywordToArray,
 		KeywordFromArray,
 		KeywordEvent,
+		KeywordComment,
 		KeywordUsing,
 		KeywordAlternative,
 		KeywordAction,
@@ -151,8 +152,6 @@ namespace rlc
 			return lastNonWitheSpaceColumn;
 		}
 		[[nodiscard]] size_t getCurrentLine() const { return currentLine; }
-		// returns the comments before the last token but after the previous tokens.
-		[[nodiscard]] llvm::StringRef getLastComment() const { return lComment; }
 
 		void print(llvm::raw_ostream& OS);
 		void dump();
@@ -184,7 +183,6 @@ namespace rlc
 		double lDouble{ 0 };
 		std::string lIdent{ "" };
 		std::string lString{ "" };
-		std::string lComment{ "" };
 		size_t deindentToEmit{ 0 };
 		bool parsingString = false;
 		bool emittedExtraNewLine = false;

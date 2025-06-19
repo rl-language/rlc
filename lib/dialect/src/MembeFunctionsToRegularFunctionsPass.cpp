@@ -55,8 +55,9 @@ namespace mlir::rlc
 								templateParamenter.cast<mlir::TypeAttr>().getValue());
 
 					llvm::SmallVector<mlir::Type, 4> newArgs;
-					newArgs.push_back(mlir::rlc::ScalarUseType::get(
-							&getContext(), decl.getName(), 0, templateParameters));
+					newArgs.push_back(
+							mlir::rlc::ScalarUseType::get(
+									&getContext(), decl.getName(), 0, templateParameters));
 
 					for (auto originalArg : function.getFunctionType().getInputs())
 						newArgs.push_back(originalArg);
@@ -81,7 +82,7 @@ namespace mlir::rlc
 						function.getBody().insertArgument(
 								(unsigned int) 0, newArgs[0], function.getLoc());
 					}
-					function->moveAfter(decl);
+					function->moveBefore(decl);
 				}
 			}
 		}

@@ -65,7 +65,11 @@ namespace mlir::rlc
 		{
 			assert(srcManager != nullptr);
 			::rlc::MultiFileParser parser(
-					&getContext(), *includeDirs, srcManager, getOperation());
+					&getContext(),
+					*includeDirs,
+					srcManager,
+					getOperation(),
+					keepComments);
 
 			auto maybeAst = parser.parse(inputs);
 			if (not handleErrors(getContext(), maybeAst))
@@ -115,7 +119,7 @@ namespace mlir::rlc
 		{
 			assert(srcManager != nullptr);
 			::rlc::MultiFileParser parser(
-					&getContext(), *includeDirs, srcManager, getOperation());
+					&getContext(), *includeDirs, srcManager, getOperation(), false);
 
 			auto maybeAst = parser.parse(inputs);
 			if (not handleErrors(getContext(), maybeAst))

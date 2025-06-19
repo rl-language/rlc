@@ -3,9 +3,10 @@
 import collections.vector
 
 act asd() -> Move:
-    let vector : Vector<Int> 
-    act inner()
+  let vector : Vector<Int>
+  act inner()
 
 fun main() -> Int:
-    asd()
-    return 0
+  asd()
+  return 0
+

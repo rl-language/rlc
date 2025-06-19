@@ -165,15 +165,19 @@ static mlir::LogicalResult setFramesBody(mlir::rlc::ActionFunction fun)
 	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> hiddenMembers;
 
 	// add the implicit local variable "resume_index" to members
-	fields.push_back(mlir::rlc::ClassFieldAttr::get(
-			"resume_index", mlir::rlc::IntegerType::getInt64(fun.getContext())));
+	fields.push_back(
+			mlir::rlc::ClassFieldAttr::get(
+					"resume_index", mlir::rlc::IntegerType::getInt64(fun.getContext())));
 
 	auto frames = fun.getFrameLists();
 	for (auto &entry : frames.first.valueNamePairs)
 	{
-		fields.push_back(mlir::rlc::ClassFieldAttr::get(
-				entry.second.str(),
-				entry.first.getType().cast<mlir::rlc::FrameType>().getUnderlying()));
+		fields.push_back(
+				mlir::rlc::ClassFieldAttr::get(
+						entry.second.str(),
+						entry.first.getType()
+								.cast<mlir::rlc::FrameType>()
+								.getUnderlying()));
 	}
 
 	for (auto &entry : frames.second.valueNamePairs)
@@ -181,8 +185,9 @@ static mlir::LogicalResult setFramesBody(mlir::rlc::ActionFunction fun)
 		auto t = entry.first.getType();
 		if (auto casted = t.dyn_cast<mlir::rlc::ContextType>())
 			t = casted.getUnderlying();
-		hiddenMembers.push_back(mlir::rlc::ClassFieldAttr::get(
-				entry.second.str(), mlir::rlc::ReferenceType::get(t)));
+		hiddenMembers.push_back(
+				mlir::rlc::ClassFieldAttr::get(
+						entry.second.str(), mlir::rlc::ReferenceType::get(t)));
 	}
 
 	for (auto field : fields)
@@ -245,6 +250,8 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 			generatedFunctions,
 			fun.getUnmangledName(),
 			fun.getInfo());
+	if (fun->hasAttr("emit_classes"))
+		newAction->setAttr("emit_classes", rewriter.getUnitAttr());
 	newAction.getBody().takeBody(fun.getBody());
 	newAction.getPrecondition().takeBody(fun.getPrecondition());
 	fun.getResult().replaceAllUsesWith(newAction.getResult());
@@ -280,6 +287,8 @@ static void defineGetNameFunction(
 			fType,
 			mlir::rlc::FunctionInfoAttr::get(fType.getContext(), names),
 			false);
+
+	mlir::rlc::markSynthetic(applyFunction);
 
 	{
 		auto *bodyBB = builder.getRewriter().createBlock(
@@ -336,6 +345,8 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 			applyFunctionType,
 			mlir::rlc::FunctionInfoAttr::get(applyFunctionType.getContext(), names),
 			false);
+
+	mlir::rlc::markSynthetic(applyFunction);
 
 	{
 		auto *preconditionBB = builder.getRewriter().createBlock(
@@ -436,6 +447,7 @@ static void defineApplyFunctionAlternative(
 			applyFunctionType,
 			mlir::rlc::FunctionInfoAttr::get(applyFunctionType.getContext(), names),
 			false);
+	mlir::rlc::markSynthetic(applyFunction);
 
 	{
 		auto *preconditionBB = builder.getRewriter().createBlock(
@@ -569,6 +581,7 @@ static mlir::Type declareActionStatementType(
 			fieldsAttrs,
 			llvm::ArrayRef<mlir::Type>({}),
 			nullptr);
+	mlir::rlc::markSynthetic(built);
 	auto applyFunction =
 			defineApplyFunction(function, builder, action, statement, type);
 	defineGetNameFunction(function, builder, action, statement, type);
@@ -591,19 +604,21 @@ static mlir::LogicalResult declareActionTypes(
 		mlir::rlc::ActionFunction function, mlir::rlc::ModuleBuilder &builder)
 {
 	builder.getRewriter().setInsertionPoint(function);
-	builder.getRewriter().create<mlir::rlc::TraitDefinition>(
+	auto templateParameter = mlir::rlc::TemplateParameterType::get(
+			function.getContext(), "T", nullptr, false);
+	auto trait = builder.getRewriter().create<mlir::rlc::TraitDefinition>(
 			function.getLoc(),
 			mlir::rlc::TraitMetaType::get(
 					function.getContext(),
 					(function.getClassType().getName() + "Action").str(),
-					{ builder.getRewriter().getStringAttr("T") },
+					{ templateParameter },
 					{ mlir::FunctionType::get(
 							function.getContext(),
-							{ mlir::rlc::TemplateParameterType::get(
-										function.getContext(), "T", nullptr, false),
-								function.getClassType() },
+							{ templateParameter, function.getClassType() },
 							{}) },
-					{ builder.getRewriter().getStringAttr("apply") }));
+					{ builder.getRewriter().getStringAttr("apply") },
+					{ builder.getRewriter().getStrArrayAttr({ "self" }) }));
+	mlir::rlc::markSynthetic(trait);
 
 	llvm::SmallVector<mlir::Type, 4> declaredTypes;
 	llvm::SmallVector<mlir::rlc::FunctionOp, 4> applyFunctions;
@@ -625,9 +640,10 @@ static mlir::LogicalResult declareActionTypes(
 			declaredTypes,
 			("Any" + function.getClassType().getName() + "Action").str());
 
-	builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
+	auto alias = builder.getRewriter().create<mlir::rlc::TypeAliasOp>(
 
 			function.getLoc(), alternative.getName(), alternative, nullptr, nullptr);
+	mlir::rlc::markSynthetic(alias);
 
 	defineApplyFunctionAlternative(
 			function, builder, alternative, applyFunctions);
@@ -807,7 +823,8 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 				casted.getContext(), casted.getUnderlying(), getName());
 	}
 
-	builder.getConverter().registerType(getName(), deducedType);
+	builder.getConverter().registerType(
+			getName(), mlir::rlc::AliasType::get(getName(), deducedType));
 	this->setAliased(deducedType);
 	return mlir::success();
 }
@@ -866,6 +883,25 @@ mlir::LogicalResult mlir::rlc::AssertOp::typeCheck(
 		return logError(
 				getOperation(), "assert must have a expression of type bool");
 	}
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::Comment::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::Import::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	return mlir::success();
+}
+
+mlir::LogicalResult mlir::rlc::BracketsOp::typeCheck(
+		mlir::rlc::ModuleBuilder &builder)
+{
+	getResult().setType(getInput().getType());
 	return mlir::success();
 }
 
@@ -965,8 +1001,9 @@ namespace mlir::rlc
 					if (type.isa<mlir::rlc::ContextType>())
 					{
 						resultTypes.push_back(type);
-						nameAttrs.push_back(mlir::rlc::FunctionArgumentAttr::get(
-								type.getContext(), std::get<1>(arg), nullptr, nullptr));
+						nameAttrs.push_back(
+								mlir::rlc::FunctionArgumentAttr::get(
+										type.getContext(), std::get<1>(arg), nullptr, nullptr));
 						resultLoc.push_back(parent.getLoc());
 					}
 				}
@@ -1145,24 +1182,26 @@ namespace mlir::rlc
 		return mlir::success();
 	}
 
-	static void emitVarDecl(
+	static mlir::Value emitVarDecl(
 			mlir::IRRewriter &rewiter,
 			mlir::rlc::ModuleBuilder &builder,
 			mlir::rlc::SubActionStatement statement,
 			mlir::Type underlyingType)
 	{
 		if (statement.getName().empty())
-			return;
+			return nullptr;
 		rewiter.setInsertionPoint(statement);
 		auto varDecl = rewiter.create<mlir::rlc::DeclarationStatement>(
 				statement.getLoc(),
 				mlir::rlc::FrameType::get(underlyingType),
 				statement.getName());
+		markSynthetic(varDecl.getOperation());
 		varDecl.getBody().takeBody(statement.getBody());
 		builder.getSymbolTable().add(statement.getName(), varDecl);
 		rewiter.createBlock(&statement.getBody());
 		rewiter.create<mlir::rlc::Yield>(
 				statement.getLoc(), mlir::ValueRange({ varDecl }));
+		return varDecl.getResult();
 	}
 }	 // namespace mlir::rlc
 
@@ -1204,7 +1243,8 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 
 	// emit the var decl if the subaction statement is in the form
 	// subaction name = exp
-	emitVarDecl(rewiter, builder, *this, yield.getArguments().front().getType());
+	auto varDecl = emitVarDecl(
+			rewiter, builder, *this, yield.getArguments().front().getType());
 	// reset the yield because emitting the var decl may have changed it
 	yield = mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
 
@@ -1212,7 +1252,11 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 	auto subActionInfo = rewiter.create<mlir::rlc::SubActionInfo>(
 			getLoc(),
 			rewiter.getTypeArrayAttr(yield.getArguments().getTypes()),
-			getRunOnce());
+			getRunOnce(),
+			varDecl != nullptr);
+	mlir::IRMapping mapping;
+	getBody().cloneInto(&subActionInfo.getArguments(), mapping);
+	getForwardedArgs().cloneInto(&subActionInfo.getForwardedArgs(), mapping);
 	mlir::Block *expansionBlock = rewiter.createBlock(&subActionInfo.getBody());
 	rewiter.setInsertionPointToEnd(expansionBlock);
 
@@ -1573,13 +1617,13 @@ mlir::LogicalResult mlir::rlc::UsingTypeOp::typeCheck(
 				return mlir::failure();
 	}
 
-	builder.getConverter().registerType(
-			getName(),
+	auto underlyingType =
 			mlir::dyn_cast<mlir::rlc::Yield>(getBody().back().getTerminator())
 					.getArguments()[0]
-					.getType());
+					.getType();
+	builder.getConverter().registerType(
+			getName(), mlir::rlc::AliasType::get(getName(), underlyingType));
 
-	builder.getRewriter().eraseOp(*this);
 	return mlir::success();
 }
 
@@ -1612,23 +1656,28 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 
 	llvm::SmallVector<mlir::StringAttr> names;
 	llvm::SmallVector<mlir::FunctionType> types;
+	llvm::SmallVector<mlir::ArrayAttr> argNames;
 
 	for (auto op : getBody().getOps<mlir::rlc::FunctionOp>())
 	{
 		names.push_back(op.getUnmangledNameAttr());
 		types.push_back(op.getFunctionType());
+		argNames.push_back(rewriter.getStrArrayAttr(op.getArgNames()));
 	}
 
-	llvm::SmallVector<mlir::StringAttr> typeNames;
+	llvm::SmallVector<mlir::Type> typeNames;
 	for (auto t : getTemplateParameters())
 	{
-		auto name = builder.getRewriter().getStringAttr(
-				"TraitType" + t.cast<mlir::StringAttr>().strref());
-		typeNames.push_back(name);
+		typeNames.push_back(
+				TemplateParameterType::get(
+						getContext(),
+						("TraitType" + t.cast<mlir::StringAttr>().strref()).str(),
+						nullptr,
+						false));
 	}
 
 	auto type = mlir::rlc::TraitMetaType::get(
-			getContext(), getName(), typeNames, types, names);
+			getContext(), getName(), typeNames, types, names, argNames);
 	rewriter.setInsertionPointAfter(*this);
 	auto op = rewriter.create<mlir::rlc::TraitDefinition>(getLoc(), type);
 
@@ -1677,7 +1726,8 @@ static void promoteArgumentOfIsOp(
 					trait.getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
 			auto instantiated = replaceTemplateParameter(
 					methodType,
-					trait.getTemplateParameterTypes().back(),
+					mlir::cast<mlir::rlc::TemplateParameterType>(
+							trait.getTemplateParameters().back()),
 					isOp.getExpression().getType());
 			auto upcastedValue = rewriter.create<mlir::rlc::TemplateInstantiationOp>(
 					isOp.getLoc(),
@@ -1896,6 +1946,8 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 		newCall = rewriter.create<mlir::rlc::CallOp>(
 				getLoc(), getCallee(), getIsMemberCall(), getArgs());
 	}
+	if (getOperation()->hasAttr("post_fix_call"))
+		newCall->setAttr("post_fix_call", rewriter.getUnitAttr());
 
 	if (newCall->getNumResults() != 0)
 	{
@@ -2025,20 +2077,27 @@ mlir::LogicalResult mlir::rlc::ForLoopStatement::typeCheck(
 				"a while loop. In the future they will be supported");
 	}
 
+	for (auto *op : ops(getRangeExpression()))
+		if (mlir::rlc::typeCheck(*op, builder).failed())
+			return mlir::failure();
+
 	auto &rewriter = builder.getRewriter();
 
 	mlir::rlc::OverloadResolver resolver(builder.getSymbolTable(), nullptr);
 
-	auto maybeSizeFunction = resolver.findOverload(
-			getLoc(), true, "size", { getExpression().getType() });
+	auto yield = mlir::cast<mlir::rlc::Yield>(
+			getRangeExpression().front().getTerminator());
+	auto inductionVarType = yield.getArguments()[0].getType();
+
+	auto maybeSizeFunction =
+			resolver.findOverload(getLoc(), true, "size", { inductionVarType });
 	if (!maybeSizeFunction or
 			maybeSizeFunction.getType().cast<mlir::FunctionType>().getResult(0) !=
 					mlir::rlc::IntegerType::getInt64(getContext()))
 	{
 		return logError(
 				*this,
-				"For loop argument expression of type " +
-						prettyType(getExpression().getType()) +
+				"For loop argument expression of type " + prettyType(inductionVarType) +
 						" has no method size() -> Int");
 	}
 
@@ -2046,16 +2105,14 @@ mlir::LogicalResult mlir::rlc::ForLoopStatement::typeCheck(
 			getLoc(),
 			true,
 			"get",
-			{ getExpression().getType(),
-				mlir::rlc::IntegerType::getInt64(getContext()) });
+			{ inductionVarType, mlir::rlc::IntegerType::getInt64(getContext()) });
 	if (!maybeGetFunction or
 			maybeGetFunction.getType().cast<mlir::FunctionType>().getResult(0) ==
 					mlir::rlc::VoidType::get(getContext()))
 	{
 		return logError(
 				*this,
-				"For loop argument expression of type " +
-						prettyType(getExpression().getType()) +
+				"For loop argument expression of type " + prettyType(inductionVarType) +
 						" has no method get(Int index) that returns a non void type");
 	}
 
@@ -2076,13 +2133,16 @@ mlir::LogicalResult mlir::rlc::ForLoopVarDeclOp::typeCheck(
 	if (not parent)
 		return logError(*this, "for loop var decl found outside of for loop");
 
+	auto yield = mlir::cast<mlir::rlc::Yield>(
+			parent.getRangeExpression().front().getTerminator());
+	auto inductionVarType = yield.getArguments()[0].getType();
+
 	auto maybeGetFunction = resolver.instantiateOverload(
 			builder.getRewriter(),
 			true,
 			getLoc(),
 			"get",
-			{ parent.getExpression().getType(),
-				mlir::rlc::IntegerType::getInt64(getContext()) });
+			{ inductionVarType, mlir::rlc::IntegerType::getInt64(getContext()) });
 	auto type =
 			maybeGetFunction.getType().cast<mlir::FunctionType>().getResults()[0];
 	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())
@@ -2192,8 +2252,9 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 			getPrecondition().front().insertArgument(
 					contextArgCounts++, type, getLoc());
 			newResultTypes.push_back(type);
-			argInfo.push_back(mlir::rlc::FunctionArgumentAttr::get(
-					type.getContext(), std::get<1>(arg)));
+			argInfo.push_back(
+					mlir::rlc::FunctionArgumentAttr::get(
+							type.getContext(), std::get<1>(arg)));
 		}
 	}
 
@@ -2558,8 +2619,9 @@ mlir::LogicalResult mlir::rlc::InitializerListOp::typeCheck(
 	// operators correctly there would not be a need for this.
 	if (not initializerListTypeIsValid(type))
 	{
-		emitOpError("only acceptable types in initializer list are primitive types "
-								"or arrays of primitive types");
+		emitOpError(
+				"only acceptable types in initializer list are primitive types "
+				"or arrays of primitive types");
 		return mlir::failure();
 	}
 
@@ -2837,9 +2899,10 @@ void mlir::rlc::ActionStatement::getSuccessorRegions(
 	if (succ.isParent())
 	{
 		if (not getPrecondition().empty())
-			regions.push_back(mlir::RegionSuccessor(
-					&getPrecondition(),
-					getPrecondition().front().getArguments().slice(0, 0)));
+			regions.push_back(
+					mlir::RegionSuccessor(
+							&getPrecondition(),
+							getPrecondition().front().getArguments().slice(0, 0)));
 		else
 			regions.push_back(mlir::RegionSuccessor(getResults().slice(0, 0)));
 
@@ -2908,8 +2971,9 @@ void mlir::rlc::Yield::getSuccessorRegions(
 	{
 		if (not getOnEnd().empty())
 		{
-			regions.push_back(mlir::RegionSuccessor(
-					&getOnEnd(), getOnEnd().front().getArguments()));
+			regions.push_back(
+					mlir::RegionSuccessor(
+							&getOnEnd(), getOnEnd().front().getArguments()));
 		}
 		else
 		{
@@ -3032,16 +3096,19 @@ void mlir::rlc::IfStatement::getSuccessorRegions(
 {
 	// When you hit a if statement you jump into the precondition
 	if (succ.isParent())
-		regions.push_back(mlir::RegionSuccessor(
-				&getCondition(), getCondition().front().getArguments()));
+		regions.push_back(
+				mlir::RegionSuccessor(
+						&getCondition(), getCondition().front().getArguments()));
 
 	// from the condition, you can jump to the then or else branch
 	if (succ.getRegionOrNull() == &getCondition())
 	{
-		regions.push_back(mlir::RegionSuccessor(
-				&getTrueBranch(), getTrueBranch().front().getArguments()));
-		regions.push_back(mlir::RegionSuccessor(
-				&getElseBranch(), getElseBranch().front().getArguments()));
+		regions.push_back(
+				mlir::RegionSuccessor(
+						&getTrueBranch(), getTrueBranch().front().getArguments()));
+		regions.push_back(
+				mlir::RegionSuccessor(
+						&getElseBranch(), getElseBranch().front().getArguments()));
 	}
 
 	// from the then and else branch you go back out
@@ -3233,8 +3300,9 @@ void mlir::rlc::WhileStatement::getSuccessorRegions(
 {
 	// When you hit a for statement you jump into the precondition
 	if (succ.isParent())
-		regions.push_back(mlir::RegionSuccessor(
-				&getCondition(), getCondition().front().getArguments()));
+		regions.push_back(
+				mlir::RegionSuccessor(
+						&getCondition(), getCondition().front().getArguments()));
 
 	// from the condition, you can jump out or to the body
 	if (succ.getRegionOrNull() == &getCondition())
@@ -3247,8 +3315,9 @@ void mlir::rlc::WhileStatement::getSuccessorRegions(
 	// from the body you jump to the condition
 	if (succ.getRegionOrNull() == &getBody())
 	{
-		regions.push_back(mlir::RegionSuccessor(
-				&getCondition(), getCondition().front().getArguments()));
+		regions.push_back(
+				mlir::RegionSuccessor(
+						&getCondition(), getCondition().front().getArguments()));
 	}
 }
 
@@ -3284,8 +3353,9 @@ mlir::rlc::UncheckedTraitDefinition::getTemplateParameterTypes()
 {
 	llvm::SmallVector<mlir::rlc::TemplateParameterType, 4> toReturn;
 	for (auto t : getTemplateParameters())
-		toReturn.push_back(mlir::rlc::TemplateParameterType::get(
-				getContext(), t.cast<mlir::StringAttr>(), nullptr, false));
+		toReturn.push_back(
+				mlir::rlc::TemplateParameterType::get(
+						getContext(), t.cast<mlir::StringAttr>(), nullptr, false));
 	return toReturn;
 }
 

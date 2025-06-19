@@ -79,6 +79,8 @@ llvm::StringRef rlc::tokenToString(Token t)
 			return "Begin";
 		case Token::KeywordBreak:
 			return "KeywordBreak";
+		case Token::KeywordComment:
+			return "KeywordComment";
 		case Token::KeywordSystem:
 			return "KeywordSystem";
 		case Token::KeywordAssert:
@@ -261,7 +263,6 @@ void Lexer::consumeWhiteSpaceUntilNextMeaningfullChar()
 {
 	while (isspace(*in) != 0 and *in != '\n' and *in != '\0' and *in != '\f')
 		eatChar();
-	eatComment();
 }
 
 optional<Token> Lexer::eatSpaces()
@@ -328,6 +329,7 @@ Token Lexer::eatNumber()
 		if (llvm::StringRef(number).getAsInteger(0, value))
 			return Token::Error;
 		memcpy(&lInt64, &value, sizeof(value));
+		lString = number;
 		return Token::Int64;
 	}
 
@@ -335,6 +337,7 @@ Token Lexer::eatNumber()
 	{
 		if (llvm::StringRef(number).consumeInteger(10, lInt64))
 			return Token::Error;
+		lString = number;
 		return Token::Int64;
 	}
 
@@ -343,6 +346,7 @@ Token Lexer::eatNumber()
 		number += eatChar();
 
 	lDouble = stod(number);
+	lString = number;
 	return Token::Double;
 }
 
@@ -602,7 +606,6 @@ Token Lexer::next()
 	{
 		return Token::Error;
 	}
-	lComment.clear();
 	auto result = nextWithoutTrailingConsume();
 
 	// unless we are at the start of line, we skip over the next white space
@@ -611,6 +614,56 @@ Token Lexer::next()
 		consumeWhiteSpaceUntilNextMeaningfullChar();
 	return result;
 }
+static std::string escapeString(const std::string& input)
+{
+	std::string output;
+	output.reserve(input.size());	 // Optimize: avoid reallocations
+
+	for (char c : input)
+	{
+		switch (c)
+		{
+			case '\"':
+				output += "\\\"";
+				break;
+			case '\0':
+				output += "\\0";
+				break;
+			case '\\':
+				output += "\\\\";
+				break;
+			case '\b':
+				output += "\\b";
+				break;
+			case '\f':
+				output += "\\f";
+				break;
+			case '\n':
+				output += "\\n";
+				break;
+			case '\r':
+				output += "\\r";
+				break;
+			case '\t':
+				output += "\\t";
+				break;
+			default:
+				if (static_cast<unsigned char>(c) < 0x20)
+				{
+					// Control characters as \u00XX
+					char buf[7];
+					snprintf(buf, sizeof(buf), "\\u%04x", c);
+					output += buf;
+				}
+				else
+				{
+					output += c;
+				}
+		}
+	}
+
+	return output;
+}
 
 // returns true if there was indeed a comment at the current character
 bool Lexer::eatComment()
@@ -618,13 +671,16 @@ bool Lexer::eatComment()
 	if (*in == '#')
 	{
 		parsingComment = true;
+		lString.clear();
 		eatChar();
 		bool doubleComment = *in == '#';
 		while (*in != '\n' and *in != '\0')
-			lComment += eatChar();
-		lComment += "\n";
+			lString += eatChar();
+		lString += "\n";
+		while (*in == '\n' and *in != '\0')
+			eatChar();
 		if (doubleComment)
-			lComment.clear();
+			lString.clear();
 		parsingComment = false;
 		return true;
 	}
@@ -733,11 +789,12 @@ Token Lexer::nextWithoutTrailingConsume()
 		else
 			while (isspace(*in) or *in == '\n')
 				eatChar();
-
-		consumeLine = eatComment();
 	}
 
 	startToken();
+	if (eatComment())
+		return Token::KeywordComment;
+
 	if (isdigit(*in) != 0)
 		return eatNumber();
 
@@ -746,12 +803,15 @@ Token Lexer::nextWithoutTrailingConsume()
 
 	if (*in == '\'')
 	{
+		std::string asWritten;
 		parsingString = true;
-		eatChar();
+		asWritten += eatChar();
 		lInt64 = eatCharLiteral();
+		asWritten += lInt64;
 		if (*in != '\'')
 			return Token::Error;
-		eatChar();
+		asWritten += eatChar();
+		lString = escapeString(asWritten);
 		parsingString = false;
 		return Token::Character;
 	}

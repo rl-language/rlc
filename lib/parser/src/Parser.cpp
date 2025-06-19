@@ -42,13 +42,21 @@ void Parser::next()
 	if (current == Token::Identifier)
 		lIdent = lexer.lastIndent();
 	if (current == Token::Int64 or current == Token::Character)
+	{
 		lInt64 = lexer.lastInt64();
+		lString = lexer.lastString();
+	}
 	if (current == Token::Double)
+	{
 		lDouble = lexer.lastDouble();
+		lString = lexer.lastString();
+	}
+	if (current == Token::KeywordComment)
+	{
+		lString = lexer.lastString();
+	}
 	if (current == Token::String)
 		lString = lexer.lastString();
-	if (attachComments)
-		accumulatedComments += lexer.getLastComment();
 	current = lexer.next();
 	pos = mlir::FileLineColLoc::get(
 			ctx,
@@ -66,6 +74,34 @@ bool Parser::accept(Token t)
 	return true;
 }
 
+Expected<Token> Parser::expectEndOfLine()
+{
+	if (current == Token::KeywordComment)
+	{
+		auto maybeComment = comment();
+		if (!maybeComment)
+			return maybeComment.takeError();
+		return Token::KeywordComment;
+	}
+
+	return expect(Token::Newline);
+}
+
+bool Parser::acceptEndOfLine()
+{
+	if (current == Token::KeywordComment)
+	{
+		auto c = comment();
+		if (!c)
+		{
+			abort();
+		}
+		return true;
+	}
+
+	return accept(Token::Newline);
+}
+
 Expected<Token> Parser::expect(Token t)
 {
 	if (accept(t))
@@ -81,6 +117,13 @@ Expected<Token> Parser::expect(Token t)
 			RlcErrorCategory::errorCode(RlcErrorCode::unexpectedToken),
 			getCurrentSourcePos());
 }
+
+#define EXPECT_EOL(...)                                                        \
+	if (auto e = expectEndOfLine(); !e)                                          \
+	{                                                                            \
+		__VA_ARGS__;                                                               \
+		return e.takeError();                                                      \
+	}
 
 #define EXPECT(Token, ...)                                                     \
 	if (auto e = expect(Token); !e)                                              \
@@ -124,10 +167,13 @@ llvm::Expected<mlir::Value> Parser::stringExpression()
 	auto ref = builder.createUnresolvedReference(location, lIdent);
 
 	location = getCurrentSourcePos();
-	return builder
-			.create<mlir::rlc::CallOp>(
-					location, unkType(), ref, false, mlir::ValueRange({ value }))
-			.getResult(0);
+	auto op =
+			builder
+					.create<mlir::rlc::CallOp>(
+							location, unkType(), ref, false, mlir::ValueRange({ value }))
+					.getResult(0);
+	op.getDefiningOp()->setAttr("post_fix_call", builder.getUnitAttr());
+	return op;
 }
 
 // initializerList: "[" (expression ( "," expression)*)? "]"
@@ -156,7 +202,7 @@ llvm::Expected<mlir::Value> Parser::initializerList()
 
 	do
 	{
-		while (accept<Token::Newline>() or accept<Token::Indent>() or
+		while (acceptEndOfLine() or accept<Token::Indent>() or
 					 accept<Token::Deindent>())
 			;
 		TRY(arg, expression(), onExit());
@@ -211,7 +257,6 @@ Expected<mlir::Operation*> Parser::builtinDestroy()
 	EXPECT(Token::LPar);
 	TRY(arg, expression());
 	EXPECT(Token::RPar);
-	EXPECT(Token::Newline);
 
 	return builder.create<mlir::rlc::DestroyOp>(location, *arg);
 }
@@ -224,7 +269,6 @@ Expected<mlir::Operation*> Parser::builtinConstruct()
 	EXPECT(Token::LPar);
 	TRY(arg, expression());
 	EXPECT(Token::RPar);
-	EXPECT(Token::Newline);
 
 	return builder.create<mlir::rlc::InplaceInitializeOp>(location, *arg);
 }
@@ -256,7 +300,6 @@ Expected<mlir::rlc::FreeOp> Parser::builtinFree()
 	EXPECT(Token::LPar);
 	TRY(toDelete, expression());
 	EXPECT(Token::RPar);
-	EXPECT(Token::Newline);
 
 	return builder.create<mlir::rlc::FreeOp>(location, *toDelete);
 }
@@ -293,13 +336,14 @@ Expected<mlir::Value> Parser::primaryExpression()
 	}
 
 	if (accept<Token::Double>())
-		return builder.create<mlir::rlc::Constant>(location, lDouble);
+		return builder.create<mlir::rlc::Constant>(location, lDouble, lString);
 
 	if (accept<Token::Int64>())
-		return builder.create<mlir::rlc::Constant>(location, lInt64);
+		return builder.create<mlir::rlc::Constant>(location, lInt64, lString);
 
 	if (accept<Token::Character>())
-		return builder.create<mlir::rlc::Constant>(location, int8_t(lInt64));
+		return builder.create<mlir::rlc::Constant>(
+				location, int8_t(lInt64), lString);
 
 	if (accept<Token::KeywordFalse>())
 		return builder.create<mlir::rlc::Constant>(location, false);
@@ -325,11 +369,12 @@ Expected<mlir::Value> Parser::primaryExpression()
 	if (current == Token::KeywordToArray)
 		return builtinToArray();
 
+	auto pos = getCurrentSourcePos();
 	if (accept<Token::LPar>())
 	{
 		TRY(exp, expression());
 		EXPECT(Token::RPar);
-		return exp;
+		return builder.createBracketsOp(pos, (*exp).getType(), *exp);
 	}
 
 	if (current == Token::LSquare)
@@ -824,7 +869,12 @@ Expected<mlir::Value> Parser::bitWiseOrExpression()
 	return *lhs;
 }
 
-Expected<mlir::Value> Parser::expression() { return bitWiseOrExpression(); }
+Expected<mlir::Value> Parser::expression()
+{
+	auto result = bitWiseOrExpression();
+
+	return result;
+}
 
 /**
  * ClassField : TypeUse Identifier
@@ -861,7 +911,7 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 	auto tokenLocation =
 			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation);
 	EXPECT(Token::Colons);
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	EXPECT(Token::Indent);
 	SmallVector<mlir::Attribute, 3> fields;
 
@@ -884,18 +934,18 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 		return toReturn;
 	};
 
-	accumulatedComments.clear();
-	while (accept(Token::Newline))
+	while (acceptEndOfLine())
 		;
 
 	while (!accept<Token::Deindent>())
 	{
-		if (current == Token::KeywordFun)
+		if (current == Token::KeywordComment)
 		{
-			auto currentFunctionComments = std::move(accumulatedComments);
-			accumulatedComments = "";
+			TRY(c, comment());
+		}
+		else if (current == Token::KeywordFun)
+		{
 			TRY(f, functionDefinition(true), on_exit());
-			setComment(*f, currentFunctionComments);
 		}
 		else if (accept<Token::KeywordPass>())
 		{
@@ -904,9 +954,9 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 		{
 			TRY(field, classField(), on_exit());
 			fields.push_back(*field);
-			EXPECT(Token::Newline, on_exit());
+			EXPECT_EOL(on_exit());
 		}
-		while (accept<Token::Newline>())
+		while (acceptEndOfLine())
 			;
 	}
 
@@ -929,17 +979,35 @@ llvm::Expected<mlir::rlc::ExpressionStatement> Parser::expressionStatement()
 		builder.restoreInsertionPoint(pos);
 	};
 
-	TRY(exp, expression(), onExit());
-
-	auto locAssign = getCurrentSourcePos();
-	if (accept<Token::Equal>())
+	if (current == Token::KeywordFree)
 	{
-		TRY(rightHand, expression(), onExit());
-		builder.create<mlir::rlc::AssignOp>(locAssign, *exp, *rightHand);
+		TRY(_, builtinFree(), onExit());
+	}
+	else if (current == Token::KeywordDestroy)
+	{
+		TRY(_, builtinDestroy(), onExit());
+	}
+	else if (current == Token::KeywordContstruct)
+	{
+		TRY(_, builtinConstruct(), onExit());
+	}
+	else if (current == Token::KeywordAssert)
+	{
+		TRY(_, assertStatement(), onExit());
+	}
+	else
+	{
+		TRY(exp, expression(), onExit());
+		auto locAssign = getCurrentSourcePos();
+		if (accept<Token::Equal>())
+		{
+			TRY(rightHand, expression(), onExit());
+			builder.create<mlir::rlc::AssignOp>(locAssign, *exp, *rightHand);
+		}
 	}
 
 	onExit();
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 
 	return expStatement;
 }
@@ -1062,7 +1130,7 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 			TRY(exp, expression(), onExit(false));
 			expressions.push_back(*exp);
 		}
-		EXPECT(Token::Newline);
+		EXPECT_EOL();
 		builder.create<mlir::rlc::Yield>(getCurrentSourcePos(), expressions);
 		return onExit(true);
 	}
@@ -1072,7 +1140,7 @@ llvm::Expected<mlir::rlc::SubActionStatement> Parser::subActionStatement()
 
 	builder.setInsertionPointToStart(&bodyRegion.front());
 	TRY(body, expression(), onExit(false));
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	builder.create<mlir::rlc::Yield>(
 			getCurrentSourcePos(), mlir::ValueRange(*body));
 
@@ -1084,7 +1152,7 @@ llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordActions);
 	EXPECT(Token::Colons);
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	EXPECT(Token::Indent);
 
 	llvm::SmallVector<llvm::SmallVector<mlir::Operation*, 2>, 4> ops;
@@ -1094,13 +1162,13 @@ llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
 	{
 		TRY(op, statement());
 		ops.back().push_back(*op);
-		while (accept<Token::Newline>())
+		while (acceptEndOfLine())
 			;
 	} while (current != Token::KeywordAction and current != Token::Deindent);
 
 	while (not accept<Token::Deindent>())
 	{
-		while (accept<Token::Newline>())
+		while (acceptEndOfLine())
 			;
 		if (current == Token::KeywordAction)
 			ops.push_back({});
@@ -1123,7 +1191,7 @@ llvm::Expected<mlir::rlc::ActionsStatement> Parser::actionsStatement()
 				not mlir::isa<mlir::rlc::ReturnStatement>(ops[i].back()))
 		{
 			builder.setInsertionPointAfter(ops[i].back());
-			builder.create<mlir::rlc::Yield>(location);
+			builder.create<mlir::rlc::Yield>(ops[i].back()->getLoc());
 		}
 	}
 	builder.setInsertionPointAfter(statements);
@@ -1150,11 +1218,8 @@ llvm::Expected<mlir::rlc::ActionStatement> Parser::actionStatement()
 			&action.getPrecondition(), {}, action.getResults().getTypes(), locs);
 	TRY(list, requirementList(), onExit());
 
-	EXPECT(Token::Newline, onExit());
+	EXPECT_EOL(onExit());
 	onExit();
-
-	setComment(action, accumulatedComments);
-	accumulatedComments.clear();
 
 	return action;
 }
@@ -1187,7 +1252,8 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 		emitYieldIfNeeded(getCurrentSourcePos());
 
 		builder.setInsertionPointToEnd(elseB);
-		emitYieldIfNeeded(getCurrentSourcePos());
+		emitYieldIfNeeded(
+				elseB->empty() ? trueB->back().getLoc() : elseB->back().getLoc());
 
 		builder.restoreInsertionPoint(pos);
 	};
@@ -1196,7 +1262,7 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 
 	TRY(exp, expression(), onExit(nullptr));
 	EXPECT(Token::Colons, onExit(*exp));
-	EXPECT(Token::Newline, onExit(*exp));
+	EXPECT_EOL(onExit(*exp));
 
 	builder.setInsertionPointToStart(trueB);
 	TRY(tBranch, statementList(), onExit(*exp));
@@ -1211,7 +1277,7 @@ llvm::Expected<mlir::rlc::IfStatement> Parser::ifStatement()
 		else
 		{
 			EXPECT(Token::Colons, onExit(*exp));
-			EXPECT(Token::Newline, onExit(*exp));
+			EXPECT_EOL(onExit(*exp));
 			TRY(fBranch, statementList(), onExit(*exp));
 		}
 	}
@@ -1228,20 +1294,24 @@ Expected<mlir::rlc::ForLoopStatement> Parser::forLoopStatement(
 {
 	auto location = getCurrentSourcePos();
 	EXPECT(Token::KeywordIn);
+	auto pos = builder.saveInsertionPoint();
+	mlir::Region expBB;
+	auto* expBlock = builder.createBlock(&expBB, expBB.begin());
 	TRY(exp, expression());
+	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({ *exp }));
 
 	EXPECT(Token::Colons);
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 
 	mlir::Region region;
-	auto pos = builder.saveInsertionPoint();
 	auto* block = builder.createBlock(&region, region.begin());
 	builder.setInsertionPointToStart(block);
 
 	TRY(list, statementList());
 	builder.restoreInsertionPoint(pos);
-	auto forLoop = builder.createForLoopStatement(location, *exp);
+	auto forLoop = builder.createForLoopStatement(location);
 	forLoop.getBody().takeBody(region);
+	forLoop.getRangeExpression().takeBody(expBB);
 	builder.setInsertionPointToEnd(&forLoop.getBody().front());
 
 	builder.create<mlir::rlc::Yield>(location, mlir::ValueRange({}));
@@ -1320,7 +1390,7 @@ Expected<mlir::Operation*> Parser::forFieldStatement()
 		builder.create<mlir::rlc::Yield>(location, values);
 
 		builder.setInsertionPointToEnd(bodyB);
-		emitYieldIfNeeded(location);
+		emitYieldIfNeeded(bodyB->back().getLoc());
 		builder.restoreInsertionPoint(pos);
 	};
 
@@ -1331,7 +1401,7 @@ Expected<mlir::Operation*> Parser::forFieldStatement()
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::Colons, onExit());
-	EXPECT(Token::Newline, onExit());
+	EXPECT_EOL(onExit());
 
 	builder.setInsertionPointToStart(bodyB);
 	TRY(statLis, statementList(), onExit());
@@ -1358,16 +1428,16 @@ Expected<mlir::rlc::WhileStatement> Parser::whileStatement()
 		builder.setInsertionPointToEnd(condB);
 		if (exp == nullptr)
 			exp = builder.create<mlir::rlc::Constant>(getCurrentSourcePos(), false);
-		auto yieldLocation = getCurrentSourcePos();
-		builder.create<mlir::rlc::Yield>(yieldLocation, mlir::ValueRange({ exp }));
+		builder.create<mlir::rlc::Yield>(
+				getLastTokenEndPos(), mlir::ValueRange({ exp }));
 		builder.setInsertionPointToEnd(bodyB);
-		emitYieldIfNeeded(getCurrentSourcePos());
+		emitYieldIfNeeded(bodyB->back().getLoc());
 		builder.restoreInsertionPoint(pos);
 	};
 
 	TRY(exp, expression(), onExit(nullptr));
 	EXPECT(Token::Colons, onExit(*exp));
-	EXPECT(Token::Newline, onExit(*exp));
+	EXPECT_EOL(onExit(*exp));
 
 	builder.setInsertionPointToStart(bodyB);
 	TRY(statLis, statementList(), onExit(*exp));
@@ -1385,7 +1455,7 @@ Expected<mlir::rlc::BreakStatement> Parser::breakStatement()
 	auto location = getCurrentSourcePos();
 
 	EXPECT(Token::KeywordBreak);
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	auto toReturn = builder.create<mlir::rlc::BreakStatement>(location);
 	builder.createBlock(&toReturn.getOnEnd());
 	builder.create<mlir::rlc::Yield>(location);
@@ -1402,7 +1472,7 @@ Expected<mlir::rlc::ContinueStatement> Parser::continueStatement()
 	auto location = getCurrentSourcePos();
 
 	EXPECT(Token::KeywordContinue);
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	auto toReturn = builder.create<mlir::rlc::ContinueStatement>(location);
 
 	builder.createBlock(&toReturn.getOnEnd());
@@ -1432,14 +1502,14 @@ Expected<mlir::rlc::ReturnStatement> Parser::returnStatement()
 		builder.restoreInsertionPoint(pos);
 	};
 
-	if (accept(Token::Newline))
+	if (acceptEndOfLine())
 	{
 		onExit(nullptr);
 		return expStatement;
 	}
 
 	TRY(exp, expression(), onExit(nullptr));
-	EXPECT(Token::Newline, onExit(*exp));
+	EXPECT_EOL(onExit(*exp));
 	onExit(*exp);
 	return expStatement;
 }
@@ -1457,7 +1527,6 @@ Expected<mlir::rlc::AssertOp> Parser::assertStatement()
 	EXPECT(Token::String);
 	auto message = lexer.lastString();
 	EXPECT(Token::RPar);
-	EXPECT(Token::Newline);
 	return builder.create<mlir::rlc::AssertOp>(location, *exp, message);
 }
 
@@ -1499,18 +1568,6 @@ Expected<mlir::Operation*> Parser::statement()
 	if (current == Token::KeywordLet || current == Token::KeywordRef ||
 			current == Token::KeywordFrame)
 		return declarationStatement();
-
-	if (current == Token::KeywordFree)
-		return builtinFree();
-
-	if (current == Token::KeywordDestroy)
-		return builtinDestroy();
-
-	if (current == Token::KeywordContstruct)
-		return builtinConstruct();
-
-	if (current == Token::KeywordAssert)
-		return assertStatement();
 
 	if (current == Token::Indent)
 	{
@@ -1591,7 +1648,7 @@ Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 	{
 		TRY(exp, expression(), onExit(nullptr));
 		onExit(*exp);
-		EXPECT(Token::Newline);
+		EXPECT_EOL();
 
 		return expStatement;
 	}
@@ -1602,7 +1659,7 @@ Expected<mlir::rlc::DeclarationStatement> Parser::declarationStatement()
 	auto exp = builder.create<mlir::rlc::ConstructOp>(
 			typeLoc, shugarType->getType(), *shugarType);
 	onExit(exp);
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	return expStatement;
 }
 
@@ -1614,8 +1671,9 @@ Expected<bool> Parser::statementList()
 	EXPECT(Token::Indent);
 	while (!accept<Token::Deindent>())
 	{
-		while (accept<Token::Newline>())
+		while (acceptEndOfLine())
 			;
+
 		TRY(s, statement());
 	}
 
@@ -1794,13 +1852,15 @@ Parser::templateArguments()
 		if (accept<Token::Identifier>())
 		{
 			auto second = lIdent;
-			toReturn.push_back(mlir::rlc::UncheckedTemplateParameterType::get(
-					builder.getContext(), second, builder.getStringAttr(first)));
+			toReturn.push_back(
+					mlir::rlc::UncheckedTemplateParameterType::get(
+							builder.getContext(), second, builder.getStringAttr(first)));
 		}
 		else
 		{
-			toReturn.push_back(mlir::rlc::UncheckedTemplateParameterType::get(
-					builder.getContext(), first, builder.getStringAttr("")));
+			toReturn.push_back(
+					mlir::rlc::UncheckedTemplateParameterType::get(
+							builder.getContext(), first, builder.getStringAttr("")));
 		}
 
 	} while (accept<Token::Comma>());
@@ -1813,7 +1873,7 @@ Expected<mlir::rlc::FunctionOp> Parser::externFunctionDeclaration()
 {
 	EXPECT(Token::KeywordExtern);
 	TRY(result, functionDeclaration());
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	return std::move(*result);
 }
 
@@ -1911,7 +1971,7 @@ Expected<mlir::rlc::FunctionOp> Parser::functionDefinition(
 		fun->getPrecondition().takeBody(region);
 
 	EXPECT(Token::Colons, onExit());
-	EXPECT(Token::Newline, onExit());
+	EXPECT_EOL(onExit());
 
 	builder.setInsertionPointToEnd(bodyB);
 	TRY(body, statementList(), onExit());
@@ -2024,7 +2084,7 @@ Expected<mlir::rlc::ActionFunction> Parser::actionDefinition()
 
 	builder.setInsertionPoint(block, block->begin());
 	EXPECT(Token::Colons, onExit());
-	EXPECT(Token::Newline, onExit());
+	EXPECT_EOL(onExit());
 	TRY(body, statementList(), onExit());
 	onExit();
 	return decl;
@@ -2044,7 +2104,7 @@ Expected<mlir::rlc::EnumFieldDeclarationOp> Parser::enumFieldDeclaration()
 
 	if (not accept(Token::Colons))
 	{
-		EXPECT(Token::Newline, onExit());
+		EXPECT_EOL(onExit());
 		auto toReturn =
 				builder.create<mlir::rlc::EnumFieldDeclarationOp>(loc, lIdent);
 		onExit();
@@ -2054,7 +2114,7 @@ Expected<mlir::rlc::EnumFieldDeclarationOp> Parser::enumFieldDeclaration()
 	auto toReturn =
 			builder.create<mlir::rlc::EnumFieldDeclarationOp>(loc, lIdent);
 	auto bb = builder.createBlock(&toReturn.getBody());
-	EXPECT(Token::Newline, onExit());
+	EXPECT_EOL(onExit());
 	EXPECT(Token::Indent, onExit());
 
 	do
@@ -2071,7 +2131,7 @@ Expected<mlir::rlc::EnumFieldDeclarationOp> Parser::enumFieldDeclaration()
 		TRY(exp, expression(), onExit());
 
 		builder.create<mlir::rlc::Yield>(loc, mlir::ValueRange({ *exp }));
-		EXPECT(Token::Newline, onExit());
+		EXPECT_EOL(onExit());
 	} while (not accept(Token::Deindent));
 
 	onExit();
@@ -2093,7 +2153,7 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation);
 	auto enumName = lIdent;
 	EXPECT(Token::Colons);
-	EXPECT(Token::Newline);
+	EXPECT_EOL();
 	EXPECT(Token::Indent);
 
 	mlir::Region region;
@@ -2112,7 +2172,7 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 
 	while (not accept<Token::Deindent>())
 	{
-		while (accept<Token::Newline>())
+		while (acceptEndOfLine())
 			;
 		if (current == Token::KeywordFun)
 		{
@@ -2150,19 +2210,20 @@ Expected<mlir::rlc::UncheckedTraitDefinition> Parser::traitDefinition()
 	auto trait = builder.create<mlir::rlc::UncheckedTraitDefinition>(
 			location,
 			traitName,
-			builder.getStrArrayAttr(llvm::SmallVector<llvm::StringRef, 3>(
-					identifiers.begin(), identifiers.end())));
+			builder.getStrArrayAttr(
+					llvm::SmallVector<llvm::StringRef, 3>(
+							identifiers.begin(), identifiers.end())));
 	builder.createBlock(&trait.getBody());
 	builder.setInsertionPoint(
 			&trait.getBody().front(), trait.getBody().front().begin());
 
 	EXPECT(Token::Colons, onExit());
-	EXPECT(Token::Newline, onExit());
+	EXPECT_EOL(onExit());
 	EXPECT(Token::Indent, onExit());
 	while (not accept<Token::Deindent>())
 	{
 		TRY(fun, functionDeclaration(), onExit());
-		EXPECT(Token::Newline, onExit());
+		EXPECT_EOL(onExit());
 	}
 	onExit();
 
@@ -2186,15 +2247,6 @@ llvm::Expected<mlir::rlc::TypeAliasOp> Parser::usingStatement()
 			(*typeUse).getType(),
 			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation),
 			*typeUse);
-}
-
-void Parser::setComment(mlir::Operation* op, llvm::StringRef comment)
-{
-	if (not attachComments)
-		return;
-	if (comment.empty())
-		return;
-	op->setAttr("comment", builder.getStringAttr(comment));
 }
 
 llvm::Expected<mlir::rlc::ConstantGlobalOp> Parser::globalConstant()
@@ -2233,6 +2285,15 @@ llvm::Expected<mlir::rlc::ConstantGlobalOp> Parser::globalConstant()
 			location2);
 }
 
+Expected<mlir::rlc::Comment> Parser::comment()
+{
+	auto loc = getCurrentSourcePos();
+	EXPECT(Token::KeywordComment);
+	if (attachComments)
+		builder.createComment(loc, lString);
+	return mlir::rlc::Comment(nullptr);
+}
+
 Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 {
 	auto location = getCurrentSourcePos();
@@ -2241,7 +2302,7 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 	{
 		EXPECT(Token::Identifier);
 		name = lIdent;
-		EXPECT(Token::Newline);
+		EXPECT_EOL();
 	}
 
 	auto module = destination == nullptr
@@ -2252,12 +2313,15 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 
 	while (current != Token::End)
 	{
-		accumulatedComments = "";
-		while (accept<Token::Newline>() or accept<Token::Indent>() or
+		while (acceptEndOfLine() or accept<Token::Indent>() or
 					 accept<Token::Deindent>())
 			;
 
-		std::string comment = std::move(accumulatedComments);
+		if (current == Token::KeywordComment)
+		{
+			TRY(c, comment());
+			continue;
+		}
 
 		if (current == Token::End)
 		{
@@ -2274,7 +2338,7 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 		if (accept(Token::AnnotationIntroducer))
 		{
 			EXPECT(Token::KeywordActionClass);
-			EXPECT(Token::Newline);
+			EXPECT_EOL();
 			emitClasses = true;
 		}
 		if (current == Token::KeywordAction)
@@ -2282,35 +2346,30 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 			TRY(f, actionDefinition());
 			if (emitClasses)
 				f->getOperation()->setAttr("emit_classes", builder.getBoolAttr(true));
-			setComment(*f, comment);
 			continue;
 		}
 
 		if (current == Token::KeywordConst)
 		{
 			TRY(f, globalConstant());
-			setComment(*f, comment);
 			continue;
 		}
 
 		if (current == Token::KeywordFun)
 		{
 			TRY(f, functionDefinition());
-			setComment(*f, comment);
 			continue;
 		}
 
 		if (current == Token::KeywordEnum)
 		{
 			TRY(f, enumDeclaration());
-			setComment(*f, comment);
 			continue;
 		}
 
 		if (current == Token::KeywordClass)
 		{
 			TRY(f, classDeclaration());
-			setComment(*f, comment);
 			continue;
 		}
 
@@ -2322,24 +2381,28 @@ Expected<mlir::ModuleOp> Parser::system(mlir::ModuleOp destination)
 
 		if (accept<Token::KeywordImport>())
 		{
+			auto loc = getCurrentSourcePos();
 			EXPECT(Token::Identifier);
 
+			std::string subFileAsWritten = lIdent;
 			std::string subFile = lIdent;
 			while (accept<Token::Dot>())
 			{
 				subFile.append("/");
+				subFileAsWritten.append(".");
 				EXPECT(Token::Identifier);
 				subFile.append(lIdent);
+				subFileAsWritten.append(lIdent);
 			}
-			EXPECT(Token::Newline);
+			EXPECT_EOL();
 			importedFiles.push_back(subFile + ".rl");
+			builder.createImport(loc, subFileAsWritten);
 			continue;
 		}
 
 		if (current == Token::KeywordTrait)
 		{
 			TRY(f, traitDefinition());
-			setComment(*f, comment);
 			continue;
 		}
 		auto location = getCurrentSourcePos();

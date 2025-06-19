@@ -109,11 +109,14 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 							llvm::raw_string_ostream stream(text);
 							diagnostic.print(stream);
 							stream.flush();
-							diagnostics.emplace_back(mlir::rlc::lsp::Diagnostic{
-									text, diagnostic.getLocation(), diagnostic.getSeverity() });
+							diagnostics.emplace_back(
+									mlir::rlc::lsp::Diagnostic{ text,
+																							diagnostic.getLocation(),
+																							diagnostic.getSeverity() });
 						}),
-				module(mlir::ModuleOp::create(
-						mlir::FileLineColLoc::get(&context, path, 0, 0), path)),
+				module(
+						mlir::ModuleOp::create(
+								mlir::FileLineColLoc::get(&context, path, 0, 0), path)),
 				currentFileContent(contents.str()),
 				lspContext(&lspContext)
 	{
@@ -1080,7 +1083,8 @@ static std::string toString(mlir::rlc::RLCSerializable type)
 {
 	std::string toReturn;
 	llvm::raw_string_ostream OS(toReturn);
-	type.rlc_serialize(OS, {});
+	mlir::rlc::SerializationContext ctx;
+	type.rlc_serialize(OS, { ctx });
 	OS.flush();
 	return toReturn;
 }

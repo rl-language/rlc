@@ -42,6 +42,15 @@ namespace mlir::rlc
 			mlir::rlc::IRBuilder rewriter(&getContext());
 			for (auto loop : loops)
 			{
+				// move range expression before the loop
+				while (loop.getRangeExpression().front().getOperations().size() != 1)
+				{
+					loop.getRangeExpression().front().front().moveBefore(loop);
+				}
+				auto terminator = mlir::cast<mlir::rlc::Yield>(
+						loop.getRangeExpression().front().getTerminator());
+				auto expression = terminator.getArguments()[0];
+
 				auto tmpVars = loop.getBody().getOps<mlir::rlc::ForLoopVarDeclOp>();
 				assert(!tmpVars.empty());
 				auto tmpVar = *tmpVars.begin();
@@ -52,19 +61,20 @@ namespace mlir::rlc
 				auto zero = rewriter.createConstant(
 						loop.getLoc(),
 						mlir::rlc::IntegerType::getInt64(&getContext()),
-						rewriter.getI64IntegerAttr(0));
+						rewriter.getI64IntegerAttr(0),
+						"");
 				auto one = rewriter.createConstant(
 						loop.getLoc(),
 						mlir::rlc::IntegerType::getInt64(&getContext()),
-						rewriter.getI64IntegerAttr(1));
+						rewriter.getI64IntegerAttr(1),
+						"");
 
 				rewriter.createBuiltinAssignOp(loop.getLoc(), index, zero);
 
 				// target = exp.size()
 				builder.getRewriter().restoreInsertionPoint(
 						rewriter.saveInsertionPoint());
-				auto size =
-						builder.emitCall(loop, true, "size", { loop.getExpression() });
+				auto size = builder.emitCall(loop, true, "size", { expression });
 				assert(size->getNumResults() == 1);
 
 				auto whileStmt = rewriter.createWhileStatement(loop.getLoc());
@@ -81,8 +91,7 @@ namespace mlir::rlc
 
 				builder.getRewriter().restoreInsertionPoint(
 						rewriter.saveInsertionPoint());
-				auto var = builder.emitCall(
-						loop, true, "get", { loop.getExpression(), index });
+				auto var = builder.emitCall(loop, true, "get", { expression, index });
 				assert(var->getNumResults() == 1);
 				mlir::Value value = var->getResult(0);
 

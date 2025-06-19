@@ -97,6 +97,35 @@ def TypeCheckable : RLC_Interface<"TypeCheckable"> {
 ];
 }
 
+def Serializable : RLC_Interface<"Serializable"> {
+    let description = [{
+        interface that allows to serialize back into source code
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "serialization method",
+            "void", "serialize",
+            (ins "llvm::raw_ostream&":$OS, 
+            "mlir::rlc::SerializationContext&":$context)
+        >,
+    ];
+}
+
+def RangeBased : RLC_Interface<"RangeBased"> {
+    let description = [{
+        The operation spans a large amount of text in the source file that goes beyond simply from the source location of the operation to the source location of the next operation
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "get the file location where the operation ends",
+            "mlir::Location", "getEndLocation",
+            (ins )
+        >,
+    ];
+}
+
 def ConstraintsAnalyzable : RLC_Interface<"ConstraintsAnalyzable"> {
     let description = [{
         Operations analyzable by the ConstraintsAnalysis pass

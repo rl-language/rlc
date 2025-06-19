@@ -2,12 +2,13 @@
 # RUN: %t%exeext
 
 act action() -> State:
-    actions:
-      act first()
-        act second()
+  actions:
+    act first()
+      act second()
 
 fun main() -> Int:
-  let state = action() 
+  let state = action()
   if can state.second():
-        return -1
+    return -1
   return 0
+

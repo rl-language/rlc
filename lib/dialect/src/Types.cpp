@@ -753,7 +753,10 @@ mlir::rlc::TraitMetaType::typeRespectsTraitFunctionDeclaration(
 	auto methodType =
 			getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
 	auto instantiated = replaceTemplateParameter(
-			methodType, getTemplateParameterTypes().back(), type);
+			methodType,
+			mlir::cast<mlir::rlc::TemplateParameterType>(
+					getTemplateParameters().back()),
+			type);
 
 	llvm::StringRef methodName = getRequestedFunctionNames()[index];
 	return sameSignatureMethodExists(callPoint, table, methodName, instantiated);
@@ -957,10 +960,45 @@ int64_t mlir::rlc::ArrayType::getArraySize()
 	return getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();
 }
 
+void mlir::rlc::TraitMetaType::rlc_serialize(
+		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
+{
+	OS << getName();
+	llvm::SmallVector<mlir::Type, 2> nonTemplateTYpes;
+	for (auto type : getTemplateParameters())
+	{
+		if (mlir::isa<mlir::rlc::TemplateParameterType>(type))
+		{
+			continue;
+		}
+		nonTemplateTYpes.push_back(type);
+	}
+
+	if (nonTemplateTYpes.empty())
+		return;
+	OS << "<";
+	for (auto parameter : llvm::drop_end(nonTemplateTYpes))
+	{
+		parameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+		OS << ", ";
+	}
+	nonTemplateTYpes.back().cast<mlir::rlc::RLCSerializable>().rlc_serialize(
+			OS, ctx);
+	OS << ">";
+}
+
 void mlir::rlc::IntegerType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
-	OS << "Int";
+	if (getSize() == 64)
+		OS << "Int";
+	else if (getSize() == 8)
+		OS << "Byte";
+	else
+	{
+		dump();
+		abort();
+	}
 }
 
 void mlir::rlc::AliasType::rlc_serialize(

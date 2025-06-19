@@ -130,6 +130,12 @@ static cl::opt<bool> dumpCheckedAST(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dropComments(
+		"drop-comments",
+		cl::desc("drop comments from the ir"),
+		cl::init(true),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> compileOnly(
 		"compile",
 		cl::desc("compile but do not link"),
@@ -216,15 +222,17 @@ static cl::opt<bool> debugInfo(
 
 static cl::opt<bool> hideStandardLibFiles(
 		"hide-standard-lib-files",
-		cl::desc("When using --print-included-files , hide the ones from the "
-						 "standard library"),
+		cl::desc(
+				"When using --print-included-files , hide the ones from the "
+				"standard library"),
 		cl::init(true),
 		cl::cat(astDumperCategory));
 
 static cl::opt<bool> printIncludedFiles(
 		"print-included-files",
-		cl::desc("Instead of compiling, print the content of every file included "
-						 "by the compilation process"),
+		cl::desc(
+				"Instead of compiling, print the content of every file included "
+				"by the compilation process"),
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
@@ -287,8 +295,9 @@ static cl::opt<bool> ExpectFail(
 
 static cl::opt<std::string> customTargetTriple(
 		"target",
-		cl::desc("specify a target triple, if empty the default target triple will "
-						 "be used instead"),
+		cl::desc(
+				"specify a target triple, if empty the default target triple will "
+				"be used instead"),
 		cl::init(""),
 		cl::cat(astDumperCategory));
 
@@ -302,7 +311,10 @@ static cl::opt<bool> formatFile(
 		"format",
 		cl::desc("print the file formatted"),
 		cl::init(false),
-		cl::cat(astDumperCategory));
+		cl::cat(astDumperCategory),
+		cl::callback([](const bool &value) {
+			dropComments.setInitialValue(!value);
+		}));
 
 static cl::opt<bool> generateDependecyFile(
 		"MD",
@@ -483,6 +495,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setEmitFuzzer(emitFuzzer);
 	driver.setEmitSanitizer(sanitize);
 	driver.setTargetInfo(&info);
+	driver.setKeepComments(!dropComments);
 	driver.setEmitBoundChecks(emitBoundChecks);
 	driver.setVerbose(verbose);
 	driver.setAbortSymbol(abortSymbol);
@@ -501,7 +514,7 @@ static int run(
 		const mlir::rlc::TargetInfo &info)
 {
 	mlir::PassManager manager(&context);
-	manager.enableVerifier(isDebug);
+	manager.enableVerifier(isDebug and not formatFile);
 	driver.configurePassManager(manager);
 
 	if (timing)

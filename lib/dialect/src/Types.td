@@ -209,22 +209,16 @@ def RLC_TemplateParameterType : RLC_Type<"TemplateParameter", "template_paramete
   let assemblyFormat = "`<`  $name (`:` $trait^ )? struct($is_int_literal) `>`";
 }
 
-def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait"> {
+def RLC_TraitMetaType : RLC_Type<"TraitMeta", "trait", [DeclareTypeInterfaceMethods<RLC_RLCSerializable>]> {
   let summary = "RLC type rappresenting a trait type";
   let description = [{
 	 rapresents a trait meta type
   }];
-  let parameters = (ins StringRefParameter<>:$name, ArrayRefParameter<"mlir::StringAttr">:$template_parameters, ArrayRefParameter<"FunctionType">:$requested_function_types, ArrayRefParameter<"mlir::StringAttr">:$requested_function_names);
+  let parameters = (ins StringRefParameter<>:$name, ArrayRefParameter<"mlir::Type">:$template_parameters, ArrayRefParameter<"FunctionType">:$requested_function_types, ArrayRefParameter<"mlir::StringAttr">:$requested_function_names, ArrayRefParameter<"mlir::ArrayAttr">:$requested_function_arg_names);
 
-  let assemblyFormat = "`<`  $name  `<` $template_parameters `>` `[`$requested_function_types `]` `[` $requested_function_names `]` `>`";
+  let assemblyFormat = "`<`  $name  `[` $template_parameters `]` `[`$requested_function_types `]` `[` $requested_function_names `]` `[`$requested_function_arg_names `]` `>`";
 
   let extraClassDeclaration = [{
-	  llvm::SmallVector<mlir::rlc::TemplateParameterType, 4> getTemplateParameterTypes() {
-        llvm::SmallVector<mlir::rlc::TemplateParameterType, 4> toReturn;
-        for (auto name : getTemplateParameters())
-            toReturn.push_back(mlir::rlc::TemplateParameterType::get(getContext(), name, nullptr, false));
-        return toReturn;
-	  }
 
 	mlir::LogicalResult typeRespectsTrait(mlir::Location callPoint, mlir::Type type, mlir::rlc::SymbolTable<mlir::Value> &table);
 	private:

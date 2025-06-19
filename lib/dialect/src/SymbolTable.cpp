@@ -47,14 +47,17 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 
 	for (auto constant : mod.getOps<mlir::rlc::ConstantGlobalOp>())
 		if (constant.getResult().getType().isa<mlir::rlc::IntegerType>())
+		{
+			auto integerType = mlir::rlc::IntegerLiteralType::get(
+					constant.getContext(),
+					constant.getValues()
+							.cast<mlir::IntegerAttr>()
+							.getValue()
+							.getSExtValue());
 			table.add(
 					constant.getName(),
-					mlir::rlc::IntegerLiteralType::get(
-							constant.getContext(),
-							constant.getValues()
-									.cast<mlir::IntegerAttr>()
-									.getValue()
-									.getSExtValue()));
+					mlir::rlc::AliasType::get(constant.getName(), integerType));
+		}
 
 	for (auto classDecl : mod.getOps<mlir::rlc::ClassDeclaration>())
 		table.add(classDecl.getName(), classDecl.getType());
@@ -91,21 +94,20 @@ static mlir::Type instantiateTemplate(
 
 	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
 	{
-		if (casted.getTemplateParameterTypes().size() != values.size() + 1)
+		if (casted.getTemplateParameters().size() != values.size() + 1)
 		{
 			mlir::emitError(
 					errorPoint,
 					mlir::Twine("Trait explicit instantiation needed ") +
-							mlir::Twine((casted.getTemplateParameterTypes().size() - 1)) +
+							mlir::Twine((casted.getTemplateParameters().size() - 1)) +
 							mlir::Twine(" arguments, but ") + mlir::Twine(values.size()) +
 							mlir::Twine(" where provided"));
 			return nullptr;
 		}
 		mlir::Type toReturn = casted;
-		for (auto pair : llvm::zip(casted.getTemplateParameterTypes(), values))
+		for (auto [current, replacement] :
+				 llvm::zip(casted.getTemplateParameters(), values))
 		{
-			auto current = std::get<0>(pair);
-			auto replacement = std::get<1>(pair);
 			toReturn = casted.replace([&](mlir::Type t) -> mlir::Type {
 				if (t == current)
 					return replacement;

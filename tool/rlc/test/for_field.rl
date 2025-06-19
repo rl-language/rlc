@@ -2,29 +2,31 @@
 # RUN: %t%exeext
 
 cls Inner:
-	Int x2
-	Int y2
+  Int x2
+  Int y2
+
 cls Asd:
-	Int x
-	Inner y
+  Int x
+  Inner y
 
 fun<T> collect(T asd) -> Int:
-	let result = 0
+  let result = 0
 
-	for field of asd:
-		if field is Int:
-			result = result + field
-		if field is Float:
-			result = result + int(field)
-		if field is Bool:
-			result = result + int(field)
-		result = result + collect(field)
+  for field of asd:
+    if field is Int:
+      result = result + field
+    if field is Float:
+      result = result + int(field)
+    if field is Bool:
+      result = result + int(field)
+    result = result + collect(field)
 
-	return result
+  return result
 
 fun main() -> Int:
-	let var : Asd
-	var.x = 1
-	var.y.x2 = 3
-	var.y.y2 = 5
-	return collect(var) - 9
+  let var : Asd
+  var.x = 1
+  var.y.x2 = 3
+  var.y.y2 = 5
+  return collect(var) - 9
+

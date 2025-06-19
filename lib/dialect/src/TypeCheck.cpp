@@ -204,6 +204,9 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 				casted.getTemplateParameters(),
 				casted.getTypeLocation().has_value() ? *casted.getTypeLocation()
 																						 : nullptr);
+		if (mlir::rlc::isSynthetic(casted))
+			mlir::rlc::markSynthetic(newDecl);
+
 		rewriter.eraseOp(casted);
 	}
 	return mlir::success();
@@ -233,6 +236,8 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 				llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 3>({}),
 				mlir::ArrayRef<mlir::Type>({}),
 				nullptr);
+
+		mlir::rlc::markSynthetic(classDecl);
 
 		if (decls.count(type.getName()) != 0)
 		{
@@ -309,14 +314,16 @@ static mlir::LogicalResult deduceClassBody(
 			{
 				return mlir::failure();
 			}
-			newFieldsDeclarations.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(
-					field.getContext(),
-					newFields.back(),
-					field.getShugarizedType().replaceType(shugarizedType)));
+			newFieldsDeclarations.push_back(
+					mlir::rlc::ClassFieldDeclarationAttr::get(
+							field.getContext(),
+							newFields.back(),
+							field.getShugarizedType().replaceType(shugarizedType)));
 		}
 		else
-			newFieldsDeclarations.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(
-					field.getContext(), newFields.back(), nullptr));
+			newFieldsDeclarations.push_back(
+					mlir::rlc::ClassFieldDeclarationAttr::get(
+							field.getContext(), newFields.back(), nullptr));
 	}
 	auto finalType = mlir::rlc::ClassType::getIdentified(
 			decl.getContext(), decl.getName(), checkedTemplateParameters);
@@ -327,6 +334,7 @@ static mlir::LogicalResult deduceClassBody(
 		return mlir::failure();
 	}
 
+	auto wasShyntetic = decl->hasAttr("synthetic");
 	decl = rewriter.replaceOpWithNewOp<mlir::rlc::ClassDeclaration>(
 			decl,
 			finalType,
@@ -334,6 +342,9 @@ static mlir::LogicalResult deduceClassBody(
 			newFieldsDeclarations,
 			checkedTemplateParameters,
 			decl.getTypeLocation().has_value() ? *decl.getTypeLocation() : nullptr);
+
+	if (wasShyntetic)
+		decl->setAttr("synthetic", rewriter.getUnitAttr());
 
 	return mlir::success();
 }
@@ -500,6 +511,7 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 								op.getLoc(),
 								mlir::rlc::IntegerType::getInt64(op.getContext()),
 								casted);
+				mlir::rlc::markSynthetic(integerLiteral);
 				builder.getSymbolTable().add(casted.getName(), integerLiteral);
 			}
 			else
