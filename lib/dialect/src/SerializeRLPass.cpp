@@ -20,6 +20,31 @@ limitations under the License.
 
 namespace
 {
+	bool comesBefore(mlir::Location l, mlir::Location r)
+	{
+		auto first = mlir::dyn_cast<mlir::FileLineColLoc>(l);
+		auto second = mlir::dyn_cast<mlir::FileLineColLoc>(r);
+		if (not first or not second)
+			return true;
+		return first.getLine() < second.getLine();
+	}
+
+	void sortFields(mlir::rlc::ClassDeclaration decl)
+	{
+		if (decl.getBody().front().getOperations().empty())
+			return;
+
+		llvm::SmallVector<mlir::Operation*, 2> ops;
+		for (auto& op : decl.getBody().getOps())
+			ops.push_back(&op);
+
+		llvm::sort(ops, [](mlir::Operation* l, mlir::Operation* r) {
+			return comesBefore(l->getLoc(), r->getLoc());
+		});
+		for (size_t i = 1; i != ops.size(); i++)
+			ops[i]->moveAfter(ops[i - 1]);
+	}
+
 	bool areConsecutive(mlir::Location l, mlir::Location r)
 	{
 		auto first = mlir::dyn_cast<mlir::FileLineColLoc>(l);
@@ -69,6 +94,11 @@ namespace
 				fun->moveBefore(
 						&casted.getBody().front(), casted.getBody().front().end());
 			}
+		}
+
+		for (auto& decl : typeToClass)
+		{
+			sortFields(decl.getSecond());
 		}
 	}
 }	 // namespace

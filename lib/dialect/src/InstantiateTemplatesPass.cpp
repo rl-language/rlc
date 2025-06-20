@@ -15,6 +15,7 @@ limitations under the License.
 */
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/IRMapping.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
@@ -71,13 +72,14 @@ namespace mlir::rlc
 		assert(isTemplateType(originalDecl.getType()).succeeded());
 		mlir::IRRewriter rewriter(op.getContext());
 		rewriter.setInsertionPoint(originalDecl);
-		rewriter.create<mlir::rlc::ClassDeclaration>(
+		auto decl = rewriter.create<mlir::rlc::ClassDeclaration>(
 				originalDecl.getLoc(),
 				type,
 				originalDecl.getNameAttr(),
-				originalDecl.getMembers(),
 				rewriter.getArrayAttr({}),
 				nullptr);
+		mlir::IRMapping mapping;
+		originalDecl.getBody().cloneInto(&decl.getBody(), mapping);
 	}
 
 	static void declareInstantiatedStructs(

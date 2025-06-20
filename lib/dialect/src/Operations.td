@@ -2144,37 +2144,33 @@ def RLC_UnresolvedMemberAccess : RLC_Dialect<"unresolved_access", [DeclareOpInte
   }];
 }
 
-def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<TypeUser>, NoTerminator, NoRegionArguments, HasOnlyGraphRegion, DeclareOpInterfaceMethods<TypeDeclarer>, DeclareOpInterfaceMethods<Serializable>]> {
+def RLC_ClassFieldDeclaration : RLC_Dialect<"class_field", [DeclareOpInterfaceMethods<TypeUser>, DeclareOpInterfaceMethods<Serializable>]> { 
+  let arguments = (ins RLC_ClassFieldDeclarationAttr:$declaration);
+
+  let assemblyFormat = [{
+	$declaration attr-dict
+  }];
+}
+
+def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [NoTerminator, NoRegionArguments, HasOnlyGraphRegion, DeclareOpInterfaceMethods<TypeDeclarer>, DeclareOpInterfaceMethods<Serializable>]> {
   let summary = "constant.";
 
   let description = [{
 	expression.
   }];
 
-  let arguments = (ins StrAttr:$name,  ClassDeclarationFieldsArrayAttr:$members, DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
+  let arguments = (ins StrAttr:$name,  DefaultValuedAttr<TypeArrayAttr, "{}">:$template_parameters, OptionalAttr<RLC_SourceRangeAttr>:$type_location);
   let results = (outs AnyType:$result);
 
   let builders = [
-        OpBuilder<(ins "mlir::Type":$class_type, "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
-            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
-            for (auto attr : members) {
-                fieldAttrs.push_back(attr);
-            }
-            build($_builder, $_state, class_type, $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), type_location);
+        OpBuilder<(ins "mlir::Type":$class_type, "llvm::StringRef":$name, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
+            build($_builder, $_state, class_type, $_builder.getStringAttr(name), $_builder.getTypeArrayAttr(template_parameters), type_location);
     }]>,
-        OpBuilder<(ins "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
-            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
-            for (auto attr : members) {
-                fieldAttrs.push_back(attr);
-            }
-            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), type_location);
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::ArrayRef<mlir::Type>":$template_parameters, "mlir::rlc::SourceRangeAttr":$type_location), [{
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getTypeArrayAttr(template_parameters), type_location);
     }]>,
-        OpBuilder<(ins "llvm::StringRef":$name, "llvm::ArrayRef<mlir::rlc::ClassFieldDeclarationAttr>":$members, "mlir::ArrayRef<mlir::Type>":$template_parameters), [{
-            llvm::SmallVector<mlir::Attribute, 4> fieldAttrs;
-            for (auto attr : members) {
-                fieldAttrs.push_back(attr);
-            }
-            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getArrayAttr(fieldAttrs), $_builder.getTypeArrayAttr(template_parameters), nullptr);
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::ArrayRef<mlir::Type>":$template_parameters), [{
+            build($_builder, $_state, mlir::rlc::ClassType::getIdentified($_builder.getContext(), name, template_parameters), $_builder.getStringAttr(name), $_builder.getTypeArrayAttr(template_parameters), nullptr);
     }]>,
 ];
 
@@ -2183,22 +2179,14 @@ def RLC_ClassDeclaration : RLC_Dialect<"class_decl", [DeclareOpInterfaceMethods<
   );
 
   let extraClassDeclaration = [{
-      mlir::rlc::ClassFieldDeclarationAttr getMemberField(size_t i) {
-        return getMembers()[i].cast<mlir::rlc::ClassFieldDeclarationAttr>();
-      }
+      mlir::rlc::ClassFieldDeclarationAttr getMemberField(size_t i);
 
-      llvm::SmallVector <mlir::rlc::ClassFieldDeclarationAttr, 4> getMemberFields() {
-        llvm::SmallVector <mlir::rlc::ClassFieldDeclarationAttr, 4> outs;
-        for (size_t i = 0; i != getMembers().size(); i++ )
-            outs.push_back(getMemberField(i));
-
-        return outs;
-      }
+      llvm::SmallVector <mlir::rlc::ClassFieldDeclarationAttr, 4> getMemberFields(); 
 
   }];
 
   let assemblyFormat = [{
-	$name ( `template_parameters` $template_parameters^ )? $members type($result) $body (`location` `=` $type_location^ )? attr-dict 
+	$name ( `template_parameters` $template_parameters^ )? type($result) $body (`location` `=` $type_location^ )? attr-dict 
   }];
 }
 

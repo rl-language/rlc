@@ -121,6 +121,7 @@ namespace rlc
 		llvm::Expected<mlir::rlc::ConstantGlobalOp> globalConstant();
 		llvm::Expected<mlir::rlc::ActionFunction> actionDefinition();
 		llvm::Expected<mlir::rlc::UncheckedTraitDefinition> traitDefinition();
+		llvm::Expected<mlir::rlc::Comment> endOfLine();
 
 		llvm::Expected<mlir::ModuleOp> system(mlir::ModuleOp module = nullptr);
 
@@ -145,7 +146,6 @@ namespace rlc
 			return accept(T);
 		}
 		llvm::Expected<Token> expect(Token t);
-		llvm::Expected<Token> expectEndOfLine();
 		bool acceptEndOfLine();
 
 		Token current;

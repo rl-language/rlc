@@ -220,7 +220,29 @@ namespace mlir::rlc
 {
 
 	void pruneUnrechableBlocks(mlir::Region& op, mlir::IRRewriter& rewriter);
-}
+
+	inline void setInlineComment(mlir::Operation* op, llvm::StringRef comment)
+	{
+		op->setAttr("comment", mlir::StringAttr::get(op->getContext(), comment));
+	}
+
+	inline void setInlineComment(mlir::Operation* op, mlir::rlc::Comment comment)
+	{
+		if (comment == nullptr or comment.getText().empty())
+			return;
+		op->setAttr("comment", comment.getTextAttr());
+		comment.erase();
+	}
+
+	inline llvm::StringRef getComment(mlir::Operation* op)
+	{
+		if (not op->hasAttr("comment"))
+		{
+			return "";
+		}
+		return mlir::cast<mlir::StringAttr>(op->getAttr("comment"));
+	}
+}	 // namespace mlir::rlc
 
 namespace rlc
 {

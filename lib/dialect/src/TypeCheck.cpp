@@ -195,19 +195,9 @@ static mlir::LogicalResult declareEntities(mlir::ModuleOp op)
 				 casted.getTemplateParameters().getAsValueRange<mlir::TypeAttr>())
 			templates.push_back(type);
 		rewriter.setInsertionPoint(casted);
-		auto newDecl = rewriter.create<mlir::rlc::ClassDeclaration>(
-				casted.getLoc(),
+		casted.getResult().setType(
 				mlir::rlc::ClassType::getIdentified(
-						casted.getContext(), casted.getName(), templates),
-				casted.getNameAttr(),
-				casted.getMembers(),
-				casted.getTemplateParameters(),
-				casted.getTypeLocation().has_value() ? *casted.getTypeLocation()
-																						 : nullptr);
-		if (mlir::rlc::isSynthetic(casted))
-			mlir::rlc::markSynthetic(newDecl);
-
-		rewriter.eraseOp(casted);
+						casted.getContext(), casted.getName(), templates));
 	}
 	return mlir::success();
 }
@@ -233,7 +223,6 @@ static mlir::LogicalResult declareActionEntities(mlir::ModuleOp op)
 				action.getLoc(),
 				type,
 				type.getName(),
-				llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 3>({}),
 				mlir::ArrayRef<mlir::Type>({}),
 				nullptr);
 
@@ -273,7 +262,6 @@ static mlir::LogicalResult deduceClassBody(
 		return mlir::success();
 
 	llvm::SmallVector<mlir::rlc::ClassFieldAttr> newFields;
-	llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr> newFieldsDeclarations;
 
 	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
 
@@ -296,32 +284,35 @@ static mlir::LogicalResult deduceClassBody(
 		scopedConverter.registerType(actualType.getName(), actualType);
 	}
 
-	for (auto field : decl.getMemberFields())
+	for (auto field : decl.getOps<mlir::rlc::ClassFieldDeclaration>())
 	{
-		auto converted = scopedConverter.convertType(field.getDeshugarizedType());
+		auto converted = scopedConverter.convertType(
+				field.getDeclaration().getDeshugarizedType());
 		if (!converted)
 		{
 			return mlir::failure();
 		}
 		newFields.push_back(
-				mlir::rlc::ClassFieldAttr::get(field.getName(), converted));
+				mlir::rlc::ClassFieldAttr::get(
+						field.getDeclaration().getName(), converted));
 
-		if (field.getShugarizedType())
+		if (field.getDeclaration().getShugarizedType())
 		{
 			auto shugarizedType = scopedConverter.shugarizedConvertType(
-					field.getShugarizedType().getType());
+					field.getDeclaration().getShugarizedType().getType());
 			if (!shugarizedType)
 			{
 				return mlir::failure();
 			}
-			newFieldsDeclarations.push_back(
+			field.setDeclarationAttr(
 					mlir::rlc::ClassFieldDeclarationAttr::get(
 							field.getContext(),
 							newFields.back(),
-							field.getShugarizedType().replaceType(shugarizedType)));
+							field.getDeclaration().getShugarizedType().replaceType(
+									shugarizedType)));
 		}
 		else
-			newFieldsDeclarations.push_back(
+			field.setDeclarationAttr(
 					mlir::rlc::ClassFieldDeclarationAttr::get(
 							field.getContext(), newFields.back(), nullptr));
 	}
@@ -334,17 +325,9 @@ static mlir::LogicalResult deduceClassBody(
 		return mlir::failure();
 	}
 
-	auto wasShyntetic = decl->hasAttr("synthetic");
-	decl = rewriter.replaceOpWithNewOp<mlir::rlc::ClassDeclaration>(
-			decl,
-			finalType,
-			decl.getName(),
-			newFieldsDeclarations,
-			checkedTemplateParameters,
-			decl.getTypeLocation().has_value() ? *decl.getTypeLocation() : nullptr);
-
-	if (wasShyntetic)
-		decl->setAttr("synthetic", rewriter.getUnitAttr());
+	decl.getResult().setType(finalType);
+	decl.setTemplateParametersAttr(
+			rewriter.getTypeArrayAttr(checkedTemplateParameters));
 
 	return mlir::success();
 }

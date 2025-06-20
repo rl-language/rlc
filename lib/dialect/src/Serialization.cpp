@@ -75,6 +75,16 @@ namespace
 		abort();
 	}
 
+	void serializeCommentOrNewLine(mlir::Operation* op, llvm::raw_ostream& OS)
+	{
+		if (auto comment = mlir::rlc::getComment(op); !comment.empty())
+		{
+			OS << " #" << comment;
+			return;
+		}
+		OS << "\n";
+	}
+
 	void serializeTypeDecl(
 			mlir::Type type,
 			llvm::raw_ostream& OS,
@@ -389,7 +399,7 @@ void mlir::rlc::EnumFieldExpressionOp::serialize(
 
 	auto yield = mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
 	serializeExpression(yield.getArguments()[0], OS, ctx);
-	OS << "\n";
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::EnumFieldDeclarationOp::serialize(
@@ -399,11 +409,12 @@ void mlir::rlc::EnumFieldDeclarationOp::serialize(
 	OS << getName();
 	if (getBody().empty())
 	{
-		OS << "\n";
+		serializeCommentOrNewLine(getOperation(), OS);
 		return;
 	}
 
-	OS << ":\n";
+	OS << ":";
+	serializeCommentOrNewLine(getOperation(), OS);
 	auto _ = ctx.increaseIndent();
 	serializeBlock(getBody().front(), OS, ctx, true);
 }
@@ -411,7 +422,8 @@ void mlir::rlc::EnumFieldDeclarationOp::serialize(
 void mlir::rlc::EnumDeclarationOp::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
-	OS << "enum " << getName() << ":\n";
+	OS << "enum " << getName() << ":";
+	serializeCommentOrNewLine(getOperation(), OS);
 	auto _ = ctx.increaseIndent();
 
 	serializeBlock(getBody().front(), OS, ctx, true);
@@ -432,7 +444,7 @@ void mlir::rlc::TraitDefinition::serialize(
 	serializeTypeDecl(getMetaType().getTemplateParameters().back(), OS, ctx);
 	OS << "> " << getMetaType().getName() << ":";
 	auto indent = ctx.increaseIndent();
-	OS << "\n";
+	serializeCommentOrNewLine(getOperation(), OS);
 
 	for (auto [type, name, argNames] : llvm::zip(
 					 getMetaType().getRequestedFunctionTypes(),
@@ -568,6 +580,17 @@ void mlir::rlc::SubOp::serialize(
 	serializeExpression(getRhs(), OS, ctx);
 }
 
+void mlir::rlc::ClassFieldDeclaration::serialize(
+		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
+{
+	ctx.indent(OS);
+	getDeclaration()
+			.getShugarizedType()
+			.getType()
+			.cast<mlir::rlc::RLCSerializable>()
+			.rlc_serialize(OS, ctx);
+	OS << " " << getDeclaration().getName() << "\n";
+}
 void mlir::rlc::ClassDeclaration::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
@@ -591,21 +614,12 @@ void mlir::rlc::ClassDeclaration::serialize(
 		OS << ">";
 	}
 
-	OS << " " << type.getName() << ":\n";
-	for (auto field : type.getMembers())
-	{
-		(OS).indent(2);
-		field.getType().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
-		OS << " " << field.getName() << "\n";
-	}
+	OS << " " << type.getName() << ":";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 
 	auto _ = ctx.increaseIndent();
-	if (not getBody().front().empty())
-	{
-		if (not getMemberFields().empty())
-			OS << "\n";
-		serializeBlock(getBody().front(), OS, ctx, true);
-	}
+	serializeBlock(getBody().front(), OS, ctx, true);
 }
 
 void mlir::rlc::CastOp::serialize(
@@ -665,7 +679,7 @@ void mlir::rlc::DeclarationStatement::serialize(
 		OS << " : ";
 		serializeType(construct.getShugarizedType().value().getType(), OS, ctx);
 	}
-	OS << "\n";
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::ArrayAccess::serialize(
@@ -742,7 +756,7 @@ void mlir::rlc::ReturnStatement::serialize(
 	auto terminator = mlir::cast<mlir::rlc::Yield>(getBody().front().back());
 	if (terminator.getArguments().size() == 0)
 	{
-		OS << "\n";
+		serializeCommentOrNewLine(getOperation(), OS);
 		return;
 	}
 	OS << " ";
@@ -766,7 +780,8 @@ void mlir::rlc::ReturnStatement::serialize(
 	}
 	else
 		serializeExpression(toReturn, OS, ctx);
-	OS << "\n";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::EqualOp::serialize(
@@ -868,14 +883,18 @@ void mlir::rlc::ContinueStatement::serialize(
 {
 	ctx.indent(OS);
 
-	OS << "continue\n";
+	OS << "continue";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 void mlir::rlc::BreakStatement::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
 	ctx.indent(OS);
 
-	OS << "break\n";
+	OS << "break";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::ForLoopVarDeclOp::serialize(
@@ -905,7 +924,8 @@ void mlir::rlc::ForFieldStatement::serialize(
 	}
 	serializeExpression(terminator.getArguments().back(), OS, ctx);
 
-	OS << ":\n";
+	OS << ":";
+	serializeCommentOrNewLine(getOperation(), OS);
 
 	{
 		auto _ = ctx.increaseIndent();
@@ -924,7 +944,9 @@ void mlir::rlc::ForLoopStatement::serialize(
 	auto terminator =
 			mlir::cast<mlir::rlc::Yield>(getRangeExpression().front().back());
 	serializeExpression(terminator.getArguments()[0], OS, ctx);
-	OS << ":\n";
+	OS << ":";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 	{
 		auto _ = ctx.increaseIndent();
 		serializeBlock(getBody().front(), OS, ctx, true);
@@ -938,7 +960,9 @@ void mlir::rlc::WhileStatement::serialize(
 	OS << "while ";
 	auto terminator = mlir::cast<mlir::rlc::Yield>(getCondition().front().back());
 	serializeExpression(terminator.getArguments()[0], OS, ctx);
-	OS << ":\n";
+	OS << ":";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 	{
 		auto _ = ctx.increaseIndent();
 		serializeBlock(getBody().front(), OS, ctx, true);
@@ -1003,7 +1027,9 @@ void mlir::rlc::IfStatement::serialize(
 	OS << "if ";
 	auto terminator = mlir::cast<mlir::rlc::Yield>(getCondition().front().back());
 	serializeExpression(terminator.getArguments()[0], OS, ctx);
-	OS << ":\n";
+	OS << ":";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 	{
 		auto _ = ctx.increaseIndent();
 		serializeBlock(getTrueBranch().front(), OS, ctx, true);
@@ -1021,6 +1047,7 @@ void mlir::rlc::IfStatement::serialize(
 		else
 		{
 			OS << "else:\n";
+
 			auto _ = ctx.increaseIndent();
 			serializeBlock(getElseBranch().front(), OS, ctx, true);
 		}
@@ -1076,7 +1103,8 @@ void mlir::rlc::TypeAliasOp::serialize(
 	ctx.indent(OS);
 	OS << "using " << getName() << " = ";
 	serializeType(getShugarizedType().value().getType(), OS, ctx);
-	OS << "\n";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::ConstantGlobalOp::serialize(
@@ -1092,7 +1120,8 @@ void mlir::rlc::ConstantGlobalOp::serialize(
 		casted.dump();
 		abort();
 	}
-	OS << "\n";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::StatementList::serialize(
@@ -1171,10 +1200,11 @@ void mlir::rlc::FunctionOp::serialize(
 	}
 	if (isDeclaration())
 	{
-		OS << "\n";
+		serializeCommentOrNewLine(getOperation(), OS);
 		return;
 	}
-	OS << ":\n";
+	OS << ":";
+	serializeCommentOrNewLine(getOperation(), OS);
 
 	auto _ = ctx.increaseIndent();
 	serializeBlock(getBody().front(), OS, ctx, true);
@@ -1184,7 +1214,9 @@ void mlir::rlc::Import::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
 	ctx.indent(OS);
-	OS << "import " << getText() << "\n";
+	OS << "import " << getText() << "";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::ExpressionStatement::serialize(
@@ -1195,7 +1227,7 @@ void mlir::rlc::ExpressionStatement::serialize(
 	auto* toWrite = terminator->getPrevNode();
 
 	serializeExpression(toWrite, OS, ctx);
-	OS << "\n";
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::StorageCast::serialize(
@@ -1241,14 +1273,16 @@ void mlir::rlc::ActionStatement::serialize(
 			OS << " }";
 		}
 	}
-	OS << "\n";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::ActionsStatement::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
 	ctx.indent(OS);
-	OS << "actions:\n";
+	OS << "actions:";
+	serializeCommentOrNewLine(getOperation(), OS);
 	auto _ = ctx.increaseIndent();
 	for (size_t i = 0; i != getActions().size(); i++)
 	{
@@ -1298,7 +1332,9 @@ void mlir::rlc::UsingTypeOp::serialize(
 					.getArguments()[0],
 			OS,
 			ctx);
-	OS << ")\n";
+	OS << ")";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::ShortCircuitingOr::serialize(
@@ -1354,7 +1390,8 @@ void mlir::rlc::SubActionInfo::serialize(
 						.getArguments()[0],
 				OS,
 				ctx);
-		OS << "\n";
+
+		serializeCommentOrNewLine(getOperation(), OS);
 		return;
 	}
 	OS << " ";
@@ -1365,7 +1402,8 @@ void mlir::rlc::SubActionInfo::serialize(
 		OS << ", ";
 	}
 	serializeExpression(yield.getArguments().back(), OS, ctx);
-	OS << "\n";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 }
 
 void mlir::rlc::ActionFunction::serialize(
@@ -1405,7 +1443,9 @@ void mlir::rlc::ActionFunction::serialize(
 			OS << " }";
 		}
 	}
-	OS << ":\n";
+	OS << ":";
+
+	serializeCommentOrNewLine(getOperation(), OS);
 
 	auto _ = ctx.increaseIndent();
 	serializeBlock(getBody().front(), OS, ctx, true);

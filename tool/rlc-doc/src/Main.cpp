@@ -150,10 +150,10 @@ static void printClassDecl(
 	writeComment(op, OS);
 
 	// Fields
-	if (!op.getMembers().empty())
+	if (!op.getMemberFields().empty())
 	{
 		OS << "### Fields\n";
-		for (size_t i = 0; i < op.getMembers().size(); ++i)
+		for (size_t i = 0; i < op.getMemberFields().size(); ++i)
 		{
 			auto name = op.getMemberField(i).getName();
 			// Skip fields starting with underscore

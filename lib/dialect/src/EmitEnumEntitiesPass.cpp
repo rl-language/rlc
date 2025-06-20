@@ -16,6 +16,7 @@ limitations under the License.
 #include <set>
 
 #include "mlir/IR/IRMapping.h"
+#include "rlc/dialect/IRBuilder.hpp"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 
@@ -25,7 +26,7 @@ namespace mlir::rlc
 #include "rlc/dialect/Passes.inc"
 
 	static void emitFromIntFunction(
-			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+			mlir::rlc::IRBuilder& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		rewriter.setInsertionPoint(enumOp);
 		auto argType =
@@ -62,7 +63,7 @@ namespace mlir::rlc
 	}
 
 	static void emitAsIntFunction(
-			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+			mlir::rlc::IRBuilder& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		rewriter.setInsertionPoint(enumOp);
 		auto argType =
@@ -99,7 +100,7 @@ namespace mlir::rlc
 	}
 
 	static void emitMaxMemberFunction(
-			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+			mlir::rlc::IRBuilder& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		rewriter.setInsertionPoint(enumOp);
 		auto argType =
@@ -133,7 +134,7 @@ namespace mlir::rlc
 	}
 
 	static void emitIsEnumMemberFunction(
-			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+			mlir::rlc::IRBuilder& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		rewriter.setInsertionPoint(enumOp);
 		auto argType =
@@ -166,7 +167,7 @@ namespace mlir::rlc
 	}
 
 	static void emitAsStringLiteralFunction(
-			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+			mlir::rlc::IRBuilder& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		// Set initial insertion point
 		rewriter.setInsertionPoint(enumOp);
@@ -260,7 +261,7 @@ namespace mlir::rlc
 	}
 
 	static void emitImplicitEnumFunctions(
-			IRRewriter& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
+			mlir::rlc::IRBuilder& rewriter, mlir::rlc::EnumDeclarationOp enumOp)
 	{
 		emitIsEnumMemberFunction(rewriter, enumOp);
 		emitMaxMemberFunction(rewriter, enumOp);
@@ -272,7 +273,7 @@ namespace mlir::rlc
 	static void moveAllFunctionDeclsToNewClass(
 			mlir::rlc::EnumDeclarationOp declaration,
 			mlir::rlc::ClassDeclaration classOp,
-			mlir::IRRewriter& rewriter)
+			mlir::rlc::IRBuilder& rewriter)
 	{
 		auto classBody = rewriter.createBlock(&classOp.getBody());
 		llvm::SmallVector<mlir::Operation*> toMoveOut;
@@ -313,7 +314,7 @@ namespace mlir::rlc
 	static mlir::LogicalResult moveAllMethodExpressionToNewClassFunctions(
 			mlir::rlc::EnumDeclarationOp declaration,
 			mlir::rlc::ClassDeclaration classOp,
-			mlir::IRRewriter& rewriter)
+			mlir::rlc::IRBuilder& rewriter)
 	{
 		llvm::StringMap<mlir::rlc::FunctionOp> funs;
 		if (declaration.getRegion()
@@ -444,7 +445,7 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			mlir::IRRewriter rewriter(getOperation().getContext());
+			mlir::rlc::IRBuilder rewriter(getOperation().getContext());
 			llvm::SmallVector<mlir::rlc::EnumDeclarationOp, 2> ops;
 			for (auto declaration :
 					 getOperation().getOps<mlir::rlc::EnumDeclarationOp>())
@@ -473,7 +474,6 @@ namespace mlir::rlc
 				auto op = rewriter.create<mlir::rlc::ClassDeclaration>(
 						declaration.getLoc(),
 						declaration.getNameAttr(),
-						fieldsDecl,
 						mlir::ArrayRef<mlir::Type>({}),
 						*declaration.getTypeLocation());
 
@@ -486,6 +486,12 @@ namespace mlir::rlc
 					signalPassFailure();
 					return;
 				}
+				rewriter.setInsertionPointToEnd(&op.getBody().front());
+				rewriter.createClassFieldDeclaration(
+						op.getLoc(),
+						mlir::rlc::ClassFieldDeclarationAttr::get(
+								declaration.getContext(), fields.back(), shugarType));
+				rewriter.setInsertionPointAfter(op);
 				enums[declaration.getName()] = declaration;
 			}
 
@@ -520,8 +526,13 @@ namespace mlir::rlc
 
 					auto type = mlir::rlc::ClassType::getIdentified(
 							getOperation().getContext(), use.getEnumName(), {});
-					rewriter.replaceOpWithNewOp<mlir::rlc::EnumUse>(
-							use, type, rewriter.getI64IntegerAttr(i), use.getEnumValueAttr());
+					auto newUse = rewriter.create<mlir::rlc::EnumUse>(
+							use.getLoc(),
+							type,
+							rewriter.getI64IntegerAttr(i),
+							use.getEnumValueAttr());
+					use.replaceAllUsesWith(newUse.getResult());
+					use.erase();
 					break;
 				}
 				if (failed)

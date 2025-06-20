@@ -128,7 +128,7 @@ TEST(ParserTest, testClassDeclaration)
 		FAIL();
 
 	EXPECT_EQ(ent->getName(), "something");
-	EXPECT_EQ(ent->getMembers().size(), 2);
+	EXPECT_EQ(ent->getMemberFields().size(), 2);
 	EXPECT_EQ(ent->getMemberFields()[0].getName(), "a");
 	EXPECT_EQ(ent->getMemberFields()[1].getName(), "b");
 }

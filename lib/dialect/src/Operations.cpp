@@ -250,8 +250,7 @@ static mlir::rlc::ActionFunction deduceActionType(mlir::rlc::ActionFunction fun)
 			generatedFunctions,
 			fun.getUnmangledName(),
 			fun.getInfo());
-	if (fun->hasAttr("emit_classes"))
-		newAction->setAttr("emit_classes", rewriter.getUnitAttr());
+	newAction->setDiscardableAttrs(fun->getDiscardableAttrDictionary());
 	newAction.getBody().takeBody(fun.getBody());
 	newAction.getPrecondition().takeBody(fun.getPrecondition());
 	fun.getResult().replaceAllUsesWith(newAction.getResult());
@@ -556,8 +555,6 @@ static mlir::Type declareActionStatementType(
 	name += snakeCaseToCamelCase(statement.getName());
 
 	llvm::SmallVector<mlir::rlc::ClassFieldAttr, 4> fields;
-	llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 4> fieldsAttrs;
-
 	for (auto [name, result] :
 			 llvm::zip(statement.getDeclaredNames(), statement.getResults()))
 	{
@@ -568,19 +565,21 @@ static mlir::Type declareActionStatementType(
 			type = casted.getUnderlying();
 		auto field = mlir::rlc::ClassFieldAttr::get(name, type);
 		fields.push_back(field);
-		fieldsAttrs.push_back(mlir::rlc::ClassFieldDeclarationAttr::get(field));
 	}
 
 	auto type = mlir::rlc::ClassType::getNewIdentified(
 			function.getContext(), name, fields, {});
 
 	auto built = builder.getRewriter().create<mlir::rlc::ClassDeclaration>(
-			statement.getLoc(),
-			type,
-			name,
-			fieldsAttrs,
-			llvm::ArrayRef<mlir::Type>({}),
-			nullptr);
+			statement.getLoc(), type, name, llvm::ArrayRef<mlir::Type>({}), nullptr);
+	builder.getRewriter().createBlock(&built.getBody());
+
+	for (auto field : fields)
+	{
+		builder.getRewriter().create<mlir::rlc::ClassFieldDeclaration>(
+				built.getLoc(), mlir::rlc::ClassFieldDeclarationAttr::get(field));
+	}
+	builder.getRewriter().setInsertionPointAfter(built);
 	mlir::rlc::markSynthetic(built);
 	auto applyFunction =
 			defineApplyFunction(function, builder, action, statement, type);
@@ -1472,35 +1471,34 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 	assert(yield);
 	const bool returnsValue = yield->getNumOperands() != 0;
 
-	auto newOne = rewriter.create<mlir::rlc::ReturnStatement>(
-			getLoc(),
-			returnsValue ? yield->getOpOperand(0).get().getType()
-									 : mlir::rlc::VoidType::get(getContext()));
-	newOne.getBody().takeBody(getBody());
-	rewriter.eraseOp(*this);
+	auto returnedType = returnsValue ? yield->getOpOperand(0).get().getType()
+																	 : mlir::rlc::VoidType::get(getContext());
 
-	if (newOne->getBlock()->getTerminator() != newOne)
+	setResult(returnedType);
+
+	if (getOperation()->getBlock()->getTerminator() != getOperation())
 	{
 		return mlir::rlc::logError(
-				newOne,
+				*this,
 				"Return statement should be the last statement of its code block.");
 	}
 
-	if (auto parentFunction = newOne->getParentOfType<mlir::rlc::FunctionOp>())
+	if (auto parentFunction =
+					getOperation()->getParentOfType<mlir::rlc::FunctionOp>())
 	{
 		mlir::Type returnType =
 				(parentFunction.getType().getNumResults() != 0
 						 ? parentFunction.getResultTypes()[0]
 						 : mlir::rlc::VoidType::get(getContext()));
 
-		if (not isReturnTypeCompatible(newOne.getResult(), returnType))
+		if (not isReturnTypeCompatible(getResult(), returnType))
 		{
 			auto _ = mlir::rlc::logError(
-					newOne,
+					*this,
 					"Return statement returns values incompatible with the function "
 					"signature");
 			_ = mlir::rlc::logRemark(
-					newOne, "Return value type is " + prettyType(newOne.getResult()));
+					*this, "Return value type is " + prettyType(getResult()));
 
 			return mlir::rlc::logRemark(
 					parentFunction,
@@ -2431,6 +2429,16 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 }
 
 llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
+mlir::rlc::ClassFieldDeclaration::getShugarizedTypes()
+{
+	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
+
+	if (getDeclaration().getShugarizedType() != nullptr)
+		toReturn.push_back(getDeclaration().getShugarizedType());
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
 mlir::rlc::ConstantGlobalOp::getShugarizedTypes()
 {
 	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
@@ -2496,17 +2504,6 @@ mlir::rlc::IsOp::getShugarizedTypes()
 	if (not getShugarizedType().has_value())
 		return {};
 	return { *getShugarizedType() };
-}
-
-llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
-mlir::rlc::ClassDeclaration::getShugarizedTypes()
-{
-	llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2> toReturn;
-
-	for (auto parameter : getMemberFields())
-		if (parameter.getShugarizedType() != nullptr)
-			toReturn.push_back(parameter.getShugarizedType());
-	return toReturn;
 }
 
 llvm::SmallVector<mlir::rlc::ShugarizedTypeAttr, 2>
@@ -3439,4 +3436,20 @@ size_t mlir::rlc::EnumDeclarationOp::countFields()
 {
 	auto range = getBody().front().getOps<mlir::rlc::EnumFieldDeclarationOp>();
 	return std::distance(range.begin(), range.end());
+}
+
+llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 4>
+mlir::rlc::ClassDeclaration::getMemberFields()
+{
+	llvm::SmallVector<mlir::rlc::ClassFieldDeclarationAttr, 4> outs;
+	for (auto member : getBody().getOps<mlir::rlc::ClassFieldDeclaration>())
+		outs.push_back(member.getDeclaration());
+
+	return outs;
+}
+
+mlir::rlc::ClassFieldDeclarationAttr
+mlir::rlc::ClassDeclaration::getMemberField(size_t i)
+{
+	return getMemberFields()[i];
 }
