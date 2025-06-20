@@ -6,98 +6,98 @@ import action
 # This is a class that rappresents a sudoku board,
 # that is, a 9x9 grid that can contains digits. 
 cls Board:
-    # The following line is a field declaration.
-    # It speficies inside a Board there is a array
-    # of 9x9 elements of type BInt<0, 10>, and such 
-    # array is named slots.
+  # The following line is a field declaration.
+  # It speficies inside a Board there is a array
+  # of 9x9 elements of type BInt<0, 10>, and such 
+  # array is named slots.
 
-    # a BInt<min, max> is a bounded integer, 
-    # it is used to specify the min and max 
-    # value that can placed inside the object. 
-    # In this case, it allows to insert into
-    # the slots any number between 1 and 9,
-    # and uses 0 as the value to rapresent
-    # emtpyness
-    BInt<0, 10>[9][9] slots
+  # a BInt<min, max> is a bounded integer, 
+  # it is used to specify the min and max 
+  # value that can placed inside the object. 
+  # In this case, it allows to insert into
+  # the slots any number between 1 and 9,
+  # and uses 0 as the value to rapresent
+  # emtpyness
+  BInt<0, 10>[9][9] slots
 
-    # This is a member function declaration
-    # it declares a function called is_full,
-    # with return type Bool, and zero 
-    # arguments
-    # returns true when all the slots in the 
-    # game have been filled with a number.
-    fun is_full() -> Bool:
-      return self.count_empty() == 0
+  # This is a member function declaration
+  # it declares a function called is_full,
+  # with return type Bool, and zero 
+  # arguments
+  # returns true when all the slots in the 
+  # game have been filled with a number.
+  fun is_full() -> Bool:
+    return self.count_empty() == 0
 
-    # count_empty returns the number of slots
-    # that have not yet been filled with a 
-    # number
-    fun count_empty() -> Int:
-      let empty = 0
-      let i = 0
-      while i != 9:
-        let y = 0
-        while y != 9:
-          if self.slots[y][i].value == 0:
-            empty = empty + 1 
-          y = y + 1
-        i = i + 1
-      return empty
+  # count_empty returns the number of slots
+  # that have not yet been filled with a 
+  # number
+  fun count_empty() -> Int:
+    let empty = 0
+    let i = 0
+    while i != 9:
+      let y = 0
+      while y != 9:
+        if self.slots[y][i].value == 0:
+          empty = empty + 1
+        y = y + 1
+      i = i + 1
+    return empty
 
-    # returns true if the 3x3 region of the board
-    # that contains a given cell does not contain
-    # any cell with the given number.
-    fun region_is_missing(Int row, Int column, Int number) -> Bool:
-      let i = (row / 3)
-      while i != (row / 3) + 3:
-        let y = (column / 3)
-        while y != (column / 3) + 3:
-          if self.slots[y][i].value == number:
-            return false
-          y = y + 1
-        i = i + 1
-      return true
+  # returns true if the 3x3 region of the board
+  # that contains a given cell does not contain
+  # any cell with the given number.
+  fun region_is_missing(Int row, Int column, Int number) -> Bool:
+    let i = (row / 3)
+    while i != (row / 3) + 3:
+      let y = (column / 3)
+      while y != (column / 3) + 3:
+        if self.slots[y][i].value == number:
+          return false
+        y = y + 1
+      i = i + 1
+    return true
 
-    # returns true in the given column
-    # does not contain the given number
-    fun column_is_missing(Int column, Int number) -> Bool:
-      let i = 0
-      while i != 9:
-        if self.slots[column][i].value == number:
-            return false
-        i = i + 1
-      return true
+  # returns true in the given column
+  # does not contain the given number
+  fun column_is_missing(Int column, Int number) -> Bool:
+    let i = 0
+    while i != 9:
+      if self.slots[column][i].value == number:
+        return false
+      i = i + 1
+    return true
 
-    # returns true in the given row
-    # does not contain the given number
-    fun row_is_missing(Int row, Int number) -> Bool:
-      let i = 0
-      while i != 9:
-        if self.slots[i][row].value == number:
-            return false
-        i = i + 1
-      return true
+  # returns true in the given row
+  # does not contain the given number
+  fun row_is_missing(Int row, Int number) -> Bool:
+    let i = 0
+    while i != 9:
+      if self.slots[i][row].value == number:
+        return false
+      i = i + 1
+    return true
 
-    # returns true if marking the given cell
-    # with the given number is valid
-    fun can_mark(Int row, Int column, Int number) -> Bool:
-        return self.row_is_missing(row, number) and self.column_is_missing(column, number) and self.region_is_missing(row, column, number) and self.slots[column][row] == 0
+  # returns true if marking the given cell
+  # with the given number is valid
+  fun can_mark(Int row, Int column, Int number) -> Bool:
+    return self.row_is_missing(row, number) and self.column_is_missing(column, number) and self.region_is_missing(row, column, number) and self.slots[column][row] == 0
 
-    # returns true if there is at least a cell
-    # that can be filled a number
-    fun at_least_one_action_is_possible() -> Bool:
-      let i = 0
-      while i != 9:
-        let y = 0
-        while y != 9:
-          let val = 1
-          while val != 10:
-            if self.can_mark(i, y, val):
-              return true
-            val = val + 1
-          y = y + 1
-        i = i + 1
-      return false
+  # returns true if there is at least a cell
+  # that can be filled a number
+  fun at_least_one_action_is_possible() -> Bool:
+    let i = 0
+    while i != 9:
+      let y = 0
+      while y != 9:
+        let val = 1
+        while val != 10:
+          if self.can_mark(i, y, val):
+            return true
+          val = val + 1
+        y = y + 1
+      i = i + 1
+    return false
 
 # The next line of code introduces a Action Function. 
 # Action Functions are pieces of codes that are written
@@ -114,85 +114,85 @@ cls Board:
 # random sudoku board is generated by writing random 
 # numbers are written into it. The second part is the part
 # where the user tries to solve the game.
+
 @classes
 act play() -> Game:
-    # This is a variable declaration. It allocates a local 
-    # variable named board, of type Board. The variable is
-    # introduced by the keyword frm, which specifies that
-    # the variable is of interest not only to this function,
-    # to the users of sudoku in general. This is of course 
-    # the case, since players need to look inside the sudoku
-    # board to decide what to do.
-    frm board : Board
-    frm i = 0
-    frm game_began = false
-    while i != 20:
-        # The following line introduces a action statement.
-        # Actions statements are programmers can declare
-        # the existance of a input that must be provided by 
-        # the user
-        # 
-        # In this case are are declaring the existance of
-        # of the action random_mark, which is invoked with 
-        # random arguments so that it can fill random cells
-        # of the board before the player plays.
-        #
-        # The action has 3 arguments, x, y and the number to 
-        # be picked by the user.
-        act random_mark(BInt<0, 9> x, BInt<0, 9> y, BInt<1, 10> number) {
-            # The brackes after a action statement encode the 
-            # requirements of a action. 
-            board.can_mark(x.value, y.value, number.value)
-        }
-        # After a action statement has been executed, x, y and 
-        # number are now set the user wishes, so we can 
-        # mark the suggested point.
-        board.slots[y.value][x.value] = number.value
-        i = i + 1
+  # This is a variable declaration. It allocates a local 
+  # variable named board, of type Board. The variable is
+  # introduced by the keyword frm, which specifies that
+  # the variable is of interest not only to this function,
+  # to the users of sudoku in general. This is of course 
+  # the case, since players need to look inside the sudoku
+  # board to decide what to do.
+  frm board : Board
+  frm i = 0
+  frm game_began = false
+  while i != 20:
+    # The following line introduces a action statement.
+    # Actions statements are programmers can declare
+    # the existance of a input that must be provided by 
+    # the user
+    # 
+    # In this case are are declaring the existance of
+    # of the action random_mark, which is invoked with 
+    # random arguments so that it can fill random cells
+    # of the board before the player plays.
+    #
+    # The action has 3 arguments, x, y and the number to 
+    # be picked by the user.
 
-    # after we are done configurating the board we can
-    # set to true the variable game_began, so that 
-    # outside users can know if we are still configuring
-    # board or not
-    game_began = true
-    while !board.is_full() and board.at_least_one_action_is_possible():
-        # while the game is not done, we allow the player to
-        # mark cells.
-        act mark(BInt<0, 9> x, BInt<0, 9> y, BInt<1, 10> number) {
-            board.can_mark(x.value, y.value, number.value) 
-        }
-        board.slots[y.value][x.value] = number.value
+    # The brackes after a action statement encode the 
+    # requirements of a action. 
+    act random_mark(BInt<0, 9> x, BInt<0, 9> y, BInt<1, 10> number) { board.can_mark(x.value, y.value, number.value) }
+
+    # After a action statement has been executed, x, y and 
+    # number are now set the user wishes, so we can 
+    # mark the suggested point.
+    board.slots[y.value][x.value] = number.value
+    i = i + 1
+
+  # after we are done configurating the board we can
+  # set to true the variable game_began, so that 
+  # outside users can know if we are still configuring
+  # board or not
+  game_began = true
+  while !board.is_full() and board.at_least_one_action_is_possible():
+    # while the game is not done, we allow the player to
+    # mark cells.
+    act mark(BInt<0, 9> x, BInt<0, 9> y, BInt<1, 10> number) { board.can_mark(x.value, y.value, number.value) }
+
+    board.slots[y.value][x.value] = number.value
 
 # When using the machine learning layer
 # delivered by the rlc package you need
 # to provide a function that give a game
 # returns the current player.
 fun get_current_player(Game g) -> Int:
-    # -4 is a special number to specify
-    # that the game is done.
-    if g.is_done():
-        return -4
-    # -1 is a special number to specify
-    # that the next action must be taken
-    # randomly
-    if !g.game_began:
-        return -1
-    
-    # the first player has id 0.
-    return 0
+  # -4 is a special number to specify
+  # that the game is done.
+  if g.is_done():
+    return -4
+  # -1 is a special number to specify
+  # that the next action must be taken
+  # randomly
+  if !g.game_began:
+    return -1
+
+  # the first player has id 0.
+  return 0
 
 # We need to specify the maximal number
 # of players, so that the machine learning
 # can configure itself with the correct
 # number of agents
 fun get_num_players() -> Int:
-    return 1
+  return 1
 
 # To avoid games that never terminate, we provide 
 # a function that suggest a maximal number of actions
 # 200 is greatly overestimated.
 fun max_game_lenght() -> Int:
-    return 200 
+  return 200
 
 # For the machine learning to learn we need 
 # to specify the score of the given player, 
@@ -203,23 +203,24 @@ fun max_game_lenght() -> Int:
 # and we interpolate between the two depending 
 # on how many number it has managed to write 
 # otherwise
-fun score(Game g, Int player_id) ->  Float:
-    return 1.0 - float(g.board.count_empty()) / 81.0
+fun score(Game g, Int player_id) -> Float:
+  return 1.0 - float(g.board.count_empty()) / 81.0
 
 # this function is looked for by the machine
 # learning components when they wish to print
 # a human readable version of the game, so 
 # that the user may understand what is going on
 fun pretty_print(Game g):
-   let i = 0
-   while i != 9:
-      let to_print : String
-      let y = 0
-      while y != 9:
-        if g.board.slots[y][i].value == 0:
-          to_print.append("_")
-        else:
-          to_print.append(to_string(g.board.slots[y][i].value))
-        y = y + 1
-      print(to_print)
-      i = i + 1
+  let i = 0
+  while i != 9:
+    let to_print : String
+    let y = 0
+    while y != 9:
+      if g.board.slots[y][i].value == 0:
+        to_print.append("_")
+      else:
+        to_print.append(to_string(g.board.slots[y][i].value))
+      y = y + 1
+    print(to_print)
+    i = i + 1
+
