@@ -1785,9 +1785,9 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
 	if (yield.getArguments().size() != 1 or
 			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
 	{
+		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
-				yield.getArguments().front().getDefiningOp(),
-				"Left hand operand of or must be Bool");
+				op ? op : getOperation(), "Left hand operand of or must be Bool");
 	}
 
 	for (auto *op : ops(getRhs()))
@@ -1800,9 +1800,9 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
 	if (yield.getArguments().size() != 1 or
 			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
 	{
+		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
-				yield.getArguments().front().getDefiningOp(),
-				"Right hand operand of or must be Bool");
+				op ? op : getOperation(), "Right hand operand of or must be Bool");
 	}
 
 	return mlir::success();
@@ -1822,9 +1822,9 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
 	if (yield.getArguments().size() != 1 or
 			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
 	{
+		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
-				yield.getArguments().front().getDefiningOp(),
-				"Left hand operand of and must be Bool");
+				op ? op : getOperation(), "Left hand operand of and must be Bool");
 	}
 
 	for (auto *op : ops(getRhs()))
@@ -1837,9 +1837,9 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
 	if (yield.getArguments().size() != 1 or
 			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
 	{
+		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
-				yield.getArguments().front().getDefiningOp(),
-				"Right hand operand of and must be Bool");
+				op ? op : getOperation(), "Right hand operand of and must be Bool");
 	}
 
 	return mlir::success();

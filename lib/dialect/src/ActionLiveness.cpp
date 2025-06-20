@@ -214,6 +214,14 @@ namespace mlir::rlc
 			bool isDeadAfter(mlir::Value val, mlir::Operation* op)
 			{
 				assert(op != nullptr);
+				// the precondition of action statements are evaluated after the
+				// suspension, but they get inserted in the before lattice because you
+				// cannot write if your output
+				if (mlir::isa<mlir::rlc::ActionStatement>(op))
+				{
+					auto* lattice = getLattice(LatticeAnchor(getProgramPointBefore(op)));
+					return not lattice->isAlive(val);
+				}
 				auto* lattice = getLattice(LatticeAnchor(getProgramPointAfter(op)));
 				return not lattice->isAlive(val);
 			}

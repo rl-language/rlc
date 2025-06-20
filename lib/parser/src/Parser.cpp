@@ -1395,7 +1395,8 @@ Expected<mlir::Operation*> Parser::forFieldStatement()
 		builder.create<mlir::rlc::Yield>(location, values);
 
 		builder.setInsertionPointToEnd(bodyB);
-		emitYieldIfNeeded(bodyB->back().getLoc());
+		emitYieldIfNeeded(
+				bodyB->empty() ? expStatement.getLoc() : bodyB->back().getLoc());
 		builder.restoreInsertionPoint(pos);
 	};
 
@@ -1437,7 +1438,7 @@ Expected<mlir::rlc::WhileStatement> Parser::whileStatement()
 		builder.create<mlir::rlc::Yield>(
 				getLastTokenEndPos(), mlir::ValueRange({ exp }));
 		builder.setInsertionPointToEnd(bodyB);
-		emitYieldIfNeeded(bodyB->back().getLoc());
+		emitYieldIfNeeded(bodyB->empty() ? location : bodyB->back().getLoc());
 		builder.restoreInsertionPoint(pos);
 	};
 
