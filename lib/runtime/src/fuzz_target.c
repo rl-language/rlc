@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#include "Runtime.c"
+#include "stddef.h"
 #include "stdint.h"
 
 typedef struct VectorByte
@@ -31,8 +33,8 @@ int LLVMFuzzerTestOneInput(const char* Data, size_t Size)
 	// as a parameter to rl functions using it
 	struct VectorByte vector;
 	vector.data = Data;
-	vector.capacity = (int64_t)Size;
-	vector.size = (int64_t)Size;
+	vector.capacity = (int64_t) Size;
+	vector.size = (int64_t) Size;
 
 	rl_fuzz__VectorTint8_tT(&vector);
 	return 0;

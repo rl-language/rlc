@@ -1,3 +1,12 @@
+rlcRuntime(runtime ${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime.c)
+rlcRuntime(fuzzer ${CMAKE_CURRENT_SOURCE_DIR}/src/fuzz_target.c)
+
+find_package (Python3 COMPONENTS Interpreter Development)
+find_package(PythonLibs REQUIRED)
+rlcRuntime(pyrlc ${CMAKE_SOURCE_DIR}/python/native/call_python.c -I ${Python3_INCLUDE_DIRS})
+
+
+INSTALL(FILES src/Runtime.c DESTINATION include/rlc/runtime)
 
 if (WIN32)
 
@@ -27,18 +36,6 @@ if (WIN32)
       DEPENDS $<TARGET_FILE:rlc::runtime>
     )
 
-else()
-    rlcAddLibrary(runtime STATIC src/Runtime.c)
-    set_property(TARGET runtime PROPERTY C_STANDARD 11)
-endif()
-INSTALL(FILES src/Runtime.c DESTINATION include/rlc/runtime)
-
-find_package (Python3 COMPONENTS Interpreter Development)
-find_package(PythonLibs REQUIRED)
-add_library(pyrlc STATIC ${CMAKE_SOURCE_DIR}/python/native/call_python.c)
-set_property(TARGET pyrlc PROPERTY C_STANDARD 11)
-target_include_directories(pyrlc PUBLIC ${Python3_INCLUDE_DIRS})
-message(WARNING ${PYTHON_LIBRARIES})
 file(TO_NATIVE_PATH ${CMAKE_CURRENT_BINARY_DIR}/pyunpatched.lib PYUNPATCHED)
 file(TO_NATIVE_PATH ${CMAKE_CURRENT_BINARY_DIR}/pyrlc$<$<CONFIG:Debug>:-d>.lib PYORIGINAL)
 add_custom_command(
@@ -48,6 +45,4 @@ add_custom_command(
       COMMAND lib /OUT:$<TARGET_FILE:rlc::pyrlc>  ${PYUNPATCHED} C:/Users/mofio/AppData/Local/Programs/Python/Python311/libs/python3.lib
       DEPENDS $<TARGET_FILE:rlc::pyrlc>
 )
-add_library(rlc::pyrlc ALIAS pyrlc)
-INSTALL(TARGETS pyrlc DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
+endif()

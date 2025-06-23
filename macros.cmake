@@ -147,3 +147,46 @@ macro(rlcAddBenchmark target)
 	INSTALL(TARGETS ${target}Benchmark 
 	RUNTIME DESTINATION bechmark)
 endMacro(rlcAddBenchmark)
+
+
+##############################
+###  createRuntimeLibMacro ###
+##############################
+function(rlcRuntime target)
+set (RUNTIME_LIB ${CMAKE_CURRENT_BINARY_DIR}/lib${target}${CMAKE_STATIC_LIBRARY_SUFFIX})
+# 2. Custom build rule – you decide exactly how clang is invoked
+add_custom_command(
+    OUTPUT ${RUNTIME_LIB}
+    # compile
+    COMMAND ${CMAKE_C_COMPILER} -std=c11 -O3 -c ${ARGN} -o ${target}.o -I ${CMAKE_CURRENT_SOURCE_DIR}/include
+    # archive
+    COMMAND ${CMAKE_AR} rcs ${RUNTIME_LIB} ${target}.o
+    DEPENDS ${RUNTIME_SRC}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Building rlc runtime with clang"
+    VERBATIM
+)
+
+# 3. Helper target that owns the command above
+add_custom_target(build_rlc_${target}_runtime ALL DEPENDS ${RUNTIME_LIB})
+
+# 4. Expose the file as a *real* CMake library target
+add_library(rlc_${target}_runtime STATIC IMPORTED GLOBAL)
+add_library(rlc::${target} ALIAS rlc_${target}_runtime)         # convenient namespace alias
+
+set_target_properties(rlc_${target}_runtime PROPERTIES
+    IMPORTED_LOCATION           ${RUNTIME_LIB}
+    INTERFACE_INCLUDE_DIRECTORIES
+                                ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# Ensure the archive is actually built before anyone links to it
+add_dependencies(rlc_${target}_runtime build_rlc_${target}_runtime)
+
+# 5. Install like any other normal target
+install(FILES ${RUNTIME_LIB}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        DESTINATION include)
+endfunction(rlcRuntime)

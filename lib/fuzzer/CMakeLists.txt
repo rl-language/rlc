@@ -1,7 +1,0 @@
-rlcAddLibrary(fuzzer STATIC src/fuzz_target.c)
-llvm_map_components_to_libnames(llvm_utils_libs Support)
-target_link_libraries(fuzzer)
-if(APPLE)
-    #target_compile_options(fuzzer PRIVATE -undefined dynamic_lookup)
-    target_link_options(fuzzer PRIVATE -undefined dynamic_lookup)
-endif()
