@@ -16,6 +16,7 @@ limitations under the License.
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/TypeRange.h"
+#include "mlir/IR/Types.h"
 #include "rlc/conversions/RLCToC.hpp"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -42,7 +43,7 @@ namespace mlir::rlc
         // writer.writenl("#ifdef __cplusplus");
         // writer.writenl("extern \"C\" {");
         // writer.writenl("endif");
-        writer.writenl("#ifdef RLC_HEADER");
+        writer.writenl("#ifndef RLC_HEADER");
         writer.writenl("#ifdef RLC_C_HEADER");
         writer.writenl("#undef RLC_C_HEADER");
         writer.writenl("#define RLC_HEADER");
@@ -50,38 +51,89 @@ namespace mlir::rlc
         writer.writenl("#include \"stdint.h\"");
         writer.writenl("#define RLC_GET_FUNCTION_DECLS");
         writer.writenl("#define RLC_GET_TYPE_DECLS");
+        writer.writenl("#endif");  
 
-        writer.writenl("#define RLC_VISIT_FUNCTION(name, mangled_name, cShortName return_type, ...)");
-        writer.writenl("static inline return_type cShortName(RLC_ARGUMENTS) {");
-        writer.writenl("return_type ret_value;");
-        writer.writenl("mangled_name(&ret_value, __VA_ARGS__);");
-        writer.writenl("return ret_value;");
-        writer.writenl("}");
+        // writer.write("#define RLC_VISIT_FUNCTION(name, mangled_name, cShortName, return_type, ...)");
+        // writer.write("static inline return_type cShortName(RLC_ARGUMENTS) {");
+        // writer.write("return_type ret_value;");
+        // writer.write("mangled_name(&ret_value, __VA_ARGS__);");
+        // writer.write("return ret_value;");
+        // writer.writenl("}");
         writer.writenl("#endif");
 
         writer.writenl("#ifdef RLC_GET_TYPE_DECLS");
 
-        for (auto type : ::rlc::postOrderTypes(Module))
-		    writer.writeType(type);
+        for (auto type : ::rlc::postOrderTypes(Module)){
+            if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type)){
+                writer.write("typedef union ");
+                writer.write(casted.mangledName());
+                writer.write(" ");
+                writer.write(casted.mangledName());
+                writer.write(";");
+                writer.endLine();
+            }
+            if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type)){
+                writer.write("struct ");
+                writer.write(casted.getMangledName());
+                writer.write(";");
+                writer.endLine();
+            }
+        }
+        
+		    
         
         writer.writenl("#undef RLC_GET_TYPE_DECLS");
         writer.writenl("#endif");
         writer.endLine();
 
-        // class type definition ???
         writer.writenl("#ifdef RLC_TYPE");
         for (auto type : ::rlc::postOrderTypes(Module))
-            writer.writeType(type);
+            if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type)){
+                writer.write("RLC_TYPE(");
+                writer.write(casted.getName());
+                writer.write(")");
+                writer.endLine();
+            }
         writer.writenl("#undef RLC_TYPE");
         writer.writenl("#endif");
         writer.endLine();
     }
 
-    static void registerCommonTypeSerialization(TypeSerializer& s)
+    static void printFieldName(
+        llvm::StringRef fieldName,
+		mlir::Type type,
+		StreamWriter& writer,
+		bool isRef = false
+    ){
+        if (not type.isa<mlir::rlc::ArrayType>())
+	    {
+            if (isRef)
+                writer.write("(&");
+            writer.write(" " + fieldName);
+            if (isRef)
+                writer.write(")");
+	    }
+    }
+
+    static void printTypeField(
+        llvm::StringRef fieldName,
+		mlir::Type type,
+        StreamWriter& w,
+        bool isRef = false
+    ) {
+        if (auto casted = dyn_cast<mlir::rlc::FrameType>(type))
+		    type = casted.getUnderlying();
+        else if (auto casted = dyn_cast<mlir::rlc::ContextType>(type))
+            type = casted.getUnderlying();
+
+        w.writeType(type);
+        printFieldName(fieldName, type, w);
+    }
+
+    static void registerCommonTypeSerialization(
+        TypeSerializer& s
+    )
 	{
-        s.add([](IntegerLiteralType type, llvm::raw_string_ostream& OS)-> void{
-            OS << type.getValue();
-        });
         s.add([&](mlir::rlc::FrameType type, llvm::raw_string_ostream& OS) {
 			OS << s.convert(type.getUnderlying());
 		});
@@ -89,6 +141,7 @@ namespace mlir::rlc
 			OS << s.convert(type.getUnderlying());
 		});
 		s.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
+            s.convert(type.getUnderlying());
 			OS << s.convert(type.getUnderlying()) << " [ "
 			<< s.convert(type.getSize())
             << "]";
@@ -99,13 +152,12 @@ namespace mlir::rlc
 		s.add([&](mlir::rlc::ReferenceType type, llvm::raw_string_ostream& OS) {
 			OS << s.convert(type.getUnderlying()) << "*";
 		});
-		s.add(
-				[&](mlir::rlc::AlternativeType type, llvm::raw_string_ostream& OS) {
-					OS << type.getMangledName();
-				});
-        s.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
-			OS << "RLC_TYPE(" << type.mangledName() << ")\n";
-		});
+		// s.add([&](mlir::rlc::AlternativeType type, llvm::raw_string_ostream& OS) {
+        //         OS << type.getMangledName();
+        // });
+        // s.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
+		// 	OS << "RLC_TYPE(" << type.mangledName() << ")\n";
+		// });
 	}
 
     static void registerCTypeSerializion(TypeSerializer& s){
@@ -132,6 +184,9 @@ namespace mlir::rlc
             [&](ClassType type, llvm::raw_string_ostream& OS) {
                 OS << "union " << type.mangledName();
         });
+        s.add([](IntegerLiteralType type, llvm::raw_string_ostream& OS)-> void{
+            OS << type.getValue();
+        });
         registerCommonTypeSerialization(s);
     }
 
@@ -147,21 +202,7 @@ namespace mlir::rlc
 
     }
 
-    static void printFieldName(
-        llvm::StringRef fieldName,
-		mlir::Type type,
-		StreamWriter& writer,
-		bool isRef = false
-    ){
-        if (not type.isa<mlir::rlc::ArrayType>())
-	    {
-            if (isRef)
-                writer.write("(&");
-            writer.write(" " + fieldName);
-            if (isRef)
-                writer.write(")");
-	    }
-    }
+    
 
     static void printFunctionDecl(
         llvm::ArrayRef<llvm::StringRef> argsNames,
@@ -170,19 +211,20 @@ namespace mlir::rlc
         StreamWriter& writer
     ){
         writer.write("(");
+
         if (not mlir::isa<mlir::rlc::VoidType>(resultType)){
             writer.writeType(resultType);
             printFieldName(" * __result", resultType, writer);
             if (types.size() != 0) writer.write(", ");
         }
 
-        for (size_t index = 0; index != types.size(); index++)
+        for (size_t index = 0; index != argsNames.size(); index++)
 		{
 			writer.writeType(types[index]);
             printFieldName("* " + argsNames[index].str(), types[index], writer);
             if (index + 1 < argsNames.size()) writer.write(", ");
 		}
-        writer.writenl(")");
+        writer.writenl(");");
     }
 
     static void printVisitFunctionDecl(
@@ -247,7 +289,8 @@ namespace mlir::rlc
         : type.getResult(0);
 
         writer.writenl("#ifdef RLC_GET_FUNCTION_DECLS");
-        writer.write("void ", mangledName);
+        writer.write("void ");
+        writer.write(mangledName);
         printFunctionDecl(argsNames, type.getInputs(), resultType, writer);
         writer.writenl("#endif");
         writer.endLine();
@@ -308,24 +351,15 @@ namespace mlir::rlc
             std::string cShortName = 
             ((not op.getFunctionType().getInputs().empty() and op.getFunctionType().getInputs().front().isa<mlir::rlc::ClassType>()) ? op.getFunctionType().getInputs().front().cast<mlir::rlc::ClassType>().getName() + "_" + op.getUnmangledName() : op.getUnmangledName()).str();
 
-            declareFunction(
-                op.getUnmangledName(),
-                op.getIsMemberFunction(),
+            printFunctionAndCanFunctionSignature(
+                op.getUnmangledName(), 
+                op.getIsMemberFunction(), 
                 cShortName, 
                 op.getFunctionType(), 
-                op.getInfo().getArgNames(),
-                w);
-            if (not op.getPrecondition().empty())
-                declareFunction(
-                "can_" + op.getUnmangledName().str(),
-                op.getIsMemberFunction(),
-                cShortName, 
-                mlir::FunctionType::get(
-                    op.getContext(),
-                    op.getType(),
-                    { mlir::rlc::BoolType::get(op.getContext()) }), 
-                op.getInfo().getArgNames(),
-                w);
+                op.getInfo().getArgNames(), 
+                !op.getPrecondition().empty(), 
+                w
+            );
         }
     };
 
@@ -422,12 +456,12 @@ namespace mlir::rlc
 
 
 
-    #define GEN_PASS_DEF_PRINTCHEADERPASS
+    #define GEN_PASS_DEF_PRINTNEWCHEADERPASS
     #include "rlc/dialect/Passes.inc"
     
-    struct PrintCHeaderPass:
-    impl::PrintCHeaderPassBase<PrintCHeaderPass>{
-        using impl::PrintCHeaderPassBase<PrintCHeaderPass>::PrintCHeaderPassBase;
+    struct PrintNewCHeaderPass:
+    impl::PrintNewCHeaderPassBase<PrintNewCHeaderPass>{
+        using impl::PrintNewCHeaderPassBase<PrintNewCHeaderPass>::PrintNewCHeaderPassBase;
         void runOnOperation() override
         {
             rlc::PatternMatcher matcher(*OS);
@@ -441,7 +475,7 @@ namespace mlir::rlc
             matcher.add<ActionToCFunction>(builder);
             matcher.add<AliasToCAlias>();
 
-            printPrelude(matcher.getWriter(), module);
+            printPrelude(matcher.getWriter(), getOperation());
 
             // emit declarations of functions
 			matcher.apply(getOperation());

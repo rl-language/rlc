@@ -172,6 +172,12 @@ static cl::opt<bool> dumpCWrapper(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpNewCWrapper(
+		"new-header",
+		cl::desc("dumps the new c wrapper and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpCSharpWrapper(
 		"c-sharp",
 		cl::desc("dumps the c sharp wrapper and exits"),
@@ -364,6 +370,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpCheckedAST;
 	if (dumpCWrapper)
 		return Driver::Request::dumpCWrapper;
+	if (dumpNewCWrapper)
+		return Driver::Request::dumpNewCWrapper;
 	if (dumpCSharpWrapper)
 		return Driver::Request::dumpCSharp;
 	if (dumpGodotWrapper)

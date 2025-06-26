@@ -229,6 +229,15 @@ def PrintCHeaderPass : Pass<"rlc-print-c-header-pass", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def PrintNewCHeaderPass : Pass<"rlc-print-new-c-header-pass", "mlir::ModuleOp"> {
+  let summary = "prints the new c header on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "stream on which to print the module">
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def PrintGodotPass : Pass<"rlc-print-godot-pass", "mlir::ModuleOp"> {
   let summary = "prints the godot file on the provided stream";
   let options = [
