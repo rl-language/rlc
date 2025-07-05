@@ -36,6 +36,83 @@ limitations under the License.
 namespace mlir::rlc
 {
 
+     static void printFieldName(
+        llvm::StringRef fieldName,
+		mlir::Type type,
+		StreamWriter& writer,
+		bool isRef = false
+    ){
+        if (isRef)
+            writer.write("(&");
+        writer.write(" " + fieldName);
+        if (isRef)
+            writer.write(")");
+        if(auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
+	    {
+            writer.write("[");
+			writer.write(casted.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue());
+            writer.write("]");
+	    }
+    }
+
+    static void printTypeDefinition(
+        mlir::Type type,
+        StreamWriter& writer
+    ){
+        if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type)){
+                writer.write("typedef union ");
+                writer.write(casted.mangledName());
+                writer.writenl("{ ");
+                 // Defenition
+                writer.write("struct _Content");
+                writer.write(casted.mangledName());
+                writer.writenl("{");
+                for (auto field : (casted.getMembers()))
+				{
+					writer.write("   ");
+                    writer.writeType(field.getType());
+                    printFieldName(
+                        field.getName(),
+                         field.getType(), 
+                         writer);
+                    writer.writenl(";");
+                }
+                writer.write(" ");
+                writer.writenl("} content;");
+                writer.write("} ");
+                writer.writenl(casted.mangledName() + ";");
+            }
+        if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type)){
+            writer.write("struct ");
+            writer.write(casted.getMangledName());
+            writer.writenl("{");
+
+            // Defenition
+            writer.write(" ");
+            writer.write("union _Content");
+            writer.write(casted.getMangledName());
+            writer.writenl("{");
+            for (auto field : llvm::enumerate(casted.getUnderlying()))
+            {
+                writer.write("   ");
+                writer.writeType(field.value());
+                printFieldName(
+                    (llvm::Twine("field") + llvm::Twine(field.index())).str(),
+                        casted, 
+                        writer);
+                
+                writer.writenl(";");
+                
+            }
+            writer.endLine();
+            writer.write("  ");
+            writer.writenl("} content;");
+            writer.write("  ");
+            writer.writenl("int64_t active_index;");
+            writer.writenl("};");
+        }
+    }
+
     static void printPrelude(
         StreamWriter& writer,
         mlir::ModuleOp Module
@@ -64,23 +141,8 @@ namespace mlir::rlc
         writer.writenl("#ifdef RLC_GET_TYPE_DECLS");
 
         for (auto type : ::rlc::postOrderTypes(Module)){
-            if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type)){
-                writer.write("typedef union ");
-                writer.write(casted.mangledName());
-                writer.write(" ");
-                writer.write(casted.mangledName());
-                writer.write(";");
-                writer.endLine();
-            }
-            if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type)){
-                writer.write("struct ");
-                writer.write(casted.getMangledName());
-                writer.write(";");
-                writer.endLine();
-            }
+            printTypeDefinition(type, writer);
         }
-        
-		    
         
         writer.writenl("#undef RLC_GET_TYPE_DECLS");
         writer.writenl("#endif");
@@ -99,22 +161,6 @@ namespace mlir::rlc
         writer.endLine();
     }
 
-    static void printFieldName(
-        llvm::StringRef fieldName,
-		mlir::Type type,
-		StreamWriter& writer,
-		bool isRef = false
-    ){
-        if (not type.isa<mlir::rlc::ArrayType>())
-	    {
-            if (isRef)
-                writer.write("(&");
-            writer.write(" " + fieldName);
-            if (isRef)
-                writer.write(")");
-	    }
-    }
-
     static void printTypeField(
         llvm::StringRef fieldName,
 		mlir::Type type,
@@ -130,37 +176,7 @@ namespace mlir::rlc
         printFieldName(fieldName, type, w);
     }
 
-    static void registerCommonTypeSerialization(
-        TypeSerializer& s
-    )
-	{
-        s.add([&](mlir::rlc::FrameType type, llvm::raw_string_ostream& OS) {
-			OS << s.convert(type.getUnderlying());
-		});
-        s.add([&](mlir::rlc::ContextType type, llvm::raw_string_ostream& OS) {
-			OS << s.convert(type.getUnderlying());
-		});
-		s.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
-            s.convert(type.getUnderlying());
-			OS << s.convert(type.getUnderlying()) << " [ "
-			<< s.convert(type.getSize())
-            << "]";
-		});
-		s.add([&](mlir::rlc::OwningPtrType type, llvm::raw_string_ostream& OS) {
-			OS << s.convert(type.getUnderlying()) << "*";
-		});
-		s.add([&](mlir::rlc::ReferenceType type, llvm::raw_string_ostream& OS) {
-			OS << s.convert(type.getUnderlying()) << "*";
-		});
-		// s.add([&](mlir::rlc::AlternativeType type, llvm::raw_string_ostream& OS) {
-        //         OS << type.getMangledName();
-        // });
-        // s.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
-		// 	OS << "RLC_TYPE(" << type.mangledName() << ")\n";
-		// });
-	}
-
-    static void registerCTypeSerializion(TypeSerializer& s){
+    static void registerCTypeSerialization(TypeSerializer& s){
         s.add([](IntegerType type, llvm::raw_string_ostream& OS)-> void{
             OS << "int" << type.getSize() << "_t";
         });
@@ -187,7 +203,21 @@ namespace mlir::rlc
         s.add([](IntegerLiteralType type, llvm::raw_string_ostream& OS)-> void{
             OS << type.getValue();
         });
-        registerCommonTypeSerialization(s);
+        s.add([&](mlir::rlc::FrameType type, llvm::raw_string_ostream& OS) {
+			OS << s.convert(type.getUnderlying());
+		});
+        s.add([&](mlir::rlc::ContextType type, llvm::raw_string_ostream& OS) {
+			OS << s.convert(type.getUnderlying());
+		});
+		s.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
+			OS << s.convert(type.getUnderlying()) ;
+		});
+		s.add([&](mlir::rlc::OwningPtrType type, llvm::raw_string_ostream& OS) {
+			OS << s.convert(type.getUnderlying()) << "*";
+		});
+		s.add([&](mlir::rlc::ReferenceType type, llvm::raw_string_ostream& OS) {
+			OS << s.convert(type.getUnderlying()) << "*";
+		});
     }
 
     static void printMangledWrapper(
@@ -201,8 +231,6 @@ namespace mlir::rlc
     ) {
 
     }
-
-    
 
     static void printFunctionDecl(
         llvm::ArrayRef<llvm::StringRef> argsNames,
@@ -296,14 +324,14 @@ namespace mlir::rlc
         writer.endLine();
 
         // Visit function
-        writer.writenl("#ifdef RLC_VISIT_FUNCTION");
+        // writer.writenl("#ifdef RLC_VISIT_FUNCTION");
 
-        printVisitFunctionDecl(unmangledName, mangledName, cShortName, argsNames, type.getInputs(), resultType, writer);
+        // printVisitFunctionDecl(unmangledName, mangledName, cShortName, argsNames, type.getInputs(), resultType, writer);
 
-        writer.writenl("#undef RLC_ARGUMENTS_COUNT");
-        writer.writenl("#undef RLC_ARGUMENTS");
-        writer.writenl("#endif");
-        writer.endLine();
+        // writer.writenl("#undef RLC_ARGUMENTS_COUNT");
+        // writer.writenl("#undef RLC_ARGUMENTS");
+        // writer.writenl("#endif");
+        // writer.endLine();
     }
 
     static void printFunctionAndCanFunctionSignature(
@@ -469,7 +497,7 @@ namespace mlir::rlc
             mlir::rlc::ModuleBuilder builder(getOperation());
             mlir::ModuleOp module;
             matcher.addTypeSerializer();
-            registerCTypeSerializion(matcher.getWriter().getTypeSerializer());
+            registerCTypeSerialization(matcher.getWriter().getTypeSerializer());
 
             matcher.add<FunctionToCFunction>();
             matcher.add<ActionToCFunction>(builder);
