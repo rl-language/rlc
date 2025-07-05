@@ -8,8 +8,10 @@
 
 
 #--- source.rl
-fun to_invoke() -> Int {true}:
-        return 5
+act play() -> Game:
+    frm asd = 0
+    act pick(Int x)
+    asd = x
 
 
 #--- to_run.c
@@ -21,7 +23,9 @@ fun to_invoke() -> Int {true}:
 #include "./header.h"
 
 int main() {
-  int64_t result;
-  rl_to_invoke__r_int64_t(&result);
-  return result - 5;
+    Game pair; 
+    rl_play__r_Game(&pair);
+    int64_t x = 3;
+    rl_m_pick__Game_int64_t(&pair, &x);
+    return pair.content.asd - 3;
 }
