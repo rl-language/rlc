@@ -104,6 +104,12 @@ namespace mlir::rlc
 			return;
 		}
 
+		if (request == Request::dumpNewCWrapper)
+		{
+			manager.addPass(mlir::rlc::createPrintNewCHeaderPass({ OS }));
+			return;
+		}
+
 		if (request == Request::dumpCSharp)
 		{
 			manager.addPass(
