@@ -17,6 +17,7 @@ namespace mlir::rlc
 			dumpParsableGraph,
 			dumpCheckedAST,
 			dumpCWrapper,
+			dumpNewCWrapper,
 			dumpCSharp,
 			dumpBeforeTemplate,
 			dumpGodotWrapper,
