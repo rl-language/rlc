@@ -8,10 +8,9 @@
  enumerate will return the range of values
  between the two. Machine learning serialization
  will serialize this class as a one-hot vector
-
 ```
 
-### Fields
+ ### Fields
 - `Int value`
 
 ### Methods
@@ -50,10 +49,9 @@
  This class makes sense when it is used to rappresent
  integers that appear with the same frequency for
  each possible value.
-
 ```
 
-### Fields
+ ### Fields
 - `Int value`
 
 ### Methods

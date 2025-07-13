@@ -8,15 +8,13 @@
 
 ```text
  print a arbitrary object to stdout
-
 ```
 
-- **Function**: `print_indented<T>(T to_print) `
+ - **Function**: `print_indented<T>(T to_print) `
 
 ```text
  print a arbitrary object to stdout on multiple 
  lines and indented
-
 ```
 
-
+ 

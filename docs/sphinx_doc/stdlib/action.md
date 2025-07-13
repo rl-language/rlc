@@ -10,10 +10,9 @@
 
 ```text
  parses actions taking only one byte and by taking taking the reminder of the parsed number divided by the number of actions, so that no action is ever marked as invalid
-
 ```
 
-- **Function**: `parse_actions<AllActionsVariant>(AllActionsVariant variant, Vector<Byte> input)  -> Vector<AllActionsVariant>`
+ - **Function**: `parse_actions<AllActionsVariant>(AllActionsVariant variant, Vector<Byte> input)  -> Vector<AllActionsVariant>`
 - **Function**: `parse_and_execute<FrameType, AllActionsVariant>(FrameType state, AllActionsVariant variant, Vector<Byte> input) `
 - **Function**: `make_valid_actions_vector<FrameType, ActionType>(Vector<ActionType> all_actions, FrameType state)  -> Vector<Byte>`
 - **Function**: `get_valid_actions<FrameType, ActionType>(Vector<Byte> valid_actions, Vector<ActionType> all_actions, FrameType state) `
@@ -22,10 +21,9 @@
 ```text
  method that bust be present in binary to ensure that all methods 
  required by rlc-learn are available
-
 ```
 
-- **Function**: `load_action_vector_file<ActionType>(String file_name, Vector<ActionType> out)  -> Bool`
+ - **Function**: `load_action_vector_file<ActionType>(String file_name, Vector<ActionType> out)  -> Bool`
 - **Function**: `enumerate(Bool b, Vector<Bool> output) `
 - **Function**: `enumeration_error(Int x, String out, Vector<String> context) `
 - **Function**: `enumeration_error(Float x, String out, Vector<String> context) `
@@ -85,10 +83,9 @@
  
  this is used by machine learning techniques that need to
  enumerate all possible actions.
-
 ```
 
-- **Function**: `enumerate(T obj, Vector<T> output) `
+ - **Function**: `enumerate(T obj, Vector<T> output) `
 
 ## Trait CustomEnumerationError
 
@@ -102,10 +99,9 @@
  a given type is to be converted into a tensor
  for machine learning consumptions. The encoding
  should be, when possible, one-hot encoding.
-
 ```
 
-- **Function**: `write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter) `
+ - **Function**: `write_in_observation_tensor(T obj, Int observer_id, Vector<Float> output, Int counter) `
 - **Function**: `size_as_observation_tensor(T obj)  -> Int`
 
 ## Trait CustomTensorWarnings

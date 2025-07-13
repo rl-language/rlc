@@ -21,10 +21,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-
 ```
 
-- **Function**: `max(T obj)  -> Int`
+ - **Function**: `max(T obj)  -> Int`
 - **Function**: `is_enum(T obj)  -> Bool`
 - **Function**: `as_int(T obj)  -> Int`
 - **Function**: `from_int(T obj, Int new_value) `

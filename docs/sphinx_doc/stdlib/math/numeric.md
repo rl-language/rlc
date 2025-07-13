@@ -19,16 +19,14 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  returns the max between two numbers
-
 ```
 
-- **Function**: `min(Int a, Int b)  -> Int`
+ - **Function**: `min(Int a, Int b)  -> Int`
 
 ```text
  retursn the min between two numbers
-
 ```
 
-- **Function**: `sqrt(Float f)  -> Float`
+ - **Function**: `sqrt(Float f)  -> Float`
 - **Function**: `abs(Int a)  -> Int`
 

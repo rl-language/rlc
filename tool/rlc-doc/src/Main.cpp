@@ -59,11 +59,20 @@ static void printTemplateParameter(mlir::Attribute attr, llvm::raw_ostream &OS)
 /// Emit a fenced Markdown code‑block for an operation comment, if present.
 static void writeComment(mlir::Operation *op, llvm::raw_ostream &OS)
 {
-	if (op->hasAttr("comment"))
+	llvm::SmallVector<mlir::rlc::Comment> comments;
+	auto previous = op->getPrevNode();
+	while (auto casted = mlir::dyn_cast_or_null<mlir::rlc::Comment>(previous))
 	{
-		auto comment = op->getAttr("comment").cast<mlir::StringAttr>();
-		OS << "\n```text\n" << comment.strref() << "\n```\n\n";
+		comments.insert(comments.begin(), casted);
+		previous = previous->getPrevNode();
 	}
+	if (comments.empty())
+		return;
+
+	OS << "\n```text\n";
+	for (auto comment : comments)
+		OS << comment.getText();
+	OS << "```\n\n ";
 }
 
 static void printFunction(mlir::rlc::FunctionOp op, llvm::raw_ostream &OS)
@@ -213,10 +222,7 @@ int main(int argc, char *argv[])
 	}
 
 	rlc::Parser parser(
-			&context,
-			buffer.get()->getBuffer().str(),
-			InputFilePath,
-			/*silent=*/true);
+			&context, buffer.get()->getBuffer().str(), InputFilePath, true);
 
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, InputFilePath, 0, 0), InputFilePath);

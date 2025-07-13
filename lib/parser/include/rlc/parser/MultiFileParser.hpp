@@ -66,6 +66,7 @@ namespace rlc
 			std::set<std::string> alreadyLoaded;
 			llvm::SmallVector<std::string> fileToLoad;
 
+			alreadyLoaded.insert(fileName.str());
 			if (llvm::Error error = parseOneFile(content, fileName, fileToLoad))
 			{
 				// if we fail to parse the first file, keep parsing the othe imported
