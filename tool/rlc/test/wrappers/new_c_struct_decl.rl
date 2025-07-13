@@ -46,7 +46,7 @@ int main() {
         rl_m_can_to_invoke__Outer_r_bool(&can, &outer);
         if (can) rl_m_to_invoke__Outer_r_int64_t(&result, &outer); //10
     }else {
-        rl_m_to_invoke__Outer_r_int64_t(&result, &outer) // 7
+        rl_m_to_invoke__Outer_r_int64_t(&result, &outer); // 7
     }
     
     return result - 10; // result should be 10
