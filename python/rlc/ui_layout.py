@@ -50,7 +50,12 @@ class Container:
     def add_child(self, child):
         self.children.append(copy.deepcopy(child))
 
-    def child_size(self):
+    def _inner_dims(self):
+        iw = max(0, self.width - self.padding.left - self.padding.right)
+        ih = max(0, self.height - self.padding.top - self.padding.bottom)
+        return iw, ih
+
+    def child_size(self,logger=None):
         # Always size children — even if self has fixed size
         inner_available_width = self.width - self.padding.left - self.padding.right
         inner_available_height = self.height - self.padding.top - self.padding.bottom
@@ -65,24 +70,28 @@ class Container:
                 child_height = (
                     inner_available_height if child_height_policy.mode != SizePolicies.FIXED else child_height_policy.value
                 )
-                child.compute_size(child_width, child_height)
-            else: child.compute_size()
+                child.compute_size(child_width, child_height,logger)
+            else: child.compute_size(logger)
 
      # Sizing  
     
-    def compute_size(self):
+    def compute_size(self, logger=None):
+        if logger: logger.attach_id(self); logger.snapshot(self, "before_compute")
         if self.direction == Direction.ROW:
             self.compute_width()
             self.compute_grow_width()
-            self.child_size()
+            self.child_size(logger)
+            if logger: logger.attach_id(self); logger.snapshot(self, "after_children_sizing")
             self.compute_height()
             self.compute_grow_height()
         if self.direction == Direction.COLUMN:
             self.compute_height()
             self.compute_grow_height()
-            self.child_size()
+            self.child_size(logger)
+            if logger: logger.attach_id(self); logger.snapshot(self, "after_children_sizing")
             self.compute_width()
             self.compute_grow_width()
+        if logger: logger.attach_id(self); logger.snapshot(self, "after_compute")
                 
     def compute_width(self):
         width_policy, _ = self.sizing
@@ -223,13 +232,15 @@ class Container:
             shrinkable = [c for c in shrinkable if (c.width if axis == 0 else c.height) > second_largest_val]
 
     # Position
-    def layout(self, x, y):
+    def layout(self, x, y, logger=None):
         self.x = x
         self.y = y
+        if logger: logger.snapshot(self, "before_layout")
         if self.direction == Direction.ROW:
             self.layout_row_children()
         if self.direction == Direction.COLUMN:
             self.layout_column_children()
+        if logger: logger.snapshot(self, "after_layout")
 
     def layout_row_children(self):
         left_offset = self.padding.left
@@ -255,7 +266,7 @@ class Text(Container):
         self.color = pygame.Color(color)
         self.font_name = font_name
         self.font_size = font_size
-    def compute_size(self, available_width=None, available_height=None):
+    def compute_size(self, available_width=None, available_height=None, logger=None):
         font = pygame.font.SysFont(self.font_name, self.font_size)
         if available_width:
             lines = self.wrap_text(font, available_width)
@@ -265,6 +276,7 @@ class Text(Container):
         self.text_surfaces = [font.render(line, True, self.color) for line in lines]
         self.width = max(s.get_width() for s in self.text_surfaces)
         self.height = sum(s.get_height() for s in self.text_surfaces)
+        if logger: logger.attach_id(self);logger.snapshot(self, "text_compute")
 
     def wrap_text(self, font, max_width):
         words = self.text.split(" ")
