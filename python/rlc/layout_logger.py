@@ -173,6 +173,7 @@ class LayoutLogger:
         d : Dict[str, Any] = {
             "node_id" : nid,
             "type": type(node).__name__,
+            "backgroundColor": getattr(node, "backgroundColor", (220, 220, 220)),
             "direction": getattr(getattr(node, "direction", None), "value", None),
             "position": {"x": getattr(node, "x", None), "y": getattr(node, "y", None)},
             "size": {"w": getattr(node, "width", None), "h": getattr(node, "height", None)},
