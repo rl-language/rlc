@@ -337,3 +337,17 @@ cls<KeyType, ValueType> Dict:
         while result < value:
             result = result * 2
         return result
+
+    fun print_dict():
+        let counter = 0
+        print("Dictionary")
+        print("Size = "s + to_string(self._size) + ", Capacity = "s + to_string(self._capacity))
+        print("Index | Hash | Value | Key")
+        while counter < self._capacity:
+            if self._entries[counter].occupied:
+                print(to_string(counter) + " | "s + 
+                    to_string(self._entries[counter].hash) + " | "s +
+                    to_string(self._entries[counter].value) + " | "s +
+                    to_string(self._entries[counter].key))
+            counter = counter + 1
+            
