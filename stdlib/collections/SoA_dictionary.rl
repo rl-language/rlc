@@ -20,6 +20,7 @@ import collections.vector
 const _max_load_factor = 0.75
 const _init_capacity = 4
 const _stride = 17
+const _bits = 64
 
 cls<KeyType, ValueType> Dict_SoA:
     OwningPtr<KeyType> _keys
@@ -319,40 +320,58 @@ cls<KeyType, ValueType> Dict_SoA:
             counter = counter + 1
         
         # print("end loop 1, found = "s + to_string(found))
-        if !found :
-            return -1
+        
+        # if !found :
+        #     return -1
 
-        # print("acc_found before magic = "s + to_string(acc_found) + 
-        #     ", -acc_found = "s + to_string(-acc_found))
-        # # get only the first 1
-        # # eg: 1111100 -> 0000100
-        # # acc_found = acc_found & ((acc_found ^ (-acc_found)) + 1)
-        # acc_found = acc_found & (-acc_found)
-        # # print("acc_found after magic = "s + to_string(acc_found))
-        # if acc_found == 0:
-        #     return base_index
-        # # Binary search like base 2 log
+        # ref acc = acc_found
+        # acc = acc & (-acc)
+        # # Binary search
         # let upper: Int
         # upper = _stride
-        # let shifted = 0
-        # let rel_index = 0 # relative index between 0 and _stride
+        # let tmp = 0
+        # let rel_index = 0
         # let index = 0
-        # while shifted != 1:
+        # while tmp != 1:
         #     rel_index = upper >> 1
-        #     shifted = acc_found >> rel_index
-        #     # print("rel_index = "s + to_string(rel_index) + 
-        #     #         ", shifted = "s + to_string(shifted) + 
-        #     #         ", acc_found = "s + to_string(acc_found) + 
-        #     #         ", upper = "s + to_string(upper) +
-        #     #         ", index = "s + to_string(index))
-        #     if shifted != 0:
-        #         acc_found = shifted
+        #     tmp = acc >> rel_index
+        #     if tmp > 1:
+        #         acc = tmp
         #         index = index + rel_index
         #     upper = rel_index
-                
-        # return index + rel_index + base_index
-        return self._index_binary_search(acc_found) + base_index
+        # return index + base_index
+        # if !found :
+        #     return -1
 
+        # let next_shift: Int
+        # next_shift = _bits
+        # let shifts = 0
+        # # let shifted = acc_found
+        # while next_shift != 1:
+        #     next_shift = next_shift >> 1
+        #     let tmp = acc_found << next_shift
+        #     # print("shifted = "s + to_string(shifted) +
+        #     #     " ,tmp = "s + to_string(tmp) +
+        #     #     " ,next_shift = "s + to_string(next_shift) +
+        #     #     ", shifts = "s + to_string(shifts))
+
+        #     if tmp != 0:
+        #         shifts = shifts + next_shift
+        #         acc_found = tmp
+            
+        # let index = _bits - shifts - 1
+        # # print("acc_found = "s + to_string(acc_found) + 
+        # #     ", index = "s + to_string(index))
+        # # return index
+        # return index + base_index
+        # let offset = 0
+        # while (acc_found & 1) != 1:
+        #     acc_found = acc_found >> 1
+        #     offset = offset + 1
+        # return base_index + offset
+        return acc_found
+
+        
     fun get(KeyType key) -> ValueType:
         # print("get start, key = "s + to_string(key))
         # Quick return for empty dictionary
@@ -370,7 +389,7 @@ cls<KeyType, ValueType> Dict_SoA:
 
             let diff = self._capacity - index - _stride
             if diff >= 0:
-                let tmp_index = self._index_of(hash, key, index)
+                let tmp_index = self._index_of2(hash, key, index)
                 if tmp_index >= 0:
                     return self._values[tmp_index]
 
@@ -498,9 +517,53 @@ cls<KeyType, ValueType> Dict_SoA:
 
             let diff = self._capacity - index - _stride
             if diff >= 0:
-                let tmp_index = self._index_of(hash, key, index)
+                let tmp_index = self._index_of2(hash, key, index)
                 if tmp_index >= 0:
                     index = tmp_index
+
+                # let counter = 0
+                # let found = false
+                # let acc_found: Int # Is this necessary?
+                # acc_found = 0
+                
+                # # print("_index_of: hash = "s + to_string(hash) + 
+                # #     ", key = "s + to_string(key) + 
+                # #     ", base_index = "s + to_string(index))
+                # # get a bit map of 0s and 1s, where the first 1 
+                # # represents the index of the found element
+                # # eg: position 3 -> 1111100
+                # while counter < _stride :
+                #     # print("index of, loop 1, counter = "s + to_string(counter) + 
+                #     #     ", found = "s + to_string(found) + ", acc_found = "s + to_string(acc_found))
+                #     found = found + (self._hashes[index + counter] == hash) * (compute_equal_of(self._keys[index + counter], key))
+                #     acc_found = acc_found + (int(found) << counter)
+                #     counter = counter + 1
+                
+                # # print("end loop 1, found = "s + to_string(found))
+
+                # # let tmp_index = self._index_of2(hash, key, index)
+                # if found:
+                #     let next_shift: Int
+                #     next_shift = 64
+                #     let shifts = 0
+                #     let shifted = acc_found
+                #     while next_shift != 1:
+                #         next_shift = next_shift >> 1
+                #         let tmp = shifted << next_shift
+                #         # print("shifted = "s + to_string(shifted) +
+                #         #     " ,tmp = "s + to_string(tmp) +
+                #         #     " ,next_shift = "s + to_string(next_shift) +
+                #         #     ", shifts = "s + to_string(shifts))
+
+                #         if tmp != 0:
+                #             shifts = shifts + next_shift
+                #             shifted = tmp
+                        
+                #     let offset = 64 - shifts - 1
+                #     # print("acc_found = "s + to_string(acc_found) + 
+                #     #     ", index = "s + to_string(index))
+                #     # return index
+                #     index = offset + index
                     # print("calling shift_back to remove key: "s + to_string(key))
                     self._shift_back(index)
                     return true
