@@ -18,7 +18,6 @@ limitations under the License.
 #include <clang/Driver/Job.h>
 #include <string>
 #include <vector>
-#include <iostream>
 
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
@@ -210,42 +209,30 @@ static void runOptimizer(
 
 	// Create the pass manager.
 	// This one corresponds to a typical -O2 optimization pipeline.
+	ModulePassManager MPM;
+
 	if (optimize)
 	{
-		ModulePassManager passManager;
 		FunctionPassManager functionPassManager;
+		MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
 		if (targetIsWindows)
 			functionPassManager.addPass(AddWindowsDLLExportPass());
 		functionPassManager.addPass(llvm::PromotePass());
-		passManager.addPass(
+		MPM.addPass(
 				createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
-		if (emitSanitizerInstrumentation and not targetIsWindows)
-			addFuzzerInstrumentationPass(passManager);
-		passManager.run(M, MAM);
-
-		ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2, true);
-		// MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
-		// 	auto PassName = PIC.getPassNameForClassName(ClassName);
-		// 	return PassName.empty() ? ClassName : PassName;
-		//   });
-		// outs() << "\n";
-		MPM.run(M, MAM);
 	}
 	else
 	{
-		ModulePassManager MPM = PB.buildO0DefaultPipeline(
+		MPM = PB.buildO0DefaultPipeline(
 				OptimizationLevel::O0, ThinOrFullLTOPhase::None);
 		if (targetIsWindows)
 			MPM.addPass(createModuleToFunctionPassAdaptor(AddWindowsDLLExportPass()));
-		if (emitSanitizerInstrumentation and not targetIsWindows)
-			addFuzzerInstrumentationPass(MPM);
-		// MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
-		// 	auto PassName = PIC.getPassNameForClassName(ClassName);
-		// 	return PassName.empty() ? ClassName : PassName;
-		// 	});
-		// outs() << "\n";
-		MPM.run(M, MAM);
 	}
+
+	if (emitSanitizerInstrumentation and not targetIsWindows)
+		addFuzzerInstrumentationPass(MPM);
+	
+	MPM.run(M, MAM);
 
 	if (printTimings)
 		TimePasses->print();

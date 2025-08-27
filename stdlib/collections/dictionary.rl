@@ -243,6 +243,7 @@ cls<KeyType, ValueType> Dict:
     fun empty() -> Bool:
         return self._size == 0
     
+    # returns the number of occupied entries
     fun size() -> Int:
         return self._size
 
@@ -264,31 +265,6 @@ cls<KeyType, ValueType> Dict:
             counter = counter + 1
 
     fun _grow():
-        if self._capacity == 0:
-            self._capacity = 1
-            self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(1) 
-            return
-        
-        if self._capacity == 1:
-            let old_entries = self._entries
-            let old_size = self._size
-
-            # Create new, larger entries array
-            self._capacity = 2
-            self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(2)
-            self._size = 0
-            # Initialize new entries
-            self._entries[0].occupied = false
-            self._entries[1].occupied = false
-            # Copy old entries to new array, but only scan up to old_capacity
-            # Insert directly without triggering another growth
-            self._insert(self._entries, old_entries[0].key, old_entries[0].value)
-            
-            # Clean up old entries
-            __builtin_destroy_do_not_use(old_entries[0])
-            __builtin_free_do_not_use(old_entries)
-            return
-            
         let old_capacity = self._capacity
         let old_entries = self._entries
         let old_size = self._size
@@ -337,17 +313,3 @@ cls<KeyType, ValueType> Dict:
         while result < value:
             result = result * 2
         return result
-
-    fun print_dict():
-        let counter = 0
-        print("Dictionary")
-        print("Size = "s + to_string(self._size) + ", Capacity = "s + to_string(self._capacity))
-        print("Index | Hash | Value | Key")
-        while counter < self._capacity:
-            if self._entries[counter].occupied:
-                print(to_string(counter) + " | "s + 
-                    to_string(self._entries[counter].hash) + " | "s +
-                    to_string(self._entries[counter].value) + " | "s +
-                    to_string(self._entries[counter].key))
-            counter = counter + 1
-            
