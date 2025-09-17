@@ -38,6 +38,7 @@ macro(makeProgramBenchmark name file)
 
     rlcAddBenchmark(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}${CMAKE_STATIC_LIBRARY_SUFFIX} rlc::runtime)
     target_include_directories(${name}Benchmark PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+    target_compile_options(${name}Benchmark PUBLIC -Wno-extern-c-compat)
     add_dependencies(${name}Benchmark ${name}_lib)
 endMacro(makeProgramBenchmark)
 
@@ -47,3 +48,4 @@ makeProgramBenchmark(Battleship ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/battl
 makeProgramBenchmark(Checkers ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/checkers.rl)
 makeProgramBenchmark(ConnectFour ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/connect_four.rl)
 makeProgramBenchmark(Catch ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/catch.rl)
+makeProgramBenchmark(4Hammer /home/massimo/Documents/skirmish/src/full_game.rl)

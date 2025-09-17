@@ -47,6 +47,9 @@ tools = ["clang", "rlc", "rlc-opt"]
 if shutil.which('mcs') and shutil.which('mono'):
     config.available_features.add('has_mono')
 
+if shutil.which('ruby'):
+    config.available_features.add('has_ruby')
+
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
 # Set the LD_LIBRARY_PATH

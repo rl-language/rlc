@@ -124,6 +124,15 @@ namespace mlir::rlc
 			return;
 		}
 
+		if (request == Request::dumpRubyWrapper)
+		{
+			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
+			manager.addPass(
+					mlir::rlc::createPrintRubyPass(
+							{ OS, targetInfo->isMacOS(), targetInfo->isWindows() }));
+			return;
+		}
+
 		if (request == Request::dumpPythonWrapper)
 		{
 			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());

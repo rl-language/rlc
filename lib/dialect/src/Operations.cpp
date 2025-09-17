@@ -1860,7 +1860,7 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 							.getType()
 							.isa<mlir::rlc::BoolType>())
 	{
-		return logError(*this, "While loop condition type must be Bool");
+		return logError(*this, "If statement condition type must be Bool");
 		return mlir::failure();
 	}
 

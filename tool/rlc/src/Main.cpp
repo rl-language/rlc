@@ -190,6 +190,12 @@ static cl::opt<bool> dumpCSharpWrapper(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpRubyWrapper(
+		"ruby",
+		cl::desc("emits the ruby wrapper and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpPythonWrapper(
 		"python",
 		cl::desc("dumps the ast of python and exits"),
@@ -390,6 +396,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpGodotWrapper;
 	if (dumpPythonWrapper)
 		return Driver::Request::dumpPythonWrapper;
+	if (dumpRubyWrapper)
+		return Driver::Request::dumpRubyWrapper;
 	if (dumpRLC)
 		return Driver::Request::dumpRLC;
 	if (dumpAfterImplicit)
