@@ -842,13 +842,13 @@ namespace mlir::rlc
 			auto _ = writer.indent();
 			writer.writenl("extend Fiddle::Importer");
 
-			writer.write("dlload __dir__ + '/lib'");
+			writer.write("dlload __dir__ + '/lib");
 			if (isMac)
-				writer.writenl(".dylib");
+				writer.writenl(".dylib'");
 			else if (isWindows)
-				writer.writenl(".dll");
+				writer.writenl(".dll'");
 			else
-				writer.writenl(".so");
+				writer.writenl(".so'");
 			writer.writenl("RLC_int = struct([\"long content\"])");
 			writer.writenl("RLC_voidp = struct([\"void* content\"])");
 			writer.writenl("RLC_string_lit = struct([\"char* content\"])");
