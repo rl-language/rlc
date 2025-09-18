@@ -9,10 +9,15 @@
 
 
 #--- source.rl
-fun to_invoke() -> Int {true}:
-  return 5
+act play() -> Game:
+    frm asd = 0
+    act pick(Int x)
+    asd = x
 
 #--- to_run.rb
 require_relative 'library'
 
-raise "this is wrong" unless RLC.to_invoke == 5
+pair = RLC.play
+pair.pick 3
+puts(pair.is_done)
+raise "this is wrong" unless pair.asd == 3

@@ -21,7 +21,7 @@ fun asd():
 require_relative 'library'
 
 
-pair = VectorTint64_tT.new
+pair = RLC::VectorTint64_tT.new
 x = 2;
 pair.append(x);
 pair.append(x);

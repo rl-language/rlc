@@ -204,15 +204,15 @@ namespace mlir::rlc
 			mlir::Type type, llvm::StringRef name, StreamWriter& writer)
 	{
 		bool isUserDefined = false;
-		if (type and (mlir::isa<mlir::rlc::ClassType>(type) or
-									mlir::isa<mlir::rlc::AlternativeType>(type)))
+		if (type and (mlir::isa<mlir::rlc::ClassType>(decayCtxFrmType(type)) or
+									mlir::isa<mlir::rlc::AlternativeType>(decayCtxFrmType(type))))
 			isUserDefined = true;
 
 		bool isStringArg =
 				mlir::isa_and_nonnull<mlir::rlc::StringLiteralType>(type);
 		if (type != nullptr and builtinCType(type))
 		{
-			writer.write("rlc_convert_to_");
+			writer.write("RLC::rlc_convert_to_");
 			writer.writeType(type, 0);
 			writer.write("(");
 		}
@@ -226,7 +226,7 @@ namespace mlir::rlc
 			writer.write(")");
 		}
 		if (isUserDefined)
-			writer.write("._data");
+			writer.write(".__rlc_data");
 		writer.write(" ");
 	}
 
@@ -247,7 +247,8 @@ namespace mlir::rlc
 		for (size_t i = 0; i != typeRange.size(); i++)
 		{
 			printArg(typeRange[i], infoRange[i], writer);
-			writer.write(", ");
+			if (i != typeRange.size() - 1)
+				writer.write(", ");
 		}
 		writer.write(")");
 	}
@@ -320,7 +321,7 @@ namespace mlir::rlc
 					w.write("__to_return = ");
 					w.writeType(resultType);
 					w.writenl(".new");
-					w.writenl("__result = __to_return._data.to_ptr");
+					w.writenl("__result = __to_return.__rlc_data.to_ptr");
 				}
 				else
 				{
@@ -662,11 +663,23 @@ namespace mlir::rlc
 				w.endLine();
 				{
 					auto _ = w.indent();
-					w.writenl(
-							"return _",
+					w.write(
+							"return RLC::_",
 							mangledName(name, isMethod, overload),
-							isMethod ? " self, " : "",
-							" *args");
+							isMethod ? " self " : " ");
+					if (isMethod and overload.getInputs().size() != 1)
+						w.write(", ");
+
+					size_t i = 0;
+					for (auto type : llvm::drop_begin(overload.getInputs(), isMethod))
+					{
+						w.write("args[", i, "]");
+						if (i++ + 1 + isMethod != overload.getNumInputs())
+						{
+							w.write(", ");
+						}
+					}
+					w.endLine();
 				}
 				w.writenl("end");
 			}
@@ -700,7 +713,7 @@ namespace mlir::rlc
 			mlir::rlc::StreamWriter& w,
 			MemberFunctionsTable& table)
 	{
-		w.writenl("def _data");
+		w.writenl("def __rlc_data");
 		{
 			auto _ = w.indent();
 			w.write("return @content");
@@ -861,6 +874,8 @@ namespace mlir::rlc
 			printCFunDecls(writer, op, builder);
 		}
 		writer.writenl("end");
+		writer.writenl("module RLC");
+		writer.writenl("module_function");
 		writer.writenl("actions = Hash.new { |hash, key| hash[key] = [] }");
 		writer.writenl("wrappers = Hash.new { |hash, key| hash[key] = [] }");
 		writer.writenl("signatures = {}");
@@ -1073,7 +1088,7 @@ namespace mlir::rlc
 			OS << "Integer";
 		});
 		matcher.add([](mlir::rlc::BoolType type, llvm::raw_string_ostream& OS) {
-			OS << ":Boolean";
+			OS << "Boolean";
 		});
 		matcher.add([](mlir::rlc::FloatType type, llvm::raw_string_ostream& OS) {
 			OS << "Float";
@@ -1194,9 +1209,12 @@ namespace mlir::rlc
 					returnVoid ? "" : "__result, ",
 					"@content.to_ptr, ");
 
+			size_t i = 1;
 			for (auto [info, type] : llvm::zip(argsInfo, argTypes))
 			{
 				printArg(type, info.getName(), OS);
+				if (i++ != argsInfo.size())
+					OS.writenl(", ");
 			}
 			OS.writenl(")");
 
@@ -1319,82 +1337,87 @@ namespace mlir::rlc
 					table,
 					builder);
 
-			//// discover all enums
-			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
-			for (auto op : getOperation().getOps<mlir::rlc::EnumDeclarationOp>())
 			{
-				enums[op.getName()] = op;
-			}
+				auto _ = matcher.getWriter().indent();
 
-			// emit declarations of types
-			for (auto t : ::rlc::postOrderTypes(getOperation()))
-			{
-				if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
+				//// discover all enums
+				llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
+				for (auto op : getOperation().getOps<mlir::rlc::EnumDeclarationOp>())
 				{
-					emitDeclaration(
-							casted,
-							matcher.getWriter(),
-							table,
-							builder,
-							enums.count(casted.getName()) ? enums[casted.getName()]
-																						: nullptr);
-					if (builder.isClassOfAction(casted))
-					{
-						auto action = mlir::cast<mlir::rlc::ActionFunction>(
-								builder.getActionOf(casted).getDefiningOp());
-						emitActionFunctions(action, builder, matcher.getWriter());
-					}
-
-					matcher.getWriter().writenl("end");
+					enums[op.getName()] = op;
 				}
-				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
-					emitDeclaration(casted, matcher.getWriter(), table, builder);
+
+				// emit declarations of types
+				for (auto t : ::rlc::postOrderTypes(getOperation()))
+				{
+					if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
+					{
+						emitDeclaration(
+								casted,
+								matcher.getWriter(),
+								table,
+								builder,
+								enums.count(casted.getName()) ? enums[casted.getName()]
+																							: nullptr);
+						if (builder.isClassOfAction(casted))
+						{
+							auto action = mlir::cast<mlir::rlc::ActionFunction>(
+									builder.getActionOf(casted).getDefiningOp());
+							emitActionFunctions(action, builder, matcher.getWriter());
+						}
+
+						matcher.getWriter().writenl("end");
+					}
+					if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
+						emitDeclaration(casted, matcher.getWriter(), table, builder);
+				}
+
+				//// emit declarations of free functions
+				matcher.apply(getOperation());
+
+				// emit dispatcher of free functions
+				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
+				for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
+				{
+					if (op.getIsMemberFunction())
+						continue;
+					sortedOverloads[op.getUnmangledName()].push_back(op.getType());
+					if (not op.getPrecondition().empty())
+						sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+								mlir::FunctionType::get(
+										op.getContext(),
+										op.getType().getInputs(),
+										{ mlir::rlc::BoolType::get(op.getContext()) }));
+				}
+				for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
+				{
+					if (op.getIsMemberFunction())
+						continue;
+					sortedOverloads[op.getUnmangledName()].push_back(
+							op.getMainActionType());
+					if (not op.getPrecondition().empty())
+						sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+								mlir::FunctionType::get(
+										op.getContext(),
+										op.getMainActionType().getInputs(),
+										{ mlir::rlc::BoolType::get(op.getContext()) }));
+
+					auto types = builder.getConverter().getTypes().get(
+							("Any" + op.getClassType().getName() + "Action").str());
+					if (not types.empty())
+						matcher.getWriter().writenl(
+								"actionToAnyFunctionType[\"",
+								op.getUnmangledName(),
+								"\"] = Any",
+								op.getClassType().getName(),
+								"Action");
+				}
+
+				for (auto& pair : sortedOverloads)
+					emitOverloadDispatcher(
+							pair.first(), pair.second, matcher.getWriter(), false);
 			}
-
-			//// emit declarations of free functions
-			matcher.apply(getOperation());
-
-			// emit dispatcher of free functions
-			llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
-			for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
-			{
-				if (op.getIsMemberFunction())
-					continue;
-				sortedOverloads[op.getUnmangledName()].push_back(op.getType());
-				if (not op.getPrecondition().empty())
-					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
-							mlir::FunctionType::get(
-									op.getContext(),
-									op.getType().getInputs(),
-									{ mlir::rlc::BoolType::get(op.getContext()) }));
-			}
-			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
-			{
-				if (op.getIsMemberFunction())
-					continue;
-				sortedOverloads[op.getUnmangledName()].push_back(
-						op.getMainActionType());
-				if (not op.getPrecondition().empty())
-					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
-							mlir::FunctionType::get(
-									op.getContext(),
-									op.getMainActionType().getInputs(),
-									{ mlir::rlc::BoolType::get(op.getContext()) }));
-
-				auto types = builder.getConverter().getTypes().get(
-						("Any" + op.getClassType().getName() + "Action").str());
-				if (not types.empty())
-					matcher.getWriter().writenl(
-							"actionToAnyFunctionType[\"",
-							op.getUnmangledName(),
-							"\"] = Any",
-							op.getClassType().getName(),
-							"Action");
-			}
-
-			for (auto& pair : sortedOverloads)
-				emitOverloadDispatcher(
-						pair.first(), pair.second, matcher.getWriter(), false);
+			matcher.getWriter().writenl("end");
 		}
 	};
 

@@ -26,7 +26,7 @@ cls Outer:
 #--- to_run.rb
 require_relative 'library'
 
-pair = Outer.new
+pair = RLC::Outer.new
 pair.inner.x = 3
 pair.inner.y = 2
         
