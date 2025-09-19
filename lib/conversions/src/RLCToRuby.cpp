@@ -27,6 +27,13 @@ limitations under the License.
 #include "rlc/utils/PatternMatcher.hpp"
 namespace mlir::rlc
 {
+	static bool isUserDefined(mlir::Type type)
+	{
+		return (
+				type and
+				(mlir::isa<mlir::rlc::ClassType>(decayCtxFrmType(type)) or
+				 mlir::isa<mlir::rlc::AlternativeType>(decayCtxFrmType(type))));
+	}
 	static void printCFunDecl(
 			StreamWriter& writer, mlir::FunctionType type, llvm::StringRef name)
 	{
@@ -210,6 +217,11 @@ namespace mlir::rlc
 
 		bool isStringArg =
 				mlir::isa_and_nonnull<mlir::rlc::StringLiteralType>(type);
+		if (type.isa_and_nonnull<mlir::rlc::StringLiteralType>())
+		{
+			printArgName(writer, name);
+			return;
+		}
 		if (type != nullptr and builtinCType(type))
 		{
 			writer.write("RLC::rlc_convert_to_");
@@ -263,6 +275,7 @@ namespace mlir::rlc
 						w.write("c");
 				})
 				.Case([&](mlir::rlc::BoolType t) { w.write("c"); })
+				.Case([&](mlir::rlc::FloatType t) { w.write("d"); })
 				.Case([&](mlir::rlc::ReferenceType t) { w.write("J"); })
 				.Default([](mlir::Type t) {
 					t.dump();
@@ -282,6 +295,9 @@ namespace mlir::rlc
 				.Case([&](mlir::rlc::BoolType t) { w.write("Fiddle::SIZEOF_CHAR"); })
 				.Case([&](mlir::rlc::BoolType t) { w.write("Fiddle::SIZEOF_DOUBLE"); })
 				.Case([&](mlir::rlc::ReferenceType t) {
+					w.write("Fiddle::SIZEOF_VOIDP");
+				})
+				.Case([&](mlir::rlc::StringLiteralType t) {
 					w.write("Fiddle::SIZEOF_VOIDP");
 				})
 				.Case(
@@ -344,6 +360,12 @@ namespace mlir::rlc
 				if (isUserDefined)
 				{
 					w.writenl("__to_return");
+				}
+				else if (resultType.isa<mlir::rlc::StringLiteralType>())
+				{
+					w.write("__result[0, ");
+					printTypeSize(w, resultType);
+					w.write("].to_s");
 				}
 				else
 				{
@@ -565,7 +587,10 @@ namespace mlir::rlc
 		}
 		if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
 		{
-			w.write("{", name, ": RLC_", casted.getMangledName(), "}");
+			w.write("{", name, ": ");
+			w.write("RLC_");
+			w.writeType(casted);
+			w.write("}");
 			return;
 		}
 		if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
@@ -598,19 +623,6 @@ namespace mlir::rlc
 				w.write(",");
 			}
 			w.endLine();
-		}
-	}
-
-	static void emitMembers(
-			llvm::ArrayRef<mlir::Type> types,
-			mlir::rlc::StreamWriter& w,
-			MemberFunctionsTable& table)
-	{
-		for (auto iter : llvm::enumerate(types))
-		{
-			w.write("(\"_alternative", iter.index(), "\", ");
-			w.writeType(iter.value(), 1);
-			w.write("), ");
 		}
 	}
 
@@ -658,6 +670,8 @@ namespace mlir::rlc
 						 llvm::drop_begin(llvm::enumerate(overload.getInputs()), isMethod))
 				{
 					w.write(" and args[", argument.index() - isMethod, "].class == ");
+					if (isUserDefined(argument.value()))
+						w.write("RLC::");
 					w.writeType(argument.value());
 				}
 				w.endLine();
@@ -701,7 +715,8 @@ namespace mlir::rlc
 		}
 		if (auto clsType = attr.getType().dyn_cast<mlir::rlc::AlternativeType>())
 		{
-			w.write(clsType.getMangledName(), ".new(");
+			w.writeType(clsType);
+			w.write(".new(");
 			w.write("@content.", attr.getName(), ")");
 			return;
 		}
@@ -780,6 +795,52 @@ namespace mlir::rlc
 		}
 	}
 
+	static void emitMembers(
+			llvm::ArrayRef<mlir::Type> types,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table)
+	{
+		size_t i = 1;
+		for (auto type : types)
+		{
+			emitMemberType(w, type, ("_alternative" + llvm::Twine(i - 1)).str());
+			if (i++ != types.size())
+			{
+				w.write(",");
+			}
+			w.endLine();
+		}
+	}
+
+	static void emitFiddleDeclaration(
+			mlir::rlc::AlternativeType type,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table,
+			mlir::rlc::ModuleBuilder& builder,
+			mlir::rlc::EnumDeclarationOp enumDeclaration = nullptr)
+	{
+		w.write("RLC_");
+		w.writeType(type);
+		w.writenl("_impl = union([");
+		{
+			auto _ = w.indent();
+			emitMembers(type.getUnderlying(), w, table);
+		}
+		w.writenl("])");
+
+		w.write("RLC_");
+		w.writeType(type);
+		w.writenl(" = struct([");
+		{
+			auto _ = w.indent();
+			w.write("{_data:MyLib::RLC_");
+			w.writeType(type);
+			w.writenl("_impl},");
+			w.writenl("{active_index:MyLib::RLC_int}");
+		}
+		w.writenl("])");
+	}
+
 	static void emitFiddleDeclaration(
 			mlir::rlc::ClassType type,
 			mlir::rlc::StreamWriter& w,
@@ -806,6 +867,10 @@ namespace mlir::rlc
 		for (auto t : ::rlc::postOrderTypes(op))
 		{
 			if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
+			{
+				emitFiddleDeclaration(casted, w, table, builder);
+			}
+			if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
 			{
 				emitFiddleDeclaration(casted, w, table, builder);
 			}
@@ -888,7 +953,24 @@ namespace mlir::rlc
 
 		writer.writenl("def rlc_convert_to_Float(value = 0)");
 		writer.writenl("\tp = Fiddle::Pointer.malloc(Fiddle::SIZEOF_INT)");
-		writer.writenl("\tp[0, Fiddle::SIZEOF_DOUBLE] = [value].pack(\"q\")");
+		writer.writenl("\tp[0, Fiddle::SIZEOF_DOUBLE] = [value].pack(\"d\")");
+		writer.writenl("end");
+
+		writer.writenl("def to_ruby_str str");
+		writer.writenl("\tstr.__rlc_data._data._data.content.to_s");
+		writer.writenl("end");
+		writer.writenl("def to_rlc_str str");
+		writer.writenl("\tout = RLC::String.new");
+		writer.writenl("\ts_lit = str.encode(\"UTF-8\")");
+		writer.writenl(
+				"\tptr = "
+				"Fiddle::Pointer.malloc(s_lit.bytesize + 1)");
+		writer.writenl("\tptr[0, s_lit.bytesize] = s_lit");
+		writer.writenl("\tptr[s_lit.bytesize, 1] = \"\\0\"");
+		writer.writenl("\ts = MyLib::RLC_string_lit.malloc");
+		writer.writenl("\ts.content = ptr");
+		writer.writenl("\tRLC::append_to_string(s, out)");
+		writer.writenl("\treturn out");
 		writer.writenl("end");
 	}
 
@@ -898,40 +980,63 @@ namespace mlir::rlc
 			MemberFunctionsTable& table,
 			mlir::rlc::ModuleBuilder& builder)
 	{
-		w.write("class _");
-		w.writeType(type);
-		w.writenl("(ctypes.Union):");
-		{
-			auto _ = w.indent();
-			emitMembers(type.getUnderlying(), w, table);
-			w.endLine();
-		}
 		w.write("class ");
 		w.writeType(type);
-		w.writenl("(ctypes.Structure):");
-		auto _ = w.indent();
-
-		w.write("_fields_ = [(\"_content\", _");
-		w.writeType(type);
-		w.writenl("), (\"resume_index\", ctypes.c_longlong)]");
-
-		emitSpecialFunctions(type, w, table, builder);
-
-		w.writenl("def __getitem__(self, key):");
-		{
-			auto _2 = w.indent();
-			for (auto enumeration : llvm::enumerate(type.getUnderlying()))
-			{
-				w.write("if key == ");
-				w.writeType(enumeration.value());
-				w.writenl(" and self.resume_index == ", enumeration.index(), ":");
-				auto _ = w.indent();
-				w.writenl("return self._content._alternative", enumeration.index());
-			}
-			w.writenl("return nil");
-		}
 		w.endLine();
-		emitMemberFunctions(type, w, table);
+		{
+			auto _ = w.indent();
+			w.writenl("def __rlc_data");
+			{
+				auto _ = w.indent();
+				w.write("return @content");
+				w.endLine();
+			}
+			w.writenl("end");
+			emitSpecialFunctions(type, w, table, builder);
+
+			w.writenl("def [](index)");
+			{
+				auto _2 = w.indent();
+				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+				{
+					w.write("if ");
+					w.writenl(
+							"@content.active_index.content == index and index == ",
+							enumeration.index());
+					{
+						auto _ = w.indent();
+						w.write("return ");
+						bool isUserDefined = false;
+						if (type and (mlir::isa<mlir::rlc::ClassType>(
+															decayCtxFrmType(enumeration.value())) or
+													mlir::isa<mlir::rlc::AlternativeType>(
+															decayCtxFrmType(enumeration.value()))))
+							isUserDefined = true;
+
+						if (not isUserDefined)
+							w.writenl(
+									"@content._data._alternative",
+									enumeration.index(),
+									".content");
+						else
+						{
+							w.writeType(enumeration.value());
+							w.writenl(
+									".new(",
+									"@content._data._alternative",
+									enumeration.index(),
+									")");
+						}
+					}
+					w.writenl("end");
+				}
+				w.writenl("return nil");
+			}
+			w.writenl("end");
+			w.endLine();
+			emitMemberFunctions(type, w, table);
+		}
+		w.writenl("end");
 	}
 
 	class AliasToRubyAlias
@@ -1077,7 +1182,7 @@ namespace mlir::rlc
 		});
 		matcher.add(
 				[&](mlir::rlc::AlternativeType type, llvm::raw_string_ostream& OS) {
-					OS << type.getMangledName();
+					OS << "RLC" << type.getMangledName();
 				});
 	}
 
@@ -1107,8 +1212,10 @@ namespace mlir::rlc
 				[&](mlir::rlc::ReferenceType type, llvm::raw_string_ostream& OS) {
 					OS << "MyLib::RLC_voidp";
 				});
-		matcher.add([](mlir::rlc::StringLiteralType type,
-									 llvm::raw_string_ostream& OS) { OS << "String"; });
+		matcher.add(
+				[](mlir::rlc::StringLiteralType type, llvm::raw_string_ostream& OS) {
+					OS << "MyLib::RLC_string_lit";
+				});
 		registerCommonTypeConversion(matcher);
 	}
 
@@ -1408,7 +1515,7 @@ namespace mlir::rlc
 						matcher.getWriter().writenl(
 								"actionToAnyFunctionType[\"",
 								op.getUnmangledName(),
-								"\"] = Any",
+								"\"] = RLCAny",
 								op.getClassType().getName(),
 								"Action");
 				}
