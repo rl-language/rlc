@@ -32,7 +32,8 @@ namespace mlir::rlc
 		return (
 				type and
 				(mlir::isa<mlir::rlc::ClassType>(decayCtxFrmType(type)) or
-				 mlir::isa<mlir::rlc::AlternativeType>(decayCtxFrmType(type))));
+				 mlir::isa<mlir::rlc::AlternativeType>(decayCtxFrmType(type)) or
+				 mlir::isa<mlir::rlc::ArrayType>(decayCtxFrmType(type))));
 	}
 	static void printCFunDecl(
 			StreamWriter& writer, mlir::FunctionType type, llvm::StringRef name)
@@ -210,11 +211,6 @@ namespace mlir::rlc
 	static void printArg(
 			mlir::Type type, llvm::StringRef name, StreamWriter& writer)
 	{
-		bool isUserDefined = false;
-		if (type and (mlir::isa<mlir::rlc::ClassType>(decayCtxFrmType(type)) or
-									mlir::isa<mlir::rlc::AlternativeType>(decayCtxFrmType(type))))
-			isUserDefined = true;
-
 		bool isStringArg =
 				mlir::isa_and_nonnull<mlir::rlc::StringLiteralType>(type);
 		if (type.isa_and_nonnull<mlir::rlc::StringLiteralType>())
@@ -237,7 +233,7 @@ namespace mlir::rlc
 		{
 			writer.write(")");
 		}
-		if (isUserDefined)
+		if (isUserDefined(type))
 			writer.write(".__rlc_data");
 		writer.write(" ");
 	}
@@ -300,6 +296,7 @@ namespace mlir::rlc
 				.Case([&](mlir::rlc::StringLiteralType t) {
 					w.write("Fiddle::SIZEOF_VOIDP");
 				})
+				.Case([&](mlir::rlc::FloatType t) { w.write("Fiddle::SIZEOF_DOUBLE"); })
 				.Case(
 						[&](mlir::rlc::ClassType t) { w.write(t.mangledName(), ".size"); })
 				.Case([&](mlir::rlc::AliasType t) {
@@ -327,12 +324,10 @@ namespace mlir::rlc
 
 		{
 			auto _ = w.indent();
-			bool isUserDefined = resultType.isa<mlir::rlc::ClassType>() or
-													 resultType.isa<mlir::rlc::AlternativeType>();
 
 			if (returnsVoid(type).failed())
 			{
-				if (isUserDefined)
+				if (isUserDefined(resultType))
 				{
 					w.write("__to_return = ");
 					w.writeType(resultType);
@@ -357,7 +352,7 @@ namespace mlir::rlc
 			// extract to convert it to a python builtin type instead
 			if (returnsVoid(type).failed())
 			{
-				if (isUserDefined)
+				if (isUserDefined(resultType))
 				{
 					w.writenl("__to_return");
 				}
@@ -578,32 +573,23 @@ namespace mlir::rlc
 	}
 
 	static void emitMemberType(
-			mlir::rlc::StreamWriter& w, mlir::Type type, llvm::StringRef name)
+			mlir::rlc::StreamWriter& w,
+			mlir::Type type,
+			llvm::StringRef name,
+			mlir::Type size = nullptr)
 	{
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+		bool needs_rlc_introducer =
+				isUserDefined(type) and not type.isa<mlir::rlc::ArrayType>();
+		if (size != nullptr)
 		{
-			w.write("{", name, ": RLC_", casted.mangledName(), "}");
-			return;
-		}
-		if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
-		{
-			w.write("{", name, ": ");
-			w.write("RLC_");
-			w.writeType(casted);
+			w.write("{\"", name, "[");
+			w.writeType(size);
+			w.write("]\": ", (needs_rlc_introducer ? "RLC_" : ""));
+			w.writeType(type, 1);
 			w.write("}");
 			return;
 		}
-		if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
-		{
-			w.write("'");
-			w.writeType(casted.getUnderlying(), 1);
-			w.write(" ", name);
-			w.write("[");
-			w.write(casted.getSize(), "]");
-			w.write("'");
-			return;
-		}
-		w.write("{", name, ":");
+		w.write("{", name, ":", (needs_rlc_introducer ? "RLC_" : ""));
 		w.writeType(type, 1);
 		w.write("}");
 	}
@@ -813,6 +799,19 @@ namespace mlir::rlc
 	}
 
 	static void emitFiddleDeclaration(
+			mlir::rlc::ArrayType type,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table,
+			mlir::rlc::ModuleBuilder& builder,
+			mlir::rlc::EnumDeclarationOp enumDeclaration = nullptr)
+	{
+		w.writeType(type);
+		w.writenl(" = struct([");
+		emitMemberType(w, type.getUnderlying(), "content", type.getSize());
+		w.writenl("])");
+	}
+
+	static void emitFiddleDeclaration(
 			mlir::rlc::AlternativeType type,
 			mlir::rlc::StreamWriter& w,
 			MemberFunctionsTable& table,
@@ -871,6 +870,10 @@ namespace mlir::rlc
 				emitFiddleDeclaration(casted, w, table, builder);
 			}
 			if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
+			{
+				emitFiddleDeclaration(casted, w, table, builder);
+			}
+			if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(t))
 			{
 				emitFiddleDeclaration(casted, w, table, builder);
 			}
@@ -975,6 +978,43 @@ namespace mlir::rlc
 	}
 
 	static void emitDeclaration(
+			mlir::rlc::ArrayType type,
+			mlir::rlc::StreamWriter& w,
+			MemberFunctionsTable& table,
+			mlir::rlc::ModuleBuilder& builder)
+	{
+		w.write("class ");
+		w.writeType(type);
+		w.endLine();
+		{
+			auto _ = w.indent();
+			w.writenl("def __rlc_data");
+			{
+				auto _ = w.indent();
+				w.write("return @content");
+				w.endLine();
+			}
+			w.writenl("end");
+			emitSpecialFunctions(type, w, table, builder);
+
+			w.writenl("def [](index)");
+			{
+				auto _2 = w.indent();
+				w.write("return ");
+				if (not isUserDefined(type.getUnderlying()))
+					w.writenl("@content[index].content");
+				else
+				{
+					w.writeType(type.getUnderlying());
+					w.writenl(".new(@content[index])");
+				}
+			}
+			w.writenl("end");
+		}
+		w.writenl("end");
+	}
+
+	static void emitDeclaration(
 			mlir::rlc::AlternativeType type,
 			mlir::rlc::StreamWriter& w,
 			MemberFunctionsTable& table,
@@ -1006,14 +1046,8 @@ namespace mlir::rlc
 					{
 						auto _ = w.indent();
 						w.write("return ");
-						bool isUserDefined = false;
-						if (type and (mlir::isa<mlir::rlc::ClassType>(
-															decayCtxFrmType(enumeration.value())) or
-													mlir::isa<mlir::rlc::AlternativeType>(
-															decayCtxFrmType(enumeration.value()))))
-							isUserDefined = true;
 
-						if (not isUserDefined)
+						if (not isUserDefined(enumeration.value()))
 							w.writenl(
 									"@content._data._alternative",
 									enumeration.index(),
@@ -1199,7 +1233,7 @@ namespace mlir::rlc
 			OS << "Float";
 		});
 		matcher.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
-			OS << "Array";
+			OS << "RLC_" << typeToMangled(type);
 		});
 		matcher.add([&](mlir::rlc::ClassType type, llvm::raw_string_ostream& OS) {
 			OS << type.mangledName();
@@ -1241,7 +1275,7 @@ namespace mlir::rlc
 					OS << "MyLib::RLC_string_lit";
 				});
 		ser.add([&](mlir::rlc::ArrayType type, llvm::raw_string_ostream& OS) {
-			OS << "MyLib::RLC_array";
+			OS << "MyLib::RLC_" << typeToMangled(type);
 		});
 		ser.add([&](mlir::rlc::OwningPtrType type, llvm::raw_string_ostream& OS) {
 			OS << "MyLib::RLC_voidp";
@@ -1476,6 +1510,8 @@ namespace mlir::rlc
 						matcher.getWriter().writenl("end");
 					}
 					if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
+						emitDeclaration(casted, matcher.getWriter(), table, builder);
+					if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(t))
 						emitDeclaration(casted, matcher.getWriter(), table, builder);
 				}
 
