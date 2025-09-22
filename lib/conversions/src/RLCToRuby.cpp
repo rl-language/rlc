@@ -479,11 +479,9 @@ namespace mlir::rlc
 			w.writenl("def to_s");
 			{
 				auto _ = w.indent();
-				w.writenl("__string = String.malloc");
-				w.writenl(
-						overload.getMangledName(),
-						"(__string.content.to_ptr, @content.to_ptr)");
-				w.writenl("return __string.content.to_s");
+				w.write("__string = RLC::_");
+				w.writenl(overload.getMangledName(), "(self)");
+				w.writenl("return RLC::to_ruby_str(__string)");
 			}
 			w.writenl("end");
 		}

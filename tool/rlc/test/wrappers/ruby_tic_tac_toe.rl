@@ -11,6 +11,7 @@
 import serialization.to_byte_vector
 import string
 import action
+import learn
 
 cls Board:
   BInt<0, 3>[9] slots
@@ -148,9 +149,19 @@ fun pretty_print(Game g):
     print(to_print)
     i = i + 1
 
-fun ensure_template_creation(Game g):
-    from_string(g, to_string(g))
 
 #--- to_run.rb
 require_relative 'library'
 puts(RLC::to_ruby_str(RLC::to_string(RLC::play)))
+
+action = RLC::RLCAnyGameAction.new
+_actions = RLC::enumerate(action)
+puts(_actions)
+actions = (0..._actions.size).map { |i| RLC::RLCAnyGameAction.new(_actions.get(i)) }
+puts(actions[0])
+puts(actions[1])
+puts(actions[2])
+state = RLC::play
+puts(state)
+RLC::apply(actions[0], state)
+puts(state)
