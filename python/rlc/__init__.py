@@ -10,6 +10,7 @@
 from .program import Program, compile, State, get_included_contents
 from .llm_runner import make_llm, run_game, Ollama, Gemini, GeminiStateless
 from .program_graph import parse_call_graph, Node, CallGraph, NodeKind
-from .ui_layout import Container, Text, Padding, Direction, FIT, FIXED, GROW
+from .layout import Layout, Padding, Direction, FIT, FIXED, GROW
+from .text import Text
 from rlc.layout_logger import LayoutLogConfig, LayoutLogger
-from rlc.display_layout import display
+from test.display_layout import display

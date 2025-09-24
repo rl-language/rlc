@@ -23,8 +23,17 @@ class LayoutLogger:
         self._node_meta: Dict[int, Dict[str, Any]] = {} #stable identity & static metadata
         self._final_tree: Optional[Dict[str, Any]] = None
         self._start = time.time()
+        self._root_ref = None
 
-    def attach_id(self, node) -> int:
+    def __del__(self):
+        """Destructor: clean up node IDs when logger is garbage-collected."""
+        try:
+            if self._root_ref:
+                self.finalize(self._root_ref)
+        except Exception:
+            pass
+
+    def _attach_id(self, node) -> int:
         nid = getattr(node, "_log_node_id", None)
         if nid is None:
             nid = next(self._id_counter)
@@ -34,6 +43,13 @@ class LayoutLogger:
             }
         return nid
     
+    def _remove_id(self, node):
+        nid = getattr(node, "_log_node_id", None)
+        if nid is not None:
+            self._node_meta.pop(nid, None)  # safe remove
+            if hasattr(node, "_log_node_id"):
+                delattr(node, "_log_node_id")
+ 
     def _ts(self) -> float:
         return round(time.time() - self._start, 6) if self.config.include_timestamp else None
     
@@ -54,39 +70,25 @@ class LayoutLogger:
         if pad is None: return "-"
         return f"t{pad.top}/r{pad.right}/b{pad.bottom}/l{pad.left}"
     
-    def snapshot(self, node, stage: str,
-                 axis: Optional[str] = None,
-                 warnings: Optional[str] = None,
-                 extra: Optional[Dict[str, Any]] = None) -> None:
-        if not self.config.record_events:
-            return
-        nid = self.attach_id(node)
-        e = {
-            "timestamp" : self._ts(),
-            "node_id" : nid,
-            "stage" : stage,
+    def _extract_node_info(self, node) -> Dict[str, Any]:
+        sizing = getattr(node, "sizing", (None, None))
+        wmode = sizing[0].mode.value if sizing and sizing[0] else None
+        hmode = sizing[1].mode.value if sizing and sizing[1] else None
+        return {
+            "id" : self._attach_id(node),
+            "type": type(node).__name__,
             "position": {"x": getattr(node, "x", None), "y": getattr(node, "y", None)},
             "size": {"w": getattr(node, "width", None), "h": getattr(node, "height", None)},
             "sizing_policy": {
-                "width": getattr(node, "sizing", (None, None))[0].mode.value if getattr(node, "sizing", None) else None,
-                "height": getattr(node, "sizing", (None, None))[1].mode.value if getattr(node, "sizing", None) else None
+                "width": wmode,
+                "height": hmode
                 },
             "padding": self._pad_dict(getattr(node, "padding", None)),
-            "direction": getattr(getattr(node, "direction", None), "value", None),
-            "axis" : axis,
-            "warnings" : warnings,
-            "extra": extra or {}
+            "direction": getattr(getattr(node, "direction", None), "value", None)
         }
-        self._events.append(e)
-
-    def record_final_tree(self, root) -> None:
-        if not self.config.record_final_tree:
-            return
-        self._final_tree = self._tree_dict(root)
-
+    
     def _safe_write_json(self, path: str, data, indent: int = 2) -> None:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        # Atomic write: write to temp file, then replace
         dir_name = os.path.dirname(path) or "."
         fd, tmp = tempfile.mkstemp(prefix=".tmp-", dir=dir_name, text=True)
         try:
@@ -117,6 +119,43 @@ class LayoutLogger:
                 pass
             raise
 
+    def snapshot(self, node, stage: str,
+                 axis: Optional[str] = None,
+                 warnings: Optional[str] = None,
+                 extra: Optional[Dict[str, Any]] = None) -> None:
+        if not self.config.record_events:
+            return
+        info = self._extract_node_info(node)
+        e = {
+            "timestamp" : self._ts(),
+            "node_id" : info['id'],
+            "stage" : stage,
+            "position": info['position'],
+            "size": info['size'],
+            "sizing_policy": info['sizing_policy'],
+            "padding": info['padding'],
+            "direction": info['direction'],
+            "axis" : axis,
+            "warnings" : warnings,
+            "extra": extra or {}
+        }
+        self._events.append(e)
+
+    def record_final_tree(self, root) -> None:
+        if not self.config.record_final_tree:
+            return
+        self._final_tree = self._tree_dict(root)
+        self._root_ref = root
+
+    def finalize(self, root) -> None:
+        """Remove all node IDs and metadata after logging is finished."""
+        def rec(node):
+            self._remove_id(node)
+            for child in getattr(node, "children", []) or []:
+                rec(child)
+        rec(root)
+        self._node_meta.clear()
+
     def to_json(self, indent: int = 2) -> str:
         data = {
             "config" : asdict(self.config),
@@ -128,24 +167,20 @@ class LayoutLogger:
     def to_text_tree(self, root):
         lines : List[str] = []
         def rec(node, depth: int):
-            nid = self.attach_id(node)
+            info = self._extract_node_info(node)
             pad = getattr(node, "padding", None)
-            sizing = getattr(node, "sizing", (None, None))
-            wmode = sizing[0].mode.value if sizing and sizing[0] else "?"
-            hmode = sizing[1].mode.value if sizing and sizing[1] else "?"
-            dirv  = getattr(getattr(node, "direction", None), "value", "-")
             text = ""
-            if type(node).__name__ == "Text":
+            if info['type'] == "Text":
                 txt = getattr(node, "text", "")
                 if txt is not None:
                     text = f' text="{self._preview(txt)}"'
             branch = "|___"
             indent = "    " * (depth) + (branch if depth > 0 else branch)
             lines.append(
-                f'{indent}.{type(node).__name__}#{nid} '
-                f'[{wmode},{hmode}; direction:{dirv}] '
-                f'position=({getattr(node,"x",None)}, {getattr(node, "y", None)}) '
-                f'size=({getattr(node, "width", None)}, {getattr(node, "height", None)}) '
+                f'{indent}.{info["type"]}#{info["id"]} '
+                f'[({info["sizing_policy"]["width"]}, {info["sizing_policy"]["height"]}); direction:{info["direction"]}] '
+                f'position=({info["position"]["x"]}, {info["position"]["y"]}) '
+                f'size=({info["size"]["w"]}, {info["size"]["h"]}) '
                 f'padding={self._pad_str(pad)}{text}'
             )
             for child in getattr(node, "children", []) or []:
@@ -166,24 +201,22 @@ class LayoutLogger:
         self._safe_write_text(path, txt)
 
     def _tree_dict(self, node) -> Dict[str, Any]:
-        nid = self.attach_id(node)
+        nid = self._attach_id(node)
         sizing = getattr(node, "sizing", (None, None))
         wm = sizing[0].mode.value if sizing[0] else None
         hm = sizing[1].mode.value if sizing[1] else None
+        info = self._extract_node_info(node)
         d : Dict[str, Any] = {
-            "node_id" : nid,
-            "type": type(node).__name__,
+            "node_id" : info['id'],
+            "type": info['type'],
             "backgroundColor": getattr(node, "backgroundColor", (220, 220, 220)),
-            "direction": getattr(getattr(node, "direction", None), "value", None),
-            "position": {"x": getattr(node, "x", None), "y": getattr(node, "y", None)},
-            "size": {"w": getattr(node, "width", None), "h": getattr(node, "height", None)},
-            "sizing_policy": {
-                "width": wm,
-                "height": hm
-                },
-            "padding": self._pad_dict(getattr(node, "padding", None))
+            "direction": info['direction'],
+            "position": info['position'],
+            "size": info['size'],
+            "sizing_policy": info['sizing_policy'],
+            "padding": info['padding']
         }
-        if type(node).__name__ == "Text":
+        if info['type'] == "Text":
             d["text_preview"] = self._preview(getattr(node, "text", ""))
             surfaces = getattr(node, "text_surfaces", None)
             if surfaces is not None and hasattr(surfaces, "__len__"):
@@ -192,4 +225,6 @@ class LayoutLogger:
         if children:
             d["children"] = [self._tree_dict(c) for c in children]
         return d
+    
+
 

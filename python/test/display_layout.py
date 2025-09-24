@@ -3,7 +3,7 @@ import argparse
 import pygame
 import os
 import time
-from rlc import Container, Text
+from rlc import Layout, Text
 from rlc import LayoutLogConfig, LayoutLogger
 
 
@@ -64,7 +64,7 @@ def render(screen, node):
     if isinstance(node, Text):
         write_text(screen, node)
         return
-    if isinstance(node, Container):
+    if isinstance(node, Layout):
         draw_rectangle(screen, (node.x, node.y), (node.width, node.height), node.backgroundColor)
         for child in node.children:
             render(screen, child)
