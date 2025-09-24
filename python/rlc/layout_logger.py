@@ -156,13 +156,13 @@ class LayoutLogger:
         rec(root)
         self._node_meta.clear()
 
-    def to_json(self, indent: int = 2) -> str:
+    def to_json(self) -> str:
         data = {
             "config" : asdict(self.config),
             "events" : self._events,
             "final_tree" : self._final_tree
         }
-        return json.dumps(data, indent)
+        return json.dumps(data)
     
     def to_text_tree(self, root):
         lines : List[str] = []
