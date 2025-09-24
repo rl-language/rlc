@@ -1,5 +1,4 @@
 from enum import Enum
-import pygame
 import copy
 # //utility for dumping layout
 
@@ -34,7 +33,7 @@ class Padding:
         self.right = right
 
 
-class Container:
+class Layout:
     def __init__(self, backgroundColor="white", sizing=(FIT(), FIT()), padding=Padding(0, 0, 0, 0), direction=Direction.ROW, child_gap=0):
         self.sizing = sizing
         self.backgroundColor = backgroundColor
@@ -44,11 +43,11 @@ class Container:
         self.children = []
         self.x = 0
         self.y = 0
-        self.width = 0
-        self.height = 0    
+        self.width = sizing[0].value if sizing[0].mode == SizePolicies.FIXED else 0
+        self.height = sizing[1].value if sizing[1].mode == SizePolicies.FIXED else 0    
          
     def add_child(self, child):
-        self.children.append(copy.deepcopy(child))
+        self.children.append(child)
 
     def _inner_dims(self):
         iw = max(0, self.width - self.padding.left - self.padding.right)
@@ -59,59 +58,58 @@ class Container:
         # Always size children — even if self has fixed size
         inner_available_width = self.width - self.padding.left - self.padding.right
         inner_available_height = self.height - self.padding.top - self.padding.bottom
+        
         for child in self.children:
-            if isinstance(child, Text):
-                child_width_policy, child_height_policy = child.sizing
+            child_width_policy, child_height_policy = child.sizing
+            # Only pass constraints if needed
+            child_width = (
+                inner_available_width if child_width_policy.mode != SizePolicies.FIXED else child_width_policy.value
+            )
+            child_height = (
+                inner_available_height if child_height_policy.mode != SizePolicies.FIXED else child_height_policy.value
+            )
+            child.compute_size(child_width, child_height,logger)
 
-                # Only pass constraints if needed
-                child_width = (
-                    inner_available_width if child_width_policy.mode != SizePolicies.FIXED else child_width_policy.value
-                )
-                child_height = (
-                    inner_available_height if child_height_policy.mode != SizePolicies.FIXED else child_height_policy.value
-                )
-                child.compute_size(child_width, child_height,logger)
-            else: child.compute_size(logger)
 
      # Sizing  
     
-    def compute_size(self, logger=None):
-        if logger: logger.attach_id(self); logger.snapshot(self, "before_compute")
+    def compute_size(self, available_width=None, available_height=None, logger=None):
+        if logger: logger.snapshot(self, "before_compute")
         if self.direction == Direction.ROW:
-            self.compute_width()
-            self.compute_grow_width()
+            self._compute_width()
+            self._compute_grow_width()
             self.child_size(logger)
-            if logger: logger.attach_id(self); logger.snapshot(self, "after_children_sizing")
-            self.compute_height()
-            self.compute_grow_height()
+            if logger: logger.snapshot(self, "after_children_sizing")
+            self._compute_height()
+            self._compute_grow_height()
         if self.direction == Direction.COLUMN:
-            self.compute_height()
-            self.compute_grow_height()
+            self._compute_height()
+            self._compute_grow_height()
             self.child_size(logger)
-            if logger: logger.attach_id(self); logger.snapshot(self, "after_children_sizing")
-            self.compute_width()
-            self.compute_grow_width()
-        if logger: logger.attach_id(self); logger.snapshot(self, "after_compute")
+            if logger: logger.snapshot(self, "after_children_sizing")
+            self._compute_width()
+            self._compute_grow_width()
+        if logger: logger.snapshot(self, "after_compute")
                 
-    def compute_width(self):
+    def _compute_width(self):
         width_policy, _ = self.sizing
         if width_policy.mode == SizePolicies.FIXED:
             self.width = width_policy.value
         elif width_policy.mode == SizePolicies.FIT: 
-            self.width = self.compute_fit_width()
-        elif width_policy.mode == SizePolicies.GROW:
-            self.width = 0        
+            self.width = self._compute_fit_width()
+        # elif width_policy.mode == SizePolicies.GROW:
+        #     self.width = 0        
         
-    def compute_height(self):
+    def _compute_height(self):
         _, height_policy = self.sizing
         if height_policy.mode == SizePolicies.FIXED:
             self.height = height_policy.value
         elif height_policy.mode == SizePolicies.FIT:
-            self.height = self.compute_fit_height()
-        elif height_policy.mode == SizePolicies.GROW:
-            self.height = 0
+            self.height = self._compute_fit_height()
+        # elif height_policy.mode == SizePolicies.GROW:
+        #     self.height = 0
 
-    def compute_fit_width(self):
+    def _compute_fit_width(self):
         self.child_size()
         if self.direction == Direction.ROW:
             content_width = sum(c.width for c in self.children)
@@ -122,7 +120,7 @@ class Container:
         
         return content_width + self.padding.left + self.padding.right
     
-    def compute_fit_height(self):
+    def _compute_fit_height(self):
         self.child_size()
         if self.direction == Direction.COLUMN:
             content_height = sum(c.height for c in self.children)
@@ -133,13 +131,13 @@ class Container:
         
         return content_height + self.padding.top + self.padding.bottom
 
-    def compute_grow_width(self):
+    def _compute_grow_width(self):
         if self.direction == Direction.ROW:
             # Horizontal GROW
             total_fixed_width = sum(child.width for child in self.children if child.sizing[0].mode != SizePolicies.GROW)
             total_gap = (len(self.children) - 1) * self.child_gap
             remaining_width = self.width - self.padding.left - self.padding.right - total_fixed_width - total_gap
-            self.grow_children_evenly(self.children, remaining_width, axis=0)
+            self._grow_children_evenly(self.children, remaining_width, axis=0)
 
         if self.direction == Direction.COLUMN:
             # cross-axis GROW
@@ -148,7 +146,7 @@ class Container:
                 if child.sizing[0].mode == SizePolicies.GROW:
                     child.width = remaining_width 
 
-    def compute_grow_height(self):
+    def _compute_grow_height(self):
         if self.direction == Direction.ROW:
             # cross-axis GROW
             remaining_height = self.height - self.padding.top - self.padding.bottom
@@ -161,12 +159,11 @@ class Container:
             total_fixed_height = sum(child.height for child in self.children if child.sizing[1].mode != SizePolicies.GROW)
             total_gap = self.child_gap * (len(self.children) - 1)
             remaining_height = self.height - self.padding.top - self.padding.bottom - total_fixed_height - total_gap
-            self.grow_children_evenly(self.children, remaining_height, axis=1)
+            self._grow_children_evenly(self.children, remaining_height, axis=1)
     
-    def grow_children_evenly(self, children, remaining, axis):
+    def _grow_children_evenly(self, children, remaining, axis):
         growable = [c for c in children if c.sizing[axis].mode == SizePolicies.GROW]
         while growable and remaining > 0:
-            print("In GROW")
             growable.sort(key=lambda c: c.width if axis == 0 else c.height)
             smallest = growable[0]
             min_val = smallest.width if axis == 0 else smallest.height
@@ -195,10 +192,8 @@ class Container:
                     c.height += grow_amount
                 remaining -= grow_amount
             growable = [c for c in growable if (c.width if axis == 0 else c.height) < second_smallest]
-
         shrinkable = [c for c in children if c.sizing[axis].mode != SizePolicies.FIXED]
         while shrinkable and remaining < 0:
-            print("In Shrink")
             shrinkable.sort(key=lambda c: c.width if axis == 0 else c.height, reverse=True)
             largest = shrinkable[0]
             to_remove = remaining
@@ -232,17 +227,17 @@ class Container:
             shrinkable = [c for c in shrinkable if (c.width if axis == 0 else c.height) > second_largest_val]
 
     # Position
-    def layout(self, x, y, logger=None):
+    def layout(self, x=0, y=0, logger=None):
         self.x = x
         self.y = y
         if logger: logger.snapshot(self, "before_layout")
         if self.direction == Direction.ROW:
-            self.layout_row_children()
+            self._layout_row_children()
         if self.direction == Direction.COLUMN:
-            self.layout_column_children()
+            self._layout_column_children()
         if logger: logger.snapshot(self, "after_layout")
 
-    def layout_row_children(self):
+    def _layout_row_children(self):
         left_offset = self.padding.left
         for child in self.children:
             child_pos_x = self.x + left_offset
@@ -250,7 +245,7 @@ class Container:
             child.layout(child_pos_x, child_pos_y)
             left_offset += child.width + self.child_gap
 
-    def layout_column_children(self):
+    def _layout_column_children(self):
         top_offset = self.padding.top
         for child in self.children:
             child_pos_x = self.x + self.padding.left
@@ -259,41 +254,7 @@ class Container:
             top_offset += child.height + self.child_gap
 
 
-class Text(Container):
-    def __init__(self, text, font_name, font_size, color="black"):
-        super().__init__() 
-        self.text = text
-        self.color = pygame.Color(color)
-        self.font_name = font_name
-        self.font_size = font_size
-    def compute_size(self, available_width=None, available_height=None, logger=None):
-        font = pygame.font.SysFont(self.font_name, self.font_size)
-        if available_width:
-            lines = self.wrap_text(font, available_width)
-        else:
-            lines = [self.text]
-            
-        self.text_surfaces = [font.render(line, True, self.color) for line in lines]
-        self.width = max(s.get_width() for s in self.text_surfaces)
-        self.height = sum(s.get_height() for s in self.text_surfaces)
-        if logger: logger.attach_id(self);logger.snapshot(self, "text_compute")
 
-    def wrap_text(self, font, max_width):
-        words = self.text.split(" ")
-        lines = []
-        current_line = ""
-
-        for word in words:
-            line = current_line + (" " if current_line else "") + word
-            if font.size(line)[0] <= max_width:
-                current_line = line
-            else:
-                if current_line:
-                    lines.append(current_line)
-                current_line = word
-        if current_line:
-            lines.append(current_line)
-        return lines
         
 
 
