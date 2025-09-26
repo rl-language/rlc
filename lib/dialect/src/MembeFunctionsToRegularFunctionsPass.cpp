@@ -52,7 +52,7 @@ namespace mlir::rlc
 					llvm::SmallVector<mlir::Type, 4> templateParameters;
 					for (auto templateParamenter : decl.getTemplateParameters())
 						templateParameters.push_back(
-								templateParamenter.cast<mlir::TypeAttr>().getValue());
+								mlir::cast<mlir::TypeAttr>(templateParamenter).getValue());
 
 					llvm::SmallVector<mlir::Type, 4> newArgs;
 					newArgs.push_back(
@@ -67,7 +67,7 @@ namespace mlir::rlc
 
 					for (auto templateParamenter : function.getTemplateParameters())
 						templateParameters.push_back(
-								templateParamenter.cast<mlir::TypeAttr>().getValue());
+								mlir::cast<mlir::TypeAttr>(templateParamenter).getValue());
 
 					function.setTemplateParametersAttr(
 							rewriter.getTypeArrayAttr(templateParameters));

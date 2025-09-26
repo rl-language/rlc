@@ -46,9 +46,8 @@ static cl::opt<std::string> OutputFilePath(
 /// Print a template parameter inside back‑ticks.
 static void printTemplateParameter(mlir::Attribute attr, llvm::raw_ostream &OS)
 {
-	auto param = attr.cast<mlir::TypeAttr>()
-									 .getValue()
-									 .cast<mlir::rlc::UncheckedTemplateParameterType>();
+	auto param = mlir::cast<mlir::rlc::UncheckedTemplateParameterType>(
+			mlir::cast<mlir::TypeAttr>(attr).getValue());
 	OS << param.getName().str();
 	if (!param.getTrait().str().empty())
 	{

@@ -57,7 +57,7 @@ static bool calculateNewRangeAndUpdate(
 	{
 		// Kinda ugly but this is what we have to do with constant ranges
 		if (auto other_const =
-						other_casted->getAttr("value").dyn_cast<mlir::IntegerAttr>())
+						mlir::dyn_cast<mlir::IntegerAttr>(other_casted->getAttr("value")))
 		{
 			new_range = currentLattice->createRange(other_const.getInt());
 		}
@@ -192,7 +192,7 @@ static bool getRangeOfRelationalOperation(
 
 	// Operate only if constant is an integer
 	if (auto rhs_integer =
-					other_casted->getAttr("value").dyn_cast<mlir::IntegerAttr>())
+					mlir::dyn_cast<mlir::IntegerAttr>(other_casted->getAttr("value")))
 		rhs_const = rhs_integer.getInt();
 	else
 		return false;

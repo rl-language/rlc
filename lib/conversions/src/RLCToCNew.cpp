@@ -47,7 +47,8 @@ namespace mlir::rlc
 		{
 			writer.write("[");
 			writer.write(
-					casted.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue());
+					mlir::cast<mlir::rlc::IntegerLiteralType>(casted.getSize())
+							.getValue());
 			writer.write("]");
 		}
 	}
@@ -293,14 +294,10 @@ namespace mlir::rlc
 				return;
 			std::string cShortName =
 					((not op.getFunctionType().getInputs().empty() and
-						op.getFunctionType()
-								.getInputs()
-								.front()
-								.isa<mlir::rlc::ClassType>())
-							 ? op.getFunctionType()
-												 .getInputs()
-												 .front()
-												 .cast<mlir::rlc::ClassType>()
+						mlir::isa<mlir::rlc::ClassType>(
+								op.getFunctionType().getInputs().front()))
+							 ? mlir::cast<mlir::rlc::ClassType>(
+										 op.getFunctionType().getInputs().front())
 												 .getName() +
 										 "_" + op.getUnmangledName()
 							 : op.getUnmangledName())

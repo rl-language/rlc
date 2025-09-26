@@ -147,15 +147,15 @@ namespace mlir::rlc::detail
 	static bool areArgsArrayAndCompatible(mlir::ValueRange args)
 	{
 		assert(not args.empty());
-		if (not(*args.begin()).getType().isa<mlir::rlc::ArrayType>())
+		if (not mlir::isa<mlir::rlc::ArrayType>((*args.begin()).getType()))
 			return false;
 
 		auto currentSize =
-				(*args.begin()).getType().cast<mlir::rlc::ArrayType>().getSize();
+				mlir::cast<mlir::rlc::ArrayType>((*args.begin()).getType()).getSize();
 
 		for (auto arg : llvm::drop_begin(args))
 		{
-			auto casted = arg.getType().dyn_cast<mlir::rlc::ArrayType>();
+			auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(arg.getType());
 			if (casted == nullptr)
 				return false;
 			if (casted.getSize() != currentSize)
@@ -185,7 +185,7 @@ namespace mlir::rlc::detail
 		}
 
 		if (llvm::any_of(operandTypes, [&](mlir::Type t) {
-					return t.isa<mlir::rlc::UnknownType>();
+					return mlir::isa<mlir::rlc::UnknownType>(t);
 				}))
 		{
 			op.emitError("argument op operation had unknown type");

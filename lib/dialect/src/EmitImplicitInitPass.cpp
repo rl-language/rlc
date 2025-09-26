@@ -23,16 +23,16 @@ namespace mlir::rlc
 {
 	static bool isBuiltinType(mlir::Type type)
 	{
-		return type.isa<mlir::rlc::IntegerType>() or
-					 type.isa<mlir::rlc::FloatType>() or
-					 type.isa<mlir::rlc::BoolType>() or
-					 type.isa<mlir::rlc::OwningPtrType>();
+		return mlir::isa<mlir::rlc::IntegerType>(type) or
+					 mlir::isa<mlir::rlc::FloatType>(type) or
+					 mlir::isa<mlir::rlc::BoolType>(type) or
+					 mlir::isa<mlir::rlc::OwningPtrType>(type);
 	}
 
 	static mlir::Value emitBuiltinZero(
 			mlir::IRRewriter& rewriter, mlir::Type t, mlir::Location loc)
 	{
-		if (auto casted = t.dyn_cast<mlir::rlc::IntegerType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(t))
 		{
 			return rewriter.create<mlir::rlc::Constant>(
 					loc,
@@ -40,15 +40,15 @@ namespace mlir::rlc
 					rewriter.getIntegerAttr(
 							rewriter.getIntegerType(casted.getSize()), 0));
 		}
-		if (t.isa<mlir::rlc::FloatType>())
+		if (mlir::isa<mlir::rlc::FloatType>(t))
 		{
 			return rewriter.create<mlir::rlc::Constant>(loc, double(0.0));
 		}
-		if (t.isa<mlir::rlc::BoolType>())
+		if (mlir::isa<mlir::rlc::BoolType>(t))
 		{
 			return rewriter.create<mlir::rlc::Constant>(loc, bool(false));
 		}
-		if (t.isa<mlir::rlc::OwningPtrType>())
+		if (mlir::isa<mlir::rlc::OwningPtrType>(t))
 		{
 			return rewriter.create<mlir::rlc::NullOp>(loc, t);
 		}
@@ -135,11 +135,11 @@ namespace mlir::rlc
 					return;
 				if (isTemplateType(subtype).succeeded())
 					return;
-				if (subtype.isa<mlir::rlc::TraitMetaType>())
+				if (mlir::isa<mlir::rlc::TraitMetaType>(subtype))
 					return;
-				if (subtype.isa<mlir::rlc::VoidType>())
+				if (mlir::isa<mlir::rlc::VoidType>(subtype))
 					return;
-				if (subtype.template isa<mlir::rlc::IntegerLiteralType>())
+				if (mlir::isa<mlir::rlc::IntegerLiteralType>(subtype))
 					return;
 
 				auto toCall = declareImplicitInit(rewriter, table, op, subtype);
@@ -169,7 +169,7 @@ namespace mlir::rlc
 
 			if (isTemplateType(toCall.getType()).succeeded())
 			{
-				auto castedType = toCall.getType().cast<mlir::FunctionType>();
+				auto castedType = mlir::cast<mlir::FunctionType>(toCall.getType());
 				toCall = rewriter.create<mlir::rlc::TemplateInstantiationOp>(
 						init.getLoc(),
 						mlir::FunctionType::get(
@@ -208,7 +208,7 @@ namespace mlir::rlc
 
 			if (isTemplateType(toCall.getType()).succeeded())
 			{
-				auto castedType = toCall.getType().cast<mlir::FunctionType>();
+				auto castedType = mlir::cast<mlir::FunctionType>(toCall.getType());
 				toCall = rewriter.create<mlir::rlc::TemplateInstantiationOp>(
 						init.getLoc(),
 						mlir::FunctionType::get(
@@ -342,10 +342,10 @@ namespace mlir::rlc
 	{
 		bool leafesAreAllPrimitiveTypes = true;
 		t.walk([&](mlir::Type inner) {
-			if (inner.isa<mlir::rlc::ClassType>())
+			if (mlir::isa<mlir::rlc::ClassType>(inner))
 				leafesAreAllPrimitiveTypes = false;
 		});
-		if (t.isa<mlir::rlc::ClassType>())
+		if (mlir::isa<mlir::rlc::ClassType>(t))
 			leafesAreAllPrimitiveTypes = false;
 
 		return leafesAreAllPrimitiveTypes;
@@ -374,16 +374,17 @@ namespace mlir::rlc
 			{
 				emitMemSetZero(type, fun, builder);
 			}
-			else if (auto classType = type.dyn_cast<mlir::rlc::ClassType>())
+			else if (auto classType = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 			{
 				emitClassImplicitInit(classType, fun, builder);
 			}
-			else if (auto arrayType = type.dyn_cast<mlir::rlc::ArrayType>())
+			else if (auto arrayType = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 			{
 				emitImplicitInitArray(arrayType, fun, builder);
 			}
 			else if (
-					auto alternativeType = type.dyn_cast<mlir::rlc::AlternativeType>())
+					auto alternativeType =
+							mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 			{
 				emitImplicitInitAlternative(alternativeType, fun, builder);
 			}

@@ -46,12 +46,11 @@ mlir::rlc::TypeTable mlir::rlc::makeTypeTable(mlir::ModuleOp mod)
 			"StringLiteral", mlir::rlc::StringLiteralType::get(mod.getContext()));
 
 	for (auto constant : mod.getOps<mlir::rlc::ConstantGlobalOp>())
-		if (constant.getResult().getType().isa<mlir::rlc::IntegerType>())
+		if (mlir::isa<mlir::rlc::IntegerType>(constant.getResult().getType()))
 		{
 			auto integerType = mlir::rlc::IntegerLiteralType::get(
 					constant.getContext(),
-					constant.getValues()
-							.cast<mlir::IntegerAttr>()
+					mlir::cast<mlir::IntegerAttr>(constant.getValues())
 							.getValue()
 							.getSExtValue());
 			table.add(
@@ -80,7 +79,7 @@ static mlir::Type instantiateTemplate(
 {
 	if (values.empty())
 	{
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>();
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type);
 				casted and isTemplateType(casted).succeeded())
 		{
 			mlir::emitError(
@@ -92,7 +91,7 @@ static mlir::Type instantiateTemplate(
 		return type;
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::TraitMetaType>(type))
 	{
 		if (casted.getTemplateParameters().size() != values.size() + 1)
 		{
@@ -118,14 +117,14 @@ static mlir::Type instantiateTemplate(
 		return toReturn;
 	}
 
-	if (not type.isa<mlir::rlc::ClassType>())
+	if (not mlir::isa<mlir::rlc::ClassType>(type))
 	{
 		mlir::emitError(
 				errorPoint,
 				"explicit template instantiation on non template class or trait type");
 		return nullptr;
 	}
-	auto casted = type.cast<mlir::rlc::ClassType>();
+	auto casted = mlir::cast<mlir::rlc::ClassType>(type);
 	if (casted.getExplicitTemplateParameters().size() != values.size())
 	{
 		mlir::emitError(
@@ -142,13 +141,12 @@ static mlir::Type instantiateTemplate(
 	{
 		auto originalType = first;
 		auto replacementType = second;
-		casted = casted
-								 .replace([&](mlir::Type t) -> mlir::Type {
-									 if (t == originalType)
-										 return replacementType;
-									 return t;
-								 })
-								 .cast<mlir::rlc::ClassType>();
+		casted = mlir::cast<mlir::rlc::ClassType>(
+				casted.replace([&](mlir::Type t) -> mlir::Type {
+					if (t == originalType)
+						return replacementType;
+					return t;
+				}));
 	}
 	return casted;
 }
@@ -171,7 +169,7 @@ static void registerConversions(
 					}
 
 					if (auto casted =
-									use.getSize().dyn_cast<mlir::rlc::IntegerLiteralType>())
+									mlir::dyn_cast<mlir::rlc::IntegerLiteralType>(use.getSize()))
 					{
 						if (casted.getValue() != 0)
 							return mlir::rlc::ArrayType::get(
@@ -203,7 +201,7 @@ static void registerConversions(
 							errorPoint, "No known type named " + use.getReadType());
 					return std::nullopt;
 				}
-				if (auto casted = maybeType.dyn_cast<mlir::rlc::AliasType>())
+				if (auto casted = mlir::dyn_cast<mlir::rlc::AliasType>(maybeType))
 				{
 					if (not deshugarizeAliases)
 						return mlir::rlc::AliasType::get(
@@ -221,7 +219,7 @@ static void registerConversions(
 				}
 
 				if (auto casted =
-								use.getSize().dyn_cast<mlir::rlc::IntegerLiteralType>())
+								mlir::dyn_cast<mlir::rlc::IntegerLiteralType>(use.getSize()))
 				{
 					if (casted.getValue() == 0)
 						return maybeType;
@@ -341,7 +339,7 @@ static void registerConversions(
 
 				if (auto maybeType = types.getOne(t.getTrait()))
 				{
-					if (auto trait = maybeType.dyn_cast<mlir::rlc::TraitMetaType>())
+					if (auto trait = mlir::dyn_cast<mlir::rlc::TraitMetaType>(maybeType))
 						return mlir::rlc::TemplateParameterType::get(
 								t.getContext(), t.getName(), trait, false);
 
@@ -437,7 +435,7 @@ void mlir::rlc::ModuleBuilder::removeAction(mlir::Operation* op)
 {
 	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
 
-	auto type = action.getResultTypes()[0].cast<mlir::rlc::ClassType>();
+	auto type = mlir::cast<mlir::rlc::ClassType>(action.getResultTypes()[0]);
 
 	actionToActionType.erase(action.getResult());
 	actionTypeToAction.erase(type);
@@ -464,7 +462,7 @@ void mlir::rlc::ModuleBuilder::registerAction(mlir::Operation* op)
 	auto action = mlir::cast<mlir::rlc::ActionFunction>(op);
 
 	auto type = getConverter().getTypes().getOne(
-			action.getResultTypes()[0].cast<mlir::rlc::ClassType>().getName());
+			mlir::cast<mlir::rlc::ClassType>(action.getResultTypes()[0]).getName());
 	actionToActionType[action.getResult()] = type;
 	actionTypeToAction[type] = action.getResult();
 
@@ -589,10 +587,10 @@ static mlir::Operation* emitBuiltinAssign(
 			arguments.size() != 2)
 		return nullptr;
 
-	if ((argTypes[0].isa<mlir::rlc::FloatType>() or
-			 argTypes[0].isa<mlir::rlc::IntegerType>() or
-			 argTypes[0].isa<mlir::rlc::BoolType>() or
-			 argTypes[0].isa<mlir::rlc::OwningPtrType>()) and
+	if ((mlir::isa<mlir::rlc::FloatType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::IntegerType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::BoolType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::OwningPtrType>(argTypes[0])) and
 			(argTypes[0] == argTypes[1]))
 	{
 		return builder.getRewriter().create<mlir::rlc::BuiltinAssignOp>(
@@ -619,9 +617,9 @@ static mlir::rlc::CastOp emitCast(
 {
 	auto argTypes = arguments.getType();
 	if (name == "byte" and arguments.size() == 1 and
-			(argTypes[0].isa<mlir::rlc::FloatType>() or
-			 argTypes[0].isa<mlir::rlc::IntegerType>() or
-			 argTypes[0].isa<mlir::rlc::BoolType>()))
+			(mlir::isa<mlir::rlc::FloatType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::IntegerType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::BoolType>(argTypes[0])))
 	{
 		return rewriter.create<mlir::rlc::CastOp>(
 				callSite->getLoc(),
@@ -629,9 +627,9 @@ static mlir::rlc::CastOp emitCast(
 				mlir::rlc::IntegerType::getInt8(callSite->getContext()));
 	}
 	if (name == "int" and arguments.size() == 1 and
-			(argTypes[0].isa<mlir::rlc::FloatType>() or
-			 argTypes[0].isa<mlir::rlc::IntegerType>() or
-			 argTypes[0].isa<mlir::rlc::BoolType>()))
+			(mlir::isa<mlir::rlc::FloatType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::IntegerType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::BoolType>(argTypes[0])))
 	{
 		return rewriter.create<mlir::rlc::CastOp>(
 				callSite->getLoc(),
@@ -640,9 +638,9 @@ static mlir::rlc::CastOp emitCast(
 	}
 
 	if (name == "float" and arguments.size() == 1 and
-			(argTypes[0].isa<mlir::rlc::IntegerType>() or
-			 argTypes[0].isa<mlir::rlc::FloatType>() or
-			 argTypes[0].isa<mlir::rlc::BoolType>()))
+			(mlir::isa<mlir::rlc::IntegerType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::FloatType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::BoolType>(argTypes[0])))
 	{
 		return rewriter.create<mlir::rlc::CastOp>(
 				callSite->getLoc(),
@@ -651,9 +649,9 @@ static mlir::rlc::CastOp emitCast(
 	}
 
 	if (name == "bool" and arguments.size() == 1 and
-			(argTypes[0].isa<mlir::rlc::FloatType>() or
-			 argTypes[0].isa<mlir::rlc::BoolType>() or
-			 argTypes[0].isa<mlir::rlc::IntegerType>()))
+			(mlir::isa<mlir::rlc::FloatType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::BoolType>(argTypes[0]) or
+			 mlir::isa<mlir::rlc::IntegerType>(argTypes[0])))
 	{
 		return rewriter.create<mlir::rlc::CastOp>(
 				callSite->getLoc(),
@@ -685,7 +683,7 @@ mlir::Operation* mlir::rlc::ModuleBuilder::emitCall(
 	if (overload == nullptr)
 		return nullptr;
 
-	if (not overload.getType().isa<mlir::FunctionType>())
+	if (not mlir::isa<mlir::FunctionType>(overload.getType()))
 	{
 		auto _ = logRemark(callSite, "Cannot call non function type");
 		return nullptr;

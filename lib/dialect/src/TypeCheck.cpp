@@ -55,7 +55,7 @@ static mlir::LogicalResult findClassDecls(
 static void collectClassUsedTyepNames(
 		mlir::Type type, llvm::SmallVector<llvm::StringRef, 2>& out)
 {
-	if (auto casted = type.dyn_cast<mlir::rlc::ScalarUseType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ScalarUseType>(type))
 	{
 		for (auto templ : casted.getExplicitTemplateParameters())
 			collectClassUsedTyepNames(templ, out);
@@ -68,24 +68,24 @@ static void collectClassUsedTyepNames(
 		out.push_back(casted.getReadType());
 		return;
 	}
-	if (auto casted = type.dyn_cast<mlir::rlc::FunctionUseType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionUseType>(type))
 	{
 		for (auto arg : casted.getSubTypes())
 			collectClassUsedTyepNames(arg, out);
 		return;
 	}
-	if (auto casted = type.dyn_cast<mlir::rlc::OwningPtrType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
 	{
 		collectClassUsedTyepNames(casted.getUnderlying(), out);
 		return;
 	}
-	if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 	{
 		for (auto subType : casted.getUnderlying())
 			collectClassUsedTyepNames(subType, out);
 		return;
 	}
-	if (auto casted = type.dyn_cast<mlir::rlc::IntegerLiteralType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerLiteralType>(type))
 	{
 		return;
 	}
@@ -113,9 +113,8 @@ static mlir::LogicalResult getClassDeclarationSortedByDependencies(
 		{
 			llvm::erase(
 					names,
-					parameter.cast<mlir::TypeAttr>()
-							.getValue()
-							.cast<mlir::rlc::UncheckedTemplateParameterType>()
+					mlir::cast<mlir::rlc::UncheckedTemplateParameterType>(
+							mlir::cast<mlir::TypeAttr>(parameter).getValue())
 							.getName());
 		}
 
@@ -269,9 +268,8 @@ static mlir::LogicalResult deduceClassBody(
 	scopedConverter.setErrorLocation(decl.getLoc());
 	for (auto parameter : decl.getTemplateParameters())
 	{
-		auto unchecked = parameter.cast<mlir::TypeAttr>()
-												 .getValue()
-												 .cast<mlir::rlc::UncheckedTemplateParameterType>();
+		auto unchecked = mlir::cast<mlir::rlc::UncheckedTemplateParameterType>(
+				mlir::cast<mlir::TypeAttr>(parameter).getValue());
 
 		auto checkedParameterType = scopedConverter.convertType(unchecked);
 		if (not checkedParameterType)
@@ -280,7 +278,7 @@ static mlir::LogicalResult deduceClassBody(
 		}
 		checkedTemplateParameters.push_back(checkedParameterType);
 		auto actualType =
-				checkedParameterType.cast<mlir::rlc::TemplateParameterType>();
+				mlir::cast<mlir::rlc::TemplateParameterType>(checkedParameterType);
 		scopedConverter.registerType(actualType.getName(), actualType);
 	}
 
@@ -513,9 +511,8 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 		auto _ = builder.addSymbolTable();
 		for (auto templateParameter : fun.getTemplateParameters())
 		{
-			auto casted = templateParameter.cast<mlir::TypeAttr>()
-												.getValue()
-												.cast<mlir::rlc::TemplateParameterType>();
+			auto casted = mlir::cast<mlir::rlc::TemplateParameterType>(
+					mlir::cast<mlir::TypeAttr>(templateParameter).getValue());
 			builder.getConverter().registerType(casted.getName(), casted);
 			if (casted.getIsIntLiteral() == true)
 			{
@@ -538,9 +535,10 @@ static mlir::LogicalResult deduceOperationTypes(mlir::ModuleOp op)
 		if (mlir::rlc::typeCheck(*fun.getOperation(), builder).failed())
 			return mlir::failure();
 
-		bool needsRet = not fun.getResultTypes().empty() and
-										not fun.getResultTypes()[0].isa<mlir::rlc::VoidType>() and
-										not fun.isDeclaration();
+		bool needsRet =
+				not fun.getResultTypes().empty() and
+				not mlir::isa<mlir::rlc::VoidType>(fun.getResultTypes()[0]) and
+				not fun.isDeclaration();
 
 		if (needsRet)
 		{
@@ -636,7 +634,7 @@ static mlir::LogicalResult deduceActionsMainFunctionType(mlir::ModuleOp op)
 		rewriter.setInsertionPoint(fun);
 		fun.getResult().setType(actionType);
 		fun.setInfoAttr(
-				fun.getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
+				fun.getInfo().replaceTypes(mlir::cast<mlir::FunctionType>(shugarized)));
 		fun.getIsDoneFunction().setType(isDoneType);
 	}
 	return mlir::success();

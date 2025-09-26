@@ -35,7 +35,7 @@ namespace mlir::rlc
 	mlir::LLVM::DIFileAttr DebugInfoGenerator::getFileOfLoc(
 			mlir::Location location) const
 	{
-		auto loc = location.cast<mlir::FileLineColLoc>();
+		auto loc = mlir::cast<mlir::FileLineColLoc>(location);
 		llvm::StringRef file = loc.getFilename();
 		return mlir::LLVM::DIFileAttr::get(
 				op.getContext(),
@@ -87,37 +87,37 @@ namespace mlir::rlc
 	mlir::LLVM::DITypeAttr DebugInfoGenerator::getDIAttrOfImpl(
 			mlir::Type type) const
 	{
-		if (auto originalType = type.dyn_cast<mlir::rlc::IntegerType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::IntegerType>(type))
 			return genBasicType(
 					op.getContext(),
 					mlir::StringAttr::get(op.getContext(), "Int"),
 					originalType.getSize(),
 					llvm::dwarf::DW_ATE_signed);
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::FloatType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::FloatType>(type))
 			return genBasicType(
 					op.getContext(),
 					mlir::StringAttr::get(op.getContext(), "Float"),
 					64,
 					llvm::dwarf::DW_ATE_float);
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::BoolType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::BoolType>(type))
 			return genBasicType(
 					op.getContext(),
 					mlir::StringAttr::get(op.getContext(), "Bool"),
 					8,
 					llvm::dwarf::DW_ATE_boolean);
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::VoidType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::VoidType>(type))
 			return nullptr;
 
-		if (auto originalType = type.dyn_cast<mlir::FunctionType>())
+		if (auto originalType = mlir::dyn_cast<mlir::FunctionType>(type))
 		{
 			// already account for the fact that functions signatures will be
 			// rewritten to have the return paramater as first argument
 			llvm::SmallVector<mlir::LLVM::DITypeAttr> elements({ nullptr });
 			if (not originalType.getResults().empty() and
-					not originalType.getResults()[0].isa<mlir::rlc::VoidType>())
+					not mlir::isa<mlir::rlc::VoidType>(originalType.getResults()[0]))
 				elements.push_back(getDIAttrOf(originalType.getResults()[0]));
 
 			for (auto type : originalType.getInputs())
@@ -132,7 +132,7 @@ namespace mlir::rlc
 					originalType.getContext(), llvm::dwarf::DW_CC_normal, elements);
 		}
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::ReferenceType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::ReferenceType>(type))
 		{
 			auto underlying = getDIAttrOf(originalType.getUnderlying());
 			if (!underlying)
@@ -140,14 +140,14 @@ namespace mlir::rlc
 			return makePointerType(underlying);
 		}
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::OwningPtrType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
 		{
 			auto underlying = getDIAttrOf(originalType.getUnderlying());
 			if (!underlying)
 				return nullptr;
 			return makePointerType(underlying);
 		}
-		if (auto originalType = type.dyn_cast<mlir::rlc::ArrayType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 		{
 			llvm::SmallVector<mlir::LLVM::DINodeAttr> elements;
 
@@ -184,7 +184,7 @@ namespace mlir::rlc
 					/*associated=*/nullptr);
 		}
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::AlternativeType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 		{
 			llvm::SmallVector<mlir::LLVM::DINodeAttr> elements;
 
@@ -287,11 +287,11 @@ namespace mlir::rlc
 					/*associated=*/nullptr);
 		}
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::ClassType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 		{
 			llvm::SmallVector<mlir::LLVM::DINodeAttr> elements;
-			auto converted = converter->convertType(originalType)
-													 .cast<mlir::LLVM::LLVMStructType>();
+			auto converted = mlir::cast<mlir::LLVM::LLVMStructType>(
+					converter->convertType(originalType));
 			size_t offset = 0;
 
 			for (auto [type, llvmType] :
@@ -340,7 +340,7 @@ namespace mlir::rlc
 					/*associated=*/nullptr);
 		}
 
-		if (auto originalType = type.dyn_cast<mlir::rlc::StringLiteralType>())
+		if (auto originalType = mlir::dyn_cast<mlir::rlc::StringLiteralType>(type))
 		{
 			auto charType = genBasicType(
 					op.getContext(),
@@ -379,7 +379,7 @@ namespace mlir::rlc
 			compileUnitAttr = {};
 		}
 
-		auto loc = location.cast<mlir::FileLineColLoc>();
+		auto loc = mlir::cast<mlir::FileLineColLoc>(location);
 		auto file = getFileOfLoc(location);
 		auto subprogramAttr = LLVM::DISubprogramAttr::get(
 				op.getContext(),
@@ -406,8 +406,8 @@ namespace mlir::rlc
 		if (iter != functionToSubProgram.end())
 			return iter->getSecond();
 
-		auto subroutineTypeAttr =
-				getDIAttrOf(fun.getType()).dyn_cast<mlir::LLVM::DISubroutineTypeAttr>();
+		auto subroutineTypeAttr = mlir::dyn_cast<mlir::LLVM::DISubroutineTypeAttr>(
+				getDIAttrOf(fun.getType()));
 		if (not subroutineTypeAttr)
 			subroutineTypeAttr = LLVM::DISubroutineTypeAttr::get(
 					op.getContext(), llvm::dwarf::DW_CC_normal, {});
@@ -439,8 +439,8 @@ namespace mlir::rlc
 
 		if (rlcType)
 		{
-			auto maybeType =
-					getDIAttrOf(rlcType).dyn_cast<mlir::LLVM::DISubroutineTypeAttr>();
+			auto maybeType = mlir::dyn_cast<mlir::LLVM::DISubroutineTypeAttr>(
+					getDIAttrOf(rlcType));
 			if (maybeType)
 				subroutineTypeAttr = maybeType;
 		}

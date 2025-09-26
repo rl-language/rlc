@@ -130,7 +130,8 @@ namespace mlir::rlc
 	{
 		if (op.getFunctionType().getResults().empty())
 			return;
-		if (not op.getFunctionType().getResults()[0].isa<mlir::rlc::BoolType>())
+		if (not mlir::isa<mlir::rlc::BoolType>(
+						op.getFunctionType().getResults()[0]))
 			return;
 
 		bool changed = true;

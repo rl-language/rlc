@@ -124,7 +124,7 @@ mlir::rlc::ActionFunction::getFrameLists()
 	mlir::rlc::ActionFrameContent hiddenFrame;
 
 	const auto &addToFrames = [&](mlir::Value value, llvm::StringRef name) {
-		if (auto castedType = value.getType().dyn_cast<mlir::rlc::FrameType>())
+		if (auto castedType = mlir::dyn_cast<mlir::rlc::FrameType>(value.getType()))
 			explicitFrame.append(value, name);
 		else
 			hiddenFrame.append(value, name);
@@ -141,7 +141,8 @@ mlir::rlc::ActionFunction::getFrameLists()
 	walk([&](mlir::Operation *op) {
 		if (auto casted = llvm::dyn_cast<mlir::rlc::DeclarationStatement>(op))
 		{
-			if (auto castedType = casted.getType().dyn_cast<mlir::rlc::FrameType>())
+			if (auto castedType =
+							mlir::dyn_cast<mlir::rlc::FrameType>(casted.getType()))
 				explicitFrame.append(casted, casted.getSymName());
 		}
 		else if (auto casted = llvm::dyn_cast<mlir::rlc::ActionStatement>(op))
@@ -175,15 +176,14 @@ static mlir::LogicalResult setFramesBody(mlir::rlc::ActionFunction fun)
 		fields.push_back(
 				mlir::rlc::ClassFieldAttr::get(
 						entry.second.str(),
-						entry.first.getType()
-								.cast<mlir::rlc::FrameType>()
+						mlir::cast<mlir::rlc::FrameType>(entry.first.getType())
 								.getUnderlying()));
 	}
 
 	for (auto &entry : frames.second.valueNamePairs)
 	{
 		auto t = entry.first.getType();
-		if (auto casted = t.dyn_cast<mlir::rlc::ContextType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(t))
 			t = casted.getUnderlying();
 		hiddenMembers.push_back(
 				mlir::rlc::ClassFieldAttr::get(
@@ -324,7 +324,7 @@ static mlir::rlc::FunctionOp defineApplyFunction(
 	for (auto [actionType, name] :
 			 llvm::zip(function.getType().getInputs(), function.getArgNames()))
 	{
-		if (auto casted = actionType.dyn_cast<mlir::rlc::ContextType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(actionType))
 		{
 			types.push_back(casted.getUnderlying());
 			names.push_back(name);
@@ -426,7 +426,7 @@ static void defineApplyFunctionAlternative(
 	for (auto [actionType, name] :
 			 llvm::zip(function.getType().getInputs(), function.getArgNames()))
 	{
-		if (auto casted = actionType.dyn_cast<mlir::rlc::ContextType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(actionType))
 		{
 			types.push_back(casted.getUnderlying());
 			names.push_back(name);
@@ -468,7 +468,7 @@ static void defineApplyFunctionAlternative(
 
 			builder.getRewriter().createBlock(&andOp.getLhs());
 
-			auto actionType = type.cast<mlir::rlc::ClassType>();
+			auto actionType = mlir::cast<mlir::rlc::ClassType>(type);
 			auto isOp = builder.getRewriter().create<mlir::rlc::IsOp>(
 					function.getLoc(), preconditionBB->getArgument(0), actionType);
 			builder.getRewriter().create<mlir::rlc::Yield>(
@@ -513,7 +513,7 @@ static void defineApplyFunctionAlternative(
 					function.getLoc());
 			builder.getRewriter().createBlock(&ifStmt.getCondition());
 
-			auto actionType = type.cast<mlir::rlc::ClassType>();
+			auto actionType = mlir::cast<mlir::rlc::ClassType>(type);
 			auto isOp = builder.getRewriter().create<mlir::rlc::IsOp>(
 					function.getLoc(), bodyBB->getArgument(0), actionType);
 			builder.getRewriter().create<mlir::rlc::Yield>(
@@ -558,10 +558,10 @@ static mlir::Type declareActionStatementType(
 	for (auto [name, result] :
 			 llvm::zip(statement.getDeclaredNames(), statement.getResults()))
 	{
-		if (result.getType().isa<mlir::rlc::ContextType>())
+		if (mlir::isa<mlir::rlc::ContextType>(result.getType()))
 			continue;
 		auto type = result.getType();
-		if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
 			type = casted.getUnderlying();
 		auto field = mlir::rlc::ClassFieldAttr::get(name, type);
 		fields.push_back(field);
@@ -681,7 +681,8 @@ mlir::rlc::ActionFunction mlir::rlc::detail::typeCheckAction(
 	mlir::rlc::ModuleBuilder builder(
 			fun->getParentOfType<mlir::ModuleOp>(), parentSymbolTable);
 
-	if (builder.typeOfAction(fun).cast<mlir::rlc::ClassType>().isInitialized())
+	if (mlir::cast<mlir::rlc::ClassType>(builder.typeOfAction(fun))
+					.isInitialized())
 		return fun;
 
 	builder.getRewriter().setInsertionPointToStart(&fun.getBody().front());
@@ -816,7 +817,7 @@ mlir::LogicalResult mlir::rlc::TypeAliasOp::typeCheck(
 		this->setShugarizedTypeAttr(getShugarizedType()->replaceType(shugarized));
 	}
 
-	if (auto casted = deducedType.dyn_cast<mlir::rlc::AlternativeType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(deducedType))
 	{
 		deducedType = mlir::rlc::AlternativeType::get(
 				casted.getContext(), casted.getUnderlying(), getName());
@@ -877,7 +878,7 @@ mlir::LogicalResult mlir::rlc::UncheckedCanOp::typeCheck(
 mlir::LogicalResult mlir::rlc::AssertOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (!getAssertion().getType().isa<mlir::rlc::BoolType>())
+	if (!mlir::isa<mlir::rlc::BoolType>(getAssertion().getType()))
 	{
 		return logError(
 				getOperation(), "assert must have a expression of type bool");
@@ -997,7 +998,7 @@ namespace mlir::rlc
 						 llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 				{
 					auto type = std::get<0>(arg);
-					if (type.isa<mlir::rlc::ContextType>())
+					if (mlir::isa<mlir::rlc::ContextType>(type))
 					{
 						resultTypes.push_back(type);
 						nameAttrs.push_back(
@@ -1021,7 +1022,7 @@ namespace mlir::rlc
 				for (auto type : llvm::drop_begin(
 								 referred.getResultTypes(), statement.forwardedArgsCount()))
 				{
-					if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+					if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
 						resultTypes.push_back(casted.getUnderlying());
 					else
 						resultTypes.push_back(type);
@@ -1227,9 +1228,9 @@ mlir::LogicalResult mlir::rlc::SubActionStatement::typeCheck(
 			mlir::cast<mlir::rlc::Yield>(getBody().front().getTerminator());
 	for (auto frameVar : yield.getArguments())
 	{
-		if ((not frameVar.getType().isa<mlir::rlc::ClassType>() or
+		if ((not mlir::isa<mlir::rlc::ClassType>(frameVar.getType()) or
 				 not builder.isClassOfAction(frameVar.getType())) and
-				not frameVar.getType().isa<mlir::rlc::AlternativeType>())
+				not mlir::isa<mlir::rlc::AlternativeType>(frameVar.getType()))
 		{
 			return logError(
 					*this,
@@ -1337,11 +1338,12 @@ static bool expressionIsReference(mlir::Value val)
 	if (auto casted = val.getDefiningOp<mlir::rlc::CallOp>())
 	{
 		auto resultsType =
-				casted.getCallee().getType().cast<mlir::FunctionType>().getResults();
-		if (resultsType.empty() or resultsType[0].isa<mlir::rlc::VoidType>())
+				mlir::cast<mlir::FunctionType>(casted.getCallee().getType())
+						.getResults();
+		if (resultsType.empty() or mlir::isa<mlir::rlc::VoidType>(resultsType[0]))
 			return false;
 
-		return resultsType[0].isa<mlir::rlc::ReferenceType>();
+		return mlir::isa<mlir::rlc::ReferenceType>(resultsType[0]);
 	}
 	return false;
 }
@@ -1365,7 +1367,7 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 	rewriter.setInsertionPoint(getOperation());
 	auto deducedType = getBody().front().getTerminator()->getOperand(0).getType();
 
-	if (getType().isa<mlir::rlc::ReferenceType>())
+	if (mlir::isa<mlir::rlc::ReferenceType>(getType()))
 	{
 		if (not isReference())
 		{
@@ -1390,7 +1392,7 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 			rewriter.setInsertionPoint(*this);
 		}
 
-		if (getType().isa<mlir::rlc::FrameType>())
+		if (mlir::isa<mlir::rlc::FrameType>(getType()))
 		{
 			if (getOperation()->getParentOfType<mlir::rlc::FunctionOp>())
 			{
@@ -1414,9 +1416,9 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (not getValue().getType().isa<mlir::rlc::ArrayType>() and
-			not getValue().getType().isa<mlir::rlc::OwningPtrType>() and
-			not getValue().getType().isa<mlir::rlc::StringLiteralType>())
+	if (not mlir::isa<mlir::rlc::ArrayType>(getValue().getType()) and
+			not mlir::isa<mlir::rlc::OwningPtrType>(getValue().getType()) and
+			not mlir::isa<mlir::rlc::StringLiteralType>(getValue().getType()))
 	{
 		auto newCall =
 				builder.emitCall(*this, true, "get", { getValue(), getMemberIndex() });
@@ -1429,7 +1431,7 @@ mlir::LogicalResult mlir::rlc::ArrayAccess::typeCheck(
 		return mlir::success();
 	}
 
-	if (not getMemberIndex().getType().isa<mlir::rlc::IntegerType>())
+	if (not mlir::isa<mlir::rlc::IntegerType>(getMemberIndex().getType()))
 	{
 		return mlir::rlc::logError(
 				getOperation(), "Array access must have a integer index operand.");
@@ -1449,7 +1451,8 @@ mlir::LogicalResult mlir::rlc::Yield::typeCheck(
 static bool isReturnTypeCompatible(
 		mlir::Type returnValue, mlir::Type functionReturnType)
 {
-	if (auto casted = functionReturnType.dyn_cast<mlir::rlc::ReferenceType>())
+	if (auto casted =
+					mlir::dyn_cast<mlir::rlc::ReferenceType>(functionReturnType))
 		return casted.getUnderlying() == returnValue;
 
 	return returnValue == functionReturnType;
@@ -1511,7 +1514,7 @@ mlir::LogicalResult mlir::rlc::ReturnStatement::typeCheck(
 		// make a copy of the returned value
 		if (not yield.getArguments().empty() and
 				expressionIsReference(yield.getArguments()[0]) and
-				not returnType.isa<mlir::rlc::ReferenceType>())
+				not mlir::isa<mlir::rlc::ReferenceType>(returnType))
 		{
 			rewriter.setInsertionPoint(yield);
 
@@ -1548,7 +1551,7 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 		return logError(*this, "No known value " + getName());
 
 	if (auto casted =
-					candidates.front().getType().dyn_cast<mlir::rlc::FrameType>())
+					mlir::dyn_cast<mlir::rlc::FrameType>(candidates.front().getType()))
 	{
 		auto newValue = builder.getRewriter().create<mlir::rlc::StorageCast>(
 				getLoc(), casted.getUnderlying(), candidates.front());
@@ -1556,7 +1559,7 @@ mlir::LogicalResult mlir::rlc::UnresolvedReference::typeCheck(
 	}
 	else if (
 			auto casted =
-					candidates.front().getType().dyn_cast<mlir::rlc::ContextType>())
+					mlir::dyn_cast<mlir::rlc::ContextType>(candidates.front().getType()))
 	{
 		auto newValue = builder.getRewriter().create<mlir::rlc::StorageCast>(
 				getLoc(), casted.getUnderlying(), candidates.front());
@@ -1671,7 +1674,7 @@ mlir::LogicalResult mlir::rlc::UncheckedTraitDefinition::typeCheck(
 		typeNames.push_back(
 				TemplateParameterType::get(
 						getContext(),
-						("TraitType" + t.cast<mlir::StringAttr>().strref()).str(),
+						("TraitType" + mlir::cast<mlir::StringAttr>(t).strref()).str(),
 						nullptr,
 						false));
 	}
@@ -1718,12 +1721,13 @@ static void promoteArgumentOfIsOp(
 		return;
 
 	rewriter.setInsertionPointToStart(&op.getTrueBranch().front());
-	if (auto trait = isOp.getTypeOrTrait().dyn_cast<mlir::rlc::TraitMetaType>())
+	if (auto trait =
+					mlir::dyn_cast<mlir::rlc::TraitMetaType>(isOp.getTypeOrTrait()))
 	{
 		for (size_t index : ::rlc::irange(trait.getRequestedFunctionTypes().size()))
 		{
-			auto methodType =
-					trait.getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
+			auto methodType = mlir::cast<mlir::FunctionType>(
+					trait.getRequestedFunctionTypes()[index]);
 			auto instantiated = replaceTemplateParameter(
 					methodType,
 					mlir::cast<mlir::rlc::TemplateParameterType>(
@@ -1783,7 +1787,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
 			mlir::cast<mlir::rlc::Yield>(getLhs().getBlocks().back().getTerminator());
 
 	if (yield.getArguments().size() != 1 or
-			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
@@ -1798,7 +1802,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
 			mlir::cast<mlir::rlc::Yield>(getRhs().getBlocks().back().getTerminator());
 
 	if (yield.getArguments().size() != 1 or
-			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
@@ -1820,7 +1824,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
 			mlir::cast<mlir::rlc::Yield>(getLhs().getBlocks().back().getTerminator());
 
 	if (yield.getArguments().size() != 1 or
-			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
@@ -1835,7 +1839,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
 			mlir::cast<mlir::rlc::Yield>(getRhs().getBlocks().back().getTerminator());
 
 	if (yield.getArguments().size() != 1 or
-			!yield.getArguments().front().getType().isa<mlir::rlc::BoolType>())
+			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
 		return logError(
@@ -1853,12 +1857,8 @@ mlir::LogicalResult mlir::rlc::IfStatement::typeCheck(
 		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
-	if (not getCondition()
-							.front()
-							.getTerminator()
-							->getOperand(0)
-							.getType()
-							.isa<mlir::rlc::BoolType>())
+	if (not mlir::isa<mlir::rlc::BoolType>(
+					getCondition().front().getTerminator()->getOperand(0).getType()))
 	{
 		return logError(*this, "If statement condition type must be Bool");
 		return mlir::failure();
@@ -1887,7 +1887,7 @@ mlir::LogicalResult mlir::rlc::ArrayCallOp::typeCheck(
 {
 	assert(
 			(getNumResults() == 0 or
-			 not getResult(0).getType().isa<mlir::rlc::UnknownType>()) and
+			 not mlir::isa<mlir::rlc::UnknownType>(getResult(0).getType())) and
 			"unuspported, array calls should be only emitted with a correct type "
 			"already");
 	return mlir::success();
@@ -1938,7 +1938,7 @@ mlir::LogicalResult mlir::rlc::CallOp::typeCheck(
 	}
 	else
 	{
-		if (not getCallee().getType().isa<mlir::FunctionType>())
+		if (not mlir::isa<mlir::FunctionType>(getCallee().getType()))
 		{
 			return logError(*this, "Cannot call non function type");
 		}
@@ -2023,14 +2023,14 @@ mlir::LogicalResult mlir::rlc::ForFieldStatement::typeCheck(
 	auto _ = builder.addSymbolTable();
 	if (hasFieldNameVariable())
 	{
-		auto fieldName = getNames().begin()->cast<mlir::StringAttr>();
+		auto fieldName = mlir::cast<mlir::StringAttr>(*getNames().begin());
 		getBody().front().getArguments()[0].setType(
 				mlir::rlc::StringLiteralType::get(getContext()));
 		builder.getSymbolTable().add(fieldName, getBody().getArgument(0));
 	}
 	for (auto [argument, name] :
 			 llvm::zip(getNonFieldNameArgs(), getNonFieldNameNames()))
-		builder.getSymbolTable().add(name.cast<mlir::StringAttr>(), argument);
+		builder.getSymbolTable().add(mlir::cast<mlir::StringAttr>(name), argument);
 
 	for (auto *op : ops(getBody()))
 		if (mlir::rlc::typeCheck(*op, builder).failed())
@@ -2092,8 +2092,8 @@ mlir::LogicalResult mlir::rlc::ForLoopStatement::typeCheck(
 	auto maybeSizeFunction =
 			resolver.findOverload(getLoc(), true, "size", { inductionVarType });
 	if (!maybeSizeFunction or
-			maybeSizeFunction.getType().cast<mlir::FunctionType>().getResult(0) !=
-					mlir::rlc::IntegerType::getInt64(getContext()))
+			mlir::cast<mlir::FunctionType>(maybeSizeFunction.getType())
+							.getResult(0) != mlir::rlc::IntegerType::getInt64(getContext()))
 	{
 		return logError(
 				*this,
@@ -2107,7 +2107,7 @@ mlir::LogicalResult mlir::rlc::ForLoopStatement::typeCheck(
 			"get",
 			{ inductionVarType, mlir::rlc::IntegerType::getInt64(getContext()) });
 	if (!maybeGetFunction or
-			maybeGetFunction.getType().cast<mlir::FunctionType>().getResult(0) ==
+			mlir::cast<mlir::FunctionType>(maybeGetFunction.getType()).getResult(0) ==
 					mlir::rlc::VoidType::get(getContext()))
 	{
 		return logError(
@@ -2143,9 +2143,9 @@ mlir::LogicalResult mlir::rlc::ForLoopVarDeclOp::typeCheck(
 			getLoc(),
 			"get",
 			{ inductionVarType, mlir::rlc::IntegerType::getInt64(getContext()) });
-	auto type =
-			maybeGetFunction.getType().cast<mlir::FunctionType>().getResults()[0];
-	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())
+	auto type = mlir::cast<mlir::FunctionType>(maybeGetFunction.getType())
+									.getResults()[0];
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(type))
 		type = casted.getUnderlying();
 
 	getResult().setType(type);
@@ -2163,12 +2163,8 @@ mlir::LogicalResult mlir::rlc::WhileStatement::typeCheck(
 		if (mlir::rlc::typeCheck(*op, builder).failed())
 			return mlir::failure();
 
-	if (not getCondition()
-							.front()
-							.getTerminator()
-							->getOperand(0)
-							.getType()
-							.isa<mlir::rlc::BoolType>())
+	if (not mlir::isa<mlir::rlc::BoolType>(
+					getCondition().front().getTerminator()->getOperand(0).getType()))
 	{
 		return logError(*this, "While loop condition is not boolean");
 	}
@@ -2247,7 +2243,7 @@ mlir::LogicalResult mlir::rlc::ActionStatement::typeCheck(
 	for (auto arg : llvm::zip(parent.getArgumentTypes(), parent.getArgNames()))
 	{
 		auto type = std::get<0>(arg);
-		if (type.isa<mlir::rlc::ContextType>())
+		if (mlir::isa<mlir::rlc::ContextType>(type))
 		{
 			getPrecondition().front().insertArgument(
 					contextArgCounts++, type, getLoc());
@@ -2328,15 +2324,16 @@ mlir::LogicalResult mlir::rlc::AsByteArrayOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	int64_t size = 0;
-	if (getLhs().getType().isa<mlir::rlc::BoolType>())
+	if (mlir::isa<mlir::rlc::BoolType>(getLhs().getType()))
 	{
 		size = 1;
 	}
-	else if (getLhs().getType().isa<mlir::rlc::FloatType>())
+	else if (mlir::isa<mlir::rlc::FloatType>(getLhs().getType()))
 	{
 		size = 8;
 	}
-	else if (auto casted = getLhs().getType().dyn_cast<mlir::rlc::IntegerType>())
+	else if (
+			auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(getLhs().getType()))
 	{
 		size = casted.getSize() / 8;
 	}
@@ -2356,13 +2353,13 @@ mlir::LogicalResult mlir::rlc::AsByteArrayOp::typeCheck(
 mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (not getLhs().getType().isa<mlir::rlc::ArrayType>())
+	if (not mlir::isa<mlir::rlc::ArrayType>(getLhs().getType()))
 	{
 		return logError(
 				*this, "Builtin from byte_array_argument must be a byte array");
 		return mlir::failure();
 	}
-	auto castedInput = getLhs().getType().cast<mlir::rlc::ArrayType>();
+	auto castedInput = mlir::cast<mlir::rlc::ArrayType>(getLhs().getType());
 	if (castedInput.getUnderlying() !=
 			mlir::rlc::IntegerType::getInt8(getContext()))
 	{
@@ -2382,7 +2379,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 						prettyType(getResult().getType()));
 	}
 
-	if (converted.isa<mlir::rlc::FloatType>())
+	if (mlir::isa<mlir::rlc::FloatType>(converted))
 	{
 		if (castedInput.getArraySize() != 8)
 		{
@@ -2395,7 +2392,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 		return mlir::success();
 	}
 
-	if (converted.isa<mlir::rlc::BoolType>())
+	if (mlir::isa<mlir::rlc::BoolType>(converted))
 	{
 		if (castedInput.getArraySize() != 1)
 		{
@@ -2408,7 +2405,7 @@ mlir::LogicalResult mlir::rlc::FromByteArrayOp::typeCheck(
 		return mlir::success();
 	}
 
-	if (auto casted = converted.dyn_cast<mlir::rlc::IntegerType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(converted))
 	{
 		if (castedInput.getArraySize() != casted.getSize() / 8)
 		{
@@ -2554,15 +2551,15 @@ mlir::LogicalResult mlir::rlc::InitOp::typeCheck(
 
 static bool initializerListTypeIsValid(mlir::Type t)
 {
-	if (t.isa<mlir::rlc::IntegerType>())
+	if (mlir::isa<mlir::rlc::IntegerType>(t))
 	{
 		return true;
 	}
-	if (t.isa<mlir::rlc::BoolType>())
+	if (mlir::isa<mlir::rlc::BoolType>(t))
 	{
 		return true;
 	}
-	if (t.isa<mlir::rlc::FloatType>())
+	if (mlir::isa<mlir::rlc::FloatType>(t))
 	{
 		return true;
 	}
@@ -2700,8 +2697,8 @@ mlir::LogicalResult mlir::rlc::BuiltinAssignOp::typeCheck(
 mlir::LogicalResult mlir::rlc::AssignOp::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (getLhs().getType().isa<mlir::FunctionType>() or
-			getRhs().getType().isa<mlir::FunctionType>())
+	if (mlir::isa<mlir::FunctionType>(getLhs().getType()) or
+			mlir::isa<mlir::FunctionType>(getRhs().getType()))
 	{
 		return logError(
 				*this, "Assigns cannot have operands that are function types");
@@ -2722,8 +2719,7 @@ mlir::LogicalResult mlir::rlc::MemberAccess::typeCheck(
 mlir::LogicalResult mlir::rlc::IntegerLiteralUse::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	if (not getInputType()
-							.cast<mlir::rlc::TemplateParameterType>()
+	if (not mlir::cast<mlir::rlc::TemplateParameterType>(getInputType())
 							.getIsIntLiteral())
 	{
 		return logError(
@@ -2735,15 +2731,15 @@ mlir::LogicalResult mlir::rlc::IntegerLiteralUse::typeCheck(
 
 static bool locsAreInSameFile(mlir::Location l, mlir::Location r)
 {
-	auto casted1 = l.cast<mlir::FileLineColLoc>();
-	auto catsed2 = r.cast<mlir::FileLineColLoc>();
+	auto casted1 = mlir::cast<mlir::FileLineColLoc>(l);
+	auto catsed2 = mlir::cast<mlir::FileLineColLoc>(r);
 	return casted1.getFilename() == catsed2.getFilename();
 }
 
 mlir::LogicalResult mlir::rlc::UnresolvedMemberAccess::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
-	auto structType = getValue().getType().dyn_cast<mlir::rlc::ClassType>();
+	auto structType = mlir::dyn_cast<mlir::rlc::ClassType>(getValue().getType());
 	if (structType == nullptr)
 	{
 		return logError(*this, "Members of non-class types cannot be accessed");
@@ -2811,9 +2807,8 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	llvm::SmallVector<mlir::Type, 2> checkedTemplateParameters;
 	for (auto parameter : getTemplateParameters())
 	{
-		auto unchecked = parameter.cast<mlir::TypeAttr>()
-												 .getValue()
-												 .cast<mlir::rlc::UncheckedTemplateParameterType>();
+		auto unchecked = mlir::cast<mlir::rlc::UncheckedTemplateParameterType>(
+				mlir::cast<mlir::TypeAttr>(parameter).getValue());
 
 		auto checkedParameterType = converter.convertType(unchecked);
 		if (not checkedParameterType)
@@ -2822,7 +2817,7 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 		}
 		checkedTemplateParameters.push_back(checkedParameterType);
 		auto actualType =
-				checkedParameterType.cast<mlir::rlc::TemplateParameterType>();
+				mlir::cast<mlir::rlc::TemplateParameterType>(checkedParameterType);
 		scopedConverter.registerType(actualType.getName(), actualType);
 	}
 
@@ -2832,22 +2827,24 @@ mlir::LogicalResult mlir::rlc::FunctionOp::typeCheckFunctionDeclaration(
 	{
 		return mlir::failure();
 	}
-	assert(deducedType.isa<mlir::FunctionType>());
-	auto fType = deducedType.cast<mlir::FunctionType>();
+	assert(mlir::isa<mlir::FunctionType>(deducedType));
+	auto fType = mlir::cast<mlir::FunctionType>(deducedType);
 	for (auto type : fType.getInputs())
 	{
-		if (type.isa<mlir::rlc::FrameType>() or type.isa<mlir::rlc::ContextType>())
+		if (mlir::isa<mlir::rlc::FrameType>(type) or
+				mlir::isa<mlir::rlc::ContextType>(type))
 			return mlir::rlc::logError(
 					*this, "Only types in action functions can be marked as ctx or frm.");
 	}
 	if (fType.getNumResults() != 0 and
-			(fType.getResult(0).isa<mlir::rlc::FrameType>() or
-			 fType.getResult(0).isa<mlir::rlc::ContextType>()))
+			(mlir::isa<mlir::rlc::FrameType>(fType.getResult(0)) or
+			 mlir::isa<mlir::rlc::ContextType>(fType.getResult(0))))
 		return mlir::rlc::logError(
 				*this, "Only types in action functions can be marked as ctx or frm.");
 
 	getResult().setType(fType);
-	setInfoAttr(getInfo().replaceTypes(shugarized.cast<mlir::FunctionType>()));
+	setInfoAttr(
+			getInfo().replaceTypes(mlir::cast<mlir::FunctionType>(shugarized)));
 	setTemplateParametersAttr(
 			rewriter.getTypeArrayAttr(checkedTemplateParameters));
 
@@ -3354,7 +3351,7 @@ mlir::rlc::UncheckedTraitDefinition::getTemplateParameterTypes()
 	for (auto t : getTemplateParameters())
 		toReturn.push_back(
 				mlir::rlc::TemplateParameterType::get(
-						getContext(), t.cast<mlir::StringAttr>(), nullptr, false));
+						getContext(), mlir::cast<mlir::StringAttr>(t), nullptr, false));
 	return toReturn;
 }
 
@@ -3364,7 +3361,7 @@ mlir::LogicalResult mlir::rlc::FunctionOp::isTemplate()
 		return mlir::success();
 
 	for (auto t : getTemplateParameters())
-		if (isTemplateType(t.cast<mlir::TypeAttr>().getValue()).succeeded())
+		if (isTemplateType(mlir::cast<mlir::TypeAttr>(t).getValue()).succeeded())
 			return mlir::success();
 
 	return mlir::failure();
@@ -3381,13 +3378,13 @@ mlir::OpFoldResult mlir::rlc::MinusOp::fold(
 {
 	if (attr.getLhs() == nullptr)
 		return nullptr;
-	if (auto castedLHS = attr.getLhs().dyn_cast<mlir::IntegerAttr>())
+	if (auto castedLHS = mlir::dyn_cast<mlir::IntegerAttr>(attr.getLhs()))
 	{
 		return mlir::IntegerAttr::get(
 				castedLHS.getType(), -1 * castedLHS.getValue());
 	}
 
-	if (auto castedLHS = attr.getLhs().dyn_cast<mlir::FloatAttr>())
+	if (auto castedLHS = mlir::dyn_cast<mlir::FloatAttr>(attr.getLhs()))
 	{
 		auto copy = castedLHS.getValue();
 		copy.changeSign();
@@ -3452,4 +3449,25 @@ mlir::rlc::ClassFieldDeclarationAttr
 mlir::rlc::ClassDeclaration::getMemberField(size_t i)
 {
 	return getMemberFields()[i];
+}
+
+void mlir::rlc::ExplicitConstructOp::setArgAttrsAttr(mlir::ArrayAttr attr) {}
+void mlir::rlc::ExplicitConstructOp::setResAttrsAttr(mlir::ArrayAttr attr) {}
+mlir::Attribute mlir::rlc::ExplicitConstructOp::removeArgAttrsAttr()
+{
+	return nullptr;
+}
+mlir::Attribute mlir::rlc::ExplicitConstructOp::removeResAttrsAttr()
+{
+	return nullptr;
+}
+
+mlir::ArrayAttr mlir::rlc::ExplicitConstructOp::getArgAttrsAttr()
+{
+	return mlir::ArrayAttr::get(getContext(), {});
+}
+
+mlir::ArrayAttr mlir::rlc::ExplicitConstructOp::getResAttrsAttr()
+{
+	return mlir::ArrayAttr::get(getContext(), {});
 }

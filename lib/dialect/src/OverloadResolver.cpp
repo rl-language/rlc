@@ -24,10 +24,10 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		mlir::Type calleeArgument,
 		mlir::Type callSiteArgument)
 {
-	if (auto casted = calleeArgument.dyn_cast<mlir::rlc::FrameType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(calleeArgument))
 		return deduceSubstitutions(
 				callPoint, substitutions, casted.getUnderlying(), callSiteArgument);
-	if (auto casted = calleeArgument.dyn_cast<mlir::rlc::ContextType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(calleeArgument))
 		return deduceSubstitutions(
 				callPoint, substitutions, casted.getUnderlying(), callSiteArgument);
 	// if the called function argument is not a template, you must provide exactly
@@ -36,7 +36,7 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 		return mlir::success(callSiteArgument == calleeArgument);
 
 	if (auto templateParameter =
-					calleeArgument.dyn_cast<mlir::rlc::TemplateParameterType>())
+					mlir::dyn_cast<mlir::rlc::TemplateParameterType>(calleeArgument))
 	{
 		if (templateParameter.getTrait() != nullptr and
 				templateParameter.getTrait()
@@ -54,8 +54,8 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 	}
 
 	if (auto pair =
-					std::pair{ calleeArgument.dyn_cast<mlir::rlc::ClassType>(),
-										 callSiteArgument.dyn_cast<mlir::rlc::ClassType>() };
+					std::pair{ mlir::dyn_cast<mlir::rlc::ClassType>(calleeArgument),
+										 mlir::dyn_cast<mlir::rlc::ClassType>(callSiteArgument) };
 			pair.first and pair.second)
 	{
 		if (pair.first.getName() != pair.second.getName())
@@ -82,14 +82,15 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 	}
 
 	if (auto pair =
-					std::pair{ calleeArgument.dyn_cast<mlir::rlc::ArrayType>(),
-										 callSiteArgument.dyn_cast<mlir::rlc::ArrayType>() };
+					std::pair{ mlir::dyn_cast<mlir::rlc::ArrayType>(calleeArgument),
+										 mlir::dyn_cast<mlir::rlc::ArrayType>(callSiteArgument) };
 			pair.first and pair.second)
 	{
 		if (pair.first.getSize() != pair.second.getSize())
 		{
 			if (auto templateParemterCallee =
-							pair.first.getSize().dyn_cast<mlir::rlc::TemplateParameterType>())
+							mlir::dyn_cast<mlir::rlc::TemplateParameterType>(
+									pair.first.getSize()))
 			{
 				assert(templateParemterCallee.getIsIntLiteral());
 				substitutions[templateParemterCallee] = pair.second.getSize();
@@ -105,8 +106,9 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 	}
 
 	if (auto pair =
-					std::pair{ calleeArgument.dyn_cast<mlir::rlc::OwningPtrType>(),
-										 callSiteArgument.dyn_cast<mlir::rlc::OwningPtrType>() };
+					std::pair{
+							mlir::dyn_cast<mlir::rlc::OwningPtrType>(calleeArgument),
+							mlir::dyn_cast<mlir::rlc::OwningPtrType>(callSiteArgument) };
 			pair.first and pair.second)
 	{
 		return deduceSubstitutions(
@@ -116,8 +118,9 @@ mlir::LogicalResult mlir::rlc::OverloadResolver::deduceSubstitutions(
 				pair.second.getUnderlying());
 	}
 
-	if (auto pair = std::pair{ calleeArgument.dyn_cast<mlir::FunctionType>(),
-														 callSiteArgument.dyn_cast<mlir::FunctionType>() };
+	if (auto pair =
+					std::pair{ mlir::dyn_cast<mlir::FunctionType>(calleeArgument),
+										 mlir::dyn_cast<mlir::FunctionType>(callSiteArgument) };
 			pair.first and pair.second)
 	{
 		for (auto [callee, callsite] :
@@ -173,7 +176,8 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 				possibleCallee.getContext(), callSiteArgumentTypes, mlir::TypeRange());
 
 	auto resultType = possibleCallee.getResult(0);
-	if (auto casted = resultType.dyn_cast<mlir::rlc::TemplateParameterType>())
+	if (auto casted =
+					mlir::dyn_cast<mlir::rlc::TemplateParameterType>(resultType))
 	{
 		assert(substitutions.find(casted) != substitutions.end());
 		resultType = substitutions[casted];
@@ -184,7 +188,7 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 		{
 			resultType =
 					resultType.replace([sobstitution](mlir::Type type) -> mlir::Type {
-						auto t = type.dyn_cast<mlir::rlc::TemplateParameterType>();
+						auto t = mlir::dyn_cast<mlir::rlc::TemplateParameterType>(type);
 						if (not t or t != sobstitution.getFirst())
 							return type;
 						return sobstitution.second;
@@ -258,7 +262,7 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 
 	for (auto candidate : symbolTable->get(name))
 	{
-		if (not candidate.getType().isa<mlir::FunctionType>())
+		if (not mlir::isa<mlir::FunctionType>(candidate.getType()))
 			continue;
 		if (errorEmitter)
 			auto _ = logRemark(
@@ -270,8 +274,8 @@ mlir::Value mlir::rlc::OverloadResolver::findOverload(
 
 static bool locsAreInSameFile(mlir::Location l, mlir::Location r)
 {
-	auto casted1 = l.cast<mlir::FileLineColLoc>();
-	auto catsed2 = r.cast<mlir::FileLineColLoc>();
+	auto casted1 = mlir::cast<mlir::FileLineColLoc>(l);
+	auto catsed2 = mlir::cast<mlir::FileLineColLoc>(r);
 	return casted1.getFilename() == catsed2.getFilename();
 }
 
@@ -297,7 +301,7 @@ llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 	llvm::SmallVector<mlir::Value, 2> matching;
 	for (auto candidate : symbolTable->get(name))
 	{
-		auto casted = candidate.getType().dyn_cast<mlir::FunctionType>();
+		auto casted = mlir::dyn_cast<mlir::FunctionType>(candidate.getType());
 		if (not casted)
 			continue;
 
@@ -317,7 +321,7 @@ llvm::SmallVector<mlir::Value, 2> mlir::rlc::OverloadResolver::findOverloads(
 		if (deduceTemplateCallSiteType(
 						callPoint,
 						arguments,
-						candidate.getType().cast<mlir::FunctionType>(),
+						mlir::cast<mlir::FunctionType>(candidate.getType()),
 						templateArguments(candidate.getDefiningOp())) != nullptr)
 		{
 			matching.push_back(candidate);
@@ -340,7 +344,7 @@ mlir::Value mlir::rlc::OverloadResolver::instantiateOverload(
 	auto instantiated = deduceTemplateCallSiteType(
 			loc,
 			arguments,
-			overload.getType().cast<mlir::FunctionType>(),
+			mlir::cast<mlir::FunctionType>(overload.getType()),
 			templateArguments(overload.getDefiningOp()));
 	if (isTemplateType(overload.getType(), isTemplate).failed())
 		return overload;

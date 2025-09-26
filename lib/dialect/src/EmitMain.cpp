@@ -66,7 +66,7 @@ namespace mlir::rlc
 			// with the extra debug info stuff
 			auto loc =
 					debug_info
-							? realMain.getLoc().cast<mlir::FusedLoc>().getLocations()[0]
+							? mlir::cast<mlir::FusedLoc>(realMain.getLoc()).getLocations()[0]
 							: realMain.getLoc();
 			auto op = builder.create<mlir::LLVM::LLVMFuncOp>(
 					loc, "main", mlir::LLVM::LLVMFunctionType::get(returnType, {}));
@@ -103,10 +103,11 @@ namespace mlir::rlc
 					loc, mlir::ValueRange({ trunchated }));
 			if (debug_info)
 			{
-				op->setLoc(mlir::FusedLoc::get(
-						op.getContext(),
-						{ loc },
-						generator.getFunctionAttr(op, "main", nullptr, true)));
+				op->setLoc(
+						mlir::FusedLoc::get(
+								op.getContext(),
+								{ loc },
+								generator.getFunctionAttr(op, "main", nullptr, true)));
 			}
 		}
 

@@ -23,8 +23,9 @@ namespace mlir::rlc
 {
 	static bool isBuiltinType(mlir::Type type)
 	{
-		return type.isa<mlir::rlc::IntegerType>() or
-					 type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::BoolType>();
+		return mlir::isa<mlir::rlc::IntegerType>(type) or
+					 mlir::isa<mlir::rlc::FloatType>(type) or
+					 mlir::isa<mlir::rlc::BoolType>(type);
 	}
 	static mlir::rlc::FunctionOp declareImplicitAssign(
 			mlir::IRRewriter& rewriter,
@@ -46,7 +47,7 @@ namespace mlir::rlc
 
 		assert(not isBuiltinType(type));
 
-		if (auto alternative = type.dyn_cast<mlir::rlc::AlternativeType>())
+		if (auto alternative = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 		{
 			for (auto field : alternative.getUnderlying())
 			{
@@ -104,11 +105,11 @@ namespace mlir::rlc
 		{
 			const auto emitAllNeedSubtypes = [&](mlir::Type subtype) {
 				if (isBuiltinType(subtype) or
-						subtype.template isa<mlir::rlc::OwningPtrType>() or
+						mlir::isa<mlir::rlc::OwningPtrType>(subtype) or
 						builder.isTemplateType(subtype) or
-						subtype.template isa<mlir::rlc::IntegerLiteralType>() or
-						subtype.template isa<mlir::rlc::TraitMetaType>() or
-						subtype.template isa<mlir::rlc::VoidType>())
+						mlir::isa<mlir::rlc::IntegerLiteralType>(subtype) or
+						mlir::isa<mlir::rlc::TraitMetaType>(subtype) or
+						mlir::isa<mlir::rlc::VoidType>(subtype))
 					return;
 
 				auto toCall = declareImplicitAssign(
@@ -180,7 +181,7 @@ namespace mlir::rlc
 	{
 		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
-		auto type = resType.dyn_cast<mlir::rlc::ArrayType>();
+		auto type = mlir::dyn_cast<mlir::rlc::ArrayType>(resType);
 
 		auto* block = &fun.getBody().front();
 		rewriter.setInsertionPointToEnd(block);
@@ -245,7 +246,7 @@ namespace mlir::rlc
 	{
 		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
-		auto type = resType.dyn_cast<mlir::rlc::AlternativeType>();
+		auto type = mlir::dyn_cast<mlir::rlc::AlternativeType>(resType);
 		auto* block = &fun.getBody().front();
 		auto toAssignType = block->getArgumentTypes()[1];
 
@@ -311,7 +312,7 @@ namespace mlir::rlc
 	{
 		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
-		auto type = resType.dyn_cast<mlir::rlc::AlternativeType>();
+		auto type = mlir::dyn_cast<mlir::rlc::AlternativeType>(resType);
 
 		auto* block = &fun.getBody().front();
 		for (auto field : type.getUnderlying())
@@ -348,7 +349,7 @@ namespace mlir::rlc
 	{
 		auto resType = fun.getArgumentTypes().front();
 		auto& rewriter = builder.getRewriter();
-		auto type = resType.dyn_cast<mlir::rlc::ClassType>();
+		auto type = mlir::dyn_cast<mlir::rlc::ClassType>(resType);
 
 		auto* block = &fun.getBody().front();
 		rewriter.setInsertionPointToEnd(block);
@@ -371,10 +372,10 @@ namespace mlir::rlc
 	{
 		bool leafesAreAllPrimitiveTypes = true;
 		t.walk([&](mlir::Type inner) {
-			if (inner.isa<mlir::rlc::ClassType>())
+			if (mlir::isa<mlir::rlc::ClassType>(inner))
 				leafesAreAllPrimitiveTypes = false;
 		});
-		if (t.isa<mlir::rlc::ClassType>())
+		if (mlir::isa<mlir::rlc::ClassType>(t))
 			leafesAreAllPrimitiveTypes = false;
 
 		return leafesAreAllPrimitiveTypes;
@@ -399,7 +400,7 @@ namespace mlir::rlc
 
 		// if we are assining a field of a alternative to the alternative itself,
 		// emit a special assign operator
-		if (auto type = lhs.dyn_cast<mlir::rlc::AlternativeType>();
+		if (auto type = mlir::dyn_cast<mlir::rlc::AlternativeType>(lhs);
 				type and type != fun.getType().getInput(1))
 		{
 			emitImplicitAssignAlternatveField(builder, fun);
@@ -408,15 +409,15 @@ namespace mlir::rlc
 		{
 			emitMemMove(builder.getRewriter(), fun);
 		}
-		else if (auto arraytype = lhs.dyn_cast<mlir::rlc::ArrayType>())
+		else if (auto arraytype = mlir::dyn_cast<mlir::rlc::ArrayType>(lhs))
 		{
 			emitImplicitAssignArray(builder, fun);
 		}
-		else if (auto type = lhs.dyn_cast<mlir::rlc::ClassType>())
+		else if (auto type = mlir::dyn_cast<mlir::rlc::ClassType>(lhs))
 		{
 			emitImplicitAssignClass(builder, fun);
 		}
-		else if (auto type = lhs.dyn_cast<mlir::rlc::AlternativeType>())
+		else if (auto type = mlir::dyn_cast<mlir::rlc::AlternativeType>(lhs))
 		{
 			emitImplicitAssignAlternatve(builder, fun);
 		}

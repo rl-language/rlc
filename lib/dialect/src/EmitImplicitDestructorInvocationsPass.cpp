@@ -26,8 +26,9 @@ namespace mlir::rlc
 {
 	static bool isBuiltinType(mlir::Type type)
 	{
-		return type.isa<mlir::rlc::IntegerType>() or
-					 type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::BoolType>();
+		return mlir::isa<mlir::rlc::IntegerType>(type) or
+					 mlir::isa<mlir::rlc::FloatType>(type) or
+					 mlir::isa<mlir::rlc::BoolType>(type);
 	}
 
 	static mlir::LogicalResult typeRequiresDestructor(
@@ -39,31 +40,31 @@ namespace mlir::rlc
 				iter != requireDestructor.end())
 			return mlir::success(iter->second);
 
-		if (toConsider.isa<mlir::rlc::TraitMetaType>())
+		if (mlir::isa<mlir::rlc::TraitMetaType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::rlc::TemplateParameterType>())
+		if (mlir::isa<mlir::rlc::TemplateParameterType>(toConsider))
 		{
 			requireDestructor[toConsider] = true;
 			return mlir::success();
 		}
 
-		if (toConsider.isa<mlir::rlc::VoidType>())
+		if (mlir::isa<mlir::rlc::VoidType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::FunctionType>())
+		if (mlir::isa<mlir::FunctionType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (auto type = toConsider.dyn_cast<mlir::rlc::AlternativeType>())
+		if (auto type = mlir::dyn_cast<mlir::rlc::AlternativeType>(toConsider))
 		{
 			for (auto field : type.getUnderlying())
 			{
@@ -78,45 +79,45 @@ namespace mlir::rlc
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::rlc::IntegerLiteralType>())
+		if (mlir::isa<mlir::rlc::IntegerLiteralType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::rlc::OwningPtrType>())
+		if (mlir::isa<mlir::rlc::OwningPtrType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::rlc::ContextType>())
+		if (mlir::isa<mlir::rlc::ContextType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::rlc::FrameType>())
+		if (mlir::isa<mlir::rlc::FrameType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::rlc::StringLiteralType>())
+		if (mlir::isa<mlir::rlc::StringLiteralType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (toConsider.isa<mlir::rlc::IntegerType>() or
-				toConsider.isa<mlir::rlc::FloatType>() or
-				toConsider.isa<mlir::rlc::BoolType>())
+		if (mlir::isa<mlir::rlc::IntegerType>(toConsider) or
+				mlir::isa<mlir::rlc::FloatType>(toConsider) or
+				mlir::isa<mlir::rlc::BoolType>(toConsider))
 		{
 			requireDestructor[toConsider] = false;
 			return mlir::failure();
 		}
 
-		if (auto type = toConsider.dyn_cast<mlir::rlc::ArrayType>())
+		if (auto type = mlir::dyn_cast<mlir::rlc::ArrayType>(toConsider))
 		{
 			requireDestructor[toConsider] =
 					typeRequiresDestructor(
@@ -125,7 +126,7 @@ namespace mlir::rlc
 			return mlir::success(requireDestructor[toConsider]);
 		}
 
-		if (auto type = toConsider.dyn_cast<mlir::rlc::ClassType>())
+		if (auto type = mlir::dyn_cast<mlir::rlc::ClassType>(toConsider))
 		{
 			mlir::rlc::OverloadResolver resolver(builder.getSymbolTable());
 			auto overload = resolver.findOverloads(
@@ -219,10 +220,8 @@ namespace mlir::rlc
 			mlir::rlc::FunctionOp fun,
 			OverloadResolver& resolver)
 	{
-		for (auto field : fun.getBody()
-													.getArgument(0)
-													.getType()
-													.cast<mlir::rlc::AlternativeType>()
+		for (auto field : mlir::cast<mlir::rlc::AlternativeType>(
+													fun.getBody().getArgument(0).getType())
 													.getUnderlying())
 		{
 			if (isBuiltinType(field))
@@ -281,7 +280,7 @@ namespace mlir::rlc
 					fun.getType().getInputs(),
 					{ fun.getLoc() });
 			rewriter.setInsertionPointToStart(body);
-			if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+			if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 			{
 				for (auto num : ::rlc::irange(casted.getMembers().size()))
 				{
@@ -297,7 +296,7 @@ namespace mlir::rlc
 							op.getLoc(), subFunction, true, mlir::ValueRange({ access }));
 				}
 			}
-			else if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
+			else if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 			{
 				auto subType = casted.getUnderlying();
 				auto subFunction = resolver.instantiateOverload(
@@ -307,7 +306,7 @@ namespace mlir::rlc
 						subFunction,
 						mlir::ValueRange({ body->getArgument(0) }));
 			}
-			else if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+			else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 			{
 				emitImplicitDestructorAlternativeType(rewriter, fun, resolver);
 			}
@@ -336,10 +335,11 @@ namespace mlir::rlc
 			destructorsToCreate.push_back(t);
 		};
 
-        for (auto classDecl : op.getOps <mlir::rlc::ClassDeclaration>()) {
-            collectToCreate(classDecl.getDeclaredType());
-            classDecl.getDeclaredType().walk(collectToCreate);
-        }
+		for (auto classDecl : op.getOps<mlir::rlc::ClassDeclaration>())
+		{
+			collectToCreate(classDecl.getDeclaredType());
+			classDecl.getDeclaredType().walk(collectToCreate);
+		}
 		op.walk([&](mlir::rlc::TypeAliasOp op) {
 			auto type = op.getAliased();
 			collectToCreate(type);
@@ -492,8 +492,8 @@ namespace mlir::rlc
 						toEmitDestroy.push_back(result);
 			});
 			fun->walk([&](mlir::rlc::CallOp op) {
-				if (op.getNumResults() == 0 or
-						op.getCalleeType().getResult(0).isa<mlir::rlc::ReferenceType>())
+				if (op.getNumResults() == 0 or mlir::isa<mlir::rlc::ReferenceType>(
+																					 op.getCalleeType().getResult(0)))
 					return;
 				for (mlir::Value result : op->getResults())
 					if (typeRequiresDestructor(

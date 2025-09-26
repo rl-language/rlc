@@ -59,7 +59,7 @@ namespace mlir::rlc
 		auto global = rewriter.create<mlir::rlc::FlatConstantGlobalOp>(
 				op.getLoc(),
 				op.getResult().getType(),
-				op.getValue().cast<mlir::ArrayAttr>(),
+				mlir::cast<mlir::ArrayAttr>(op.getValue()),
 				name);
 
 		for (auto& use : op.getResult().getUses())
@@ -86,7 +86,7 @@ namespace mlir::rlc
 			size_t emittedGlobals = 0;
 
 			getOperation().walk([&](mlir::rlc::Constant initializer) {
-				if (initializer.getType().isa<mlir::rlc::ArrayType>())
+				if (mlir::isa<mlir::rlc::ArrayType>(initializer.getType()))
 					toGlobals.push_back(initializer);
 			});
 

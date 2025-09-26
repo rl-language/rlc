@@ -261,6 +261,8 @@ bool mlir::rlc::TargetInfo::isWindows() const
 	return pimpl->triple.isOSWindows();
 }
 
+llvm::Triple mlir::rlc::TargetInfo::triple() const { return pimpl->triple; }
+
 std::string mlir::rlc::TargetInfo::tripleToString() const
 {
 	return pimpl->triple.getTriple();
@@ -326,7 +328,7 @@ static mlir::LogicalResult getLinkerInvocation(
 	llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> VFS =
 			new llvm::vfs::OverlayFileSystem(llvm::vfs::getRealFileSystem());
 	llvm::IntrusiveRefCntPtr diagIds(new clang::DiagnosticIDs());
-	llvm::IntrusiveRefCntPtr opts(new clang::DiagnosticOptions());
+	auto opts = clang::DiagnosticOptions();
 	clang::DiagnosticsEngine engine(diagIds, opts);
 	engine.setClient(new clang::DiagnosticConsumer(), true);
 	clang::driver::Driver driver(
@@ -335,7 +337,7 @@ static mlir::LogicalResult getLinkerInvocation(
 	auto binDir = llvm::sys::path::parent_path(clangPath);
 	auto installDir = llvm::sys::path::parent_path(binDir);
 	llvm::SmallVector<char, 4> clangResourceDir;
-	llvm::sys::path::append(clangResourceDir, installDir, "lib", "clang", "20");
+	llvm::sys::path::append(clangResourceDir, installDir, "lib", "clang", "21");
 	driver.ResourceDir =
 			llvm::StringRef(clangResourceDir.data(), clangResourceDir.size());
 	if (targetMac and not llvm::sys::Process::GetEnv("SDKROOT"))
@@ -552,7 +554,7 @@ namespace mlir::rlc
 			auto Module = mlir::translateModuleToLLVMIR(
 					getOperation(), LLVMcontext, getOperation().getName().value());
 			assert(Module);
-			Module->setTargetTriple(targetInfo->tripleToString());
+			Module->setTargetTriple(targetInfo->triple());
 
 			runOptimizer(
 					*Module,

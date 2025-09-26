@@ -65,7 +65,7 @@ namespace mlir::rlc
 			auto *falseBranch = rewriter.createBlock(&ifStatement.getElseBranch());
 			std::string message;
 			llvm::raw_string_ostream OS(message);
-			auto casted = op.getLoc().cast<mlir::FileLineColLoc>();
+			auto casted = mlir::cast<mlir::FileLineColLoc>(op.getLoc());
 			OS << casted.getFilename().str() << ":" << casted.getLine() << ":"
 				 << casted.getColumn() << " ";
 			OS << "error: " << op.getMessage() << "\n";

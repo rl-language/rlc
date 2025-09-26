@@ -45,7 +45,7 @@ namespace mlir::rlc
 		writer.write("void ");
 		writer.write(name);
 		writer.write("(");
-		if (not result.isa<mlir::rlc::VoidType>())
+		if (not mlir::isa<mlir::rlc::VoidType>(result))
 		{
 			writer.write("void* result");
 			if (not type.getInputs().empty())
@@ -213,7 +213,7 @@ namespace mlir::rlc
 	{
 		bool isStringArg =
 				mlir::isa_and_nonnull<mlir::rlc::StringLiteralType>(type);
-		if (type.isa_and_nonnull<mlir::rlc::StringLiteralType>())
+		if (isa_and_nonnull<mlir::rlc::StringLiteralType>(type))
 		{
 			printArgName(writer, name);
 			return;
@@ -356,7 +356,7 @@ namespace mlir::rlc
 				{
 					w.writenl("__to_return");
 				}
-				else if (resultType.isa<mlir::rlc::StringLiteralType>())
+				else if (mlir::isa<mlir::rlc::StringLiteralType>(resultType))
 				{
 					w.write("__result[0, ");
 					printTypeSize(w, resultType);
@@ -369,7 +369,7 @@ namespace mlir::rlc
 					w.write("].unpack1('");
 					printTypeUnpack(w, resultType);
 					w.write("')");
-					if (resultType.isa<mlir::rlc::BoolType>())
+					if (mlir::isa<mlir::rlc::BoolType>(resultType))
 					{
 						w.write(" != 0");
 					}
@@ -577,7 +577,7 @@ namespace mlir::rlc
 			mlir::Type size = nullptr)
 	{
 		bool needs_rlc_introducer =
-				isUserDefined(type) and not type.isa<mlir::rlc::ArrayType>();
+				isUserDefined(type) and not mlir::isa<mlir::rlc::ArrayType>(type);
 		if (size != nullptr)
 		{
 			w.write("{\"", name, "[");
@@ -691,13 +691,14 @@ namespace mlir::rlc
 	static void emitMemberConverter(
 			mlir::rlc::ClassFieldAttr attr, mlir::rlc::StreamWriter& w)
 	{
-		if (auto clsType = attr.getType().dyn_cast<mlir::rlc::ClassType>())
+		if (auto clsType = mlir::dyn_cast<mlir::rlc::ClassType>(attr.getType()))
 		{
 			w.write(clsType.mangledName(), ".new(");
 			w.write("@content.", attr.getName(), ")");
 			return;
 		}
-		if (auto clsType = attr.getType().dyn_cast<mlir::rlc::AlternativeType>())
+		if (auto clsType =
+						mlir::dyn_cast<mlir::rlc::AlternativeType>(attr.getType()))
 		{
 			w.writeType(clsType);
 			w.write(".new(");
@@ -1360,7 +1361,7 @@ namespace mlir::rlc
 			if (not returnVoid)
 			{
 				OS.write("return __result", needsUnwrapping(fType) ? ".content" : "");
-				if (resultType.isa<mlir::rlc::BoolType>())
+				if (mlir::isa<mlir::rlc::BoolType>(resultType))
 					OS.write(" != 0");
 			}
 

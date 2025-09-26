@@ -62,8 +62,8 @@ namespace mlir
 			{
 				if (liveValues.contains(value))
 					return ChangeResult::NoChange;
-				if (value.getType().isa<mlir::rlc::ContextType>() or
-						value.getType().isa<mlir::rlc::FrameType>())
+				if (mlir::isa<mlir::rlc::ContextType>(value.getType()) or
+						mlir::isa<mlir::rlc::FrameType>(value.getType()))
 					return ChangeResult::NoChange;
 				liveValues.insert(value);
 				return ChangeResult::Change;
@@ -165,8 +165,8 @@ namespace mlir
 			bool reachesOperation(mlir::Value value, mlir::Operation* op)
 			{
 				auto* lattice = getLattice(LatticeAnchor(getProgramPointBefore(op)));
-				if (value.getType().isa<mlir::rlc::ContextType>() or
-						value.getType().isa<mlir::rlc::FrameType>())
+				if (mlir::isa<mlir::rlc::ContextType>(value.getType()) or
+						mlir::isa<mlir::rlc::FrameType>(value.getType()))
 					return true;
 				return lattice->contains(value);
 			}

@@ -37,9 +37,8 @@ TEST(ParserTest, testScalarConstantExpressions)
 	EXPECT_NE(exp->getDefiningOp<mlir::rlc::Constant>(), nullptr);
 	EXPECT_EQ(
 			3,
-			exp->getDefiningOp<mlir::rlc::Constant>()
-					.getValueAttr()
-					.cast<mlir::IntegerAttr>()
+			mlir::cast<mlir::IntegerAttr>(
+					exp->getDefiningOp<mlir::rlc::Constant>().getValueAttr())
 					.getValue());
 }
 
@@ -57,9 +56,8 @@ TEST(ParserTest, testScalarBoolExpressions)
 	EXPECT_NE(exp->getDefiningOp<mlir::rlc::Constant>(), nullptr);
 	EXPECT_EQ(
 			true,
-			exp->getDefiningOp<mlir::rlc::Constant>()
-					.getValue()
-					.cast<mlir::BoolAttr>()
+			mlir::cast<mlir::BoolAttr>(
+					exp->getDefiningOp<mlir::rlc::Constant>().getValue())
 					.getValue());
 }
 
@@ -75,9 +73,8 @@ TEST(ParserTest, testScalarDoubleExpressions)
 		FAIL();
 
 	EXPECT_NE(exp->getDefiningOp<mlir::rlc::Constant>(), nullptr);
-	exp->getDefiningOp<mlir::rlc::Constant>()
-			.getValueAttr()
-			.cast<mlir::FloatAttr>()
+	mlir::cast<mlir::FloatAttr>(
+			exp->getDefiningOp<mlir::rlc::Constant>().getValueAttr())
 			.getValue();
 }
 
@@ -93,9 +90,8 @@ TEST(ParserTest, testExpression)
 		FAIL();
 
 	EXPECT_TRUE(exp->getDefiningOp<mlir::rlc::Constant>());
-	exp->getDefiningOp<mlir::rlc::Constant>()
-			.getValueAttr()
-			.cast<mlir::FloatAttr>()
+	mlir::cast<mlir::FloatAttr>(
+			exp->getDefiningOp<mlir::rlc::Constant>().getValueAttr())
 			.getValue();
 }
 
@@ -180,7 +176,7 @@ TEST(ParserTest, singleTypeTest)
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
-	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
+	auto casted = mlir::cast<mlir::rlc::ScalarUseType>((*s).getType());
 
 	EXPECT_EQ(casted.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 0));
 	EXPECT_EQ(casted.getReadType(), "int");
@@ -195,11 +191,12 @@ TEST(ParserTest, arrayTypeTest)
 	auto s = p.singleTypeUse();
 	if (!s)
 		FAIL();
-	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
+	auto casted = mlir::cast<mlir::rlc::ScalarUseType>((*s).getType());
 
 	EXPECT_EQ(casted.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
 	EXPECT_EQ(
-			casted.getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(),
+			mlir::cast<mlir::rlc::ScalarUseType>(casted.getUnderlying())
+					.getReadType(),
 			"int");
 }
 
@@ -213,14 +210,14 @@ TEST(ParserTest, functionTypeTest)
 	if (!s)
 		FAIL();
 
-	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
-	EXPECT_TRUE(casted.getUnderlying().isa<mlir::rlc::FunctionUseType>());
-	auto r = casted.getUnderlying()
-							 .cast<mlir::rlc::FunctionUseType>()
-							 .getSubTypes()[0]
-							 .cast<mlir::rlc::ScalarUseType>();
+	auto casted = mlir::cast<mlir::rlc::ScalarUseType>((*s).getType());
+	EXPECT_TRUE(mlir::isa<mlir::rlc::FunctionUseType>(casted.getUnderlying()));
+	auto r = mlir::cast<mlir::rlc::ScalarUseType>(
+			mlir::cast<mlir::rlc::FunctionUseType>(casted.getUnderlying())
+					.getSubTypes()[0]);
 	EXPECT_EQ(
-			r.getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(), "int");
+			mlir::cast<mlir::rlc::ScalarUseType>(r.getUnderlying()).getReadType(),
+			"int");
 	EXPECT_EQ(r.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
 }
 
@@ -234,19 +231,18 @@ TEST(ParserTest, complexFunctionTypeTest)
 	if (!s)
 		FAIL();
 
-	auto casted = (*s).getType().cast<mlir::rlc::ScalarUseType>();
-	EXPECT_TRUE(casted.getUnderlying().isa<mlir::rlc::FunctionUseType>());
-	auto r = casted.getUnderlying()
-							 .cast<mlir::rlc::FunctionUseType>()
-							 .getSubTypes()[0]
-							 .cast<mlir::rlc::ScalarUseType>();
+	auto casted = mlir::cast<mlir::rlc::ScalarUseType>((*s).getType());
+	EXPECT_TRUE(mlir::isa<mlir::rlc::FunctionUseType>(casted.getUnderlying()));
+	auto r = mlir::cast<mlir::rlc::ScalarUseType>(
+			mlir::cast<mlir::rlc::FunctionUseType>(casted.getUnderlying())
+					.getSubTypes()[0]);
 	EXPECT_EQ(
-			r.getUnderlying().cast<mlir::rlc::ScalarUseType>().getReadType(), "int");
+			mlir::cast<mlir::rlc::ScalarUseType>(r.getUnderlying()).getReadType(),
+			"int");
 	EXPECT_EQ(r.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 10));
-	auto r2 = casted.getUnderlying()
-								.cast<mlir::rlc::FunctionUseType>()
-								.getSubTypes()[1]
-								.cast<mlir::rlc::ScalarUseType>();
+	auto r2 = mlir::cast<mlir::rlc::ScalarUseType>(
+			mlir::cast<mlir::rlc::FunctionUseType>(casted.getUnderlying())
+					.getSubTypes()[1]);
 	EXPECT_EQ(r2.getReadType(), "int");
 	EXPECT_EQ(r2.getSize(), mlir::rlc::IntegerLiteralType::get(&context, 0));
 }
@@ -278,9 +274,8 @@ TEST(ParserTest, zeroDefinition)
 	EXPECT_NE(s->getDefiningOp<mlir::rlc::Constant>(), nullptr);
 	EXPECT_EQ(
 			0,
-			s->getDefiningOp<mlir::rlc::Constant>()
-					.getValueAttr()
-					.cast<mlir::IntegerAttr>()
+			mlir::cast<mlir::IntegerAttr>(
+					s->getDefiningOp<mlir::rlc::Constant>().getValueAttr())
 					.getValue());
 }
 

@@ -53,7 +53,7 @@ static bool isTypeContraint(const llvm::DefInit *init)
 {
 	for (auto c : init->getDef()->getSuperClasses())
 	{
-		if (c.first->getName() == "TypeConstraint")
+		if (c->getName() == "TypeConstraint")
 		{
 			return true;
 		}
@@ -143,7 +143,7 @@ static bool isParameterOptional(const Init *init)
 	if (not defInit)
 		return false;
 	return (llvm::any_of(defInit->getDef()->getSuperClasses(), [](auto i) {
-		return i.first->getName() == "OptionalParameter";
+		return i->getName() == "OptionalParameter";
 	}));
 }
 

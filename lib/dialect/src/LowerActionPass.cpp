@@ -55,7 +55,7 @@ namespace mlir::rlc
 			for (auto& use : operands)
 			{
 				rewriter.setInsertionPoint(use->getOwner());
-				if (arg.getType().isa<mlir::rlc::FrameType>())
+				if (mlir::isa<mlir::rlc::FrameType>(arg.getType()))
 				{
 					auto refToMember = rewriter.create<mlir::rlc::MemberAccess>(
 							use->getOwner()->getLoc(),
@@ -88,7 +88,7 @@ namespace mlir::rlc
 		mlir::IRRewriter& rewriter = builder.getRewriter();
 
 		auto refToClass = action.getBlocks().front().getArgument(0);
-		auto type = refToClass.getType().cast<mlir::rlc::ClassType>();
+		auto type = mlir::cast<mlir::rlc::ClassType>(refToClass.getType());
 
 		llvm::SmallVector<mlir::rlc::DeclarationStatement, 4> decls;
 		action.walk([&](mlir::rlc::DeclarationStatement statement) {
@@ -97,11 +97,11 @@ namespace mlir::rlc
 
 		for (auto decl : decls)
 		{
-			if (not decl.getType().isa<mlir::rlc::FrameType>())
+			if (not mlir::isa<mlir::rlc::FrameType>(decl.getType()))
 				continue;
 			size_t memberIndex = frames.first.indexOf(decl) + 1;
 			auto underlyingType =
-					decl.getType().cast<mlir::rlc::FrameType>().getUnderlying();
+					mlir::cast<mlir::rlc::FrameType>(decl.getType()).getUnderlying();
 			// we have replaced the real location of the variable, we can now decay it
 			// into a regular type
 			decl.getResult().setType(underlyingType);
@@ -230,7 +230,7 @@ namespace mlir::rlc
 	{
 		for (auto arg : llvm::enumerate(subAction.getResults()))
 		{
-			if (arg.value().getType().isa<mlir::rlc::FrameType>())
+			if (mlir::isa<mlir::rlc::FrameType>(arg.value().getType()))
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
 						action.getLoc(),
@@ -245,7 +245,7 @@ namespace mlir::rlc
 			else
 			{
 				mlir::Value addressOfArgInFrame;
-				if (arg.value().getType().isa<mlir::rlc::ContextType>())
+				if (mlir::isa<mlir::rlc::ContextType>(arg.value().getType()))
 				{
 					// Context argumets are guaranteed to be the first of the list
 					addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
@@ -328,9 +328,9 @@ namespace mlir::rlc
 		llvm::SmallVector<mlir::Type, 4> decayedArgs;
 		for (auto arg : t.getInputs())
 		{
-			if (auto casted = arg.dyn_cast<mlir::rlc::FrameType>())
+			if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(arg))
 				decayedArgs.push_back(casted.getUnderlying());
-			else if (auto casted = arg.dyn_cast<mlir::rlc::ContextType>())
+			else if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(arg))
 				decayedArgs.push_back(casted.getUnderlying());
 			else
 				decayedArgs.push_back(arg);
@@ -386,9 +386,10 @@ namespace mlir::rlc
 	{
 		for (auto& arg : region.front().getArguments())
 		{
-			if (auto casted = arg.getType().dyn_cast<mlir::rlc::FrameType>())
+			if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(arg.getType()))
 				arg.setType(casted.getUnderlying());
-			else if (auto casted = arg.getType().dyn_cast<mlir::rlc::ContextType>())
+			else if (
+					auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(arg.getType()))
 				arg.setType(casted.getUnderlying());
 		}
 	}
@@ -409,9 +410,9 @@ namespace mlir::rlc
 	{
 		mlir::IRRewriter rewriter(action.getContext());
 		rewriter.setInsertionPoint(action);
-		auto type = decayFunctionType(action.getActions()[subActionIndex]
-																			.getType()
-																			.cast<mlir::FunctionType>());
+		auto type = decayFunctionType(
+				mlir::cast<mlir::FunctionType>(
+						action.getActions()[subActionIndex].getType()));
 		auto classType = action.getClassType();
 
 		auto firstStatement = llvm::cast<mlir::rlc::ActionStatement>(subActions[0]);
@@ -476,7 +477,7 @@ namespace mlir::rlc
 		auto f = rewriter.create<mlir::rlc::FunctionOp>(
 				action.getLoc(),
 				action.getUnmangledName(),
-				decayFunctionType(action.getType().cast<mlir::FunctionType>()),
+				decayFunctionType(mlir::cast<mlir::FunctionType>(action.getType())),
 				mlir::rlc::FunctionInfoAttr::get(
 						action.getContext(), action.getArgNames()),
 				false);
@@ -496,7 +497,8 @@ namespace mlir::rlc
 
 		action.getOperation()->getResult(0).replaceAllUsesWith(f);
 
-		auto classType = builder.typeOfAction(action).cast<mlir::rlc::ClassType>();
+		auto classType =
+				mlir::cast<mlir::rlc::ClassType>(builder.typeOfAction(action));
 		auto initFunction = builder.getInitFunctionOf(classType);
 		auto frame = rewriter.create<mlir::rlc::ExplicitConstructOp>(
 				action.getLoc(), initFunction);
@@ -521,7 +523,7 @@ namespace mlir::rlc
 		for (const auto& argument : llvm::enumerate(action.getArgNames()))
 		{
 			auto arg = action.getType().getInputs()[argument.index()];
-			if (arg.isa<mlir::rlc::FrameType>())
+			if (mlir::isa<mlir::rlc::FrameType>(arg))
 			{
 				auto addressOfArgInFrame = rewriter.create<mlir::rlc::MemberAccess>(
 						action.getLoc(), frame, explitFrameIndex++);
@@ -587,15 +589,15 @@ namespace mlir::rlc
 					rewriter.setInsertionPoint(use->getOwner());
 					auto frame = fun.getBlocks().front().getArgument(0);
 					auto frameHidden = fun.getBlocks().front().getArgument(1);
-					auto classType = frame.getType().cast<mlir::rlc::ClassType>();
+					auto classType = mlir::cast<mlir::rlc::ClassType>(frame.getType());
 
-					if (res.getType().isa<mlir::rlc::FrameType>())
+					if (mlir::isa<mlir::rlc::FrameType>(res.getType()))
 					{
 						auto ref = rewriter.create<mlir::rlc::MemberAccess>(
 								op.getLoc(), frame, frames.first.indexOf(res) + 1);
 						use->set(ref);
 					}
-					else if (res.getType().isa<mlir::rlc::ContextType>())
+					else if (mlir::isa<mlir::rlc::ContextType>(res.getType()))
 					{
 						auto ref = rewriter.create<mlir::rlc::MemberAccess>(
 								op.getLoc(), frameHidden, index);

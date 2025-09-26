@@ -35,7 +35,7 @@ namespace mlir::rlc
 		if (not constant)
 			return;
 
-		auto boolAttr = constant.getValue().dyn_cast<mlir::BoolAttr>();
+		auto boolAttr = mlir::dyn_cast<mlir::BoolAttr>(constant.getValue());
 		if (not boolAttr)
 			return;
 
@@ -60,7 +60,7 @@ namespace mlir::rlc
 				continue;
 
 			bool evalsToTrue =
-					op.getInput().getType().isa<mlir::rlc::AlternativeType>();
+					mlir::isa<mlir::rlc::AlternativeType>(op.getInput().getType());
 			rewriter.setInsertionPoint(op);
 			rewriter.replaceOpWithNewOp<mlir::rlc::Constant>(op, evalsToTrue);
 		}
@@ -77,13 +77,14 @@ namespace mlir::rlc
 		{
 			if (isTemplateType(op.getTypeOrTrait()).succeeded() or
 					isTemplateType(op.getExpression().getType()).succeeded() or
-					(op.getExpression().getType().isa<mlir::rlc::AlternativeType>() and
-					 not op.getTypeOrTrait().isa<mlir::rlc::TraitMetaType>()))
+					(mlir::isa<mlir::rlc::AlternativeType>(
+							 op.getExpression().getType()) and
+					 not mlir::isa<mlir::rlc::TraitMetaType>(op.getTypeOrTrait())))
 				continue;
 
 			bool evalsToTrue = true;
 			if (auto casted =
-							op.getTypeOrTrait().dyn_cast<mlir::rlc::TraitMetaType>())
+							mlir::dyn_cast<mlir::rlc::TraitMetaType>(op.getTypeOrTrait()))
 			{
 				evalsToTrue = casted
 													.typeRespectsTrait(

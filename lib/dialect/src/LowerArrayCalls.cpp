@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,9 +34,10 @@ namespace mlir::rlc
 				mlir::ConversionPatternRewriter& rewriter) const final
 		{
 			auto arrayType =
-					op.getArgs().front().getType().cast<mlir::rlc::ArrayType>();
+					mlir::cast<mlir::rlc::ArrayType>(op.getArgs().front().getType());
 			int64_t size =
-					arrayType.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();
+					mlir::cast<mlir::rlc::IntegerLiteralType>(arrayType.getSize())
+							.getValue();
 			rewriter.setInsertionPoint(op);
 			mlir::Value result = nullptr;
 			if (op.getNumResults() != 0)

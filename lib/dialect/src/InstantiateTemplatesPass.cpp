@@ -40,13 +40,13 @@ namespace mlir::rlc
 			llvm::StringMap<llvm::DenseSet<mlir::rlc::ClassType>>& out)
 	{
 		for (auto t : t.getInputs())
-			if (auto casted = t.dyn_cast<mlir::rlc::ClassType>())
+			if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
 				out[casted.getName()].insert(casted);
 
 		if (t.getNumResults() == 0)
 			return;
 
-		if (auto casted = t.getResult(0).dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t.getResult(0)))
 			out[casted.getName()].insert(casted);
 	}
 
@@ -59,9 +59,9 @@ namespace mlir::rlc
 
 		for (auto op : op.getOps<mlir::rlc::ActionFunction>())
 			for (auto emittedFunction : op.getResultTypes())
-				if (emittedFunction.isa<mlir::FunctionType>())
+				if (mlir::isa<mlir::FunctionType>(emittedFunction))
 					registerFunctionTypes(
-							emittedFunction.cast<mlir::FunctionType>(), out);
+							mlir::cast<mlir::FunctionType>(emittedFunction), out);
 	}
 
 	static void instantiateStructDeclarationIfNeeded(

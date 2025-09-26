@@ -134,7 +134,8 @@ namespace mlir::rlc
 				return {};
 			for (auto typeAttr : subAction.getTypes())
 			{
-				auto type = decayCtxFrmType(typeAttr.cast<mlir::TypeAttr>().getValue());
+				auto type =
+						decayCtxFrmType(mlir::cast<mlir::TypeAttr>(typeAttr).getValue());
 				if (auto alternative = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 					for (auto entry : alternative.getUnderlying())
 						toReturn.push_back(decayCtxFrmType(entry));
@@ -241,7 +242,7 @@ namespace mlir::rlc
 				std::string result;
 				for (auto type : casted.getTypes())
 					result += prettyType(decayCtxFrmType(
-												type.cast<mlir::TypeAttr>().getValue())) +
+												mlir::cast<mlir::TypeAttr>(type).getValue())) +
 										" ";
 				return result;
 			}

@@ -226,7 +226,7 @@ namespace mlir
 				auto members = attrRepls.take_front(param.getFields().size());
 				llvm::SmallVector<rlc::ClassFieldAttr> attrs;
 				for (auto member : members)
-					attrs.push_back(member.cast<rlc::ClassFieldAttr>());
+					attrs.push_back(mlir::cast<rlc::ClassFieldAttr>(member));
 
 				return rlc::StructTypeStorage::Key(
 						param.name, templateParameters, attrs);

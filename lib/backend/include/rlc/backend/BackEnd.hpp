@@ -18,6 +18,8 @@ limitations under the License.
 #include <memory>
 #include <string>
 
+#include "llvm/TargetParser/Triple.h"
+
 namespace llvm
 {
 	class DataLayout;
@@ -37,6 +39,7 @@ namespace mlir::rlc
 		bool isMacOS() const;
 		bool isWindows() const;
 		std::string tripleToString() const;
+		llvm::Triple triple() const;
 		const llvm::DataLayout& getDataLayout() const;
 
 		TargetInfo(TargetInfo&& other): pimpl(other.pimpl)

@@ -309,8 +309,8 @@ namespace mlir::rlc
 				detail::ActionLiveness liveness(fun);
 				for (auto arg : fun.getBody().front().getArguments())
 				{
-					if ((not arg.getType().isa<mlir::rlc::FrameType>() and
-							 not arg.getType().isa<mlir::rlc::ContextType>()) and
+					if ((not mlir::isa<mlir::rlc::FrameType>(arg.getType()) and
+							 not mlir::isa<mlir::rlc::ContextType>(arg.getType())) and
 							liveness.isUsedAcrossActions(fun, arg))
 					{
 						auto _ = mlir::rlc::logError(
@@ -324,7 +324,7 @@ namespace mlir::rlc
 				}
 
 				fun.walk([&, this](mlir::rlc::DeclarationStatement statemenet) {
-					if (not statemenet.getType().isa<mlir::rlc::FrameType>() and
+					if (not mlir::isa<mlir::rlc::FrameType>(statemenet.getType()) and
 							liveness.isUsedAcrossActions(fun, statemenet))
 					{
 						auto _ = mlir::rlc::logError(
@@ -338,8 +338,8 @@ namespace mlir::rlc
 
 				fun.walk([&, this](mlir::rlc::ActionStatement statemenet) {
 					for (auto res : statemenet.getResults())
-						if ((not res.getType().isa<mlir::rlc::FrameType>() and
-								 not res.getType().isa<mlir::rlc::ContextType>()) and
+						if ((not mlir::isa<mlir::rlc::FrameType>(res.getType()) and
+								 not mlir::isa<mlir::rlc::ContextType>(res.getType())) and
 								liveness.isUsedAcrossActions(fun, res))
 						{
 							auto _ = mlir::rlc::logError(

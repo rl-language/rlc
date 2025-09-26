@@ -58,9 +58,9 @@ static std::string nonArrayTypeToString(
 static std::string typeToString(
 		mlir::Type type, bool unionClassQualified = true)
 {
-	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
 		type = casted.getUnderlying();
-	else if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
+	else if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(type))
 		type = casted.getUnderlying();
 
 	std::string O;
@@ -69,7 +69,8 @@ static std::string typeToString(
 			.Case<mlir::rlc::ArrayType>([&](mlir::rlc::ArrayType array) {
 				OS << typeToString(array.getUnderlying(), unionClassQualified);
 				OS << "["
-					 << array.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()
+					 << mlir::cast<mlir::rlc::IntegerLiteralType>(array.getSize())
+									.getValue()
 					 << "]";
 			})
 			.Case<mlir::rlc::OwningPtrType>([&](mlir::rlc::OwningPtrType ptr) {
@@ -93,16 +94,17 @@ static void printTypeField(
 		llvm::raw_ostream& OS,
 		bool isRef = false)
 {
-	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
 		type = casted.getUnderlying();
-	else if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
+	else if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(type))
 		type = casted.getUnderlying();
 
 	llvm::TypeSwitch<mlir::Type>(type)
 			.Case<mlir::rlc::ArrayType>([&](mlir::rlc::ArrayType array) {
 				printTypeField(fieldName, array.getUnderlying(), OS, isRef);
 				OS << "["
-					 << array.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue()
+					 << mlir::cast<mlir::rlc::IntegerLiteralType>(array.getSize())
+									.getValue()
 					 << "]";
 			})
 			.Case<mlir::rlc::OwningPtrType>([&](mlir::rlc::OwningPtrType ptr) {
@@ -115,7 +117,7 @@ static void printTypeField(
 			})
 			.Default([&](auto type) { OS << nonArrayTypeToString(type); });
 
-	if (not type.isa<mlir::rlc::ArrayType>())
+	if (not mlir::isa<mlir::rlc::ArrayType>(type))
 	{
 		if (isRef)
 			OS << "(&";
@@ -144,7 +146,7 @@ static void printMethodOfType(
 {
 	bool isSelfAssign = isFunctionSelfAssign(name, type, self);
 	bool returnsVoid = type.getResults().empty() or
-										 type.getResults()[0].isa<mlir::rlc::VoidType>();
+										 mlir::isa<mlir::rlc::VoidType>(type.getResults()[0]);
 	if (not isDecl)
 		OS << "inline ";
 
@@ -201,8 +203,8 @@ static void printMethodOfType(
 	if (not returnsVoid)
 	{
 		bool needsToInvokeDestructor =
-				type.getResult(0).isa<mlir::rlc::ClassType>() or
-				type.getResult(0).isa<mlir::rlc::AlternativeType>();
+				mlir::isa<mlir::rlc::ClassType>(type.getResult(0)) or
+				mlir::isa<mlir::rlc::AlternativeType>(type.getResult(0));
 		OS.indent(1);
 		OS << "union ToReturn { " << typeToString(type.getResult(0))
 			 << " payload; ToReturn() {}; ~ToReturn() {";
@@ -283,19 +285,19 @@ static void printMethodsOfType(
 				printMethodOfType(
 						OS,
 						type,
-						value.getType().cast<mlir::FunctionType>(),
+						mlir::cast<mlir::FunctionType>(value.getType()),
 						action.getName(),
 						mlir::rlc::mangledName(
 								action.getName(),
 								true,
-								value.getType().cast<mlir::FunctionType>()),
+								mlir::cast<mlir::FunctionType>(value.getType())),
 						attrs,
 						builder,
 						isDecl);
 
 				auto can_type = mlir::FunctionType::get(
 						value.getContext(),
-						value.getType().cast<mlir::FunctionType>().getInputs(),
+						mlir::cast<mlir::FunctionType>(value.getType()).getInputs(),
 						{ mlir::rlc::BoolType::get(value.getContext()) });
 				printMethodOfType(
 						OS,
@@ -322,7 +324,7 @@ static void printCPPOverloadPrecondition(
 {
 	// do not emit a proper wrapper for arrays, it is not clear how to do that
 	for (auto t : type.getInputs())
-		if (t.isa<mlir::rlc::ArrayType>())
+		if (mlir::isa<mlir::rlc::ArrayType>(t))
 			return;
 
 	if (name == "main")
@@ -369,14 +371,14 @@ static void printCPPOverload(
 {
 	// do not emit a proper wrapper for arrays, it is not clear how to do that
 	for (auto t : type.getInputs())
-		if (t.isa<mlir::rlc::ArrayType>())
+		if (mlir::isa<mlir::rlc::ArrayType>(t))
 			return;
 
 	if (name == "main")
 		return;
 
 	bool returnsVoid = type.getResults().empty() or
-										 type.getResults()[0].isa<mlir::rlc::VoidType>();
+										 mlir::isa<mlir::rlc::VoidType>(type.getResults()[0]);
 	OS << "inline ";
 
 	if (returnsVoid)
@@ -397,8 +399,8 @@ static void printCPPOverload(
 	if (not returnsVoid)
 	{
 		bool needsToInvokeDestructor =
-				type.getResult(0).isa<mlir::rlc::ClassType>() or
-				type.getResult(0).isa<mlir::rlc::AlternativeType>();
+				mlir::isa<mlir::rlc::ClassType>(type.getResult(0)) or
+				mlir::isa<mlir::rlc::AlternativeType>(type.getResult(0));
 		OS.indent(1);
 		OS << "union ToReturn { " << typeToString(type.getResult(0))
 			 << " payload; ToReturn() {}; ~ToReturn() {";
@@ -600,7 +602,7 @@ static void printFunctionSignature(
 	OS << name << "(";
 
 	if (not type.getResults().empty() and
-			not type.getResults()[0].isa<mlir::rlc::VoidType>())
+			not mlir::isa<mlir::rlc::VoidType>(type.getResults()[0]))
 	{
 		printTypeField("* __result", type.getResults().front(), OS);
 
@@ -706,7 +708,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 	OS << "#ifdef RLC_TYPE\n";
 	for (auto type : postOrderTypes(Module))
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 			OS << "RLC_TYPE(" << casted.getName() << ")\n";
 	OS << "#undef RLC_TYPE\n";
 	OS << "#endif\n\n";
@@ -719,11 +721,10 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 			continue;
 		std::string cShortName =
 				((not fun.getFunctionType().getInputs().empty() and
-					fun.getFunctionType().getInputs().front().isa<mlir::rlc::ClassType>())
-						 ? fun.getFunctionType()
-											 .getInputs()
-											 .front()
-											 .cast<mlir::rlc::ClassType>()
+					mlir::isa<mlir::rlc::ClassType>(
+							fun.getFunctionType().getInputs().front()))
+						 ? mlir::cast<mlir::rlc::ClassType>(
+									 fun.getFunctionType().getInputs().front())
 											 .getName() +
 									 "_" + fun.getUnmangledName()
 						 : fun.getUnmangledName())
@@ -760,7 +761,7 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 			alreadyAdded.insert(key);
 
-			auto castedType = type.getType().cast<mlir::FunctionType>();
+			auto castedType = mlir::cast<mlir::FunctionType>(type.getType());
 			llvm::SmallVector<mlir::StringRef, 2> attrs({ "self" });
 			for (auto attr : casted.getDeclaredNames())
 				attrs.push_back(attr);
@@ -794,8 +795,8 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	std::map<const void*, llvm::DenseSet<mlir::Value>> typeToMethods;
 	for (auto op : Module.getOps<mlir::rlc::FunctionOp>())
 		if (op.getIsMemberFunction() and not op.isInternal() and
-				(op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() or
-				 op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>()))
+				(mlir::isa<mlir::rlc::ClassType>(op.getArgumentTypes()[0]) or
+				 mlir::isa<mlir::rlc::AlternativeType>(op.getArgumentTypes()[0])))
 		{
 			typeToMethods[op.getArgumentTypes()[0].getAsOpaquePointer()].insert(op);
 		}
@@ -825,10 +826,10 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 
 	for (auto alias : Module.getOps<mlir::rlc::TypeAliasOp>())
 	{
-		if (alias.getAliased().isa<mlir::rlc::ClassType>())
+		if (mlir::isa<mlir::rlc::ClassType>(alias.getAliased()))
 			OS << "typedef " << typeToString(alias.getAliased()) << " "
 				 << alias.getName() << ";\n";
-		else if (alias.getAliased().isa<mlir::rlc::AlternativeType>())
+		else if (mlir::isa<mlir::rlc::AlternativeType>(alias.getAliased()))
 			OS << "typedef " << typeToString(alias.getAliased()) << " "
 				 << alias.getName() << ";\n";
 		else
@@ -840,8 +841,8 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	for (auto op : Module.getOps<mlir::rlc::FunctionOp>())
 		if (not op.isDeclaration() and not op.isInternal() and
 				(not op.getIsMemberFunction() or
-				 (not op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() and
-					not op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>())))
+				 (not mlir::isa<mlir::rlc::ClassType>(op.getArgumentTypes()[0]) and
+					not mlir::isa<mlir::rlc::AlternativeType>(op.getArgumentTypes()[0]))))
 		{
 			printCPPOverload(
 					OS,
@@ -877,11 +878,14 @@ void rlc::rlcToCHeader(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 static bool needsToBeEmitted(mlir::Type type)
 {
 	return not(
-			type.isa<mlir::rlc::ArrayType>() or type.isa<mlir::FunctionType>() or
-			type.isa<mlir::rlc::OwningPtrType>() or
-			type.isa<mlir::rlc::IntegerType>() or type.isa<mlir::rlc::BoolType>() or
-			type.isa<mlir::rlc::StringLiteralType>() or
-			type.isa<mlir::rlc::FloatType>() or type.isa<mlir::rlc::VoidType>() or
+			mlir::isa<mlir::rlc::ArrayType>(type) or
+			mlir::isa<mlir::FunctionType>(type) or
+			mlir::isa<mlir::rlc::OwningPtrType>(type) or
+			mlir::isa<mlir::rlc::IntegerType>(type) or
+			mlir::isa<mlir::rlc::BoolType>(type) or
+			mlir::isa<mlir::rlc::StringLiteralType>(type) or
+			mlir::isa<mlir::rlc::FloatType>(type) or
+			mlir::isa<mlir::rlc::VoidType>(type) or
 			mlir::rlc::isTemplateType(type).succeeded());
 }
 
@@ -929,18 +933,19 @@ static bool isMemberFunction(mlir::Value op, mlir::rlc::ModuleBuilder& builder)
 
 static bool unhandledType(mlir::Type t)
 {
-	return t.isa<mlir::rlc::OwningPtrType>() or t.isa<mlir::rlc::ArrayType>();
+	return mlir::isa<mlir::rlc::OwningPtrType>(t) or
+				 mlir::isa<mlir::rlc::ArrayType>(t);
 };
 
 llvm::StringRef godotVariantBuiltinTypesName(mlir::Type type)
 {
-	if (type.isa<mlir::rlc::StringLiteralType>())
+	if (mlir::isa<mlir::rlc::StringLiteralType>(type))
 		return "godot::Variant::STRING";
-	if (type.isa<mlir::rlc::BoolType>())
+	if (mlir::isa<mlir::rlc::BoolType>(type))
 		return "godot::Variant::BOOL";
-	if (type.isa<mlir::rlc::IntegerType>())
+	if (mlir::isa<mlir::rlc::IntegerType>(type))
 		return "godot::Variant::INT";
-	if (type.isa<mlir::rlc::FloatType>())
+	if (mlir::isa<mlir::rlc::FloatType>(type))
 		return "godot::Variant::FLOAT";
 
 	llvm_unreachable("no kwown type");
@@ -970,7 +975,7 @@ static void emitGodotFunction(
 		if (llvm::any_of(fType.getInputs(), unhandledType))
 			continue;
 		bool isVoid = fType.getNumResults() == 0 or
-									fType.getResults().front().isa<mlir::rlc::VoidType>();
+									mlir::isa<mlir::rlc::VoidType>(fType.getResults().front());
 		if (not isVoid and unhandledType(fType.getResult(0)))
 			continue;
 		OS << "if (arg_count == " << fType.getNumInputs();
@@ -978,8 +983,8 @@ static void emitGodotFunction(
 		for (size_t I = 0; I < fType.getNumInputs(); I++)
 		{
 			auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
-			if (type.isa<mlir::rlc::ClassType>() or
-					type.isa<mlir::rlc::AlternativeType>())
+			if (mlir::isa<mlir::rlc::ClassType>(type) or
+					mlir::isa<mlir::rlc::AlternativeType>(type))
 				OS << " && godot::Object::cast_to<RLC"
 					 << typeToString(fType.getInput(I), false) << ">(*((godot::Ref<RLC"
 					 << typeToString(fType.getInput(I), false) << ">)(*(args[" << I
@@ -994,11 +999,11 @@ static void emitGodotFunction(
 		for (size_t I = 0; I < fType.getNumInputs(); I++)
 		{
 			auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
-			if (type.isa<mlir::rlc::ClassType>() or
-					type.isa<mlir::rlc::AlternativeType>())
+			if (mlir::isa<mlir::rlc::ClassType>(type) or
+					mlir::isa<mlir::rlc::AlternativeType>(type))
 				continue;
 
-			if (type.isa<mlir::rlc::StringLiteralType>())
+			if (mlir::isa<mlir::rlc::StringLiteralType>(type))
 			{
 				OS << "auto tmp" << I << "= ";
 				OS << "(*(args[" << I << "])).operator godot::String()\n;";
@@ -1014,8 +1019,8 @@ static void emitGodotFunction(
 
 		if (not isVoid)
 		{
-			if (fType.getResult(0).isa<mlir::rlc::ClassType>() or
-					fType.getResult(0).isa<mlir::rlc::AlternativeType>())
+			if (mlir::isa<mlir::rlc::ClassType>(fType.getResult(0)) or
+					mlir::isa<mlir::rlc::AlternativeType>(fType.getResult(0)))
 			{
 				OS << typeToString(fType.getResult(0), false) << "* mallocated = ("
 					 << typeToString(fType.getResult(0), false) << "*) malloc(sizeof("
@@ -1036,8 +1041,8 @@ static void emitGodotFunction(
 		OS << mlir::rlc::mangledName(name, isMemberFunction, overload) << "(";
 		if (not isVoid)
 		{
-			if (not fType.getResult(0).isa<mlir::rlc::ClassType>() and
-					not fType.getResult(0).isa<mlir::rlc::AlternativeType>())
+			if (not mlir::isa<mlir::rlc::ClassType>(fType.getResult(0)) and
+					not mlir::isa<mlir::rlc::AlternativeType>(fType.getResult(0)))
 				OS << "&to_return";
 			else
 				OS << "mallocated";
@@ -1048,8 +1053,8 @@ static void emitGodotFunction(
 		for (size_t I = 0; I < fType.getNumInputs(); I++)
 		{
 			auto type = mlir::rlc::decayCtxFrmType(fType.getInput(I));
-			if (type.isa<mlir::rlc::ClassType>() or
-					type.isa<mlir::rlc::AlternativeType>())
+			if (mlir::isa<mlir::rlc::ClassType>(type) or
+					mlir::isa<mlir::rlc::AlternativeType>(type))
 				OS << "(godot::Object::cast_to<RLC"
 					 << typeToString(fType.getInput(I), false) << ">(*((godot::Ref<RLC"
 					 << typeToString(fType.getInput(I), false) << ">)(*(args[" << I
@@ -1069,8 +1074,8 @@ static void emitGodotFunction(
 		{
 			auto underlying = casted.getUnderlying();
 
-			if (not underlying.isa<mlir::rlc::ClassType>() and
-					not underlying.isa<mlir::rlc::AlternativeType>())
+			if (not mlir::isa<mlir::rlc::ClassType>(underlying) and
+					not mlir::isa<mlir::rlc::AlternativeType>(underlying))
 			{
 				OS << "return *to_return;\n";
 			}
@@ -1114,7 +1119,7 @@ void rlc::rlcToGodot(mlir::ModuleOp Module, llvm::raw_ostream& OS)
 	OS << "#undef RLC_GODOT\n";
 	for (auto type : postOrderTypes(Module))
 	{
-		if (not needsToBeEmitted(type) or type.isa<mlir::rlc::ReferenceType>())
+		if (not needsToBeEmitted(type) or mlir::isa<mlir::rlc::ReferenceType>(type))
 			continue;
 		auto wrapperNameString = "RLC" + nonArrayTypeToString(type, false);
 		const auto* wrapperName = wrapperNameString.c_str();
@@ -1154,7 +1159,7 @@ public:
 			 << nonArrayTypeToString(type, false).c_str()
 			 << "\",godot::D_METHOD(\"make\"), &" << wrapperName << "::make);\n";
 
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 		{
 			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"get_member\"), &"
 				 << wrapperName << "::get_member);\n";
@@ -1172,14 +1177,14 @@ public:
 				OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"get_" << name
 					 << "\"), &" << wrapperName << "::get_" << name << ");\n";
 
-				if (type.isa<mlir::rlc::ClassType>() or
-						type.isa<mlir::rlc::AlternativeType>())
+				if (mlir::isa<mlir::rlc::ClassType>(type) or
+						mlir::isa<mlir::rlc::AlternativeType>(type))
 					continue;
 				OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"set_" << name
 					 << "\"), &" << wrapperName << "::set_" << name << ");\n";
 			}
 		}
-		else if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+		else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 		{
 			OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"unwrap\"), &"
 				 << wrapperName << "::unwrap);\n";
@@ -1194,8 +1199,8 @@ public:
 				OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"get_" << name
 					 << "\"), &" << wrapperName << "::get_" << name << ");\n";
 
-				if (type.isa<mlir::rlc::ClassType>() or
-						type.isa<mlir::rlc::AlternativeType>())
+				if (mlir::isa<mlir::rlc::ClassType>(type) or
+						mlir::isa<mlir::rlc::AlternativeType>(type))
 					continue;
 				OS << "godot::ClassDB::bind_method(godot::D_METHOD(\"set_" << name
 					 << "\"), &" << wrapperName << "::set_" << name << ");\n";
@@ -1213,7 +1218,7 @@ public:
 			 << nonArrayTypeToString(type, false).c_str() << ");\n";
 		OS << "return to_return;\n}\n";
 
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 		{
 			for (auto field : casted.getMembers())
 			{
@@ -1222,8 +1227,8 @@ public:
 				if (unhandledType(type) or name.starts_with("_"))
 					continue;
 
-				if (type.isa<mlir::rlc::ClassType>() or
-						type.isa<mlir::rlc::AlternativeType>())
+				if (mlir::isa<mlir::rlc::ClassType>(type) or
+						mlir::isa<mlir::rlc::AlternativeType>(type))
 				{
 					OS << "godot::Ref<RLC" << typeToString(type, false) << ">" << " get_"
 						 << name << "() {\n";
@@ -1274,8 +1279,8 @@ public:
 
 				OS << "if (index == " << pair.index() << ")\n";
 
-				if (type.isa<mlir::rlc::ClassType>() or
-						type.isa<mlir::rlc::AlternativeType>())
+				if (mlir::isa<mlir::rlc::ClassType>(type) or
+						mlir::isa<mlir::rlc::AlternativeType>(type))
 					OS << "content->content." << name << "= *(godot::Object::cast_to<RLC"
 						 << typeToString(type, false) << ">(newVar)->content);\n";
 				else
@@ -1285,7 +1290,7 @@ public:
 			OS << "\n}\n";
 		}
 
-		if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 		{
 			for (auto pair : llvm::enumerate(casted.getUnderlying()))
 			{
@@ -1295,8 +1300,8 @@ public:
 
 				auto index = pair.index();
 				auto name = mlir::rlc::typeToMangled(type);
-				if (type.isa<mlir::rlc::ClassType>() or
-						type.isa<mlir::rlc::AlternativeType>())
+				if (mlir::isa<mlir::rlc::ClassType>(type) or
+						mlir::isa<mlir::rlc::AlternativeType>(type))
 				{
 					OS << "godot::Variant get_" << name << "() {\n";
 
@@ -1345,8 +1350,8 @@ public:
 				if (unhandledType(type))
 					continue;
 
-				auto isUserDefiend = type.isa<mlir::rlc::ClassType>() or
-														 type.isa<mlir::rlc::AlternativeType>();
+				auto isUserDefiend = mlir::isa<mlir::rlc::ClassType>(type) or
+														 mlir::isa<mlir::rlc::AlternativeType>(type);
 				auto name = mlir::rlc::typeToMangled(type);
 				if (isUserDefiend)
 				{
@@ -1440,7 +1445,7 @@ public:
 				continue;
 
 			memberFunctions.push_back(isMemberFunction(overload, builder));
-			overloads.push_back(overload.getType().cast<mlir::FunctionType>());
+			overloads.push_back(mlir::cast<mlir::FunctionType>(overload.getType()));
 			if (auto casted = overload.getDefiningOp<mlir::rlc::FunctionOp>();
 					casted and casted.getPrecondition().empty())
 			{
@@ -1452,10 +1457,11 @@ public:
 				canOverloads.push_back(nullptr);
 				continue;
 			}
-			canOverloads.push_back(mlir::FunctionType::get(
-					ctx,
-					overloads.back().getInputs(),
-					{ mlir::rlc::BoolType::get(ctx) }));
+			canOverloads.push_back(
+					mlir::FunctionType::get(
+							ctx,
+							overloads.back().getInputs(),
+							{ mlir::rlc::BoolType::get(ctx) }));
 		}
 
 		if (memberFunctions.empty())
@@ -1481,7 +1487,8 @@ static void godot_nativescript_init() {
 
 	for (auto type : postOrderTypes(Module))
 	{
-		if (needsToBeEmitted(type) and not type.isa<mlir::rlc::ReferenceType>())
+		if (needsToBeEmitted(type) and
+				not mlir::isa<mlir::rlc::ReferenceType>(type))
 			OS << "godot::ClassDB::register_class<RLC" << typeToString(type, false)
 				 << ">();\n";
 	}

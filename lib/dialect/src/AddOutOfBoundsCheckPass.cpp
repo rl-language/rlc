@@ -50,7 +50,8 @@ namespace mlir::rlc
 		void addOutOfBoundsCheck(mlir::rlc::ArrayAccess& op)
 		{
 			// if the accessed object is not an array, do nothing.
-			auto array = op.getValue().getType().dyn_cast<mlir::rlc::ArrayType>();
+			auto array =
+					mlir::dyn_cast<mlir::rlc::ArrayType>(op.getValue().getType());
 			if (array == nullptr)
 			{
 				return;
@@ -61,8 +62,7 @@ namespace mlir::rlc
 			if (auto casted = mlir::dyn_cast_or_null<mlir::rlc::Constant>(definingOp);
 					casted)
 			{
-				int64_t index = casted.getValue()
-														.cast<mlir::IntegerAttr>()
+				int64_t index = mlir::cast<mlir::IntegerAttr>(casted.getValue())
 														.getValue()
 														.getZExtValue();
 				if (index >= 0 and index < array.getArraySize())

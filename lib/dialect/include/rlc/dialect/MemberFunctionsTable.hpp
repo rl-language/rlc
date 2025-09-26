@@ -36,8 +36,8 @@ namespace mlir::rlc
 		{
 			for (auto op : mod.getOps<mlir::rlc::FunctionOp>())
 				if (op.getIsMemberFunction() and not op.isInternal() and
-						(op.getArgumentTypes()[0].isa<mlir::rlc::ClassType>() or
-						 op.getArgumentTypes()[0].isa<mlir::rlc::AlternativeType>()))
+						(mlir::isa<mlir::rlc::ClassType>(op.getArgumentTypes()[0]) or
+						 mlir::isa<mlir::rlc::AlternativeType>(op.getArgumentTypes()[0])))
 				{
 					auto selfType = op.getArgumentTypes()[0];
 					auto key = selfType.getAsOpaquePointer();

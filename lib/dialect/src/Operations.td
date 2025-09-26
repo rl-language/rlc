@@ -465,7 +465,7 @@ def RLC_DerefOp : RLC_Dialect<"deref"> {
 
    let builders = [
         OpBuilder<(ins "mlir::Value":$ref), [{
-			build($_builder, $_state, ref.getType().cast<mlir::rlc::ReferenceType>().getUnderlying(), ref);
+			build($_builder, $_state, mlir::cast<mlir::rlc::ReferenceType>(ref.getType()).getUnderlying(), ref);
     }]>];
 }
 
@@ -850,6 +850,32 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
             return isDeclaration() ? nullptr : &getBody();
         }
 
+        void setArgAttrsAttr(mlir::ArrayAttr attr) {
+        }
+        void setResAttrsAttr(mlir::ArrayAttr attr) {
+        }
+        mlir::ArrayAttr removeArgAttrsAttr() {
+            return nullptr;
+        }
+        mlir::ArrayAttr removeResAttrsAttr() {
+            return nullptr;
+        }
+
+        mlir::ArrayAttr getArgAttrsAttr() {
+            llvm::SmallVector<mlir::Attribute, 4> attrs;
+            for (auto type : getArgumentTypes())
+                attrs.push_back(mlir::ArrayAttr::get(getContext(), {}));
+            return mlir::ArrayAttr::get(getContext(), attrs);
+        }
+
+        mlir::ArrayAttr getResAttrsAttr() {
+            llvm::SmallVector<mlir::Attribute, 4> attrs;
+            for (auto type : getResultTypes())
+                attrs.push_back(mlir::ArrayAttr::get(getContext(), {}));
+            return mlir::ArrayAttr::get(getContext(), attrs);
+        }
+
+
 		std::string getMangledName() {
 			return rlc::mangledName(getUnmangledName(), getIsMemberFunction(), getType());
 		}
@@ -859,11 +885,11 @@ RLC_Dialect<mnemonic, [CallableOpInterface, AutomaticAllocationScope, TypeChecka
 		}
 
 		mlir::FunctionType getType() {
-			return getResult().getType().cast<mlir::FunctionType>();
+			return mlir::cast<mlir::FunctionType>(getResult().getType());
 		}
 
 		mlir::FunctionType getFunctionType() {
-			return getResult().getType().cast<mlir::FunctionType>();
+			return mlir::cast<mlir::FunctionType>(getResult().getType());
 		}
 	
 		mlir::Region::BlockListType& getBlocks() {
@@ -1008,11 +1034,11 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
 		}
 
 		mlir::FunctionType getSubActionType(size_t index) {
-			return getActions().getTypes()[index].cast<mlir::FunctionType>();
+			return mlir::cast<mlir::FunctionType>(getActions().getTypes()[index]);
 		}
 
 		mlir::FunctionType getIsDoneFunctionType() {
-			return getIsDoneFunction().getType().cast<mlir::FunctionType>();
+			return mlir::cast<mlir::FunctionType>(getIsDoneFunction().getType());
 		}
 
         bool getIsMemberFunction() {
@@ -1020,10 +1046,10 @@ def RLC_ActionFunction : RLC_FunctionBase<"action_fun"> {
         }
 
 		mlir::FunctionType getMainActionType() {
-			return getResult().getType().cast<mlir::FunctionType>();
+			return mlir::cast<mlir::FunctionType>(getResult().getType());
 		}
 		mlir::rlc::ClassType getClassType() {
-			return getMainActionType().getResult(0).cast<mlir::rlc::ClassType>();
+			return mlir::cast<mlir::rlc::ClassType>(getMainActionType().getResult(0));
 		}
 	}];
 
@@ -1047,14 +1073,14 @@ def RLC_ArrayCallOp : RLC_Dialect<"array_call",
     let builders = [
         OpBuilder<(ins "Value":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
 			auto calleeType = callee.getType();
-			auto functionType = calleeType.cast<FunctionType>();
-			auto argumentSize = args.front().getType().cast<ArrayType>().getSize();
+			auto functionType = mlir::cast<FunctionType>(calleeType);
+			auto argumentSize = mlir::cast<ArrayType>(args.front().getType()).getSize();
 			if (functionType.getResults().size() == 0 or functionType.getResults().front() == VoidType::get($_builder.getContext()))
 				build($_builder, $_state, mlir::TypeRange(), callee, args);
 			else
 			{
 				mlir::Type resType = functionType.getResults().front();
-				if (auto casted = resType.dyn_cast<mlir::rlc::ReferenceType>())
+				if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(resType))
 					resType = casted.getUnderlying();
 				resType = mlir::rlc::ArrayType::get($_builder.getContext(), resType, argumentSize);
 				build($_builder, $_state, resType, callee, args);
@@ -1068,8 +1094,33 @@ def RLC_ArrayCallOp : RLC_Dialect<"array_call",
         //===------------------------------------------------------------------===//
 
 
+        void setArgAttrsAttr(mlir::ArrayAttr attr) {
+        }
+        void setResAttrsAttr(mlir::ArrayAttr attr) {
+        }
+        mlir::ArrayAttr removeArgAttrsAttr() {
+            return nullptr;
+        }
+        mlir::ArrayAttr removeResAttrsAttr() {
+            return nullptr;
+        }
+
+        mlir::ArrayAttr getArgAttrsAttr() {
+            llvm::SmallVector<mlir::Attribute, 4> attrs;
+            for (auto type : getArgOperands())
+                attrs.push_back(mlir::ArrayAttr::get(getContext(), {}));
+            return mlir::ArrayAttr::get(getContext(), attrs);
+        }
+
+        mlir::ArrayAttr getResAttrsAttr() {
+            llvm::SmallVector<mlir::Attribute, 4> attrs;
+            for (auto type : getResultTypes())
+                attrs.push_back(mlir::ArrayAttr::get(getContext(), {}));
+            return mlir::ArrayAttr::get(getContext(), attrs);
+        }
+
 		mlir::FunctionType getCalleeType() {
-			return getCallee().getType().cast<mlir::FunctionType>();
+			return mlir::cast<mlir::FunctionType>(getCallee().getType());
 		}
 
         MutableOperandRange getArgOperandsMutable() {
@@ -1119,14 +1170,14 @@ def RLC_CallOp : RLC_Dialect<"call",
     let builders = [
         OpBuilder<(ins "Value":$callee, "bool":$is_member_call, CArg<"mlir::ValueRange", "{}">:$args), [{
 			auto calleeType = callee.getType();
-			auto functionType = calleeType.cast<FunctionType>();
+			auto functionType = mlir::cast<FunctionType>(calleeType);
 			if (functionType.getResults().size() == 0 or functionType.getResults().front() == VoidType::get($_builder.getContext()))
 				build($_builder, $_state, mlir::TypeRange(), callee, is_member_call ,args);
 			else
 			{
 
 				mlir::Type resType = functionType.getResults().front();
-				if (auto casted = resType.dyn_cast<mlir::rlc::ReferenceType>())
+				if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(resType))
 					resType = casted.getUnderlying();
 				build($_builder, $_state, resType, callee, is_member_call, args);
 			}
@@ -1139,8 +1190,33 @@ def RLC_CallOp : RLC_Dialect<"call",
         //===------------------------------------------------------------------===//
 
 		mlir::FunctionType getCalleeType() {
-			return getCallee().getType().cast<mlir::FunctionType>();
+			return mlir::cast<mlir::FunctionType>(getCallee().getType());
 		}
+
+        void setArgAttrsAttr(mlir::ArrayAttr attr) {
+        }
+        void setResAttrsAttr(mlir::ArrayAttr attr) {
+        }
+        mlir::ArrayAttr removeArgAttrsAttr() {
+            return nullptr;
+        }
+        mlir::ArrayAttr removeResAttrsAttr() {
+            return nullptr;
+        }
+
+        mlir::ArrayAttr getArgAttrsAttr() {
+            llvm::SmallVector<mlir::Attribute, 4> attrs;
+            for (auto type : getArgOperands())
+                attrs.push_back(mlir::ArrayAttr::get(getContext(), {}));
+            return mlir::ArrayAttr::get(getContext(), attrs);
+        }
+
+        mlir::ArrayAttr getResAttrsAttr() {
+            llvm::SmallVector<mlir::Attribute, 4> attrs;
+            for (auto type : getResultTypes())
+                attrs.push_back(mlir::ArrayAttr::get(getContext(), {}));
+            return mlir::ArrayAttr::get(getContext(), attrs);
+        }
 
         /// Get the argument operands to the called function.
         operand_range getArgOperands() {
@@ -1277,7 +1353,7 @@ def RLC_MemberAccess : RLC_Dialect<"member_access", [DeclareOpInterfaceMethods<T
   let builders = [
         OpBuilder<(ins "mlir::Value":$value, "std::int64_t":$fieldIndex), [{
 			auto index = $_builder.getI64IntegerAttr(fieldIndex);
-			auto real_type = value.getType().cast<ClassType>();
+			auto real_type = mlir::cast<ClassType>(value.getType());
 			auto resType = real_type.getMembers()[fieldIndex].getType();
             build($_builder, $_state, resType, value, index);
     }]>];
@@ -1299,13 +1375,13 @@ def RLC_ArrayAccess : RLC_Dialect<"array_access", [DeclareOpInterfaceMethods<Typ
 
   let builders = [
 		OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$fieldIndex), [{
-			if (auto real_type = value.getType().dyn_cast<ArrayType>()) {
+			if (auto real_type = mlir::dyn_cast<ArrayType>(value.getType())) {
 				auto resType = real_type.getUnderlying();
 				build($_builder, $_state, resType, value, fieldIndex);
-			} else if (auto real_type = value.getType().dyn_cast<OwningPtrType>()) {
+			} else if (auto real_type = mlir::dyn_cast<OwningPtrType>(value.getType())) {
 				auto resType = real_type.getUnderlying();
 				build($_builder, $_state, resType, value, fieldIndex);
-			} else if (auto real_type = value.getType().dyn_cast<StringLiteralType>()) {
+			} else if (auto real_type = mlir::dyn_cast<StringLiteralType>(value.getType())) {
 				auto resType = mlir::rlc::IntegerType::getInt8(real_type.getContext()); 
 				build($_builder, $_state, resType, value, fieldIndex);
 			} else 
@@ -1331,9 +1407,12 @@ def RLC_ExplicitConstructOp : RLC_Dialect<"explicit_construct", [DeclareOpInterf
 		$initializer `:` type($initializer) `->` type($result) attr-dict
   }];
 
+
+
+
   let builders = [
 		OpBuilder<(ins "mlir::Value":$initializer), [{
-            build($_builder, $_state, initializer.getType().cast<mlir::FunctionType>().getInput(0), initializer);
+            build($_builder, $_state, mlir::cast<mlir::FunctionType>(initializer.getType()).getInput(0), initializer);
     }]>];
 
 }
@@ -1395,14 +1474,14 @@ class RLC_BinaryBitwiseOp<string mnemonic, list<OpInterface> CA_Interface=[Decla
               mlir::rlc::ModuleBuilder& builder) {
 	      auto deducedTypeLHS = builder.getConverter().convertType(getLhs().getType());
 	      auto deducedTypeRHS = builder.getConverter().convertType(getRhs().getType());
-          if (not deducedTypeLHS or not deducedTypeLHS.isa<mlir::rlc::IntegerType>()) {
+          if (not deducedTypeLHS or not mlir::isa<mlir::rlc::IntegerType>(deducedTypeLHS)) {
             
 		    return logError(
 				getOperation(),
 				"Bitwise operation requires integer left operand");
           }
 
-          if (not deducedTypeRHS or not deducedTypeRHS.isa<mlir::rlc::IntegerType>()) {
+          if (not deducedTypeRHS or not mlir::isa<mlir::rlc::IntegerType>(deducedTypeRHS)) {
             
 		    return logError(
 				getOperation(),
@@ -1440,7 +1519,7 @@ def RLC_BitNotOp : RLC_Dialect<"bit_not", [TypeCheckable, DeclareOpInterfaceMeth
 	  mlir::LogicalResult typeCheck(
               mlir::rlc::ModuleBuilder& builder) {
 	      auto deducedType = builder.getConverter().convertType(getUnderlying().getType());
-          if (not deducedType.isa<mlir::rlc::IntegerType>()) {
+          if (not mlir::isa<mlir::rlc::IntegerType>(deducedType)) {
             
 		    return logError(
 				getOperation(),
@@ -2385,7 +2464,7 @@ def RLC_CanOp : RLC_Dialect <"can", [DeclareOpInterfaceMethods<TypeCheckable>, D
         OpBuilder<(ins "mlir::Value":$value), [{
 			auto resultType = mlir::FunctionType::get(
 					value.getContext(),
-					value.getType().cast<FunctionType>().getInputs(),
+					mlir::cast<FunctionType>(value.getType()).getInputs(),
 					mlir::rlc::BoolType::get(value.getContext()));
 			build($_builder, $_state, resultType, value);
   }]>];

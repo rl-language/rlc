@@ -29,7 +29,7 @@ using namespace mlir::rlc::lsp;
 
 static mlir::lsp::Position locToPos(mlir::Location location)
 {
-	auto castedBegin = location.cast<mlir::FileLineColLoc>();
+	auto castedBegin = mlir::cast<mlir::FileLineColLoc>(location);
 	return mlir::lsp::Position(
 			static_cast<int>(castedBegin.getLine()) - 1,
 			static_cast<int>(castedBegin.getColumn()) - 1);
@@ -37,7 +37,7 @@ static mlir::lsp::Position locToPos(mlir::Location location)
 
 static llvm::Expected<mlir::lsp::Location> locToLoc(mlir::Location location)
 {
-	auto castedBegin = location.cast<mlir::FileLineColLoc>();
+	auto castedBegin = mlir::cast<mlir::FileLineColLoc>(location);
 	auto uri = mlir::lsp::URIForFile::fromFile(castedBegin.getFilename().str());
 	if (not uri)
 	{
@@ -125,25 +125,22 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		context.loadAllAvailableDialects();
 		loadFile(path, contents, lspContext);
 		module.walk([this](mlir::rlc::DeclarationStatement decl) {
-			auto yieldLoc = decl.getBody()
-													.back()
-													.getTerminator()
-													->getLoc()
-													.cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+			auto yieldLoc = mlir::cast<mlir::FileLineColLoc>(
+					decl.getBody().back().getTerminator()->getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(decl.getLoc());
 			declarations.emplace_back(
 					locsToRange(loc, yieldLoc), decl.getOperation());
 		});
 		module.walk([this](mlir::rlc::FunctionOp decl) {
 			if (decl.getBody().empty())
 				return;
-			auto firstInstructionLoc =
-					decl.getBody().front().front().getLoc().cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+			auto firstInstructionLoc = mlir::cast<mlir::FileLineColLoc>(
+					decl.getBody().front().front().getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(decl.getLoc());
 			declarations.emplace_back(
 					locsToRange(loc, firstInstructionLoc), decl.getOperation());
-			auto yieldLoc =
-					decl.getBody().front().back().getLoc().cast<mlir::FileLineColLoc>();
+			auto yieldLoc = mlir::cast<mlir::FileLineColLoc>(
+					decl.getBody().front().back().getLoc());
 			functionAndActionFunctions.emplace_back(
 					locsToRange(loc, yieldLoc), decl.getOperation());
 			// increment the range by one so that if the user
@@ -154,13 +151,13 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		module.walk([this](mlir::rlc::ActionFunction decl) {
 			if (decl.getBody().empty())
 				return;
-			auto firstInstructionLoc =
-					decl.getBody().front().front().getLoc().cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+			auto firstInstructionLoc = mlir::cast<mlir::FileLineColLoc>(
+					decl.getBody().front().front().getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(decl.getLoc());
 			declarations.emplace_back(
 					locsToRange(loc, firstInstructionLoc), decl.getOperation());
-			auto yieldLoc =
-					decl.getBody().front().back().getLoc().cast<mlir::FileLineColLoc>();
+			auto yieldLoc = mlir::cast<mlir::FileLineColLoc>(
+					decl.getBody().front().back().getLoc());
 			functionAndActionFunctions.emplace_back(
 					locsToRange(loc, yieldLoc), decl.getOperation());
 		});
@@ -168,8 +165,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (decl->getNextNode() == nullptr)
 				return;
 			auto firstInstructionLoc =
-					decl->getNextNode()->getLoc().cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+					mlir::cast<mlir::FileLineColLoc>(decl->getNextNode()->getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(decl.getLoc());
+
 			declarations.emplace_back(
 					locsToRange(loc, firstInstructionLoc), decl.getOperation());
 		});
@@ -177,8 +175,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (enumUse->getNextNode() == nullptr)
 				return;
 			auto firstInstructionLoc =
-					enumUse->getNextNode()->getLoc().cast<mlir::FileLineColLoc>();
-			auto loc = enumUse.getLoc().cast<mlir::FileLineColLoc>();
+					mlir::cast<mlir::FileLineColLoc>(enumUse->getNextNode()->getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(enumUse.getLoc());
 			enumUses.emplace_back(locsToRange(loc, firstInstructionLoc), enumUse);
 			enumUses.back().first.end.character++;
 		});
@@ -186,8 +184,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (decl->getNextNode() == nullptr)
 				return;
 			auto nextInst =
-					decl->getNextNode()->getLoc().cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+					mlir::cast<mlir::FileLineColLoc>(decl->getNextNode()->getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(decl.getLoc());
 			declarations.emplace_back(
 					locsToRange(loc, nextInst), decl.getOperation());
 		});
@@ -196,8 +194,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (decl->getNextNode() == nullptr)
 				return;
 			auto nextInst =
-					decl->getNextNode()->getLoc().cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+					mlir::cast<mlir::FileLineColLoc>(decl->getNextNode()->getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(decl.getLoc());
+
 			memberAcceses.emplace_back(
 					locsToRange(loc, nextInst), decl.getOperation());
 			memberAcceses.back().first.end.character++;
@@ -207,8 +206,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (decl->getNextNode() == nullptr)
 				return;
 			auto nextInst =
-					decl->getNextNode()->getLoc().cast<mlir::FileLineColLoc>();
-			auto loc = decl.getLoc().cast<mlir::FileLineColLoc>();
+					mlir::cast<mlir::FileLineColLoc>(decl->getNextNode()->getLoc());
+			auto loc = mlir::cast<mlir::FileLineColLoc>(decl.getLoc());
 			memberAcceses.emplace_back(
 					locsToRange(loc, nextInst), decl.getOperation());
 			memberAcceses.back().first.end.character++;
@@ -253,8 +252,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 	bool opIsInSameFile(mlir::Operation *op)
 	{
-		return op->getLoc().cast<mlir::FileLineColLoc>().getFilename() ==
-					 this->module->getLoc().cast<mlir::FileLineColLoc>().getFilename();
+		return mlir::cast<mlir::FileLineColLoc>(op->getLoc()).getFilename() ==
+					 mlir::cast<mlir::FileLineColLoc>(this->module->getLoc())
+							 .getFilename();
 	}
 
 	mlir::Operation *getEnclosingFunction(const mlir::lsp::Position &pos)
@@ -291,7 +291,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			item.label = name.str();
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-			if (auto casted = t.dyn_cast<mlir::FunctionType>();
+			if (auto casted = mlir::dyn_cast<mlir::FunctionType>(t);
 					casted and info != nullptr)
 			{
 				item.detail = prettyPrintFunctionTypeWithNameArgs(casted, info);
@@ -357,11 +357,12 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			if (op.getTemplateParameters().size() > 1)
 				for (auto parameter : llvm::drop_end(op.getTemplateParameters()))
 					toReturn.detail +=
-							prettyType(parameter.cast<mlir::TypeAttr>().getValue()) + ", ";
+							prettyType(mlir::cast<mlir::TypeAttr>(parameter).getValue()) +
+							", ";
 			auto params = op.getTemplateParameters();
 			if (not params.empty())
 				toReturn.detail += prettyType(
-						params[params.size() - 1].cast<mlir::TypeAttr>().getValue());
+						mlir::cast<mlir::TypeAttr>(params[params.size() - 1]).getValue());
 			toReturn.detail += ">";
 			list.items.push_back(toReturn);
 		}
@@ -389,8 +390,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 	bool sameLineAsOp(const mlir::lsp::Position &completePos, mlir::Operation *op)
 	{
-		auto opLoc = op->getLoc().cast<mlir::FileLineColLoc>();
-		auto moduleLoc = module.getLoc().cast<mlir::FileLineColLoc>();
+		auto opLoc = mlir::cast<mlir::FileLineColLoc>(op->getLoc());
+		auto moduleLoc = mlir::cast<mlir::FileLineColLoc>(module.getLoc());
 		if (static_cast<int>(opLoc.getLine()) != completePos.line + 1)
 			return false;
 		if (opLoc.getFilename() != moduleLoc.getFilename())
@@ -574,7 +575,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 
 		auto type = memberAccess->getOperand(0).getType();
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 		{
 			for (auto field : casted.getMembers())
 			{
@@ -1047,7 +1048,7 @@ static mlir::rlc::RLCSerializable rewrittenType(
 		mlir::Type newTypeToBeWritten)
 {
 	if (currentType == typeEditedByUser)
-		return newTypeToBeWritten.dyn_cast<mlir::rlc::RLCSerializable>();
+		return mlir::dyn_cast<mlir::rlc::RLCSerializable>(newTypeToBeWritten);
 	;
 
 	const auto replacer = [typeEditedByUser,
@@ -1056,7 +1057,7 @@ static mlir::rlc::RLCSerializable rewrittenType(
 		if (typeEditedByUser == current)
 			return std::pair{ newTypeToBeWritten, mlir::WalkResult::skip() };
 
-		if (auto casted = current.dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(current))
 		{
 			llvm::SmallVector<mlir::Type, 2> templateArguments;
 			for (auto arg : casted.getExplicitTemplateParameters())
@@ -1075,7 +1076,7 @@ static mlir::rlc::RLCSerializable rewrittenType(
 		return std::pair{ current, mlir::WalkResult::advance() };
 	};
 	auto newType =
-			currentType.replace(replacer).dyn_cast<mlir::rlc::RLCSerializable>();
+			mlir::dyn_cast<mlir::rlc::RLCSerializable>(currentType.replace(replacer));
 	return newType;
 }
 
@@ -1104,7 +1105,7 @@ mlir::lsp::WorkspaceEdit RLCServer::rename(
 	if (decl == nullptr)
 		return action;
 
-	mlir::rlc::Renemable declType = decl.getDeclaredType().cast<Renemable>();
+	mlir::rlc::Renemable declType = mlir::cast<Renemable>(decl.getDeclaredType());
 	if (not declType)
 		return action;
 

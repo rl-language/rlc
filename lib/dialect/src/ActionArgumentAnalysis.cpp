@@ -96,7 +96,7 @@ namespace mlir::rlc
 	void ActionArgumentAnalysis::handleArgument(
 			mlir::Value argument, mlir::Operation* contraint)
 	{
-		if (not argument.getType().isa<mlir::rlc::IntegerType>())
+		if (not mlir::isa<mlir::rlc::IntegerType>(argument.getType()))
 			return;
 
 		if (contraint->getOperands().size() != 2)
@@ -110,10 +110,10 @@ namespace mlir::rlc
 			handleBinaryOp(
 					contraint,
 					argument,
-					contraint->getOperand(1)
-							.getDefiningOp<mlir::rlc::Constant>()
-							.getValue()
-							.cast<mlir::IntegerAttr>()
+					mlir::cast<mlir::IntegerAttr>(
+							contraint->getOperand(1)
+									.getDefiningOp<mlir::rlc::Constant>()
+									.getValue())
 							.getInt());
 			return;
 		}
@@ -125,10 +125,10 @@ namespace mlir::rlc
 		{
 			handleBinaryOp(
 					contraint,
-					contraint->getOperand(0)
-							.getDefiningOp<mlir::rlc::Constant>()
-							.getValue()
-							.cast<mlir::IntegerAttr>()
+					mlir::cast<mlir::IntegerAttr>(
+							contraint->getOperand(0)
+									.getDefiningOp<mlir::rlc::Constant>()
+									.getValue())
 							.getInt(),
 					argument);
 			return;

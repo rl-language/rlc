@@ -83,10 +83,10 @@ namespace mlir::rlc
 		});
 		converter.addConversion([&](mlir::rlc::ArrayType type) -> Type {
 			auto newInner = converter.convertType(type.getUnderlying());
-			assert(type.getSize().isa<mlir::rlc::IntegerLiteralType>());
+			assert(mlir::isa<mlir::rlc::IntegerLiteralType>(type.getSize()));
 			return mlir::LLVM::LLVMArrayType::get(
 					newInner,
-					type.getSize().cast<mlir::rlc::IntegerLiteralType>().getValue());
+					mlir::cast<mlir::rlc::IntegerLiteralType>(type.getSize()).getValue());
 		});
 		converter.addConversion(
 				[&converter, module](mlir::rlc::AlternativeType type) -> Type {
@@ -113,10 +113,11 @@ namespace mlir::rlc
 					newBody.push_back(maxAligmentType);
 
 					assert(maxAligmentType != nullptr);
-					newBody.push_back(mlir::LLVM::LLVMArrayType::get(
-							type.getContext(),
-							mlir::IntegerType::get(type.getContext(), 8),
-							size - dataLayaout.getTypeSize(maxAligmentType)));
+					newBody.push_back(
+							mlir::LLVM::LLVMArrayType::get(
+									type.getContext(),
+									mlir::IntegerType::get(type.getContext(), 8),
+									size - dataLayaout.getTypeSize(maxAligmentType)));
 
 					newBody.push_back(mlir::IntegerType::get(type.getContext(), 64));
 
@@ -128,7 +129,7 @@ namespace mlir::rlc
 			SmallVector<Type, 2> args;
 			for (auto arg : type.getResults())
 			{
-				if (not arg.isa<mlir::rlc::VoidType>())
+				if (not mlir::isa<mlir::rlc::VoidType>(arg))
 					args.push_back(mlir::LLVM::LLVMPointerType::get(type.getContext()));
 			}
 

@@ -97,7 +97,8 @@ namespace mlir::rlc
 			}
 		}
 
-		if (auto casted = expressions[0].getType().dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted =
+						mlir::dyn_cast<mlir::rlc::ClassType>(expressions[0].getType()))
 		{
 			for (auto field : llvm::enumerate(casted.getMembers()))
 			{
@@ -119,8 +120,8 @@ namespace mlir::rlc
 			}
 		}
 		else if (
-				auto casted =
-						expressions[0].getType().dyn_cast<mlir::rlc::AlternativeType>())
+				auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(
+						expressions[0].getType()))
 		{
 			for (auto field : llvm::enumerate(casted.getUnderlying()))
 			{

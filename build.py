@@ -111,6 +111,7 @@ def build_llvm(
         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;lld;",
         "-DLLVM_USE_LINKER=lld" if use_lld else "",
+        "-DLLVM_USE_STATIC_ZSTD=ON",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
@@ -237,7 +238,7 @@ def main():
             "--depth",
             "1",
             "-b",
-            "release/20.x",
+            "release/21.x",
         )
 
     if debug_llvm and not exists(llvm_install_debug_dir) and args.llvm_dir == "":

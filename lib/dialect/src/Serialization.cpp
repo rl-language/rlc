@@ -58,7 +58,7 @@ namespace
 			llvm::raw_ostream& OS,
 			mlir::rlc::SerializationContext& ctx)
 	{
-		if (auto casted = type.dyn_cast<mlir::rlc::TemplateParameterType>())
+		if (auto casted = dyn_cast<mlir::rlc::TemplateParameterType>(type))
 		{
 			if (casted.getName().starts_with("TraitType"))
 				OS << casted.getName().drop_front(9);
@@ -66,7 +66,7 @@ namespace
 				OS << casted.getName();
 			return;
 		}
-		if (auto casted = type.dyn_cast<mlir::rlc::RLCSerializable>())
+		if (auto casted = dyn_cast<mlir::rlc::RLCSerializable>(type))
 		{
 			casted.rlc_serialize(OS, ctx);
 			return;
@@ -90,7 +90,7 @@ namespace
 			llvm::raw_ostream& OS,
 			mlir::rlc::SerializationContext& ctx)
 	{
-		if (auto casted = type.dyn_cast<mlir::rlc::TemplateParameterType>())
+		if (auto casted = dyn_cast<mlir::rlc::TemplateParameterType>(type))
 		{
 			if (casted.getIsIntLiteral())
 				OS << "Int ";
@@ -584,30 +584,28 @@ void mlir::rlc::ClassFieldDeclaration::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
 	ctx.indent(OS);
-	getDeclaration()
-			.getShugarizedType()
-			.getType()
-			.cast<mlir::rlc::RLCSerializable>()
+	mlir::cast<mlir::rlc::RLCSerializable>(
+			getDeclaration().getShugarizedType().getType())
 			.rlc_serialize(OS, ctx);
 	OS << " " << getDeclaration().getName() << "\n";
 }
 void mlir::rlc::ClassDeclaration::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
-	auto type = getResult().getType().cast<mlir::rlc::ClassType>();
+	auto type = mlir::cast<mlir::rlc::ClassType>(getResult().getType());
 	OS << "cls";
 	if (not type.getExplicitTemplateParameters().empty())
 	{
 		OS << "<";
 		for (auto parameter : llvm::drop_end(type.getExplicitTemplateParameters()))
 		{
-			serializeTypeDecl(parameter.cast<mlir::rlc::RLCSerializable>(), OS, ctx);
+			serializeTypeDecl(
+					mlir::cast<mlir::rlc::RLCSerializable>(parameter), OS, ctx);
 			OS << ", ";
 		}
 		serializeTypeDecl(
-				type.getExplicitTemplateParameters()
-						.back()
-						.cast<mlir::rlc::RLCSerializable>(),
+				mlir::cast<mlir::rlc::RLCSerializable>(
+						type.getExplicitTemplateParameters().back()),
 				OS,
 				ctx);
 

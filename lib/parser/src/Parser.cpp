@@ -406,9 +406,9 @@ Expected<mlir::Operation*> Parser::usingTypeStatement()
 {
 	EXPECT(Token::KeywordUsing);
 	auto location = getCurrentSourcePos();
-	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+	auto startLocation = mlir::cast<mlir::FileLineColLoc>(getCurrentSourcePos());
 	EXPECT(Token::Identifier);
-	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto endLocation = mlir::cast<mlir::FileLineColLoc>(getLastTokenEndPos());
 	auto typeName = lIdent;
 	EXPECT(Token::Equal);
 	if (not accept<Token::KeywordType>())
@@ -895,10 +895,10 @@ llvm::Expected<mlir::rlc::ClassDeclaration> Parser::classDeclaration()
 			templateParameters.push_back(type);
 	}
 
-	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+	auto startLocation = mlir::cast<mlir::FileLineColLoc>(getCurrentSourcePos());
 	EXPECT(Token::Identifier);
 	string name = lIdent;
-	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto endLocation = mlir::cast<mlir::FileLineColLoc>(getLastTokenEndPos());
 	auto tokenLocation =
 			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation);
 	EXPECT(Token::Colons);
@@ -1770,7 +1770,7 @@ Expected<mlir::rlc::ScalarUseType> Parser::singleNonArrayTypeUse()
 Expected<mlir::rlc::ShugarizedTypeAttr> Parser::singleTypeUse()
 {
 	mlir::FileLineColLoc typeBegin =
-			getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+			mlir::cast<mlir::FileLineColLoc>(getCurrentSourcePos());
 	llvm::SmallVector<mlir::Type, 2> seenTypes;
 
 	do
@@ -1796,7 +1796,7 @@ Expected<mlir::rlc::ShugarizedTypeAttr> Parser::singleTypeUse()
 
 		seenTypes.push_back(*typeUse);
 	} while (accept<Token::VerticalPipe>());
-	auto typeEnd = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto typeEnd = mlir::cast<mlir::FileLineColLoc>(getLastTokenEndPos());
 
 	if (seenTypes.size() == 1)
 		return mlir::rlc::ShugarizedTypeAttr::get(
@@ -1820,9 +1820,9 @@ Expected<mlir::rlc::FunctionArgumentAttr> Parser::argDeclaration()
 		(*tp) = tp->replaceType(mlir::rlc::FrameType::get((*tp).getType()));
 	if (isCtx)
 		(*tp) = tp->replaceType(mlir::rlc::ContextType::get((*tp).getType()));
-	auto nameStart = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+	auto nameStart = mlir::cast<mlir::FileLineColLoc>(getCurrentSourcePos());
 	EXPECT(Token::Identifier);
-	auto nameEnd = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto nameEnd = mlir::cast<mlir::FileLineColLoc>(getLastTokenEndPos());
 	auto parName = lIdent;
 	return mlir::rlc::FunctionArgumentAttr::get(
 			builder.getContext(),
@@ -2175,9 +2175,9 @@ Expected<mlir::rlc::EnumDeclarationOp> Parser::enumDeclaration()
 	auto location = getCurrentSourcePos();
 	auto pos = builder.saveInsertionPoint();
 	EXPECT(Token::KeywordEnum);
-	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+	auto startLocation = mlir::cast<mlir::FileLineColLoc>(getCurrentSourcePos());
 	EXPECT(Token::Identifier);
-	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto endLocation = mlir::cast<mlir::FileLineColLoc>(getLastTokenEndPos());
 	auto tokenLocation =
 			mlir::rlc::SourceRangeAttr::get(startLocation, endLocation);
 	auto enumName = lIdent;
@@ -2266,10 +2266,10 @@ llvm::Expected<mlir::rlc::TypeAliasOp> Parser::usingStatement()
 {
 	EXPECT(Token::KeywordUsing);
 	auto location = getCurrentSourcePos();
-	auto startLocation = getCurrentSourcePos().cast<mlir::FileLineColLoc>();
+	auto startLocation = mlir::cast<mlir::FileLineColLoc>(getCurrentSourcePos());
 	EXPECT(Token::Identifier);
 	std::string name = lIdent;
-	auto endLocation = getLastTokenEndPos().cast<mlir::FileLineColLoc>();
+	auto endLocation = mlir::cast<mlir::FileLineColLoc>(getLastTokenEndPos());
 
 	EXPECT(Token::Equal);
 	TRY(typeUse, singleTypeUse());

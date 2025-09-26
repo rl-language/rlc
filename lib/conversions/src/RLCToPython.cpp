@@ -291,8 +291,9 @@ namespace mlir::rlc
 						"lib.",
 						overload.getMangledName(),
 						"(ctypes.byref(__string), ctypes.byref(self))");
-				w.writenl("return ctypes.cast(__string.get(0), "
-									"ctypes.c_char_p).value.decode(\"utf-8\")")
+				w.writenl(
+						 "return ctypes.cast(__string.get(0), "
+						 "ctypes.c_char_p).value.decode(\"utf-8\")")
 						.endLine();
 			}
 			w.writenl("def __repr__(self):");
@@ -303,8 +304,9 @@ namespace mlir::rlc
 						"lib.",
 						overload.getMangledName(),
 						"(ctypes.byref(__string), ctypes.byref(self))");
-				w.writenl("return ctypes.cast(__string.get(0), "
-									"ctypes.c_char_p).value.decode(\"utf-8\")")
+				w.writenl(
+						 "return ctypes.cast(__string.get(0), "
+						 "ctypes.c_char_p).value.decode(\"utf-8\")")
 						.endLine();
 			}
 		}
@@ -453,7 +455,7 @@ namespace mlir::rlc
 
 				// bool in python are integers too, so we have to guard against bools
 				// when we can accept a int
-				if (argument.value().isa<mlir::rlc::IntegerType>())
+				if (mlir::isa<mlir::rlc::IntegerType>(argument.value()))
 				{
 					w.write(
 							" and not isinstance(args[",
@@ -584,8 +586,9 @@ namespace mlir::rlc
 		void apply(mlir::rlc::TypeAliasOp op, mlir::rlc::StreamWriter& w)
 		{
 			w.write(op.getName(), " = ");
-			w.writeType(mlir::cast<mlir::rlc::AliasType>(op.getDeclaredType())
-											.getUnderlying());
+			w.writeType(
+					mlir::cast<mlir::rlc::AliasType>(op.getDeclaredType())
+							.getUnderlying());
 			w.endLine();
 			w.endLine();
 		}

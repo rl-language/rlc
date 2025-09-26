@@ -31,17 +31,17 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 
 	AliasResult getAlias(mlir::Attribute type, llvm::raw_ostream &OS) const final
 	{
-		if (auto casted = type.dyn_cast<mlir::rlc::ShugarizedTypeAttr>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ShugarizedTypeAttr>(type))
 		{
 			OS << "shugar_type";
 			return AliasResult::FinalAlias;
 		}
-		if (auto casted = type.dyn_cast<mlir::rlc::FunctionInfoAttr>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionInfoAttr>(type))
 		{
 			OS << "fun_info";
 			return AliasResult::FinalAlias;
 		}
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassFieldAttr>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassFieldAttr>(type))
 		{
 			OS << "field_info";
 			return AliasResult::FinalAlias;
@@ -52,7 +52,7 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 
 	AliasResult getAlias(mlir::Type type, llvm::raw_ostream &OS) const final
 	{
-		if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 		{
 			OS << casted.mangledName();
 			if (counter.find(casted) == counter.end())
@@ -63,7 +63,7 @@ class TypeAliasASMInterface: public mlir::OpAsmDialectInterface
 			OS << "_" << counter[casted];
 			return AliasResult::FinalAlias;
 		}
-		if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::TraitMetaType>(type))
 		{
 			OS << "trait_" << casted.getName();
 			return AliasResult::FinalAlias;
@@ -94,7 +94,7 @@ void mlir::rlc::RLCDialect::initialize()
 
 static mlir::Type attrToRLCType(mlir::Attribute attr)
 {
-	if (auto casted = attr.dyn_cast<mlir::IntegerAttr>())
+	if (auto casted = mlir::dyn_cast<mlir::IntegerAttr>(attr))
 	{
 		if (casted.getType() ==
 				mlir::IntegerType::get(
@@ -104,19 +104,19 @@ static mlir::Type attrToRLCType(mlir::Attribute attr)
 			return mlir::rlc::BoolType::get(attr.getContext());
 		return mlir::rlc::IntegerType::get(
 				attr.getContext(),
-				casted.getType().dyn_cast<mlir::IntegerType>().getWidth());
+				mlir::dyn_cast<mlir::IntegerType>(casted.getType()).getWidth());
 	}
-	if (auto casted = attr.dyn_cast<mlir::BoolAttr>())
+	if (auto casted = mlir::dyn_cast<mlir::BoolAttr>(attr))
 	{
 		return mlir::rlc::BoolType::get(attr.getContext());
 	}
-	if (auto casted = attr.dyn_cast<mlir::FloatAttr>())
+	if (auto casted = mlir::dyn_cast<mlir::FloatAttr>(attr))
 	{
-		assert(casted.getType().dyn_cast<mlir::FloatType>().getWidth() == 64);
+		assert(mlir::dyn_cast<mlir::FloatType>(casted.getType()).getWidth() == 64);
 		return mlir::rlc::FloatType::get(attr.getContext());
 	}
 
-	if (auto casted = attr.dyn_cast<mlir::ArrayAttr>())
+	if (auto casted = mlir::dyn_cast<mlir::ArrayAttr>(attr))
 	{
 		return mlir::rlc::ArrayType::get(
 				attr.getContext(), attrToRLCType(casted.getValue()[0]), casted.size());
@@ -129,29 +129,29 @@ static mlir::Type attrToRLCType(mlir::Attribute attr)
 mlir::Operation *mlir::rlc::RLCDialect::materializeConstant(
 		OpBuilder &builder, Attribute value, Type type, Location loc)
 {
-	if (auto boolAttr = value.dyn_cast<mlir::BoolAttr>())
+	if (auto boolAttr = mlir::dyn_cast<mlir::BoolAttr>(value))
 	{
-		if (type.isa<mlir::rlc::BoolType>())
+		if (mlir::isa<mlir::rlc::BoolType>(type))
 		{
 			return builder.create<mlir::rlc::Constant>(loc, boolAttr.getValue());
 		}
 	}
-	if (auto intAttr = value.dyn_cast<mlir::IntegerAttr>())
+	if (auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(value))
 	{
-		if (type.isa<mlir::rlc::IntegerType>())
+		if (mlir::isa<mlir::rlc::IntegerType>(type))
 		{
 			return builder.create<mlir::rlc::Constant>(loc, type, intAttr);
 		}
 	}
-	if (auto floatAttr = value.dyn_cast<mlir::FloatAttr>())
+	if (auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(value))
 	{
-		if (type.isa<mlir::rlc::FloatType>())
+		if (mlir::isa<mlir::rlc::FloatType>(type))
 		{
 			return builder.create<mlir::rlc::Constant>(loc, type, floatAttr);
 		}
 	}
 
-	if (auto array = value.dyn_cast<mlir::ArrayAttr>())
+	if (auto array = mlir::dyn_cast<mlir::ArrayAttr>(value))
 	{
 		assert(not array.empty());
 		return builder.create<mlir::rlc::Constant>(

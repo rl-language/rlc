@@ -49,7 +49,7 @@ ClassType ClassType::getIdentified(
 		ArrayRef<Type> explicitTemplateParameters)
 {
 	for (auto type : explicitTemplateParameters)
-		assert(not type.isa<mlir::rlc::UnknownType>());
+		assert(not mlir::isa<mlir::rlc::UnknownType>(type));
 	return Base::get(
 			context, StructTypeStorage::KeyTy(name, explicitTemplateParameters));
 }
@@ -128,7 +128,7 @@ mlir::Type ClassType::replaceImmediateSubElements(
 	llvm::SmallVector<mlir::rlc::ClassFieldAttr> fields;
 	for (auto attr : replAttrs.take_front(getMembers().size()))
 	{
-		fields.push_back(attr.cast<mlir::rlc::ClassFieldAttr>());
+		fields.push_back(mlir::cast<mlir::rlc::ClassFieldAttr>(attr));
 	}
 	auto result = type.setBody(fields);
 	assert(result.succeeded());
@@ -194,7 +194,7 @@ mlir::Type ClassType::parse(mlir::AsmParser &parser)
 				return {};
 			}
 
-			inners.push_back(field.cast<mlir::rlc::ClassFieldAttr>());
+			inners.push_back(mlir::cast<mlir::rlc::ClassFieldAttr>(field));
 		}
 	}
 
@@ -270,7 +270,7 @@ void RLCDialect::printType(
 {
 	if (::mlir::succeeded(generatedTypePrinter(type, printer)))
 		return;
-	if (auto casted = type.dyn_cast<ClassType>())
+	if (auto casted = mlir::dyn_cast<ClassType>(type))
 	{
 		casted.print(printer);
 		return;
@@ -286,13 +286,14 @@ mlir::LogicalResult mlir::rlc::returnsVoid(mlir::FunctionType type)
 
 static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 {
-	if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::TraitMetaType>(t))
 	{
 		OS << maybeType.getName();
 		return;
 	}
 
-	if (auto maybeType = t.dyn_cast<mlir::rlc::UncheckedTemplateParameterType>())
+	if (auto maybeType =
+					mlir::dyn_cast<mlir::rlc::UncheckedTemplateParameterType>(t))
 	{
 		OS << maybeType.getName();
 		if (maybeType.getTrait() != nullptr)
@@ -301,7 +302,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		}
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::TemplateParameterType>(t))
 	{
 		OS << maybeType.getName();
 		if (maybeType.getTrait() != nullptr)
@@ -311,7 +312,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		}
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::IntegerType>(t))
 	{
 		if (maybeType.getSize() == 64)
 			OS << "Int";
@@ -321,32 +322,32 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 			abort();
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::UnknownType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::UnknownType>(t))
 	{
 		OS << "Unkown";
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::AliasType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::AliasType>(t))
 	{
 		OS << maybeType.getName();
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::FloatType>(t))
 	{
 		OS << "Float";
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::BoolType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::BoolType>(t))
 	{
 		OS << "Bool";
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::VoidType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::VoidType>(t))
 	{
 		OS << "Void";
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ClassType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::ClassType>(t))
 	{
 		OS << maybeType.getName();
 		if (not maybeType.getExplicitTemplateParameters().empty())
@@ -362,7 +363,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		}
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
 	{
 		if (not maybeType.getName().empty())
 		{
@@ -380,7 +381,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		}
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::ArrayType>(t))
 	{
 		typeToPretty(OS, maybeType.getUnderlying());
 		OS << "[";
@@ -388,37 +389,37 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		OS << "]";
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::StringLiteralType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::StringLiteralType>(t))
 	{
 		OS << "StringLiteral";
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ContextType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::ContextType>(t))
 	{
 		OS << "ctx ";
 		typeToPretty(OS, maybeType.getUnderlying());
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::FrameType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::FrameType>(t))
 	{
 		OS << "frm ";
 		typeToPretty(OS, maybeType.getUnderlying());
 		return;
 	}
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ReferenceType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::ReferenceType>(t))
 	{
 		OS << "ref ";
 		typeToPretty(OS, maybeType.getUnderlying());
 		return;
 	}
 
-	if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerLiteralType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::IntegerLiteralType>(t))
 	{
 		OS << maybeType.getValue();
 		return;
 	}
 
-	if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::TemplateParameterType>(t))
 	{
 		OS << maybeType.getName();
 		if (maybeType.getTrait() != nullptr)
@@ -429,7 +430,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		return;
 	}
 
-	if (auto maybeType = t.dyn_cast<mlir::rlc::ScalarUseType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::ScalarUseType>(t))
 	{
 		OS << maybeType.getReadType();
 		if (maybeType.getExplicitTemplateParameters().size() != 0)
@@ -455,7 +456,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		return;
 	}
 
-	if (auto maybeType = t.dyn_cast<mlir::rlc::OwningPtrType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::rlc::OwningPtrType>(t))
 	{
 		OS << "OwningPtr<";
 		typeToPretty(OS, maybeType.getUnderlying());
@@ -463,7 +464,7 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 		return;
 	}
 
-	if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
+	if (auto maybeType = mlir::dyn_cast<mlir::FunctionType>(t))
 	{
 		assert(maybeType.getResults().size() <= 1);
 
@@ -494,22 +495,22 @@ namespace mlir::rlc
 {
 	static void typeToMangled(llvm::raw_ostream &OS, mlir::Type t)
 	{
-		if (auto maybeType = t.dyn_cast<mlir::rlc::TraitMetaType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::TraitMetaType>(t))
 		{
 			OS << maybeType.getName();
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::ContextType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::ContextType>(t))
 		{
 			typeToMangled(OS, maybeType.getUnderlying());
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::FrameType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::FrameType>(t))
 		{
 			typeToMangled(OS, maybeType.getUnderlying());
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::TemplateParameterType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::TemplateParameterType>(t))
 		{
 			OS << maybeType.getName();
 			if (maybeType.getTrait() != nullptr)
@@ -519,32 +520,32 @@ namespace mlir::rlc
 			}
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::StringLiteralType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::StringLiteralType>(t))
 		{
 			OS << "strlit";
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::IntegerType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::IntegerType>(t))
 		{
 			OS << "int" << int64_t(maybeType.getSize()) << "_t";
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::FloatType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::FloatType>(t))
 		{
 			OS << "double";
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::BoolType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::BoolType>(t))
 		{
 			OS << "bool";
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::VoidType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::VoidType>(t))
 		{
 			OS << "void";
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::ClassType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::ClassType>(t))
 		{
 			OS << maybeType.getName();
 			if (not maybeType.getExplicitTemplateParameters().empty())
@@ -558,7 +559,7 @@ namespace mlir::rlc
 			}
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::AlternativeType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
 		{
 			if (not maybeType.getName().empty())
 			{
@@ -577,28 +578,28 @@ namespace mlir::rlc
 			}
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::ArrayType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::ArrayType>(t))
 		{
 			typeToMangled(OS, maybeType.getUnderlying());
 			OS << "_";
 			OS << maybeType.getArraySize();
 			return;
 		}
-		if (auto maybeType = t.dyn_cast<mlir::rlc::ReferenceType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::ReferenceType>(t))
 		{
 			typeToMangled(OS, maybeType.getUnderlying());
 			OS << "Ref";
 			return;
 		}
 
-		if (auto maybeType = t.dyn_cast<mlir::rlc::OwningPtrType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::OwningPtrType>(t))
 		{
 			typeToMangled(OS, maybeType.getUnderlying());
 			OS << "Ptr";
 			return;
 		}
 
-		if (auto maybeType = t.dyn_cast<mlir::FunctionType>())
+		if (auto maybeType = mlir::dyn_cast<mlir::FunctionType>(t))
 		{
 			assert(maybeType.getResults().size() <= 1);
 			for (auto input : maybeType.getInputs())
@@ -607,14 +608,14 @@ namespace mlir::rlc
 				typeToMangled(OS, input);
 			}
 			if (not maybeType.getResults().empty() and
-					not maybeType.getResults().front().isa<mlir::rlc::VoidType>())
+					not mlir::isa<mlir::rlc::VoidType>(maybeType.getResults().front()))
 			{
 				OS << "_r_";
 				typeToMangled(OS, maybeType.getResult(0));
 			}
 			return;
 		}
-		if (auto casted = t.dyn_cast<mlir::rlc::IntegerLiteralType>())
+		if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerLiteralType>(t))
 		{
 			OS << casted.getValue();
 			return;
@@ -678,7 +679,7 @@ std::string mlir::rlc::prettyPrintFunctionTypeWithNameArgs(
 	}
 	toReturn += ") ";
 	if (fType.getNumResults() != 0 and
-			not fType.getResult(0).isa<mlir::rlc::VoidType>())
+			not mlir::isa<mlir::rlc::VoidType>(fType.getResult(0)))
 	{
 		toReturn += " -> ";
 		toReturn += mlir::rlc::prettyType(fType.getResult(0));
@@ -702,18 +703,18 @@ mlir::FunctionType mlir::rlc::replaceTemplateParameter(
 		mlir::rlc::TemplateParameterType toReplace,
 		mlir::Type replacement)
 {
-	return original
-			.replace(
-					[toReplace, replacement](mlir::Type t) -> std::optional<mlir::Type> {
-						if (auto Casted = t.dyn_cast<mlir::rlc::TemplateParameterType>())
-						{
-							if (Casted == toReplace)
-								return replacement;
-						}
+	return mlir::cast<mlir::FunctionType>(original.replace(
+			[toReplace, replacement](mlir::Type t) -> std::optional<mlir::Type> {
+				if (auto Casted = mlir::dyn_cast<mlir::rlc::TemplateParameterType>(t))
+				{
+					if (Casted == toReplace)
+						return replacement;
+				}
 
-						return std::nullopt;
-					})
-			.cast<mlir::FunctionType>();
+				return std::nullopt;
+			})
+
+	);
 }
 
 static mlir::Type resultTypeOrVoid(mlir::FunctionType fType)
@@ -735,7 +736,7 @@ static mlir::LogicalResult sameSignatureMethodExists(
 
 	for (auto &overload : overloads)
 	{
-		auto overloadType = overload.getType().cast<mlir::FunctionType>();
+		auto overloadType = mlir::cast<mlir::FunctionType>(overload.getType());
 
 		if (resultTypeOrVoid(overloadType) == resultTypeOrVoid(functionType))
 			return mlir::success();
@@ -751,7 +752,7 @@ mlir::rlc::TraitMetaType::typeRespectsTraitFunctionDeclaration(
 		size_t index)
 {
 	auto methodType =
-			getRequestedFunctionTypes()[index].cast<mlir::FunctionType>();
+			mlir::cast<mlir::FunctionType>(getRequestedFunctionTypes()[index]);
 	auto instantiated = replaceTemplateParameter(
 			methodType,
 			mlir::cast<mlir::rlc::TemplateParameterType>(
@@ -788,13 +789,13 @@ mlir::LogicalResult mlir::rlc::isTemplateType(
 	if (auto t = table.find(type); t != table.end())
 		return mlir::success(t->getSecond());
 
-	if (auto casted = type.dyn_cast<mlir::rlc::TemplateParameterType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::TemplateParameterType>(type))
 	{
 		table[type] = true;
 		return mlir::success();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::ClassType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 	{
 		for (auto child : casted.getExplicitTemplateParameters())
 			if (isTemplateType(child, table).succeeded())
@@ -818,7 +819,7 @@ mlir::LogicalResult mlir::rlc::isTemplateType(
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::AlternativeType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 	{
 		for (auto child : casted.getUnderlying())
 			if (isTemplateType(child, table).succeeded())
@@ -831,7 +832,7 @@ mlir::LogicalResult mlir::rlc::isTemplateType(
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::FunctionType>())
+	if (auto casted = mlir::dyn_cast<mlir::FunctionType>(type))
 	{
 		for (auto child : casted.getInputs())
 			if (isTemplateType(child, table).succeeded())
@@ -851,34 +852,34 @@ mlir::LogicalResult mlir::rlc::isTemplateType(
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::FrameType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
 	{
 		auto success = isTemplateType(casted.getUnderlying(), table);
 		table[type] = success.succeeded();
 		return success;
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::ContextType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(type))
 	{
 		auto success = isTemplateType(casted.getUnderlying(), table);
 		table[type] = success.succeeded();
 		return success;
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::StringLiteralType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::StringLiteralType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::ReferenceType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(type))
 	{
 		auto success = isTemplateType(casted.getUnderlying(), table);
 		table[type] = success.succeeded();
 		return success;
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::ArrayType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 	{
 		auto isTemplate =
 				(isTemplateType(casted.getUnderlying(), table).succeeded() or
@@ -888,54 +889,54 @@ mlir::LogicalResult mlir::rlc::isTemplateType(
 		return mlir::success(isTemplate);
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::IntegerType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
 	}
-	if (auto casted = type.dyn_cast<mlir::rlc::FloatType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FloatType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
 	}
-	if (auto casted = type.dyn_cast<mlir::rlc::BoolType>())
-	{
-		table[type] = false;
-		return mlir::failure();
-	}
-
-	if (auto casted = type.dyn_cast<mlir::rlc::VoidType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::BoolType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::TraitMetaType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::VoidType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::OwningPtrType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::TraitMetaType>(type))
+	{
+		table[type] = false;
+		return mlir::failure();
+	}
+
+	if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
 	{
 		auto success = isTemplateType(casted.getUnderlying(), table);
 		table[type] = success.succeeded();
 		return success;
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::IntegerLiteralType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerLiteralType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::ScalarUseType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ScalarUseType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
 	}
 
-	if (auto casted = type.dyn_cast<mlir::rlc::FunctionUseType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionUseType>(type))
 	{
 		table[type] = false;
 		return mlir::failure();
@@ -948,16 +949,16 @@ mlir::LogicalResult mlir::rlc::isTemplateType(
 
 mlir::Type mlir::rlc::decayCtxFrmType(mlir::Type t)
 {
-	if (auto casted = t.dyn_cast<mlir::rlc::FrameType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(t))
 		return casted.getUnderlying();
-	if (auto casted = t.dyn_cast<mlir::rlc::ContextType>())
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(t))
 		return casted.getUnderlying();
 	return t;
 }
 
 int64_t mlir::rlc::ArrayType::getArraySize()
 {
-	return getSize().cast<mlir::rlc::IntegerLiteralType>().getValue();
+	return mlir::cast<mlir::rlc::IntegerLiteralType>(getSize()).getValue();
 }
 
 void mlir::rlc::TraitMetaType::rlc_serialize(
@@ -979,11 +980,11 @@ void mlir::rlc::TraitMetaType::rlc_serialize(
 	OS << "<";
 	for (auto parameter : llvm::drop_end(nonTemplateTYpes))
 	{
-		parameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+		mlir::cast<mlir::rlc::RLCSerializable>(parameter).rlc_serialize(OS, ctx);
 		OS << ", ";
 	}
-	nonTemplateTYpes.back().cast<mlir::rlc::RLCSerializable>().rlc_serialize(
-			OS, ctx);
+	mlir::cast<mlir::rlc::RLCSerializable>(nonTemplateTYpes.back())
+			.rlc_serialize(OS, ctx);
 	OS << ">";
 }
 
@@ -1010,12 +1011,11 @@ void mlir::rlc::AliasType::rlc_serialize(
 	OS << "<";
 	for (auto templateParameter : llvm::drop_end(getExplicitTemplateParameters()))
 	{
-		templateParameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+		mlir::cast<mlir::rlc::RLCSerializable>(templateParameter)
+				.rlc_serialize(OS, ctx);
 		OS << ", ";
 	}
-	getExplicitTemplateParameters()
-			.back()
-			.cast<mlir::rlc::RLCSerializable>()
+	mlir::cast<mlir::rlc::RLCSerializable>(getExplicitTemplateParameters().back())
 			.rlc_serialize(OS, ctx);
 	OS << ">";
 }
@@ -1042,14 +1042,16 @@ void mlir::rlc::ReferenceType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
 	OS << "ref ";
-	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	mlir::cast<mlir::rlc::RLCSerializable>(getUnderlying())
+			.rlc_serialize(OS, ctx);
 }
 
 void mlir::rlc::OwningPtrType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
 	OS << "OwningPtr<";
-	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	mlir::cast<mlir::rlc::RLCSerializable>(getUnderlying())
+			.rlc_serialize(OS, ctx);
 	OS << ">";
 }
 
@@ -1064,8 +1066,8 @@ void mlir::rlc::AlternativeType::rlc_serialize(
 
 	for (size_t i = 0; i != getUnderlying().size(); i++)
 	{
-		getUnderlying()[i].cast<mlir::rlc::RLCSerializable>().rlc_serialize(
-				OS, ctx);
+		mlir::cast<mlir::rlc::RLCSerializable>(getUnderlying()[i])
+				.rlc_serialize(OS, ctx);
 		if (i + 1 != getUnderlying().size())
 			OS << " | ";
 	}
@@ -1074,9 +1076,10 @@ void mlir::rlc::AlternativeType::rlc_serialize(
 void mlir::rlc::ArrayType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
-	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	mlir::cast<mlir::rlc::RLCSerializable>(getUnderlying())
+			.rlc_serialize(OS, ctx);
 	OS << "[";
-	getSize().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	mlir::cast<mlir::rlc::RLCSerializable>(getSize()).rlc_serialize(OS, ctx);
 	OS << "]";
 }
 
@@ -1085,7 +1088,7 @@ void mlir::rlc::TemplateParameterType::rlc_serialize(
 {
 	if (getTrait() != nullptr)
 	{
-		getTrait().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+		mlir::cast<mlir::rlc::RLCSerializable>(getTrait()).rlc_serialize(OS, ctx);
 	}
 	OS << getName();
 }
@@ -1105,14 +1108,16 @@ void mlir::rlc::ContextType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
 	OS << "ctx ";
-	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	mlir::cast<mlir::rlc::RLCSerializable>(getUnderlying())
+			.rlc_serialize(OS, ctx);
 }
 
 void mlir::rlc::FrameType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
 	OS << "frm ";
-	getUnderlying().cast<mlir::rlc::RLCSerializable>().rlc_serialize(OS, ctx);
+	mlir::cast<mlir::rlc::RLCSerializable>(getUnderlying())
+			.rlc_serialize(OS, ctx);
 }
 
 void mlir::rlc::IntegerLiteralType::rlc_serialize(
@@ -1131,13 +1136,13 @@ void mlir::rlc::ClassType::rlc_serialize(
 		for (auto templateParameter :
 				 llvm::drop_end(getExplicitTemplateParameters()))
 		{
-			templateParameter.cast<mlir::rlc::RLCSerializable>().rlc_serialize(
-					OS, ctx);
+			mlir::cast<mlir::rlc::RLCSerializable>(templateParameter)
+					.rlc_serialize(OS, ctx);
 			OS << ", ";
 		}
-		getExplicitTemplateParameters()
-				.back()
-				.cast<mlir::rlc::RLCSerializable>()
+
+		mlir::cast<mlir::rlc::RLCSerializable>(
+				getExplicitTemplateParameters().back())
 				.rlc_serialize(OS, ctx);
 		OS << ">";
 	}

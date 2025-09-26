@@ -35,7 +35,7 @@ namespace rlc
 			emitted.insert(elem);
 
 		auto visit = [&](mlir::Type type) {
-			if (type.isa<mlir::rlc::IntegerLiteralType>())
+			if (mlir::isa<mlir::rlc::IntegerLiteralType>(type))
 				return;
 			if (emitted.contains(type))
 				return;
@@ -46,7 +46,7 @@ namespace rlc
 
 		for (auto decl : module.getOps<mlir::rlc::ClassDeclaration>())
 		{
-			auto topLevelType = decl.getType().cast<mlir::rlc::ClassType>();
+			auto topLevelType = mlir::cast<mlir::rlc::ClassType>(decl.getType());
 			if (emitted.contains(topLevelType))
 				continue;
 
