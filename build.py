@@ -52,6 +52,7 @@ def build_rlc(
     python_path: str,
     is_windows: bool,
     is_mac: bool,
+    sdkroot: str,
 ):
     assert_run_program(
         execution_dir,
@@ -77,7 +78,7 @@ def build_rlc(
         "-DBUILD_SHARED_LIBS={}".format("ON" if build_shared else "OFF"),
         "-DCMAKE_BUILD_WITH_INSTALL_RPATH={}".format("OFF" if build_shared else "ON"),
         "-DHAVE_STD_REGEX=ON",
-        "-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument",
+        f"-DCMAKE_CXX_FLAGS=-Wno-invalid-offsetof -Wno-unused-command-line-argument " + f"-nostdinc++ -isystem {sdkroot}/usr/include/c++/v1" if sdkroot else "",
         "-DRUN_HAVE_STD_REGEX=1",
         "-DPython3_EXECUTABLE:FILEPATH={}".format("./.venv/bin/python" if not is_windows else ".venv/Scripts/python.exe"),
         "-DPython3_ROOT_DIR={}".format("./.venv/"),
@@ -213,6 +214,7 @@ def main():
 
     is_windows = os.name == "nt"
     is_mac = sys.platform == "darwin"
+    sdkroot = os.getenv("SDKROOT") if is_mac else None
 
     # create dirs
     rlc_dir = path.abspath("rlc")
@@ -298,6 +300,7 @@ def main():
             python_path=python,
             is_windows=is_windows,
             is_mac=is_mac,
+            sdkroot=sdkroot,
         )
         install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
 
@@ -313,6 +316,7 @@ def main():
         python_path=python,
         is_windows=is_windows,
         is_mac=is_mac,
+        sdkroot=sdkroot,
     )
     install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=True)
 
