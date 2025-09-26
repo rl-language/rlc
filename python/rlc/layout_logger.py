@@ -34,6 +34,9 @@ class LayoutLogger:
             pass
 
     def _attach_id(self, node) -> int:
+        # Reset _log_node_id for copied nodes to ensure unique IDs
+        if hasattr(node, "_log_node_id"):
+            delattr(node, "_log_node_id")
         nid = getattr(node, "_log_node_id", None)
         if nid is None:
             nid = next(self._id_counter)
@@ -72,8 +75,8 @@ class LayoutLogger:
     
     def _extract_node_info(self, node) -> Dict[str, Any]:
         sizing = getattr(node, "sizing", (None, None))
-        wmode = sizing[0].mode.value if sizing and sizing[0] else None
-        hmode = sizing[1].mode.value if sizing and sizing[1] else None
+        wmode = sizing[0].size_policy.value if sizing and sizing[0] else None
+        hmode = sizing[1].size_policy.value if sizing and sizing[1] else None
         return {
             "id" : self._attach_id(node),
             "type": type(node).__name__,
@@ -203,13 +206,13 @@ class LayoutLogger:
     def _tree_dict(self, node) -> Dict[str, Any]:
         nid = self._attach_id(node)
         sizing = getattr(node, "sizing", (None, None))
-        wm = sizing[0].mode.value if sizing[0] else None
-        hm = sizing[1].mode.value if sizing[1] else None
+        wm = sizing[0].size_policy.value if sizing[0] else None
+        hm = sizing[1].size_policy.value if sizing[1] else None
         info = self._extract_node_info(node)
         d : Dict[str, Any] = {
             "node_id" : info['id'],
             "type": info['type'],
-            "backgroundColor": getattr(node, "backgroundColor", (220, 220, 220)),
+            "color": getattr(node, "color", "#dddddd"),
             "direction": info['direction'],
             "position": info['position'],
             "size": info['size'],
