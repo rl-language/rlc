@@ -65,14 +65,14 @@ def render(screen, node):
         write_text(screen, node)
         return
     if isinstance(node, Layout):
-        draw_rectangle(screen, (node.x, node.y), (node.width, node.height), node.backgroundColor)
+        draw_rectangle(screen, (node.x, node.y), (node.width, node.height), node.color)
         for child in node.children:
             render(screen, child)
 
 def draw_rectangle(screen, position, size, color):
     x, y = position
     w, h = size
-    color = pygame.Color(color)
+    color = pygame.Color(color if color else "white")
     pygame.draw.rect(screen, color, pygame.Rect(x, y, w, h))
 
 def write_text(screen, node):
