@@ -66,14 +66,25 @@ def render(screen, node):
         return
     if isinstance(node, Layout):
         draw_rectangle(screen, (node.x, node.y), (node.width, node.height), node.color)
+        # Draw border around the layout
+        border_color = pygame.Color("darkgray")
+        pygame.draw.rect(screen, border_color, pygame.Rect(node.x, node.y, node.width, node.height), 2)  # 2px border
         for child in node.children:
             render(screen, child)
 
 def draw_rectangle(screen, position, size, color):
     x, y = position
     w, h = size
-    color = pygame.Color(color if color else "white")
-    pygame.draw.rect(screen, color, pygame.Rect(x, y, w, h))
+    if color and color.startswith("rgba("):
+        # Parse rgba(r,g,b,a)
+        parts = color[5:-1].split(',')
+        r, g, b, a = map(int, parts)
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        surf.fill((r, g, b, a))
+        screen.blit(surf, (x, y))
+    else:
+        color = pygame.Color(color if color else "white")
+        pygame.draw.rect(screen, color, pygame.Rect(x, y, w, h))
 
 def write_text(screen, node):
     y_offset = 0

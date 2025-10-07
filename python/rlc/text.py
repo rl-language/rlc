@@ -11,6 +11,8 @@ class Text(Layout):
         self.font_name = font_name
         self.font_size = font_size
     def compute_size(self, available_width=None, available_height=None, logger=None):
+        if not pygame.font.get_init():
+            pygame.font.init()
         font = pygame.font.SysFont(self.font_name, self.font_size)
         if available_width:
             lines = self.wrap_text(font, available_width)
@@ -18,8 +20,12 @@ class Text(Layout):
             lines = [self.text]
             
         self.text_surfaces = [font.render(line, True, self.pygame_color) for line in lines]
+        if not self.text_surfaces:  # Safeguard for empty surfaces
+            dummy_surface = font.render(" ", True, self.pygame_color)
+            self.text_surfaces = [dummy_surface]
         self.width = max(s.get_width() for s in self.text_surfaces)
         self.height = sum(s.get_height() for s in self.text_surfaces)
+        # print(f"Text '{self.text}': width={self.width}, height={self.height}")
         if logger: logger.snapshot(self, "text_compute")
 
     def wrap_text(self, font, max_width):
