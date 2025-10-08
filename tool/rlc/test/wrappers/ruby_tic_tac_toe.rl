@@ -157,7 +157,7 @@ puts(RLC::to_ruby_str(RLC::to_string(RLC::play)))
 action = RLC::RLCAnyGameAction.new
 _actions = RLC::enumerate(action)
 puts(_actions)
-actions = (0..._actions.size).map { |i| RLC::RLCAnyGameAction.new(_actions.get(i)) }
+actions = (0..._actions.size).map { |i| _actions.get(i) }
 puts(actions[0])
 puts(actions[1])
 puts(actions[2])

@@ -352,7 +352,49 @@ namespace mlir::rlc
 			// extract to convert it to a python builtin type instead
 			if (returnsVoid(type).failed())
 			{
-				if (isUserDefined(resultType))
+				if (auto casted =
+								mlir::dyn_cast<mlir::rlc::ReferenceType>(type.getResults()[0]))
+				{
+					auto realType = casted.getUnderlying();
+					w.writenl(
+							"__result2 = __result[0, "
+							"Fiddle::SIZEOF_VOIDP].unpack(\"J!\").first");
+					if (mlir::isa<mlir::rlc::ClassType>(realType))
+					{
+						w.writenl("RLC::");
+						w.writeType(realType);
+						w.writenl(".new(__result2)");
+					}
+					else if (mlir::isa<mlir::rlc::AlternativeType>(realType))
+					{
+						w.write("RLC::");
+						w.writeType(realType);
+						w.write(".new(");
+
+						w.write("MyLib::RLC_");
+						w.writeType(realType, 1);
+						w.write(".new(__result2))");
+					}
+					else if (mlir::isa<mlir::rlc::StringLiteralType>(resultType))
+					{
+						w.write("__result2[0, ");
+						printTypeSize(w, resultType);
+						w.write("].to_s");
+					}
+					else
+					{
+						w.write("__result2[0, ");
+						printTypeSize(w, resultType);
+						w.write("].unpack1('");
+						printTypeUnpack(w, resultType);
+						w.write("')");
+						if (mlir::isa<mlir::rlc::BoolType>(resultType))
+						{
+							w.write(" != 0");
+						}
+					}
+				}
+				else if (isUserDefined(resultType))
 				{
 					w.writenl("__to_return");
 				}
@@ -776,6 +818,7 @@ namespace mlir::rlc
 			auto _ = w.indent();
 			w.writenl("__result = ", enumDecl.getName(), ".malloc");
 			w.writenl("__result.value = ", value.index());
+
 			w.writenl("return __result").endLine();
 		}
 	}
@@ -1032,6 +1075,37 @@ namespace mlir::rlc
 			}
 			w.writenl("end");
 			emitSpecialFunctions(type, w, table, builder);
+			w.writenl("def unwrap()");
+			{
+				auto _2 = w.indent();
+				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+				{
+					w.write("if ");
+					w.writenl("@content.active_index.content == ", enumeration.index());
+					{
+						auto _ = w.indent();
+						w.write("return ");
+
+						if (not isUserDefined(enumeration.value()))
+							w.writenl(
+									"@content._data._alternative",
+									enumeration.index(),
+									".content");
+						else
+						{
+							w.writeType(enumeration.value());
+							w.writenl(
+									".new(",
+									"@content._data._alternative",
+									enumeration.index(),
+									")");
+						}
+					}
+					w.writenl("end");
+				}
+				w.writenl("return nil");
+			}
+			w.writenl("end");
 
 			w.writenl("def [](index)");
 			{
