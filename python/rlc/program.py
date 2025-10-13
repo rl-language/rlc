@@ -133,7 +133,7 @@ class Program:
     def __init__(self, module_path: str, tmp_dir=None):
         if not isinstance(module_path, ModuleType):
             self.module_path = module_path
-            self.module = import_file("sim", module_path)
+            self.module = import_file(module_path, module_path)
         else:
             self.module = module_path
             self.module_path = None

@@ -938,6 +938,29 @@ namespace mlir::rlc
 
 			emitSpecialFunctions(type, w, table, builder);
 			//  emitHinting(type.getMemberTypes(), type.getMemberNames(), w, table);
+
+			w.writenl("def self.all_members()");
+			{
+				auto _2 = w.indent();
+				w.write("return {");
+				for (const auto& [type, name] :
+						 llvm::zip(type.getMemberTypes(), type.getMemberNames()))
+				{
+					w.write(name, ": ");
+					if (isUserDefined(type))
+					{
+						w.write("RLC::");
+						w.writeType(type);
+					}
+					else
+					{
+						w.writeType(type);
+					}
+					w.write(", ");
+				}
+				w.writenl("}");
+			}
+			w.writenl("end");
 			emitMemberAccessors(type, w, table);
 			emitMemberFunctions(type, w, table);
 
@@ -1072,6 +1095,27 @@ namespace mlir::rlc
 				auto _ = w.indent();
 				w.write("return @content");
 				w.endLine();
+			}
+			w.writenl("end");
+
+			w.writenl("def self.all_alternatives");
+			{
+				auto _2 = w.indent();
+				w.write("return [");
+				for (auto type : type.getUnderlying())
+				{
+					if (isUserDefined(type))
+					{
+						w.write("RLC::");
+						w.writeType(type);
+					}
+					else
+					{
+						w.writeType(type);
+					}
+					w.write(", ");
+				}
+				w.writenl("]");
 			}
 			w.writenl("end");
 			emitSpecialFunctions(type, w, table, builder);
