@@ -35,8 +35,8 @@ class LayoutLogger:
 
     def _attach_id(self, node) -> int:
         # Reset _log_node_id for copied nodes to ensure unique IDs
-        if hasattr(node, "_log_node_id"):
-            delattr(node, "_log_node_id")
+        # if hasattr(node, "_log_node_id"):
+        #     delattr(node, "_log_node_id")
         nid = getattr(node, "_log_node_id", None)
         if nid is None:
             nid = next(self._id_counter)

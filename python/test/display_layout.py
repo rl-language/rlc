@@ -5,7 +5,47 @@ import os
 import time
 from rlc import Layout, Text
 from rlc import LayoutLogConfig, LayoutLogger
+from rlc import RendererBackend
+from typing import Tuple, List
 
+
+class PygameRenderer(RendererBackend):
+    def __init__(self, screen):
+        self.screen = screen
+
+    def get_text_size(self, text: str, font_name: str, font_size: int) -> Tuple[int, int]:
+        font = pygame.font.SysFont(font_name, font_size)
+        surface = font.render(text, True, pygame.Color("black"))  # Dummy render for size
+        return surface.get_size()
+
+    def render_text(self, text: str, font_name: str, font_size: int, color: str) -> List[pygame.Surface]:
+        font = pygame.font.SysFont(font_name, font_size)
+        return [font.render(text, True, pygame.Color(color))]
+    
+    def render_text_lines(self, lines: List[str], font_name: str, font_size: int, color: str) -> List[pygame.Surface]:
+        # Render each line separately
+        font = pygame.font.SysFont(font_name, font_size)
+        return [font.render(line, True, pygame.Color(color)) for line in lines]
+
+    def draw_rectangle(self, position: Tuple[int, int], size: Tuple[int, int], color: str, border_size: float):
+        x, y = position
+        w, h = size
+        if color and color.startswith("rgba("):
+            parts = color[5:-1].split(',')
+            r, g, b, a = map(int, parts)
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            surf.fill((r, g, b, a))
+            self.blit_surface(surf, (x, y))
+        else:
+            color = pygame.Color(color if color else "white")
+            pygame.draw.rect(self.screen, color, pygame.Rect(x, y, w, h), border_size)
+        # Draw border around the layout
+        # if (border_size > 0):
+        #     # border_color = pygame.Color("darkgray")
+        #     pygame.draw.rect(self.screen, pygame.Rect(x, y, w, h), border_size)
+
+    def blit_surface(self, surface, position: Tuple[int, int]):
+        self.screen.blit(surface, position)
 
 def _auto_name(prefix: str, ext: str, out = None) -> str:
     ts = time.strftime("%Y%m%d-%H%M%S")
@@ -33,9 +73,10 @@ def display(build_function):
     pygame.init()
     screen = pygame.display.set_mode((2000, 700))
     screen.fill((240, 230, 220))
+    backend = PygameRenderer(screen)
 
     root = build_function()
-    root.compute_size(logger=logger)
+    root.compute_size(logger=logger, backend=backend)
     root.layout(20, 20, logger=logger)
 
     if logger: 
@@ -53,42 +94,52 @@ def display(build_function):
             logger.write_text_tree(path=path, root=root)
             print(f"[saved] text tree  -> {path}")
 
-    render(screen, root)
+    render(backend, root)
 
     pygame.display.flip()
     pygame.time.wait(5000)
     pygame.quit()
 
 
-def render(screen, node):
+def render(backend, node):
     if isinstance(node, Text):
-        write_text(screen, node)
+        write_text(node, backend)
         return
     if isinstance(node, Layout):
-        draw_rectangle(screen, (node.x, node.y), (node.width, node.height), node.color)
-        # Draw border around the layout
-        border_color = pygame.Color("darkgray")
-        pygame.draw.rect(screen, border_color, pygame.Rect(node.x, node.y, node.width, node.height), 2)  # 2px border
+        backend.draw_rectangle((node.x, node.y), (node.width, node.height), node.color, node.border)
         for child in node.children:
-            render(screen, child)
+            render(backend, child)
+        # draw_rectangle(screen, (node.x, node.y), (node.width, node.height), node.color)
+        # # Draw border around the layout
+        # border_color = pygame.Color("darkgray")
+        # pygame.draw.rect(screen, border_color, pygame.Rect(node.x, node.y, node.width, node.height), 2)  # 2px border
+        # for child in node.children:
+        #     render(screen, child)
 
-def draw_rectangle(screen, position, size, color):
-    x, y = position
-    w, h = size
-    if color and color.startswith("rgba("):
-        # Parse rgba(r,g,b,a)
-        parts = color[5:-1].split(',')
-        r, g, b, a = map(int, parts)
-        surf = pygame.Surface((w, h), pygame.SRCALPHA)
-        surf.fill((r, g, b, a))
-        screen.blit(surf, (x, y))
-    else:
-        color = pygame.Color(color if color else "white")
-        pygame.draw.rect(screen, color, pygame.Rect(x, y, w, h))
+# def draw_rectangle(screen, position, size, color):
+#     x, y = position
+#     w, h = size
+#     if color and color.startswith("rgba("):
+#         # Parse rgba(r,g,b,a)
+#         parts = color[5:-1].split(',')
+#         r, g, b, a = map(int, parts)
+#         surf = pygame.Surface((w, h), pygame.SRCALPHA)
+#         surf.fill((r, g, b, a))
+#         screen.blit(surf, (x, y))
+#     else:
+#         color = pygame.Color(color if color else "white")
+#         pygame.draw.rect(screen, color, pygame.Rect(x, y, w, h))
 
-def write_text(screen, node):
+def write_text(node, backend):
+    lines = node.wrap_text(backend, node.width)
+    surfaces = backend.render_text_lines(lines, node.font_name, node.font_size, node.color)
     y_offset = 0
-    for surface in node.text_surfaces:
-        screen.blit(surface, (node.x, node.y + y_offset))
+    for surface in surfaces:
+        backend.blit_surface(surface, (node.x, node.y + y_offset))
         y_offset += surface.get_height()
+    return
+    # y_offset = 0
+    # for surface in node.text_surfaces:
+    #     screen.blit(surface, (node.x, node.y + y_offset))
+    #     y_offset += surface.get_height()
 

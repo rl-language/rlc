@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Optional, Tuple, List
 import copy
+from .renderer_backend import RendererBackend
 # //utility for dumping layout
 
 class Direction(Enum):
@@ -40,10 +41,12 @@ class Layout:
             sizing : Tuple[SizePolicy, SizePolicy] = (FIT(), FIT()), 
             padding : Padding = Padding(0, 0, 0, 0),
             direction : Direction = Direction.ROW,
+            border: float = 0,
             child_gap : float = 0,
             color: Optional[str] = None):
         self.sizing : Tuple[SizePolicy, SizePolicy] = sizing
         self.direction : Direction = direction
+        self.border = border
         self.child_gap : float = child_gap
         self.padding : Padding = padding
         self.color: Optional[str] = color
@@ -61,7 +64,7 @@ class Layout:
         ih = max(0, self.height - self.padding.top - self.padding.bottom)
         return iw, ih
 
-    def child_size(self,logger: Optional['LayoutLogger'] = None) -> None:
+    def child_size(self,logger: Optional['LayoutLogger'] = None, backend: Optional[RendererBackend] = None) -> None:
         # Always size children — even if self has fixed size
         inner_available_width = self.width - self.padding.left - self.padding.right
         inner_available_height = self.height - self.padding.top - self.padding.bottom
@@ -75,45 +78,45 @@ class Layout:
             child_height = (
                 inner_available_height if child_height_policy.size_policy != SizePolicies.FIXED else child_height_policy.value
             )
-            child.compute_size(child_width, child_height,logger)
+            child.compute_size(child_width, child_height,logger, backend=backend)
 
 
      # Sizing  
     
-    def compute_size(self, available_width=None, available_height=None, logger: Optional['LayoutLogger']=None) -> None:
+    def compute_size(self, available_width=None, available_height=None, logger: Optional['LayoutLogger']=None, backend: Optional[RendererBackend] = None) -> None:
         if logger: logger.snapshot(self, "before_compute")
         if self.direction == Direction.ROW:
-            self._compute_width()
+            self._compute_width(logger, backend)
             self._compute_grow_width()
-            self.child_size(logger)
+            self.child_size(logger, backend)
             if logger: logger.snapshot(self, "after_children_sizing")
-            self._compute_height()
+            self._compute_height(logger, backend)
             self._compute_grow_height()
         if self.direction == Direction.COLUMN:
-            self._compute_height()
+            self._compute_height(logger, backend)
             self._compute_grow_height()
-            self.child_size(logger)
+            self.child_size(logger, backend)
             if logger: logger.snapshot(self, "after_children_sizing")
-            self._compute_width()
+            self._compute_width(logger, backend)
             self._compute_grow_width()
         if logger: logger.snapshot(self, "after_compute")
                 
-    def _compute_width(self) -> None:
+    def _compute_width(self, logger: Optional['LayoutLogger']=None, backend: Optional[RendererBackend] = None) -> None:
         width_policy, _ = self.sizing
         if width_policy.size_policy == SizePolicies.FIXED:
             self.width = width_policy.value
         elif width_policy.size_policy == SizePolicies.FIT: 
-            self.width = self._compute_fit_width()       
+            self.width = self._compute_fit_width(logger, backend)       
         
-    def _compute_height(self) -> None:
+    def _compute_height(self, logger: Optional['LayoutLogger']=None, backend: Optional[RendererBackend] = None) -> None:
         _, height_policy = self.sizing
         if height_policy.size_policy == SizePolicies.FIXED:
             self.height = height_policy.value
         elif height_policy.size_policy == SizePolicies.FIT:
-            self.height = self._compute_fit_height()
+            self.height = self._compute_fit_height(logger, backend)
 
-    def _compute_fit_width(self) -> float:
-        self.child_size()
+    def _compute_fit_width(self, logger: Optional['LayoutLogger']=None, backend: Optional[RendererBackend] = None) -> float:
+        self.child_size(logger, backend)
         if self.direction == Direction.ROW:
             content_width = sum(c.width for c in self.children)
             content_width += (len(self.children) - 1) * self.child_gap 
@@ -123,8 +126,8 @@ class Layout:
         
         return content_width + self.padding.left + self.padding.right
     
-    def _compute_fit_height(self) -> float:
-        self.child_size()
+    def _compute_fit_height(self, logger: Optional['LayoutLogger']=None, backend: Optional[RendererBackend] = None) -> float:
+        self.child_size(logger, backend)
         if self.direction == Direction.COLUMN:
             content_height = sum(c.height for c in self.children)
             content_height += (len(self.children) - 1) * self.child_gap 

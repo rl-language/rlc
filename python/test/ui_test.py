@@ -28,15 +28,15 @@ def build():
 
 def build1():
     parent = Layout(sizing=(FIXED(200), FIXED(50)), direction=Direction.ROW, padding=Padding(0, 0, 0, 0), child_gap=0)
-    c1 = Layout(sizing=(FIXED(50), FIXED(50)))
-    c2 = Layout(sizing=(GROW(), FIXED(50)))
-    c3 = Layout(sizing=(GROW(), FIXED(50)))
+    c1 = Layout(sizing=(FIXED(50), FIXED(50)), color="blue")
+    c2 = Layout(sizing=(GROW(), FIXED(50)), color="pink")
+    c3 = Layout(sizing=(GROW(), FIXED(50)), color="purple")
     parent.add_child(c1)
     parent.add_child(c2)
     parent.add_child(c3)
     return parent
 
 if __name__ == "__main__":
-    display(build_function=build)
+    display(build_function=build1)
     
     

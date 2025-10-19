@@ -6,8 +6,9 @@ from ctypes import c_long, Array, c_bool
 from rlc.layout import Layout, Direction, FIT, Padding, GROW, FIXED
 from rlc.text import Text
 import pygame
-from test.display_layout import  render
+from test.display_layout import  render, PygameRenderer
 from rlc import LayoutLogConfig, LayoutLogger
+from rlc.scene_graph import state_to_scene, scene_to_layout, print_scene
 
 
 
@@ -114,28 +115,41 @@ if __name__ == "__main__":
     with load_program_from_args(args, optimize=True) as program:
         state = program.start()
         dump_rlc_type(program.module.Game)
-        # print(f"State object: {state.state}")
+        print(f"State object: {state.state}")
 
         logger = LayoutLogger(LayoutLogConfig())
-        root = create_layout_from_type(program.module.Game, state.state, logger=logger)
-        root.compute_size(logger=logger)
+        logger = None
+        # root = create_layout_from_type(program.module.Game, state.state, logger=logger)
+        scene_root = state_to_scene(state=state.state, typ=program.module.Game)
+        print("=== Abstract Scene Graph (Reusable Structure) ===")
+        print_scene(scene_root)
+        print("=== End Scene Graph ===\n")
+        root = scene_to_layout(scene_root)
+        print(f"Root size: {root.width}x{root.height}, children={[c.height for c in root.children]}")
+        
+        
+        pygame.init()  # Already done at module level, but kept for clarity
+        screen = pygame.display.set_mode((1280, 720))
+        screen.fill("white")
+        clock = pygame.time.Clock()
+        running = True
+        backend = PygameRenderer(screen)
+
+        root.compute_size(logger=logger, backend=backend)
+        print(f"Root size: {root.width}x{root.height}, children={[c.height for c in root.children]}")
         root.layout(20, 20, logger=logger)
         print(f"Root size: {root.width}x{root.height}, children={[c.height for c in root.children]}")
         if logger: 
             logger.record_final_tree(root=root)
-            print(logger.to_text_tree(root))
-        
-        pygame.init()  # Already done at module level, but kept for clarity
-        screen = pygame.display.set_mode((1280, 720))
-        clock = pygame.time.Clock()
-        running = True
+            # print(logger.to_text_tree(root))
         
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-            screen.fill("darkgray")
-            render(screen, root)
+            
+            
+            render(backend, root)
             pygame.display.flip()
             clock.tick(60)
         
