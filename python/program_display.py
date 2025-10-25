@@ -1,11 +1,16 @@
 from command_line import load_program_from_args, make_rlc_argparse
 from rlc import Program
-from typing import Type, List, Generic, Iterable
+from typing import Type
 from numbers import Number
 from ctypes import c_long, Array, c_bool
 from rlc.layout import Layout, Direction, FIT, Padding, GROW, FIXED
 from rlc.text import Text
 import pygame
+from rlc.renderer.primitiveRenderer import PrimitiveRenderer
+from rlc.renderer.array_renderer import ArrayRenderer
+from rlc.renderer.vector_renderer import VectorRenderer
+from rlc.renderer.struct_renderer import ContainerRenderer
+from rlc.renderer.bint_renderer import BoundedIntRenderer
 from test.display_layout import  render, PygameRenderer
 from rlc import LayoutLogConfig, LayoutLogger
 from rlc.scene_graph import state_to_scene, scene_to_layout, print_scene
@@ -67,6 +72,9 @@ def create_layout_from_type(rlc_type, obj, direction=Direction.COLUMN, color="wh
     
     return layout
 
+
+
+
 def make_array_accessor(index):
     def access(obj):
         return obj[index]
@@ -93,55 +101,106 @@ def make_single_element_container_accessor(rlc_type, name=None):
         accessor = newacc
     return (typ, accessor)
 
-def dump_python_type(rlc_type: Type, depth=0):
-    print(" " * depth, rlc_type.__name__)
-    for type in rlc_type.child_types:
-        dump_python_type(type, depth+1)
-
 def dump_rlc_type(rlc_type: Type, depth=0):
-    print(" " * depth, rlc_type.__name__)
+    print("-" * depth, rlc_type.__name__)
+    
     if issubclass(rlc_type, Array):
         return dump_rlc_type(rlc_type._type_, depth+1)
     if rlc_type == c_bool:
         return
     if rlc_type == c_long:
         return
-    for field in rlc_type._fields_:
-        dump_rlc_type(field[1], depth+1)
+    if hasattr(rlc_type, "_type_"):
+        (typ, accessor) = make_single_element_container_accessor(rlc_type._type_)
+        dump_rlc_type(accessor(typ), depth+1)
+    if hasattr(rlc_type, "_fields_") :
+        for field in rlc_type._fields_:
+            dump_rlc_type(field[1], depth+1)
+
+_renderer_cache = {}
+def create_renderer(rlc_type, backend=None):
+    if rlc_type in _renderer_cache:
+        return _renderer_cache[rlc_type]
+    
+    name = getattr(rlc_type, "__name__", str(rlc_type))
+    
+    # Primitive 
+    if rlc_type == c_bool or rlc_type == c_long:
+        renderer = PrimitiveRenderer(rlc_type=rlc_type, backend=backend)
+    
+    # Bounded integer
+    if name.startswith("BInt"):
+        renderer = BoundedIntRenderer(rlc_type, backend)
+
+    # Vector
+    elif "Vector" in name:
+        # find the _data field to determine element type
+        data_field = next((f for f in getattr(rlc_type, "_fields_", []) if f[0] == "_data"), None)
+        if data_field:
+            element_type = getattr(data_field[1], "_type_", None)
+            if element_type is None:
+                element_type = data_field[1]
+            element_renderer = create_renderer(element_type, backend)
+            renderer = VectorRenderer(rlc_type, element_renderer, backend)
+        else:
+            renderer = PrimitiveRenderer(rlc_type, backend)
+
+    
+    # Array
+    elif issubclass(rlc_type, Array):
+        element_rendere = create_renderer(rlc_type._type_, backend)
+        renderer = ArrayRenderer(rlc_type, element_rendere, backend)
+    
+    # Struct
+    elif hasattr(rlc_type, "_fields_"):
+        field_renderer = {
+            name: create_renderer(field_type, backend) for name, field_type in rlc_type._fields_
+        }
+        renderer = ContainerRenderer(rlc_type, field_renderer, backend)
+    else:
+        renderer = PrimitiveRenderer(rlc_type=rlc_type, backend=backend)
+    _renderer_cache[rlc_type] = renderer
+    return renderer
 
 if __name__ == "__main__":
     parser = make_rlc_argparse("game_display", description="Display game state")
     args = parser.parse_args()
     with load_program_from_args(args, optimize=True) as program:
         state = program.start()
-        dump_rlc_type(program.module.Game)
-        print(f"State object: {state.state}")
+
+        # dump_rlc_type(program.module.Game)
+        # print(f"State object: {state.state}")
 
         logger = LayoutLogger(LayoutLogConfig())
         logger = None
+        
+        # layout.print_layout()
         # root = create_layout_from_type(program.module.Game, state.state, logger=logger)
-        scene_root = state_to_scene(state=state.state, typ=program.module.Game)
-        print("=== Abstract Scene Graph (Reusable Structure) ===")
-        print_scene(scene_root)
-        print("=== End Scene Graph ===\n")
-        root = scene_to_layout(scene_root)
-        print(f"Root size: {root.width}x{root.height}, children={[c.height for c in root.children]}")
+        # scene_root = state_to_scene(state=state.state, typ=program.module.Game)
+        # print("=== Abstract Scene Graph (Reusable Structure) ===")
+        # print_scene(scene_root)
+        # print("=== End Scene Graph ===\n")
+        # root = scene_to_layout(scene_root)
+        # print(f"Root size: {root.width}x{root.height}, children={[c.height for c in root.children]}")
         
         
-        pygame.init()  # Already done at module level, but kept for clarity
+        pygame.init()  
         screen = pygame.display.set_mode((1280, 720))
         screen.fill("white")
         clock = pygame.time.Clock()
         running = True
         backend = PygameRenderer(screen)
 
-        root.compute_size(logger=logger, backend=backend)
-        print(f"Root size: {root.width}x{root.height}, children={[c.height for c in root.children]}")
-        root.layout(20, 20, logger=logger)
-        print(f"Root size: {root.width}x{root.height}, children={[c.height for c in root.children]}")
+        renderer = create_renderer(program.module.Game)
+        renderer.print_tree()
+        layout = renderer(state.state)
+
+        layout.compute_size(logger=logger, backend=backend)
+        layout.layout(20, 20, logger=logger)
+        print(f"Root size: {layout.width}x{layout.height}, children={[c.height for c in layout.children]}")
         if logger: 
-            logger.record_final_tree(root=root)
-            # print(logger.to_text_tree(root))
+            logger.record_final_tree(root=layout)
+            # print(logger.to_text_tree(layout))
         
         while running:
             for event in pygame.event.get():
@@ -149,7 +208,7 @@ if __name__ == "__main__":
                     running = False
             
             
-            render(backend, root)
+            render(backend, layout)
             pygame.display.flip()
             clock.tick(60)
         

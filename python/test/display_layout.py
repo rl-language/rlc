@@ -27,7 +27,7 @@ class PygameRenderer(RendererBackend):
         font = pygame.font.SysFont(font_name, font_size)
         return [font.render(line, True, pygame.Color(color)) for line in lines]
 
-    def draw_rectangle(self, position: Tuple[int, int], size: Tuple[int, int], color: str, border_size: float):
+    def draw_rectangle(self, position: Tuple[int, int], size: Tuple[int, int], color: str, border_size=2):
         x, y = position
         w, h = size
         if color and color.startswith("rgba("):
@@ -38,11 +38,28 @@ class PygameRenderer(RendererBackend):
             self.blit_surface(surf, (x, y))
         else:
             color = pygame.Color(color if color else "white")
-            pygame.draw.rect(self.screen, color, pygame.Rect(x, y, w, h), border_size)
-        # Draw border around the layout
+            pygame.draw.rect(self.screen, color, pygame.Rect(x, y, w, h))
+        # # Draw border around the layout
         # if (border_size > 0):
-        #     # border_color = pygame.Color("darkgray")
-        #     pygame.draw.rect(self.screen, pygame.Rect(x, y, w, h), border_size)
+        #     border_col = pygame.Color("darkgray")
+        #     # Draw border fully inside the rectangle bounds
+        #     pygame.draw.rect(
+        #         self.screen,
+        #         border_col,
+        #         pygame.Rect(x, y, w, h),
+        #         width=border_size
+            # )
+    def draw_border(self, position: Tuple[int, int], size: Tuple[int, int],
+                    border_color: str = "darkgray", border_size: int = 2):
+        x, y = position
+        w, h = size
+
+        if border_size <= 0:
+            return
+
+        rect = pygame.Rect(x, y, w, h)
+        pygame.draw.rect(self.screen, pygame.Color(border_color), rect, width=border_size)
+
 
     def blit_surface(self, surface, position: Tuple[int, int]):
         self.screen.blit(surface, position)
@@ -109,6 +126,8 @@ def render(backend, node):
         backend.draw_rectangle((node.x, node.y), (node.width, node.height), node.color, node.border)
         for child in node.children:
             render(backend, child)
+        if node.border > 0:
+            backend.draw_border((node.x, node.y), (node.width, node.height), border_color="darkgray", border_size=node.border)
         # draw_rectangle(screen, (node.x, node.y), (node.width, node.height), node.color)
         # # Draw border around the layout
         # border_color = pygame.Color("darkgray")

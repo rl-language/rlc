@@ -259,21 +259,11 @@ class Layout:
             child.layout(child_pos_x, child_pos_y)
             top_offset += child.height + self.child_gap
 
-    def to_dot(self, dot: 'Diagraph', logger: Optional['LayoutLogger'] = None):
-        """Generate Graphviz DOT representation for this node and its children."""
-        from graphviz import Digraph
-        nid = str(logger._attach_id(self) if logger else id(self))
-        label = f'{self.__class__.__name__}#{nid}\n'
-        label += f'{self.sizing[0].size_policy.value}×{self.sizing[1].size_policy.value}\n'
-        label += f'dir={self.direction.value if self.direction else "-"}\n'
-        label += f'size=({self.width}×{self.height})\n'
-        label += f'pos=({self.x},{self.y})'
-        color = self.color if self.color else "#dddddd"
-        dot.node(nid, label, style="filled", fillcolor=color)
+    def print_layout(self, depth: int = 0):
+        indent = "  " * depth
+        print(f"{indent}{self.__class__.__name__} (dir={self.direction.value if self.direction else '-'}, size=({self.width}*{self.height}), pos=({self.x},{self.y}), policy=({self.sizing[0].size_policy},{self.sizing[1].size_policy}), color={self.color if self.color else '-'})")
         for child in self.children:
-            child_nid = child.to_dot(dot, logger)
-            dot.edge(nid, child_nid)
-        return nid
+            child.print_layout(depth + 1)
 
 
 
