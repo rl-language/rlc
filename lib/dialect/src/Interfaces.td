@@ -66,6 +66,27 @@ def TypeDeclarer : RLC_Interface<"TypeDeclarer"> {
 ];
 }
 
+def DefinitionUser : RLC_Interface<"DefinitionUser"> {
+    let description = [{
+        A element of the AST where the user refers to some other element.
+        example
+        some_function(x, y, z) refers to some_function, x, y, and z
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "the used operations",
+            "llvm::SmallVector<mlir::Operation*, 2>", "getUsedOperations",
+            (ins)
+        >,
+        InterfaceMethod<
+            "the used operations",
+            "llvm::SmallVector<mlir::Type, 2>", "getUsedTypes",
+            (ins)
+        >,
+];
+}
+
 def TypeUser : RLC_Interface<"TypeUser"> {
     let description = [{
         A element of the AST where the user has written a type, or more than one for example in class declarations.

@@ -1155,9 +1155,11 @@ def RLC_CallOp : RLC_Dialect<"call",
     [CallOpInterface,
     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
 	DeclareOpInterfaceMethods<TypeCheckable>,
-    DeclareOpInterfaceMethods<Serializable>
+    DeclareOpInterfaceMethods<Serializable>,
+    DeclareOpInterfaceMethods<DefinitionUser>
     ]>
 {
+
     let summary = "Call operation.";
 
     let arguments = (ins AnyFunctionType:$callee, BoolAttr:$is_member_call, Variadic<AnyType>:$args);
@@ -1340,7 +1342,7 @@ def RLC_Constant : RLC_Dialect<"constant", [DeclareOpInterfaceMethods<TypeChecka
 
 
 
-def RLC_MemberAccess : RLC_Dialect<"member_access", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<Serializable>]> {
+def RLC_MemberAccess : RLC_Dialect<"member_access", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<Serializable>, DeclareOpInterfaceMethods<DefinitionUser>]> {
   let summary = "constant.";
 
   let description = [{

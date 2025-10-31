@@ -102,6 +102,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	explicit LSPModuleInfoImpl(
 			llvm::StringRef path, llvm::StringRef contents, LSPContext &lspContext)
 			: context(mlir::MLIRContext::Threading::DISABLED),
+				path(path.str()),
 				diagnosticHandler(
 						&context,
 						[this](mlir::Diagnostic &diagnostic) {
@@ -651,34 +652,81 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return mlir::success();
 	}
 
+	template<template<class> class trait>
+	mlir::Operation *getNearestOpWithTrait(const mlir::lsp::Position &defPos)
+	{
+		mlir::Operation *nearest = nullptr;
+		int column = 0;
+		module.walk([&](mlir::Operation *op) {
+			if (not op->hasTrait<trait>())
+				return;
+			mlir::Location loc = op->getLoc();
+			if (loc == nullptr)
+				return;
+
+			auto pos = locToPos(loc);
+
+			if (defPos.line != pos.line)
+				return;
+
+			auto castedBegin = mlir::cast<mlir::FileLineColLoc>(loc);
+			if (path != castedBegin.getFilename())
+				return;
+
+			if (abs(defPos.character - pos.character) < abs(column - pos.character))
+			{
+				column = pos.character;
+				nearest = op;
+			}
+		});
+		return nearest;
+	}
+
+	mlir::Operation *findDeclarationOf(mlir::Type type)
+	{
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
+			for (auto classDecl : module.getOps<mlir::rlc::ClassDeclaration>())
+			{
+				if (classDecl.getName() == casted.getName())
+					return classDecl;
+			}
+
+		return nullptr;
+	}
+
 	void getLocationsOf(
 			const mlir::lsp::Position &defPos,
 			std::vector<mlir::lsp::Location> &locations)
 	{
-		auto *nearestDecl = getOperation(defPos);
+		auto *nearestDecl =
+				getNearestOpWithTrait<mlir::rlc::DefinitionUser::Trait>(defPos);
 		if (nearestDecl == nullptr)
 			return;
 
-		auto casted = mlir::dyn_cast<mlir::rlc::CallOp>(nearestDecl);
+		auto casted = mlir::dyn_cast<mlir::rlc::DefinitionUser>(nearestDecl);
 		if (not casted)
 			return;
 
-		auto templateInst =
-				mlir::dyn_cast<mlir::rlc::TemplateInstantiationOp>(nearestDecl);
-		if (templateInst)
+		for (auto *op : casted.getUsedOperations())
 		{
-			auto maybeLoc = locToLoc(templateInst.getInputTemplate().getLoc());
+			auto maybeLoc = locToLoc(op->getLoc());
 			if (maybeLoc)
 				locations.push_back(*maybeLoc);
 			else
 				llvm::consumeError(maybeLoc.takeError());
-			return;
-		};
-		auto maybeLoc = locToLoc(casted.getCallee().getLoc());
-		if (maybeLoc)
-			locations.push_back(*maybeLoc);
-		else
-			llvm::consumeError(maybeLoc.takeError());
+		}
+
+		for (auto type : casted.getUsedTypes())
+		{
+			auto op = findDeclarationOf(type);
+			if (not op)
+				continue;
+			auto maybeLoc = locToLoc(op->getLoc());
+			if (maybeLoc)
+				locations.push_back(*maybeLoc);
+			else
+				llvm::consumeError(maybeLoc.takeError());
+		}
 	}
 
 	void findReferencesOf(
@@ -769,6 +817,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	llvm::SmallVector<mlir::rlc::lsp::Diagnostic> diagnostics;
 	mlir::DialectRegistry Registry;
 	mlir::MLIRContext context;
+	std::string path;
 	mlir::ScopedDiagnosticHandler diagnosticHandler;
 	mlir::ModuleOp module;
 	std::string currentFileContent;

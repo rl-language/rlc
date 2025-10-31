@@ -3471,3 +3471,35 @@ mlir::ArrayAttr mlir::rlc::ExplicitConstructOp::getResAttrsAttr()
 {
 	return mlir::ArrayAttr::get(getContext(), {});
 }
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::MemberAccess::getUsedTypes()
+{
+	llvm::SmallVector<mlir::Type, 2> toReturn;
+	if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(getValue().getType()))
+	{
+		toReturn.push_back(casted);
+	}
+	return toReturn;
+}
+
+llvm::SmallVector<mlir::Operation *, 2>
+mlir::rlc::MemberAccess::getUsedOperations()
+{
+	return {};
+}
+
+llvm::SmallVector<mlir::Type, 2> mlir::rlc::CallOp::getUsedTypes()
+{
+	return {};
+}
+
+llvm::SmallVector<mlir::Operation *, 2> mlir::rlc::CallOp::getUsedOperations()
+{
+	llvm::SmallVector<mlir::Operation *, 2> toReturn;
+	if (auto casted = mlir::dyn_cast_or_null<mlir::rlc::TemplateInstantiationOp>(
+					getCallee().getDefiningOp()))
+		toReturn.push_back(casted.getInputTemplate().getDefiningOp());
+	else
+		toReturn.push_back(getCallee().getDefiningOp());
+	return toReturn;
+}
