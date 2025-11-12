@@ -274,7 +274,7 @@ static mlir::LogicalResult deduceClassBody(
 		auto checkedParameterType = scopedConverter.convertType(unchecked);
 		if (not checkedParameterType)
 		{
-			return mlir::failure();
+			return mlir::rlc::logError(op, "While analyzing class declaration, could not understand the semantics of " + mlir::rlc::prettyType(unchecked)) ;
 		}
 		checkedTemplateParameters.push_back(checkedParameterType);
 		auto actualType =

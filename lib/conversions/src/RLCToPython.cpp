@@ -171,9 +171,9 @@ namespace mlir::rlc
 
 		if (returnsVoid(type).failed())
 		{
-			w.write("__result = ");
+			w.write("__result = (");
 			w.writeType(resultType, 1);
-			w.writenl("()");
+			w.writenl(")()");
 		}
 
 		w.write("lib.", mangledName);

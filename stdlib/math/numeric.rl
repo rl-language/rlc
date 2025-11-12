@@ -27,6 +27,10 @@ fun min(Int a, Int b) -> Int:
 ext fun sqrt(Float f) -> Float
 
 fun abs(Int a) -> Int:
-    if 0 > a:
-        return -a
-    return a
+  if 0 > a:
+    return -a
+  return a
+
+fun near(Float value, Float target, Float distance) -> Bool:
+  return target + distance > value and target - distance < value
+

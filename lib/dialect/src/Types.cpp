@@ -500,6 +500,11 @@ namespace mlir::rlc
 			OS << maybeType.getName();
 			return;
 		}
+		if (auto maybeType = mlir::dyn_cast<mlir::rlc::UncheckedTemplateParameterType>(t))
+		{
+			OS << "unchecked_" <<maybeType.getName();
+			return;
+		}
 		if (auto maybeType = mlir::dyn_cast<mlir::rlc::ContextType>(t))
 		{
 			typeToMangled(OS, maybeType.getUnderlying());

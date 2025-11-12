@@ -120,10 +120,16 @@ def have_cuda():
         and th.cuda.device_count() > 0
     )
 
+def have_mps():
+    return (th.backends.mps.is_available())
 
 def default_device_type():
-    return "cuda" if have_cuda() else "cpu"
-
+    if have_cuda():
+        return "cuda"
+    elif have_mps():
+        return "mps"
+    else:
+        return "cpu"
 
 no_grad = contextmanager_to_decorator(th.no_grad)
 DEFAULT_DEVICE = th.device(type=default_device_type())
