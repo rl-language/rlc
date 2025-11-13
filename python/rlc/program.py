@@ -320,7 +320,7 @@ def _make_cl_args(
         args = args + ["--runtime-lib", rlc_runtime_lib]
     if pyrlc_runtime_lib != None:
         args = args + ["--pyrlc-lib", pyrlc_runtime_lib]
-    args = args + include_args
+    args = args + include_args + extra_rlc_args
     return (command_line_python, args)
 
 def compile(
