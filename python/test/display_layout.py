@@ -7,7 +7,11 @@ from rlc import Layout, Text
 from rlc import LayoutLogConfig, LayoutLogger
 from rlc import RendererBackend
 from typing import Tuple, List
+import math
 
+def render(self, backend, position):
+        """Called when drawing text."""
+        
 
 class PygameRenderer(RendererBackend):
     def __init__(self, screen):
@@ -19,10 +23,21 @@ class PygameRenderer(RendererBackend):
         return surface.get_size()
 
     def render_text(self, text: str, font_name: str, font_size: int, color: str) -> List[pygame.Surface]:
+        
         font = pygame.font.SysFont(font_name, font_size)
         return [font.render(text, True, pygame.Color(color))]
     
-    def render_text_lines(self, lines: List[str], font_name: str, font_size: int, color: str) -> List[pygame.Surface]:
+    def render_text_lines(self, lines: List[str], font_name: str, font_size: int, color: str, anim_start, anim_duration, alpha) -> List[pygame.Surface]:
+        if anim_start:
+            # compute fade progress
+            t = (time.time() - anim_start) / anim_duration
+            if t >= 1:
+                anim_start = None
+                alpha = 255
+            else:
+                # Smooth fade-out and fade-in
+                alpha = int(255 * math.sin(math.pi * t))
+            alpha = alpha
         # Render each line separately
         font = pygame.font.SysFont(font_name, font_size)
         return [font.render(line, True, pygame.Color(color)) for line in lines]
@@ -151,9 +166,10 @@ def render(backend, node):
 
 def write_text(node, backend):
     lines = node.wrap_text(backend, node.width)
-    surfaces = backend.render_text_lines(lines, node.font_name, node.font_size, node.color)
+    surfaces = backend.render_text_lines(lines, node.font_name, node.font_size, node.color, node.anim_start, node.anim_duration, node.alpha)
     y_offset = 0
     for surface in surfaces:
+        surface.set_alpha(node.alpha)
         backend.blit_surface(surface, (node.x, node.y + y_offset))
         y_offset += surface.get_height()
     return
@@ -161,4 +177,5 @@ def write_text(node, backend):
     # for surface in node.text_surfaces:
     #     screen.blit(surface, (node.x, node.y + y_offset))
     #     y_offset += surface.get_height()
+
 

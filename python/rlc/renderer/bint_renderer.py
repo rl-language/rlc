@@ -21,7 +21,7 @@ class BoundedIntRenderer(Renderable):
         return None
 
     def build_layout(self, obj, direction=Direction.COLUMN,
-                     color="white", sizing=(FIT(), FIT()), logger=None):
+                     color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(2,2,2,2)):
         # Extract the 'value' field (the inner c_long)
         value = getattr(obj, "value", None)
         val_str = str(value if isinstance(value, int) else getattr(value, "value", value))
@@ -34,6 +34,12 @@ class BoundedIntRenderer(Renderable):
         #     display = val_str
 
         return Text(val_str, "Arial", 36, "black")
+    
+    def update(self, layout, obj, elapsed_time=0.0):
+        if isinstance(layout, Text):
+            value = getattr(obj, "value", None)
+            new_val = str(value if isinstance(value, int) else getattr(value, "value", value))
+            layout.update_text(new_val)
 
     def _describe_self(self):
         return f"{self.rlc_type.__name__}(bounded)"

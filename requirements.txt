@@ -2,4 +2,5 @@ vulture
 pytest
 pylint
 lit
+graphviz
 -r run-requirements.txt

@@ -13,7 +13,7 @@ class ContainerRenderer(Renderable):
         for field_name, field_renderer in self.field_renderers.items():
             # Create a row for "name: value"
             value = getattr(obj, field_name)
-            row_layout = Layout(sizing=(FIT(), FIT()), direction=Direction.ROW, child_gap=5, color=None)
+            row_layout = Layout(sizing=(FIT(), FIT()), direction=Direction.ROW, child_gap=5, color=None, border=5, padding=Padding(10,10,10,10))
             label = Text(field_name + ": ", "Arial", 36, "black")
             value_layout = field_renderer(value)
             row_layout.add_child(label)
@@ -21,6 +21,13 @@ class ContainerRenderer(Renderable):
             layout.add_child(row_layout)
             
         return layout
+    
+    def update(self, layout, obj, elapsed_time=0.0):
+        for (field_name, field_renderer), child_layout in zip(self.field_renderers.items(), layout.children):
+            # print(field_name + ": ")
+            # child_layout.print_layout()
+            value = getattr(obj, field_name)
+            field_renderer.update(child_layout.children[-1], value, elapsed_time)
     
     def _iter_children(self):
         # Only return child renderers (ignore field names)

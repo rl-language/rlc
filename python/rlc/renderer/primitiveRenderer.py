@@ -22,3 +22,17 @@ class PrimitiveRenderer(Renderable):
 
         return Text(text, "Arial", 36, "black")
     
+    def update(self, layout, obj, elapsed_time=0.0):
+        """Update the text node if the value changed."""
+        if isinstance(layout, Text):
+            new_value = self._extract_value(obj)
+            layout.update_text(new_value)
+
+    def _extract_value(self, obj):
+        if self.rlc_type == c_bool:
+            text = "True" if obj else "False"
+        if self.rlc_type == c_long:
+            text = str(obj if isinstance(obj, int) else obj.value)
+        else:
+            text = str(obj)
+        return text

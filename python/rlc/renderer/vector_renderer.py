@@ -39,6 +39,33 @@ class VectorRenderer(Renderable):
 
         return layout
     
+    def update(self, layout, obj, elapsed_time=0.0):
+        data_ptr = getattr(obj, "_data", None)
+        new_size = getattr(obj, "_size", 0)
+
+        if not data_ptr:
+            return
+        old_size = len(layout.children)
+
+        if new_size > old_size:
+            for i in range(old_size, new_size):
+                item = data_ptr[i]
+                child_layout = self.element_renderer(
+                    item,
+                    direction=layout.direction,
+                    color="lightgray",
+                    sizing=(FIT(), FIT()),
+                )
+                layout.add_child(child_layout)
+            layout.is_dirty = True
+        elif new_size < old_size:
+            layout.children = layout.children[:new_size]
+            layout.is_dirty = True
+
+        for i in range(min(new_size, old_size)):
+            item = data_ptr[i]
+            self.element_renderer.update(layout.children[i], item, elapsed_time)
+    
     def _iter_children(self):
         return [self.element_renderer]
 

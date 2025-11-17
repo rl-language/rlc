@@ -53,6 +53,7 @@ class Layout:
         self.children : List['Layout'] = []
         self.x = 0
         self.y = 0
+        self.is_dirty = False
         self.width = sizing[0].value if sizing[0].size_policy == SizePolicies.FIXED else 0
         self.height = sizing[1].value if sizing[1].size_policy == SizePolicies.FIXED else 0    
          

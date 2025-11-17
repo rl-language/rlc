@@ -20,6 +20,11 @@ class ArrayRenderer(Renderable):
             layout.add_child(child)
         return layout
     
+    def update(self, layout, obj, elapsed_time=0.0):
+        for i, child in enumerate(layout.children):
+            item = obj[i]
+            self.element_renderer.update(child, item, elapsed_time)
+    
     def _iter_children(self):
         return [self.element_renderer]
 
