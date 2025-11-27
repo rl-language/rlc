@@ -1,16 +1,22 @@
-from rlc.renderer.renderable import Renderable
+from rlc.renderer.renderable import Renderable, register_renderer
 from rlc.layout import Layout, Direction, FIT, Padding
 
+@register_renderer
 class VectorRenderer(Renderable):
-    def __init__(self, rlc_type, element_renderer: Renderable, backend = None):
+    def __init__(self, rlc_type_name, element_renderer: Renderable, style_policy):
         self.element_renderer = element_renderer
-        super().__init__(rlc_type, backend)
+        self.style_policy = style_policy
+        super().__init__(rlc_type_name, style_policy)
 
-    def build_layout(self, obj, direction=Direction.COLUMN, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(5, 5, 5, 5)):
+    def build_layout(self, obj, direction=Direction.ROW, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(5, 5, 5, 5)):
         data_ptr = getattr(obj, "_data", None)
-        size = getattr(obj, "_size", 0)
+        size = getattr(obj, "_size", None)
+        # Fallback for bounded vectors that expose `_length_` / `_type_` rather than `_size`
+        if size is None and hasattr(obj, "_length_"):
+            size = obj._length_
+        size = size or 0
 
-        layout = Layout(
+        layout = self.make_layout(
             sizing=sizing,
             direction=direction,
             child_gap=5,
@@ -41,9 +47,9 @@ class VectorRenderer(Renderable):
     
     def update(self, layout, obj, elapsed_time=0.0):
         data_ptr = getattr(obj, "_data", None)
-        new_size = getattr(obj, "_size", 0)
-
-        if not data_ptr:
+        new_size = getattr(obj, "_size", None)
+        
+        if data_ptr is None:
             return
         old_size = len(layout.children)
 
@@ -70,4 +76,15 @@ class VectorRenderer(Renderable):
         return [self.element_renderer]
 
     def _describe_self(self):
-        return f"{self.rlc_type.__name__}(vector)"
+        return f"{self.rlc_type_name}(vector)"
+    
+    def _to_dict_data(self):
+        return {
+            "element": self.element_renderer.to_dict(),
+            "style_policy": self.style_policy
+        }
+
+    @classmethod
+    def _from_dict_data(cls, rlc_type_name, data):
+        element = Renderable.from_dict(data["element"])
+        return cls(rlc_type_name, element, data["style_policy"])

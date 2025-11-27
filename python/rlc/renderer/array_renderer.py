@@ -1,15 +1,18 @@
-from rlc.renderer.renderable import Renderable
+from rlc.renderer.renderable import Renderable, register_renderer
 from rlc.layout import Layout, Direction, FIT, Padding
 
+@register_renderer
 class ArrayRenderer(Renderable):
-    def __init__(self, rlc_type, element_rendere: Renderable, backend = None):
-        super().__init__(rlc_type, backend)
+    def __init__(self, rlc_type_name, length, element_rendere: Renderable, style_policy):
+        super().__init__(rlc_type_name, style_policy)
+        self.length = length
         self.element_renderer = element_rendere
+        self.style_policy = style_policy
 
     def build_layout(self, obj, direction=Direction.COLUMN, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(2,2,2,2)):
-        layout = Layout(sizing=sizing, direction=direction, color=color, padding=padding, border=3, child_gap=5)
+        layout = self.make_layout(sizing=sizing, direction=direction, color=color, padding=padding, border=3, child_gap=5)
         color = 'lightgray'
-        for i in range(self.rlc_type._length_):  
+        for i in range(self.length):  
             item = obj[i]
             # Alternate direction for the next depth
             next_dir = (
@@ -29,5 +32,18 @@ class ArrayRenderer(Renderable):
         return [self.element_renderer]
 
     def _describe_self(self):
-        return f"{self.rlc_type.__name__}[len={getattr(self.rlc_type, '_length_', '?')}]"
+        return f"{self.rlc_type_name}[len={self.length}]"
+    
+    def _to_dict_data(self):
+        return {
+            "length": self.length,
+            "element": self.element_renderer.to_dict(),
+            "style_policy" : self.style_policy
+        }
+
+    @classmethod
+    def _from_dict_data(cls, rlc_type_name, data):
+        length = data["length"]
+        element = Renderable.from_dict(data["element"])
+        return cls(rlc_type_name, length, element, data["style_policy"])
     

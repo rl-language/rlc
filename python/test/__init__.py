@@ -7,3 +7,5 @@
 #
 # You should have received a copy of the GNU General Public License along with RLC. If not, see <https://www.gnu.org/licenses/>.
 #
+
+from .red_board_renderer import RedBoard
