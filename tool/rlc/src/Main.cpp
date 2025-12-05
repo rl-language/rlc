@@ -369,6 +369,9 @@ static cl::opt<bool> emitFuzzer(
 		cl::desc("emit a fuzzer."),	 // TODO consider passing the action name here.
 		cl::init(false),
 		cl::cat(astDumperCategory),
+		cl::callback([](const bool &value) {
+			abortSymbol.setInitialValue("abort");
+		}),
 		cl::callback([](const bool &value) { sanitize.setInitialValue(value); }));
 
 cl::list<std::string> RPath("rpath", cl::desc("<rpath>"));
