@@ -41,6 +41,9 @@ class Renderable(ABC):
         """Construct and return a Layout tree for the given object."""
         pass
 
+    def apply_interactivity(self, layout_child, index=None, parent_obj=None):
+        pass
+
     def update(self, layout, obj, elapsed_time: float = 0.0):
         """
         Update the existing layout tree in place using new data from obj.
@@ -48,9 +51,30 @@ class Renderable(ABC):
         """
         pass
 
-    def __call__(self, obj, **kwds):
-        """Allow calling the object directly"""
-        return self.build_layout(obj=obj, **kwds)
+    def __call__(self, obj, parent_binding=None, **kwds):
+        layout = self.build_layout(obj=obj, **kwds)
+       
+        # If build_layout didn't set binding, ensure we add it
+        if layout.binding is None:
+            layout.binding = {
+                "type": self.rlc_type_name,
+                "parent": parent_binding,
+            }
+        else:
+            layout.binding["parent"] = parent_binding
+
+        # # Pass our binding to children
+        for child in layout.children:
+            # Only set if child doesn't already have binding
+            if child.binding is None:
+                child.binding = {
+                    "type": "unknown",
+                    "parent": layout.binding
+                }
+            else:
+                child.binding["parent"] = layout.binding
+
+        return layout
     
 
     # ---------- PUBLIC SERIALIZATION API ----------
@@ -96,7 +120,7 @@ class Renderable(ABC):
 
     def _describe_self(self) -> str:
         """Subclasses can override to show additional info."""
-        return self.rlc_type_name
+        return self.rlc_type_name + str(self.style_policy)
 
     def _iter_children(self):
         """Return iterable of child renderers, if any. Override per subclass."""

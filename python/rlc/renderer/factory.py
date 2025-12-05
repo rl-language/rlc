@@ -33,7 +33,7 @@ class RendererFactory:
         name = getattr(rlc_type, "__name__", str(rlc_type))
 
         # 1. User-specified renderer override (for custom classes)
-        custom_conf = config.get(rlc_type, {})
+        custom_conf = config.get(name, {})
         custom_renderer_class = custom_conf.get("renderer")
         if custom_renderer_class is not None:
             custom_conf = {}
@@ -50,6 +50,7 @@ class RendererFactory:
             return renderer
 
         if "Hidden" in name and hasattr(rlc_type, "_fields_"):
+            # return None
             renderer_cls = custom_renderer_class or ContainerRenderer
             return _container_renderer(renderer_cls)
             

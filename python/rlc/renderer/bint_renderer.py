@@ -34,8 +34,12 @@ class BoundedIntRenderer(Renderable):
         #     display = f"{val_str} [{low}-{high}]"
         # else:
         #     display = val_str
-
-        return self.make_text(val_str, "Arial", 16, "black")
+        layout = self.make_text(val_str, "Arial", 16, "black")
+        layout.binding = {
+            "type": "bounded_int",
+            "obj": obj
+        }
+        return layout
     
     def update(self, layout, obj, elapsed_time=0.0):
         if isinstance(layout, Text):
@@ -44,7 +48,7 @@ class BoundedIntRenderer(Renderable):
             layout.update_text(new_val)
 
     def _describe_self(self):
-        return f"{self.rlc_type_name}(bounded)"
+        return f"{self.rlc_type_name + str(self.style_policy)}(bounded)"
     
     def _to_dict_data(self):
         return {

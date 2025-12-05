@@ -46,7 +46,11 @@ class Layout:
             direction : Direction = Direction.ROW,
             border: float = 0,
             child_gap : float = 0,
-            color: Optional[str] = None):
+            color: Optional[str] = None, 
+            interactive=False, 
+            on_click=None, 
+            on_hover=None,
+            userdata=None):
         self.sizing : Tuple[SizePolicy, SizePolicy] = sizing
         self.direction : Direction = direction
         self.border = border
@@ -57,7 +61,13 @@ class Layout:
         self.x = 0
         self.y = 0
         self.is_dirty = False
+        self.interactive = interactive
+        self.on_click = on_click
+        self.on_hover = on_hover
+        self.userdata = userdata
         self._children_sized = False
+        self.binding = None    
+        self.focused = False 
         self.width = sizing[0].value if sizing[0].size_policy == SizePolicies.FIXED else 0
         self.height = sizing[1].value if sizing[1].size_policy == SizePolicies.FIXED else 0    
          
@@ -271,6 +281,37 @@ class Layout:
 
     def print_layout(self, depth: int = 0):
         indent = "  " * depth
-        print(f"{indent}{self.__class__.__name__} (dir={self.direction.value if self.direction else '-'}, size=({self.width}*{self.height}), pos=({self.x},{self.y}), policy=({self.sizing[0].size_policy},{self.sizing[1].size_policy}), color={self.color if self.color else '-'})")
+        print(f"{indent}{self.__class__.__name__}: binding : {self.binding},,,,, {self.on_click} (dir={self.direction.value if self.direction else '-'}, size=({self.width}*{self.height}), pos=({self.x},{self.y}), policy=({self.sizing[0].size_policy},{self.sizing[1].size_policy}), color={self.color if self.color else '-'})")
         for child in self.children:
             child.print_layout(depth + 1)
+
+    # Event Handling
+    def hit_test(self, x, y):
+        return (self.x <= x <= self.x + self.width and
+                self.y <= y <= self.y + self.height)
+    
+    def find_target(self, x, y):
+        # Search children front-to-back
+        for child in reversed(self.children):
+            target = child.find_target(x, y)
+            if target:
+                return target
+        # print(self.interactive)
+        if self.interactive and self.hit_test(x, y):
+            return self
+
+        return None
+
+    def propagate_interactive(self):
+        """Ensure ancestors become interactive if any descendant is interactive."""
+        child_has_interactive = False
+        child_on_click = None
+        for child in self.children:
+            interactive, on_click = child.propagate_interactive()
+            if interactive:
+                child_has_interactive = True
+                child_on_click = on_click
+        if child_has_interactive:
+            self.interactive = True
+            self.on_click = child_on_click
+        return (self.interactive, self.on_click)

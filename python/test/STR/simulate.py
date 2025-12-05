@@ -5,6 +5,7 @@ import pygame, time, random
 from test.display_layout import  render, PygameRenderer
 from rlc import LayoutLogConfig, LayoutLogger
 from rlc.serialization.renderer_serializer import load_renderer
+from test.event_dispatcher import EventDispatcher
 
   
 def any_child_dirty(layout):
@@ -13,7 +14,7 @@ def any_child_dirty(layout):
         return True
     return any(any_child_dirty(c) for c in layout.children if hasattr(c, "children"))
 
-def _new_timing_bucket():
+def new_timing_bucket():
     # count, total_seconds, max_seconds
     return {"count": 0, "total": 0.0, "max": 0.0}
 
@@ -22,7 +23,7 @@ def _record_timing(bucket, elapsed):
     bucket["total"] += elapsed
     bucket["max"] = max(bucket["max"], elapsed)
 
-def _print_timings(label, compute_bucket, layout_bucket):
+def print_timings(label, compute_bucket, layout_bucket):
     def fmt(b):
         if b["count"] == 0:
             return "0 runs"
@@ -38,7 +39,7 @@ def _clamp_scroll(layout, screen, scroll, margin):
     scroll["x"] = min(0, max(-max_x, scroll["x"]))
     scroll["y"] = min(0, max(-max_y, scroll["y"]))
 
-def _relayout(screen, backend, layout, logger, compute_times, layout_times, scroll, margin=20):
+def relayout(screen, backend, layout, logger, compute_times, layout_times, scroll, margin=20):
     """Resize-aware layout: fit inside the window minus a margin and apply scroll offsets."""
     avail_w = max(0, screen.get_width() - 2 * margin)
     avail_h = max(0, screen.get_height() - 2 * margin)
@@ -49,6 +50,7 @@ def _relayout(screen, backend, layout, logger, compute_times, layout_times, scro
     t0 = time.perf_counter()
     layout.layout(margin + scroll["x"], margin + scroll["y"], logger=logger)
     _record_timing(layout_times, time.perf_counter() - t0)
+
 
 
 if __name__ == "__main__":
@@ -70,7 +72,7 @@ if __name__ == "__main__":
         renderer.print_tree()
         iterations = 1
         current = 0
-        STEP_DELAY = 0.9  # seconds per state
+        STEP_DELAY = 2  # seconds per state
         logger = LayoutLogger(LayoutLogConfig())
         logger = None
         state = None
@@ -78,23 +80,30 @@ if __name__ == "__main__":
 
 
         while running and current < iterations:
-            compute_times = _new_timing_bucket()
-            layout_times = _new_timing_bucket()
+            compute_times = new_timing_bucket()
+            layout_times = new_timing_bucket()
             print(f"\n=== Iteration {current + 1}/{iterations} ===")
             if hasattr(state, "reset"):
                 state.reset()
             else:
                 state = program.start()
             layout = renderer(state.state)
+            layout.propagate_interactive()
+            # layout.print_layout()
             actions = state.legal_actions
-            _relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
+            relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
 
             if logger: 
                 logger.record_final_tree(root=layout)
                 # print(logger.to_text_tree(layout))
+
+            handlers = {}
+            selection = None
+            dispatcher = EventDispatcher(state, renderer, layout, program, selection, handlers)
         
             last_update = time.time()
             accumulated_time = 0.0
+            elapsed = 0.0
             while running:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -102,12 +111,12 @@ if __name__ == "__main__":
                     if event.type == pygame.VIDEORESIZE:
                         screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
                         backend = PygameRenderer(screen)
-                        _relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
+                        relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
                     if event.type == pygame.MOUSEWHEEL:
                         # y is vertical wheel, x is horizontal wheel; positive y = scroll up
                         scroll["y"] += event.y * 30
                         scroll["x"] += event.x * 30
-                        _relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
+                        relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
 
                 elapsed = clock.tick(60) / 1000.0
                 accumulated_time += elapsed
@@ -115,19 +124,8 @@ if __name__ == "__main__":
                 if accumulated_time >= STEP_DELAY:
                     accumulated_time = 0.0
                     if not state.is_done():
-                        actions = state.legal_actions
-                        if len(actions) != 0:
-                            action = random.choice(actions)
-                            state.step(action)
-                            new_state = state.state
-                            # print(action, len(actions))
-                            # print(new_state)
-                            renderer.update(layout, new_state, elapsed)
-                            if layout.is_dirty or any_child_dirty(layout):
-                                _relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
-                        else:
-                           print("No legal actions left.")
-                           break
+                        if dispatcher.play_random_turn(elapsed_time=elapsed):
+                            relayout(screen, backend, layout, logger, compute_times, layout_times, scroll)
                     else:
                         print("Game done.")
                         break
@@ -135,7 +133,7 @@ if __name__ == "__main__":
                 render(backend, layout)
                 pygame.display.flip()
             current += 1
-            _print_timings(f"iteration {current}", compute_times, layout_times)
+            print_timings(f"iteration {current}", compute_times, layout_times)
             time.sleep(1.0)
         
     pygame.quit()

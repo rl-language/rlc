@@ -53,6 +53,7 @@ class PygameRenderer(RendererBackend):
         else:
             color = pygame.Color(color if color else "white")
             pygame.draw.rect(self.screen, color, pygame.Rect(x, y, w, h))
+            
     
     def draw_border(self, position: Tuple[int, int], size: Tuple[int, int],
                     border_color: str = "darkgray", border_size: int = 2):
@@ -128,15 +129,30 @@ def render(backend, node):
         write_text(node, backend)
         return
     if isinstance(node, Layout):
+        # print("layout")
         backend.draw_rectangle((node.x, node.y), (node.width, node.height), node.color, node.border)
         for child in node.children:
             render(backend, child)
         if node.border > 0:
-            backend.draw_border((node.x, node.y), (node.width, node.height), border_color="darkgray", border_size=node.border)
+            
+            if node.focused:
+                backend.draw_border(
+                    (node.x, node.y),
+                    (node.width, node.height),
+                    "yellow",
+                    border_size=3
+                )
+            else:
+                backend.draw_border((node.x, node.y), (node.width, node.height), border_color="darkgray", border_size=node.border)
+        
+        
 
 def write_text(node, backend):
     lines = node.wrap_text(backend, node.width)
-    surfaces = backend.render_text_lines(lines, node.font_name, node.font_size, node.color, node.anim_start, node.anim_duration, node.alpha)
+    color = node.color
+    if node.focused:
+        color = "yellow"
+    surfaces = backend.render_text_lines(lines, node.font_name, node.font_size, color, node.anim_start, node.anim_duration, node.alpha)
     y_offset = 0
     for surface in surfaces:
         surface.set_alpha(node.alpha)

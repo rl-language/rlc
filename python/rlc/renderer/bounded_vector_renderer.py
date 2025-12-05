@@ -34,7 +34,7 @@ class BoundedVectorRenderer(Renderable):
         self.vector_renderer.update(layout, value, elapsed_time)
 
     def _describe_self(self):
-        return f"{self.rlc_type_name}(bounded)"
+        return f"{self.rlc_type_name + str(self.style_policy)}(bounded)"
     
     def _to_dict_data(self):
         return {

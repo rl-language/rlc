@@ -22,7 +22,13 @@ class PrimitiveRenderer(Renderable):
         else:
             text = str(obj)
 
-        return self.make_text(text, "Arial", 16, "black")
+        layout = self.make_text(text, "Arial", 16, "black")
+        layout.binding = {
+            "type": "primitive",
+            "value": obj
+        }
+
+        return layout
     
     def update(self, layout, obj, elapsed_time=0.0):
         """Update the text node if the value changed."""

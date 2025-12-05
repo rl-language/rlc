@@ -9,16 +9,24 @@ class ContainerRenderer(Renderable):
         self.field_renderers = field_renderers
         self.style_policy = style_policy
 
-    def build_layout(self, obj, direction=Direction.ROW, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(7,7,7,7)):
+    def build_layout(self, obj, direction=Direction.COLUMN, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(7,7,7,7)):
         layout = self.make_layout(sizing=sizing, direction=direction, child_gap=5, color=color, border=5, padding=padding)
+        layout.binding = {"type": "struct"}
         for field_name, field_renderer in self.field_renderers.items():
             if field_renderer is None:
                 continue
             # Create a row for "name: value"
             value = getattr(obj, field_name)
-            row_layout = Layout(sizing=(FIT(), FIT()), direction=Direction.ROW, child_gap=5, color=None, border=5, padding=Padding(10,10,10,10))
+            row_layout = self.make_layout(sizing=(FIT(), FIT()), direction=Direction.ROW, child_gap=5, color=None, border=5, padding=Padding(10,10,10,10))
             label = self.make_text(field_name + ": ", "Arial", 16, "black")
-            value_layout = field_renderer(value)
+            binding_item = {
+                "type": "struct_field",
+                "field_name": field_name,
+                "parent": layout.binding
+            }
+            
+            value_layout = field_renderer(value, parent_binding=binding_item)
+            value_layout.binding = binding_item
             row_layout.add_child(label)
             row_layout.add_child(value_layout)
             layout.add_child(row_layout)
@@ -38,7 +46,7 @@ class ContainerRenderer(Renderable):
 
     def _describe_self(self):
         field_names = ", ".join(self.field_renderers.keys())
-        return f"{self.rlc_type_name} fields=[{field_names}]"
+        return f"{self.rlc_type_name + str(self.style_policy)} fields=[{field_names}]"
     
     def _to_dict_data(self):
         return {

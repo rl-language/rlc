@@ -11,7 +11,7 @@ class VectorRenderer(Renderable):
     def build_layout(self, obj, direction=Direction.ROW, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(5, 5, 5, 5)):
         data_ptr = getattr(obj, "_data", None)
         size = getattr(obj, "_size", None)
-        # Fallback for bounded vectors that expose `_length_` / `_type_` rather than `_size`
+
         if size is None and hasattr(obj, "_length_"):
             size = obj._length_
         size = size or 0
@@ -23,6 +23,7 @@ class VectorRenderer(Renderable):
             padding=padding,
             color=color
         )
+        layout.binding = {"type": "vector"}
         if not data_ptr or size <= 0:
             return layout
 
@@ -34,13 +35,21 @@ class VectorRenderer(Renderable):
         # Iterate over elements
         for i in range(size):
             item = data_ptr[i]
+            item_binding = {
+                "type": "vector_item",
+                "index": i,
+                "parent": layout.binding 
+            }
             child_layout = self.element_renderer(
                 item,
+                parent_binding=item_binding,
                 direction=next_dir,
                 color="lightgray",
                 sizing=(FIT(), FIT()),
                 logger=logger,
             )
+            
+            child_layout.binding = item_binding
             layout.add_child(child_layout)
 
         return layout
@@ -76,7 +85,7 @@ class VectorRenderer(Renderable):
         return [self.element_renderer]
 
     def _describe_self(self):
-        return f"{self.rlc_type_name}(vector)"
+        return f"{self.rlc_type_name + str(self.style_policy)}(vector)"
     
     def _to_dict_data(self):
         return {

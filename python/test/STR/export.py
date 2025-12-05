@@ -6,6 +6,7 @@ from ctypes import c_long, Array, c_bool
 from rlc.renderer.factory import RendererFactory
 from rlc.serialization.renderer_serializer import save_renderer
 from test.red_board_renderer import RedBoard
+from test.tic_tac_toe_board import TicTacToeBoardRenderer
 from rlc.layout import  Direction
 import os
 
@@ -64,16 +65,9 @@ if __name__ == "__main__":
         base_name = os.path.splitext(os.path.basename(source_file))[0] if source_file else "renderer"
         save_path = os.path.join("./logs", f"{base_name}.json")
 
-        dump_rlc_type(program.module.Game)
+        # dump_rlc_type(program.module.Game)
 
-        config = {
-            # program.module.Card : {
-            #     "direction" : 'ROW'
-            # },
-            # program.module.Board : {
-            #     "color" : "purple"
-            # }
-        }
+        config = {}
 
         renderer = RendererFactory.from_rlc_type(program.module.Game, config)
         renderer.print_tree()
