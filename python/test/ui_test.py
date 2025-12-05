@@ -1,6 +1,6 @@
 from rlc import Layout, Text, Padding, Direction, FIT, FIXED, GROW
 
-from rlc import display
+from test.display_layout import display
 
 def build():
     root = Layout(sizing=(FIT(), FIT()) , padding=Padding(32, 32, 32, 32), direction=Direction.ROW, child_gap=32, color="white")
@@ -12,7 +12,7 @@ def build():
 
     child3 = Layout(sizing=(FIT(), FIXED(300)), child_gap=32, direction=Direction.ROW, color="lightblue")
     child4 = Layout(sizing=(FIXED(250), FIT()), color="orange")
-    
+
     child44 = Text("Five Six Seven Eight Nine Ten Five Six Seven Eight Nine Ten Five Six Seven Eight Nine Ten", "Arial", 22)
 
     child4.add_child(child44)
@@ -38,5 +38,5 @@ def build1():
 
 if __name__ == "__main__":
     display(build_function=build1)
-    
-    
+
+

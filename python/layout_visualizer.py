@@ -1,5 +1,6 @@
 from graphviz import Digraph
 import json
+import sys
 from typing import Optional
 import argparse
 
@@ -35,27 +36,25 @@ def visualize_layout_tree(data, output_path: str = "-", format: str = "png") -> 
         return dot.source
     else:
         dot.render(cleanup=True)
-        print(f"[✓] Layout tree rendered to {output_path}.{format}")
         return None
-       
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Visualize layout tree from a layout JSON file.")
     parser.add_argument("input",
-                        help="Input JSON layout log (e.g., logs/layout-log.json)")
+                        help="Input JSON layout log (e.g., logs/layout-log.json)", nargs="?", default="-")
     parser.add_argument("-o", "--out", default='-',
                         help="Output file path or '-' for stdout (default: '-')")
     parser.add_argument("--format", default="png", choices=["png", "svg", "pdf"],
                         help="Output format (default: png)")
 
     args = parser.parse_args()
-    try:
+    if args.input != "-":
         with open(args.input, 'r', encoding='utf-8') as f:
             data = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        data = args.input
-    
+    else:
+        data = json.load("\n".join(sys.stdin.readlines()))
+
     result = visualize_layout_tree(data, args.out, args.format)
     if result:
         print(result)

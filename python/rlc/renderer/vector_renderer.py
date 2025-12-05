@@ -1,12 +1,11 @@
 from rlc.renderer.renderable import Renderable, register_renderer
 from rlc.layout import Layout, Direction, FIT, Padding
+from dataclasses import dataclass
 
 @register_renderer
+@dataclass
 class VectorRenderer(Renderable):
-    def __init__(self, rlc_type_name, element_renderer: Renderable, style_policy):
-        self.element_renderer = element_renderer
-        self.style_policy = style_policy
-        super().__init__(rlc_type_name, style_policy)
+    element_renderer: Renderable
 
     def build_layout(self, obj, direction=Direction.ROW, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(5, 5, 5, 5)):
         data_ptr = getattr(obj, "_data", None)
@@ -38,7 +37,7 @@ class VectorRenderer(Renderable):
             item_binding = {
                 "type": "vector_item",
                 "index": i,
-                "parent": layout.binding 
+                "parent": layout.binding
             }
             child_layout = self.element_renderer(
                 item,
@@ -48,23 +47,19 @@ class VectorRenderer(Renderable):
                 sizing=(FIT(), FIT()),
                 logger=logger,
             )
-            
+
             child_layout.binding = item_binding
             layout.add_child(child_layout)
 
         return layout
-    
+
     def update(self, layout, obj, elapsed_time=0.0):
-        data_ptr = getattr(obj, "_data", None)
-        new_size = getattr(obj, "_size", None)
-        
-        if data_ptr is None:
-            return
+        new_size = obj.size()
         old_size = len(layout.children)
 
         if new_size > old_size:
             for i in range(old_size, new_size):
-                item = data_ptr[i]
+                item = obj.get(i).contents
                 child_layout = self.element_renderer(
                     item,
                     direction=layout.direction,
@@ -78,22 +73,9 @@ class VectorRenderer(Renderable):
             layout.is_dirty = True
 
         for i in range(min(new_size, old_size)):
-            item = data_ptr[i]
+            item = obj.get(i).contents
             self.element_renderer.update(layout.children[i], item, elapsed_time)
-    
+
     def _iter_children(self):
         return [self.element_renderer]
 
-    def _describe_self(self):
-        return f"{self.rlc_type_name + str(self.style_policy)}(vector)"
-    
-    def _to_dict_data(self):
-        return {
-            "element": self.element_renderer.to_dict(),
-            "style_policy": self.style_policy
-        }
-
-    @classmethod
-    def _from_dict_data(cls, rlc_type_name, data):
-        element = Renderable.from_dict(data["element"])
-        return cls(rlc_type_name, element, data["style_policy"])

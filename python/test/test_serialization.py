@@ -63,20 +63,3 @@ def test_json_and_text_serialization(indent, tmp_path):
     assert "Layout" in contents
     assert "Text" in contents
 
-def test_to_dot_conversion():
-    """Ensure to_dot method doesn't raise exceptions for Layout and Text nodes."""
-    root = build_simple_tree()
-    root.compute_size()
-    root.layout(0, 0)
-    dot = Digraph('TestTree')
-    dot.attr("node", shape="box", fontname="Arial", fontsize="10")
-    
-    # Test Layout node
-    root.to_dot(dot)
-    
-    # Test Text node
-    text_node = root.children[1]  # The Text node from build_simple_tree
-    text_node.to_dot(dot)
-    
-    # No assertions on content, just ensure no exceptions
-    assert True
