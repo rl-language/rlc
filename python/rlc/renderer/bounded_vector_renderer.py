@@ -20,3 +20,6 @@ class BoundedVectorRenderer(Renderable):
     def update(self, layout, obj, elapsed_time=0.0):
         value = getattr(obj, "_data")
         self.vector_renderer.update(layout, value, elapsed_time)
+
+    def _iter_children(self) :
+        return [self.vector_renderer]

@@ -7,6 +7,7 @@ from typing import List
 @register_renderer
 @dataclass
 class ContainerRenderer(Renderable):
+    name: str
     field_renderers: List[Renderable]
 
     def build_layout(self, obj, direction=Direction.COLUMN, color="white", sizing=(FIT(), FIT()), logger=None, padding=Padding(7,7,7,7)):
