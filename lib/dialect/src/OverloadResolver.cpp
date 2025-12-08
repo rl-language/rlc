@@ -202,6 +202,54 @@ mlir::Type mlir::rlc::OverloadResolver::deduceTemplateCallSiteType(
 			mlir::TypeRange(resultType));
 }
 
+static int argScore(mlir::Type calleArgType, mlir::Type callsiteArgType)
+{
+	if (calleArgType == callsiteArgType)
+		return 10;
+
+	if (auto calleCasted = mlir::dyn_cast<mlir::rlc::ClassType>(calleArgType))
+	{
+		auto callsiteCasted = mlir::dyn_cast<mlir::rlc::ClassType>(callsiteArgType);
+		if (calleCasted.getName() == callsiteCasted.getName())
+			return 1;
+	}
+
+	return 0;
+}
+
+static int getOverloadScore(mlir::Value overload, mlir::TypeRange arguments)
+{
+	auto casted = mlir::cast<mlir::FunctionType>(overload.getType());
+
+	int toReturn = 0;
+
+	for (auto [calleArgType, callSiteArgType] :
+			 llvm::zip(casted.getInputs(), arguments))
+	{
+		toReturn += argScore(calleArgType, callSiteArgType);
+	}
+
+	return toReturn;
+}
+
+static void sortTemplatesOverloads(
+		llvm::SmallVector<mlir::Value>& templates, mlir::TypeRange arguments)
+{
+	llvm::DenseMap<void*, int> score;
+
+	for (auto overload : templates)
+	{
+		score[overload.getAsOpaquePointer()] =
+				getOverloadScore(overload, arguments);
+	}
+
+	llvm::sort(
+			templates, [&](const mlir::Value& first, const mlir::Value& second) {
+				return score.at(first.getAsOpaquePointer()) >
+							 score.at(second.getAsOpaquePointer());
+			});
+}
+
 static mlir::Value findBestMatch(
 		mlir::ValueRange candidates,
 		mlir::TypeRange arguments,
@@ -224,6 +272,8 @@ static mlir::Value findBestMatch(
 
 	if (nonTemplates.size() == 1)
 		return nonTemplates[0];
+
+	sortTemplatesOverloads(templates, arguments);
 
 	return templates[0];
 }

@@ -340,12 +340,16 @@ void mlir::rlc::BitAndOp::serialize(
 	serializeExpression(getRhs(), OS, ctx);
 }
 
+static void serializeStringLiteral(llvm::raw_ostream& OS, std::string str)
+{
+	replace_all(str, "\"", "\\\"");
+	OS << "\"" << str << "\"";
+}
+
 void mlir::rlc::StringLiteralOp::serialize(
 		llvm::raw_ostream& OS, mlir::rlc::SerializationContext& ctx)
 {
-	auto str = getValue().str();
-	replace_all(str, "\"", "\\\"");
-	OS << "\"" << str << "\"";
+	serializeStringLiteral(OS, getValue().str());
 }
 
 void mlir::rlc::AsByteArrayOp::serialize(
@@ -718,7 +722,8 @@ void mlir::rlc::AssertOp::serialize(
 {
 	OS << "assert(";
 	serializeExpression(getAssertion(), OS, ctx);
-	OS << ", " << getMessage();
+	OS << ", ";
+	serializeStringLiteral(OS, getMessage().str());
 	OS << ")";
 }
 
