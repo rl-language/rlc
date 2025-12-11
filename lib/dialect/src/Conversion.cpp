@@ -1634,16 +1634,19 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 			mlir::TypeConverter& converter,
 			mlir::MLIRContext* ctx,
 			mlir::LLVM::LLVMFuncOp puts,
+			mlir::LLVM::LLVMFuncOp libcAbort,
 			llvm::StringMap<mlir::LLVM::GlobalOp>& stringsCache,
 			mlir::StringRef abort = "")
 			: mlir::OpConversionPattern<mlir::rlc::AbortOp>::OpConversionPattern(
 						converter, ctx),
 				puts(puts),
+				libCAbort(libcAbort),
 				stringsCache(&stringsCache),
 				abort(abort)
 	{
 	}
 	mutable mlir::LLVM::LLVMFuncOp puts;
+	mutable mlir::LLVM::LLVMFuncOp libCAbort;
 	llvm::StringMap<mlir::LLVM::GlobalOp>* stringsCache;
 	llvm::StringRef abort;
 
@@ -1656,7 +1659,7 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 				op.getLoc(),
 				rewriter,
 				"",
-				op.getMessage(),
+				(op.getMessage() + llvm::Twine('\0')).str(),
 				op->getParentOfType<mlir::ModuleOp>(),
 				*stringsCache);
 
@@ -1677,7 +1680,11 @@ class AbortRewriter: public mlir::OpConversionPattern<mlir::rlc::AbortOp>
 						puts.getSymName(),
 						mlir::ValueRange({ global }));
 			}
-			rewriter.create<mlir::LLVM::Trap>(op.getLoc());
+			rewriter.create<mlir::LLVM::CallOp>(
+					op.getLoc(),
+					mlir::TypeRange(),
+					libCAbort.getSymName(),
+					mlir::ValueRange({}));
 		}
 
 		rewriter.create<mlir::LLVM::ReturnOp>(op.getLoc(), mlir::ValueRange());
@@ -2278,6 +2285,15 @@ namespace mlir::rlc
 								mlir::LLVM::LLVMVoidType::get(&getContext()),
 								{ mlir::LLVM::LLVMPointerType::get(&getContext()) }));
 
+			auto libcAbort = rewriter.create<mlir::LLVM::LLVMFuncOp>(
+					getOperation().getLoc(),
+					"abort",
+					mlir::LLVM::LLVMFunctionType::get(
+							mlir::LLVM::LLVMVoidType::get(&getContext()), {}));
+			libcAbort.setNoUnwind(true);
+			auto arr = rewriter.getArrayAttr({ rewriter.getStringAttr("noreturn") });
+			libcAbort.setPassthroughAttr(arr);
+
 			auto malloc = rewriter.create<mlir::LLVM::LLVMFuncOp>(
 					getOperation().getLoc(),
 					"malloc",
@@ -2385,7 +2401,12 @@ namespace mlir::rlc
 					.add<ClassDeclarationRewriter>(converter, &getContext())
 					.add<ExplicitConstructRewriter>(converter, &getContext())
 					.add<AbortRewriter>(
-							converter, &getContext(), puts, stringsCache, abort_symbol);
+							converter,
+							&getContext(),
+							puts,
+							libcAbort,
+							stringsCache,
+							abort_symbol);
 
 			if (failed(
 							applyFullConversion(getOperation(), target, std::move(patterns))))

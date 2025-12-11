@@ -256,8 +256,10 @@ EXPORT void rl_to_pyobject__bool_r_PyObject(PyObject **result, int8_t *in)
 
 EXPORT void rl_py_abort(char *message)
 {
-	PyGILState_STATE gstate = PyGILState_Ensure();
+	/*PyGILState_STATE gstate = PyGILState_Ensure();
 	PyErr_SetString(PyExc_RuntimeError, message);
-	PyGILState_Release(gstate);
+	PyGILState_Release(gstate);*/
+	puts(message);
+	abort();
 	return;
 }
