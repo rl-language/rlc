@@ -13,6 +13,7 @@ release
 .clangd
 .cache
 .idea
+logs
 
 # User-specific stuff
 .idea/**/workspace.xml
