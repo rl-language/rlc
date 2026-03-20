@@ -124,77 +124,6 @@ class AddWindowsDLLExportPass: public PassInfoMixin<AddWindowsDLLExportPass>
 	};
 };
 
-static const bool printTimings = false;
-
-static void runOptimizer(
-		llvm::Module &M,
-		bool optimize,
-		bool emitSanitizerInstrumentation,
-		bool linkAgainsFuzzer,
-		bool targetIsWindows)
-{
-	llvm::PassInstrumentationCallbacks PIC;
-	llvm::StandardInstrumentations SI(M.getContext(), /*DebugLogging=*/false);
-	SI.registerCallbacks(PIC, nullptr);
-
-	std::unique_ptr<llvm::TimePassesHandler> TimePasses =
-			std::make_unique<llvm::TimePassesHandler>(true);
-
-	TimePasses->setOutStream(llvm::errs());
-	if (printTimings)
-		TimePasses->registerCallbacks(PIC);
-
-	// Create the analysis managers.
-	LoopAnalysisManager LAM;
-	FunctionAnalysisManager FAM;
-	CGSCCAnalysisManager CGAM;
-	ModuleAnalysisManager MAM;
-
-	// Create the new pass manager builder.
-	// Take a look at the PassBuilder constructor parameters for more
-	// customization, e.g. specifying a TargetMachine or various debugging
-	// options.
-	PassBuilder PB(nullptr, llvm::PipelineTuningOptions(), std::nullopt, &PIC);
-
-	// Register all the basic analyses with the managers.
-	PB.registerModuleAnalyses(MAM);
-	PB.registerCGSCCAnalyses(CGAM);
-	PB.registerFunctionAnalyses(FAM);
-	PB.registerLoopAnalyses(LAM);
-	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
-	// Create the pass manager.
-	// This one corresponds to a typical -O2 optimization pipeline.
-	if (optimize)
-	{
-		ModulePassManager passManager;
-		FunctionPassManager functionPassManager;
-		if (targetIsWindows)
-			functionPassManager.addPass(AddWindowsDLLExportPass());
-		functionPassManager.addPass(llvm::PromotePass());
-		passManager.addPass(
-				createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
-		if (emitSanitizerInstrumentation and not targetIsWindows)
-			addFuzzerInstrumentationPass(passManager);
-		passManager.run(M, MAM);
-
-		PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2).run(M, MAM);
-	}
-	else
-	{
-		ModulePassManager MPM = PB.buildO0DefaultPipeline(
-				OptimizationLevel::O0, ThinOrFullLTOPhase::None);
-		if (targetIsWindows)
-			MPM.addPass(createModuleToFunctionPassAdaptor(AddWindowsDLLExportPass()));
-		if (emitSanitizerInstrumentation and not targetIsWindows)
-			addFuzzerInstrumentationPass(MPM);
-		MPM.run(M, MAM);
-	}
-
-	if (printTimings)
-		TimePasses->print();
-}
-
 struct mlir::rlc::TargetInfoImpl
 {
 	public:
@@ -232,6 +161,83 @@ struct mlir::rlc::TargetInfoImpl
 	std::unique_ptr<llvm::TargetMachine> targetMachine;
 	std::unique_ptr<llvm::DataLayout> datalayout;
 };
+
+static const bool printTimings = false;
+
+static void runOptimizer(
+		const mlir::rlc::TargetInfoImpl &pimpl,
+		llvm::Module &M,
+		bool optimize,
+		bool emitSanitizerInstrumentation,
+		bool linkAgainsFuzzer,
+		bool targetIsWindows)
+{
+	llvm::PassInstrumentationCallbacks PIC;
+	llvm::StandardInstrumentations SI(M.getContext(), /*DebugLogging=*/false);
+	SI.registerCallbacks(PIC, nullptr);
+
+	std::unique_ptr<llvm::TimePassesHandler> TimePasses =
+			std::make_unique<llvm::TimePassesHandler>(true);
+
+	TimePasses->setOutStream(llvm::errs());
+	if (printTimings)
+		TimePasses->registerCallbacks(PIC);
+
+	
+	// Create the analysis managers.
+	LoopAnalysisManager LAM;
+	FunctionAnalysisManager FAM;
+	CGSCCAnalysisManager CGAM;
+	ModuleAnalysisManager MAM;
+
+	PipelineTuningOptions PTO;
+	// If !optimize this will be discarded 
+	PTO.SLPVectorization = true; 
+
+	// Create the new pass manager builder.
+	// Take a look at the PassBuilder constructor parameters for more
+	// customization, e.g. specifying a TargetMachine or various debugging
+	// options.
+	PassBuilder PB(pimpl.targetMachine.get(), PTO, std::nullopt, &PIC);
+
+	// Register all the basic analyses with the managers.
+	PB.registerModuleAnalyses(MAM);
+	PB.registerCGSCCAnalyses(CGAM);
+	PB.registerFunctionAnalyses(FAM);
+	PB.registerLoopAnalyses(LAM);
+	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+	// Create the pass manager.
+	// This one corresponds to a typical -O2 optimization pipeline.
+	ModulePassManager MPM;
+
+	if (optimize)
+	{
+		FunctionPassManager functionPassManager;
+		MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+		if (targetIsWindows)
+			functionPassManager.addPass(AddWindowsDLLExportPass());
+		functionPassManager.addPass(llvm::PromotePass());
+		MPM.addPass(
+				createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
+	}
+	else
+	{
+		MPM = PB.buildO0DefaultPipeline(
+				OptimizationLevel::O0, ThinOrFullLTOPhase::None);
+		if (targetIsWindows)
+			MPM.addPass(createModuleToFunctionPassAdaptor(AddWindowsDLLExportPass()));
+	}
+
+	if (emitSanitizerInstrumentation and not targetIsWindows)
+		addFuzzerInstrumentationPass(MPM);
+	
+	MPM.run(M, MAM);
+
+	if (printTimings)
+		TimePasses->print();
+}
+
 
 mlir::rlc::TargetInfo::TargetInfo(
 		std::string triple, bool shared, bool optimize)
@@ -556,7 +562,7 @@ namespace mlir::rlc
 			assert(Module);
 			Module->setTargetTriple(targetInfo->triple());
 
-			runOptimizer(
+			runOptimizer(*targetInfo->pimpl,
 					*Module,
 					targetInfo->optimize(),
 					emitSanitizer,
