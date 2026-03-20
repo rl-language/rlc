@@ -1,4 +1,4 @@
-## Copyright 2024 Samuele Pasini
+## Copyright 2024 Samuele Pasini & Cristiano Neroni
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -105,21 +105,6 @@ cls<KeyType, ValueType> Dict_SoA:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let probe_count = 0  # Add safety counter
-
-        # STANDARD IMPL
-        # while probe_count < self._capacity:
-        #     if self._hashes[index] == -1:
-        #         assert(false, "key not found")
-        #     if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
-        #         return self._values[index]
-        #     let existing_entry_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
-        #     if existing_entry_distance < probe_count:
-        #         assert(false, "key not found")
-        #     index = index + 1
-        #     probe_count = probe_count + 1
-            
-        #     if index >= self._capacity:
-        #         index = 0
 
         if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
             return self._values[index]
@@ -251,23 +236,6 @@ cls<KeyType, ValueType> Dict_SoA:
         let hash = compute_hash_of(key)
         let index = hash % self._capacity
         let probe_count = 0  # Add safety counter
-
-        # STANDARD IMPL
-        # while probe_count < self._capacity:
-        #     if self._hashes[index] == -1:
-        #         return false
-        #     if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
-        #         self._shift_back(index)
-        #         return true
-            
-        #     let existing_entry_distance = (index + self._capacity - (self._hashes[index] % self._capacity)) % self._capacity
-        #     if existing_entry_distance < probe_count:
-        #         return false
-        #     index = index + 1
-        #     probe_count = probe_count + 1
-
-        #     if index >= self._capacity:
-        #         index = 0
         
         if self._hashes[index] == hash and compute_equal_of(self._keys[index], key):
             self._shift_back(index)
