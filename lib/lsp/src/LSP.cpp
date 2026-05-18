@@ -270,6 +270,25 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return nullptr;
 	}
 
+	// ===================================================================
+	// IMPROVED: getCompleteFunction
+	//
+	// Changes from original:
+	//   1. Scope-aware filtering: local declarations are only suggested
+	//      if they appear on or before the cursor line (completePos.line).
+	//      Previously ALL declarations inside the function were shown,
+	//      including those defined after the cursor position.
+	//
+	//   2. Completion ranking via sortText: items are prefixed so that
+	//      VS Code sorts them in a useful order:
+	//        "0_" = function arguments (always in scope, most relevant)
+	//        "1_" = local declarations (let/frm variables)
+	//        "2_" = module-level action functions
+	//        "3_" = module-level free functions
+	//        "4_" = module-level constants
+	//      Without sortText, VS Code shows items in insertion order
+	//      which mixes locals with globals unpredictably.
+	// ===================================================================
 	mlir::LogicalResult getCompleteFunction(
 			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
 	{
@@ -282,7 +301,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		std::set<KeyType> alreadyEmitted;
 		auto registerArgument = [&](llvm::StringRef name,
 																mlir::Type t,
-																mlir::rlc::FunctionInfoAttr info) {
+																mlir::rlc::FunctionInfoAttr info,
+																llvm::StringRef sortPrefix) {
 			KeyType key(name.str(), t.getAsOpaquePointer());
 			if (alreadyEmitted.contains(key))
 				return;
@@ -292,6 +312,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			item.label = name.str();
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
+			// sortText controls the order in VS Code's completion menu.
+			// Lower prefixes appear first.
+			item.sortText = (sortPrefix + name).str();
 			if (auto casted = mlir::dyn_cast<mlir::FunctionType>(t);
 					casted and info != nullptr)
 			{
@@ -301,13 +324,16 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.detail = prettyType(t);
 			list.items.push_back(item);
 		};
+
+		// Priority 0: function/action function arguments — always in scope.
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
 				casted and not casted.getBody().empty())
 		{
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
+				registerArgument(
+						std::get<0>(arg), std::get<1>(arg), nullptr, "0_");
 			}
 		}
 
@@ -317,23 +343,35 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			for (auto arg :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
+				registerArgument(
+						std::get<0>(arg), std::get<1>(arg), nullptr, "0_");
 			}
 		}
 
+		// Priority 1: local declarations — only those declared on or
+		// before the cursor line (scope-aware filtering).
 		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
-			registerArgument(statement.getSymName(), statement.getType(), nullptr);
+			auto loc = mlir::cast<mlir::FileLineColLoc>(statement.getLoc());
+			// loc.getLine() is 1-based, completePos.line is 0-based.
+			if (static_cast<int>(loc.getLine()) - 1 <= completePos.line)
+				registerArgument(
+						statement.getSymName(), statement.getType(), nullptr, "1_");
 		});
 
+		// Priority 2: module-level action functions.
 		for (auto op : module.getOps<mlir::rlc::ActionFunction>())
-			registerArgument(op.getUnmangledName(), op.getType(), nullptr);
+			registerArgument(
+					op.getUnmangledName(), op.getType(), nullptr, "2_");
 
+		// Priority 3: module-level free functions (non-member).
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
 			if (not op.getIsMemberFunction())
-				registerArgument(op.getUnmangledName(), op.getType(), op.getInfo());
+				registerArgument(
+						op.getUnmangledName(), op.getType(), op.getInfo(), "3_");
 
+		// Priority 4: module-level constants.
 		for (auto op : module.getOps<mlir::rlc::ConstantGlobalOp>())
-			registerArgument(op.getName(), op.getType(), nullptr);
+			registerArgument(op.getName(), op.getType(), nullptr, "4_");
 
 		return mlir::success();
 	}
@@ -566,6 +604,17 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return mlir::success();
 	}
 
+	// ===================================================================
+	// IMPROVED: getCompleteAccessMember
+	//
+	// Changes from original:
+	//   Completion ranking via sortText so that after typing "g.",
+	//   VS Code shows items in a useful order:
+	//     "0_" = struct fields          (g.score, g.turns, ...)
+	//     "1_" = member functions        (g.reset(), ...)
+	//     "2_" = action statements       (g.move(), g.take_key(), ...)
+	//     "3_" = is_done()              (always last among actions)
+	// ===================================================================
 	mlir::LogicalResult getCompleteAccessMember(
 			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
 	{
@@ -576,6 +625,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 
 		auto type = memberAccess->getOperand(0).getType();
+
+		// Priority 0: struct/class fields.
 		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 		{
 			for (auto field : casted.getMembers())
@@ -585,10 +636,12 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.kind = mlir::lsp::CompletionItemKind::Field;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail = prettyType(field.getType());
+				item.sortText = ("0_" + field.getName()).str();
 				list.items.push_back(item);
 			}
 		}
 
+		// Priority 1: member functions whose first parameter matches the type.
 		mlir::rlc::ValueTable table;
 		mlir::rlc::OverloadResolver resolver(table);
 
@@ -614,10 +667,13 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fun.getType(), fun.getInfo());
+				item.sortText = ("1_" + fun.getUnmangledName()).str();
 				list.items.push_back(item);
 			}
 		}
 
+		// Priority 2: action statements from matching action functions.
+		// Priority 3: is_done() — always last.
 		for (auto fun : module.getOps<mlir::rlc::ActionFunction>())
 		{
 			if (fun.getMainActionType().getResult(0) != type)
@@ -639,6 +695,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fType, statemet.getInfo());
+				item.sortText = ("2_" + statemet.getName()).str();
 				list.items.push_back(item);
 			});
 
@@ -647,6 +704,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			item.kind = mlir::lsp::CompletionItemKind::Function;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 			item.detail = prettyType(fun.getIsDoneFunctionType());
+			item.sortText = "3_is_done()";
 			list.items.push_back(item);
 		}
 		return mlir::success();
@@ -800,7 +858,132 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	}
 
 	void clearDiagnostics() { diagnostics.clear(); }
+	// NEW: findDocumentSymbols
+	//
+	// Implements the textDocument/documentSymbol LSP method, which was
+	// previously left empty with a "ToDo" comment. This enables the
+	// Outline panel and Go to Symbol (Ctrl+Shift+O) in VS Code.
+	//
+	// Walks the module and emits a DocumentSymbol for each top-level
+	// construct visible in the current file:
+	//   - FunctionOp        → SymbolKind::Function
+	//   - ActionFunction    → SymbolKind::Function (with ActionStatements
+	//                          as Method children)
+	//   - ClassDeclaration  → SymbolKind::Class (with member fields as
+	//                          Field children)
+	//   - TypeAliasOp       → SymbolKind::TypeParameter
+	//   - ConstantGlobalOp  → SymbolKind::Constant
+	//
+	// Each symbol uses the operation's source location for both range and
+	// selectionRange to satisfy the LSP invariant that selectionRange
+	// must be contained within range.
+	void findDocumentSymbols(
+			std::vector<mlir::lsp::DocumentSymbol> &symbols)
+	{
+		auto moduleLoc = mlir::cast<mlir::FileLineColLoc>(module.getLoc());
 
+		auto isInCurrentFile = [&](mlir::Operation *op) -> bool {
+			auto opLoc = mlir::cast<mlir::FileLineColLoc>(op->getLoc());
+			return opLoc.getFilename() == moduleLoc.getFilename();
+		};
+
+		// Safe range: just use the op's loc for both start and end.
+		auto safeRange = [](mlir::Operation *op) -> mlir::lsp::Range {
+			auto pos = locToPos(op->getLoc());
+			auto end = pos;
+			end.character += 1;
+			return mlir::lsp::Range(pos, end);
+		};
+
+		for (auto fun : module.getOps<mlir::rlc::FunctionOp>())
+		{
+			if (fun.getBody().empty() || !isInCurrentFile(fun))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = fun.getUnmangledName();
+			sym.kind = mlir::lsp::SymbolKind::Function;
+			sym.detail = prettyType(fun.getType());
+			sym.range = safeRange(fun);
+			sym.selectionRange = sym.range;
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto fun : module.getOps<mlir::rlc::ActionFunction>())
+		{
+			if (fun.getBody().empty() || !isInCurrentFile(fun))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = fun.getUnmangledName();
+			sym.kind = mlir::lsp::SymbolKind::Function;
+			sym.detail = prettyType(fun.getType());
+			sym.range = safeRange(fun);
+			sym.selectionRange = sym.range;
+
+			fun.walk([&](mlir::rlc::ActionStatement stmt) {
+				mlir::lsp::DocumentSymbol child;
+				child.name = stmt.getName();
+				child.kind = mlir::lsp::SymbolKind::Method;
+				child.range = safeRange(stmt);
+				child.selectionRange = child.range;
+				sym.children.push_back(std::move(child));
+			});
+
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto cls : module.getOps<mlir::rlc::ClassDeclaration>())
+		{
+			if (!isInCurrentFile(cls))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = cls.getName().str();
+			sym.kind = mlir::lsp::SymbolKind::Class;
+			sym.range = safeRange(cls);
+			sym.selectionRange = sym.range;
+
+			if (auto classType =
+							mlir::dyn_cast<mlir::rlc::ClassType>(cls.getDeclaredType()))
+			{
+				for (auto field : classType.getMembers())
+				{
+					mlir::lsp::DocumentSymbol child;
+					child.name = field.getName();
+					child.kind = mlir::lsp::SymbolKind::Field;
+					child.detail = prettyType(field.getType());
+					child.range = sym.range;
+					child.selectionRange = sym.range;
+					sym.children.push_back(std::move(child));
+				}
+			}
+
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto alias : module.getOps<mlir::rlc::TypeAliasOp>())
+		{
+			if (!isInCurrentFile(alias))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = alias.getName();
+			sym.kind = mlir::lsp::SymbolKind::TypeParameter;
+			sym.range = safeRange(alias);
+			sym.selectionRange = sym.range;
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto cst : module.getOps<mlir::rlc::ConstantGlobalOp>())
+		{
+			if (!isInCurrentFile(cst))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = cst.getName();
+			sym.kind = mlir::lsp::SymbolKind::Constant;
+			sym.detail = prettyType(cst.getType());
+			sym.range = safeRange(cst);
+			sym.selectionRange = sym.range;
+			symbols.push_back(std::move(sym));
+		}
+	}
 	private:
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
 			declarations;
@@ -822,7 +1005,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	mlir::ModuleOp module;
 	std::string currentFileContent;
 	LSPContext *lspContext;
-};
+};fin
 
 LSPModuleInfo::LSPModuleInfo(
 		llvm::StringRef path,
@@ -888,7 +1071,11 @@ void LSPModuleInfo::findReferencesOf(
 {
 	impl->findReferencesOf(pos, references);
 }
-
+void LSPModuleInfo::findDocumentSymbols(
+		std::vector<mlir::lsp::DocumentSymbol> &symbols) const
+{
+	impl->findDocumentSymbols(symbols);
+}
 llvm::ArrayRef<mlir::rlc::lsp::Diagnostic> LSPModuleInfo::getDiagnostics() const
 {
 	return impl->getDiagnostics();
@@ -992,9 +1179,12 @@ void RLCServer::findDocumentSymbols(
 		const mlir::lsp::URIForFile &uri,
 		std::vector<mlir::lsp::DocumentSymbol> &symbols)
 {
-	// ToDo
-}
+	const auto *maybeInfo = getModuleFromUri(uri);
+	if (maybeInfo == nullptr)
+		return;
 
+	maybeInfo->findDocumentSymbols(symbols);
+}
 void RLCServer::addOrUpdateDocument(
 		const mlir::lsp::URIForFile &uri,
 		llvm::StringRef contents,
