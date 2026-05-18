@@ -1005,7 +1005,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	mlir::ModuleOp module;
 	std::string currentFileContent;
 	LSPContext *lspContext;
-};fin
+};
 
 LSPModuleInfo::LSPModuleInfo(
 		llvm::StringRef path,
