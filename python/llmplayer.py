@@ -13,14 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from os import devnull
+from pathlib import Path
+
 from command_line import (
+    get_included_conents_from_args,
     load_program_from_args,
     make_rlc_argparse,
-    get_included_conents_from_args,
 )
-from rlc import State, Program, make_llm, run_game
-from sys import stdout
-from os import devnull
+from rlc import make_llm, run_game
 
 
 def main():
@@ -35,9 +36,7 @@ def main():
     parser.add_argument("--trace-output", type=str, default="-", nargs="?")
     parser.add_argument(
         "--gemini-stateless",
-        type=bool,
-        default=True,
-        nargs="?",
+        action="store_true",
         help="Use gemini but send only the current state, and do not keep track of past knowledge",
     )
     parser.add_argument(
@@ -48,23 +47,26 @@ def main():
     parser.add_argument(
         "--ollama-local", action="store_true", help="Use ollama locally"
     )
+    parser.add_argument("--llamacpp", action="store_true", help="Use llama.cpp")
 
     args = parser.parse_args()
 
     output = open(args.output, "w+") if args.output != "-" else open(devnull, "w")
     trace_output = open(args.trace_output, "w+") if args.trace_output != "-" else open(devnull, "w")
     rules = get_included_conents_from_args(args)
-    with load_program_from_args(args, optimize=True) as program:
-        llm = make_llm(args, program)
+    game_name = Path(args.source_file).stem
+    with load_program_from_args(args, optimize=True, extra_source_files=["stdlib/regex.rl"]) as program:
+        llm = make_llm(args, program, game_name)
         for action, thought in run_game(
             llm=llm,
+            game_name=game_name,
             program=program,
             rules=rules,
             output=output,
             trace_output=trace_output,
         ):
             print(thought)
-            print(program.to_string(action))
+            print(program.module.to_string(action))
 
 
 if __name__ == "__main__":
