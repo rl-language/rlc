@@ -270,25 +270,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return nullptr;
 	}
 
-	// ===================================================================
-	// IMPROVED: getCompleteFunction
-	//
-	// Changes from original:
-	//   1. Scope-aware filtering: local declarations are only suggested
-	//      if they appear on or before the cursor line (completePos.line).
-	//      Previously ALL declarations inside the function were shown,
-	//      including those defined after the cursor position.
-	//
-	//   2. Completion ranking via sortText: items are prefixed so that
-	//      VS Code sorts them in a useful order:
-	//        "0_" = function arguments (always in scope, most relevant)
-	//        "1_" = local declarations (let/frm variables)
-	//        "2_" = module-level action functions
-	//        "3_" = module-level free functions
-	//        "4_" = module-level constants
-	//      Without sortText, VS Code shows items in insertion order
-	//      which mixes locals with globals unpredictably.
-	// ===================================================================
 	mlir::LogicalResult getCompleteFunction(
 			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
 	{
@@ -312,8 +293,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			item.label = name.str();
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
-			// sortText controls the order in VS Code's completion menu.
-			// Lower prefixes appear first.
+			
 			item.sortText = (sortPrefix + name).str();
 			if (auto casted = mlir::dyn_cast<mlir::FunctionType>(t);
 					casted and info != nullptr)
@@ -325,51 +305,44 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			list.items.push_back(item);
 		};
 
-		// Priority 0: function/action function arguments — always in scope.
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
 				casted and not casted.getBody().empty())
 		{
-			for (auto arg :
+			for (auto &&[name, type] :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
 				registerArgument(
-						std::get<0>(arg), std::get<1>(arg), nullptr, "0_");
+						name, type, nullptr, "0_");
 			}
 		}
 
 		if (auto casted = mlir::dyn_cast<mlir::rlc::ActionFunction>(fun);
 				casted and not casted.getBody().empty())
 		{
-			for (auto arg :
+			for (auto &&[name, type] :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
 				registerArgument(
-						std::get<0>(arg), std::get<1>(arg), nullptr, "0_");
+						name, type, nullptr, "0_");
 			}
 		}
 
-		// Priority 1: local declarations — only those declared on or
-		// before the cursor line (scope-aware filtering).
 		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
 			auto loc = mlir::cast<mlir::FileLineColLoc>(statement.getLoc());
-			// loc.getLine() is 1-based, completePos.line is 0-based.
 			if (static_cast<int>(loc.getLine()) - 1 <= completePos.line)
 				registerArgument(
 						statement.getSymName(), statement.getType(), nullptr, "1_");
 		});
 
-		// Priority 2: module-level action functions.
 		for (auto op : module.getOps<mlir::rlc::ActionFunction>())
 			registerArgument(
 					op.getUnmangledName(), op.getType(), nullptr, "2_");
 
-		// Priority 3: module-level free functions (non-member).
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
 			if (not op.getIsMemberFunction())
 				registerArgument(
 						op.getUnmangledName(), op.getType(), op.getInfo(), "3_");
 
-		// Priority 4: module-level constants.
 		for (auto op : module.getOps<mlir::rlc::ConstantGlobalOp>())
 			registerArgument(op.getName(), op.getType(), nullptr, "4_");
 
@@ -604,17 +577,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		return mlir::success();
 	}
 
-	// ===================================================================
-	// IMPROVED: getCompleteAccessMember
-	//
-	// Changes from original:
-	//   Completion ranking via sortText so that after typing "g.",
-	//   VS Code shows items in a useful order:
-	//     "0_" = struct fields          (g.score, g.turns, ...)
-	//     "1_" = member functions        (g.reset(), ...)
-	//     "2_" = action statements       (g.move(), g.take_key(), ...)
-	//     "3_" = is_done()              (always last among actions)
-	// ===================================================================
 	mlir::LogicalResult getCompleteAccessMember(
 			const mlir::lsp::Position &completePos, mlir::lsp::CompletionList &list)
 	{
@@ -626,7 +588,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 		auto type = memberAccess->getOperand(0).getType();
 
-		// Priority 0: struct/class fields.
 		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 		{
 			for (auto field : casted.getMembers())
@@ -641,7 +602,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			}
 		}
 
-		// Priority 1: member functions whose first parameter matches the type.
 		mlir::rlc::ValueTable table;
 		mlir::rlc::OverloadResolver resolver(table);
 
@@ -672,8 +632,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			}
 		}
 
-		// Priority 2: action statements from matching action functions.
-		// Priority 3: is_done() — always last.
 		for (auto fun : module.getOps<mlir::rlc::ActionFunction>())
 		{
 			if (fun.getMainActionType().getResult(0) != type)
@@ -858,25 +816,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	}
 
 	void clearDiagnostics() { diagnostics.clear(); }
-	// NEW: findDocumentSymbols
-	//
-	// Implements the textDocument/documentSymbol LSP method, which was
-	// previously left empty with a "ToDo" comment. This enables the
-	// Outline panel and Go to Symbol (Ctrl+Shift+O) in VS Code.
-	//
-	// Walks the module and emits a DocumentSymbol for each top-level
-	// construct visible in the current file:
-	//   - FunctionOp        → SymbolKind::Function
-	//   - ActionFunction    → SymbolKind::Function (with ActionStatements
-	//                          as Method children)
-	//   - ClassDeclaration  → SymbolKind::Class (with member fields as
-	//                          Field children)
-	//   - TypeAliasOp       → SymbolKind::TypeParameter
-	//   - ConstantGlobalOp  → SymbolKind::Constant
-	//
-	// Each symbol uses the operation's source location for both range and
-	// selectionRange to satisfy the LSP invariant that selectionRange
-	// must be contained within range.
 	void findDocumentSymbols(
 			std::vector<mlir::lsp::DocumentSymbol> &symbols)
 	{
@@ -887,7 +826,6 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			return opLoc.getFilename() == moduleLoc.getFilename();
 		};
 
-		// Safe range: just use the op's loc for both start and end.
 		auto safeRange = [](mlir::Operation *op) -> mlir::lsp::Range {
 			auto pos = locToPos(op->getLoc());
 			auto end = pos;
