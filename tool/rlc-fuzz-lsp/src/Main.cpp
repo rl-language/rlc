@@ -42,7 +42,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 	server.addOrUpdateDocument(
 			uri, llvm::StringRef((char *) Data, Size), 0, diagnostics);
 			if (!diagnostics.empty())
-   				 return 0;		
+   					
 	for (auto diag : diagnostics)
 	{
 		auto okMsg = diag.range.start.character != -1 and
@@ -72,7 +72,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 		server.findHover(uri, position);
 		std::vector<mlir::lsp::Location> locs;
 		server.getLocationsOf(uri, position, locs);
+		std::vector<mlir::lsp::Location> refs;
+		server.findReferencesOf(uri, position, refs);
 	}
+
+	std::vector<mlir::lsp::DocumentSymbol> symbols;
+	server.findDocumentSymbols(uri, symbols);
+
 	return 0;
+
 }
 

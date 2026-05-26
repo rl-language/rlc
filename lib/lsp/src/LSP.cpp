@@ -676,8 +676,10 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		module.walk([&](mlir::Operation *op) {
 			if (not op->hasTrait<trait>())
 				return;
-			mlir::Location loc = op->getLoc();
+		mlir::Location loc = op->getLoc();
 			if (loc == nullptr)
+				return;
+			if (not mlir::isa<mlir::FileLineColLoc>(loc))
 				return;
 
 			auto pos = locToPos(loc);
