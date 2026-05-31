@@ -91,19 +91,28 @@ class LlamaCpp:
         self.client = openai.Client(api_key="...", base_url="http://localhost:8000/v1")
         self.model_name = model_name
         self.program = program
+        # init chat histories for each player
         self.chats = [
             [{
                 "role": "system",
                 "content": (f"You are an agent that plays in a reinforcement learning enviroment, you're player id is {x}, the game is {game_name}. Your goal is to win the game, by selecting the best action (among the legal ones) at each turn.\n"
                 "INSTRUCTIONS:\n- First, reason about your strategy (max 300 tokens).\n- Once you decided, write the chosen action.\nOutput only the action you choose, nothing else, no explanations, no comments, just the action.\n")
-            }]
+            }] # this system prompt is generic because it's supposed to work for any game, the specific info it contains are player_id and game_name
             for x in range(program.module.get_num_players())
         ]
 
     def chat(self, message: str, player_id: int, state: State) -> str:
+        """Interacts with the LLM to get the action to play given the current state.
+
+        The interaction is done in two steps:
+        1. We first send the message to the model and let it reason about the current state
+        2. We then send the message again, this time with a grammar that constrains the output of the model to be one of the possible actions
+        """
         chat_messages = self.chats[player_id]
         self.chats[player_id].append({"role": "user", "content": message})
 
+        ### CLEAN HISTORY FROM OLD MESSAGES ###
+        # to avoid hitting the context window limit, we keep in the history only the last max_turns_in_history interactions
         max_turns_in_history = 10
         previous_turns_in_history = 0
         for i in range(1, len(chat_messages)-1, 2):
@@ -118,6 +127,7 @@ class LlamaCpp:
                 chat_messages[n_removed_interactions * 2 + 1:]
 
 
+        ### 1. LET THE MODEL REASON ###
         # do a first call just to let the model reason about the current state and decide what action to take
         # no action is expected to be output, as we can't constrain the output yet
         chat_response_reasoning = self.client.chat.completions.create(
@@ -126,12 +136,13 @@ class LlamaCpp:
             max_tokens=768 + 23, # reasononing budget tokens + reasoning budget message tokens
         )
         if hasattr(chat_response_reasoning.choices[0].message, "reasoning_content"):
+            ### 2. CONSTRAIN THE MODEL OUTPUT WITH A GRAMMAR ###
             reasoning_str = chat_response_reasoning.choices[0].message.reasoning_content.strip()
             start_reasoning_str = "<|channel>thought\n"
-            end_reasoning_str = "<channel|>"
+            end_reasoning_str = "\n<channel|>"
 
             # prepare grammar from regex to contrain the action output of the model
-            allowed_actions_regex = to_regex(self.program.module, state.legal_actions_indicies)
+            allowed_actions_regex = create_regex_for_constrained_generation(self.program.module)
             g = xgr.Grammar.from_regex(allowed_actions_regex)
             gbnf = str(g)
             extra_body = {
@@ -379,30 +390,29 @@ def capture_stdout(callable, *args, **kwargs) -> str:
             os.dup2(original_stdout_fd, sys.stdout.fileno())
 
 
-def to_regex(program_module, legal_actions_indicies):
-    if isinstance(legal_actions_indicies, list):
-        # actions = [rl_string_to_python(program_module.to_regex(i)) for i in legal_actions_indicies]
-        # regex = "(" + "|".join(set(actions)) + ")"
-        actions_json_list = rl_vector_of_strings_to_python(program_module.describe_actions())
-        actions_regex_list = []
-        for action_json in actions_json_list:
-            action = json.loads(action_json)
-            params = action['parameters_description']
-            new_line = ",\n                    "
-            action_regex = dedent(f"""
-            ```json
-            {{
-                "action_name": "{action['action_name']}",
-                "parameters": {{
-                    {new_line.join(f'"{param["name"]}": {param["regex"]}' for param in params)}
-                }}
+def create_regex_for_constrained_generation(program_module):
+    """Creates a regex that matches the possible actions for the game, to be used for constrained generation with LlamaCpp.
+    
+    The idea is to generete a regex for the single action starting from the description returned from rlc, than combine the regexes of all the actions into one, using the OR operator."""
+    actions_json_list = rl_vector_of_strings_to_python(program_module.describe_actions())
+    actions_regex_list = []
+    for action_json in actions_json_list:
+        action = json.loads(action_json)
+        params = action['parameters_description']
+        new_line = ",\n                    "
+        action_regex = dedent(f"""
+        ```json
+        {{
+            "action_name": "{action['action_name']}",
+            "parameters": {{
+                {new_line.join(f'"{param["name"]}": {param["regex"]}' for param in params)}
             }}
-            ```
-            """).lstrip().replace("{", r"\{").replace("}", r"\}")
-            actions_regex_list.append(action_regex)
-        regex = "(" + "|".join(set(actions_regex_list)) + ")"
-        return regex
-    raise ValueError(f"unsupported type for legal_actions_indicies: {type(legal_actions_indicies)}")
+        }}
+        ```
+        """).lstrip().replace("{", r"\{").replace("}", r"\}")
+        actions_regex_list.append(action_regex)
+    regex = "(" + "|".join(set(actions_regex_list)) + ")"
+    return regex
 
 def get_action_index_from_llamacpp_answer(answer: str, state) -> int:
     answer_json = json.loads(answer.split("```json")[-1].split("```")[0])

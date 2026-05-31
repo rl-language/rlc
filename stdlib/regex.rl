@@ -15,15 +15,16 @@ cls ParamInfo:
 
 fun describe_actions() -> Vector<String>:
     let any_action : AnyGameAction
-    return describe_actions_schema(any_action)
+    # AnyGameAction gets all possible actions for the game
+    return create_vector_of_actions_descriptions(any_action)
 
 
-fun<AllActionsVariant> describe_actions_schema(AllActionsVariant variant) -> Vector<String>:
+# produces a vector whose elements are JSON strings describing the action schema (see also describe_single_action)
+fun<AllActionsVariant> create_vector_of_actions_descriptions(AllActionsVariant variant) -> Vector<String>:
     let out : Vector<String>
 
     # Case 1: we have a union like AnyGameAction
     if variant is Alternative:
-        # print("variant is Alternative"s)
         for alt_name, alt_field of variant:
             # alt_name is a StringLiteral with the lowercase action name
             # Get the actual type name using get_type_name() method
@@ -82,12 +83,14 @@ fun<ActionType> describe_single_action(ActionType action, String action_name) ->
     result.append("}")
     return result
 
+# this function is needed to avoid the fallback to the generic implementation
+# unfortunately, for BInt right now it's required to explicitly call describe_param with the exact numbers
 fun ensure_describe_param_implementations_are_instantiated() -> Int:
     # Int
     let x_int : Int
     let _ = describe_param(x_int)
 
-    # BInt TODO find a better way to do this
+    # BInt TODO find a better way to do this, instead of enumerating combinations
     let x : BInt<0, 3>
     let _ = describe_param(x)
     let x : BInt<0, 7>
@@ -98,15 +101,16 @@ fun ensure_describe_param_implementations_are_instantiated() -> Int:
     let _ = describe_param(x)
     let x : BInt<0, 14>
     let _ = describe_param(x)
-    let x : BInt<0, 52>
+    let x : BInt<0, 52> # range 0-51 for blackjack
     let _ = describe_param(x)
-    let x : BInt<1, 10>
+    let x : BInt<1, 10> # range 0-9 for sudoku
     let _ = describe_param(x)
     
     # ...
     return 0
 
 
+# For an integer, return the regex "\d" and the name "Int"
 fun describe_param(Int x) -> ParamInfo:
     let info : ParamInfo
     info.type_name = ""s
@@ -132,11 +136,13 @@ fun<Int min, Int max> describe_param(BInt<min, max> x) -> ParamInfo:
     info.regex.append("-"s)
     info.regex.append(to_string(max - 1))
     info.regex.append("]"s)
+
+    # TODO handle numbers with more than 1 digit
     return info
 
 
 
-# Fallback: anything we don't know how to serialize → ".*"
+# Fallback: anything we don't know how to serialize -> ".*"
 fun<T> describe_param(T x) -> ParamInfo:
     let info : ParamInfo
     info.type_name = ""s
@@ -145,32 +151,3 @@ fun<T> describe_param(T x) -> ParamInfo:
     info.regex.append(".*"s)
     return info
 
-
-fun to_regex(Bool obj) -> String:
-    return "(true|false)"s
-
-fun to_regex(Float obj) -> String:
-    return "\d+\.\d+"s
-
-fun to_regex(Int obj) -> String:
-    return "\\d+"s
-
-fun<T> to_regex(T obj) -> String:
-    return "unknown"s
-
-fun ensure_to_regex_is_instantiated() -> Int:
-    let _ = to_regex(true)
-    let _ = to_regex(123)
-    let _ = to_regex(10.123)
-    let _ = to_regex(""s)
-    let _ = to_regex([1, 2, 3])
-    let x : Int[10]
-    let _ = to_regex(x)
-    let y : Float[10]
-    let _ = to_regex(y)
-    return 0
-
-# fun main() -> Int:
-#     let r = test_describe_bint()
-#     print("result = "s + to_string(r))
-#     return 0
