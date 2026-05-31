@@ -5,3 +5,4 @@ tensorboard
 matplotlib
 standard-imghdr; python_version >= '3.13'
 openai~=2.2
+xgrammar==0.1.31
