@@ -43,9 +43,6 @@ enum class LSPAction : uint8_t
 };
 
 
-// Produces a corrupted version of the input by flipping a byte at
-// a position determined by the last byte of the input. To explore
-
 static std::string mutateFile(const uint8_t *Data, size_t Size)
 {
 	if (Size == 0)
@@ -97,7 +94,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 		}
 	}
 
-	
+
 	mlir::lsp::Position position;
 	position.character = 0;
 	position.line = 0;
