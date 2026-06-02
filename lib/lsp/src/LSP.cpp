@@ -597,7 +597,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.kind = mlir::lsp::CompletionItemKind::Field;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail = prettyType(field.getType());
-				item.sortText = ("0" + field.getName()).str();
+				item.sortText = "0";
 				list.items.push_back(item);
 			}
 		}
@@ -627,7 +627,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fun.getType(), fun.getInfo());
-				item.sortText = ("1" + fun.getUnmangledName()).str();
+				item.sortText = "1";
 				list.items.push_back(item);
 			}
 		}
@@ -653,7 +653,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fType, statemet.getInfo());
-				item.sortText = ("2" + statemet.getName()).str();
+				item.sortText = "2";
 				list.items.push_back(item);
 			});
 
@@ -676,13 +676,10 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		module.walk([&](mlir::Operation *op) {
 			if (not op->hasTrait<trait>())
 				return;
-			// A pass can leave an op without a location; mlir::Location is a
-			// non-nullable wrapper, so check the raw LocationAttr (an Attribute,
-			// which may be null) before materializing a Location.
-			mlir::LocationAttr locAttr = op->getLoc();
-			if (not locAttr || not mlir::isa<mlir::FileLineColLoc>(locAttr))
+			
+			mlir::Location loc = op->getLoc();
+			if (not mlir::isa<mlir::FileLineColLoc>(loc))
 				return;
-			mlir::Location loc = locAttr;
 
 			auto pos = locToPos(loc);
 
