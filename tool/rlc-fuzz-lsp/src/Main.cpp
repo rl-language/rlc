@@ -15,6 +15,7 @@ limitations under the License.
 */
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/TargetParser/Host.h"
@@ -31,130 +32,154 @@ limitations under the License.
 
 #define DEBUG_TYPE "rlc-lsp-server"
 
+static const char *baseProgramPath =
+		"/home/emanuele/Desktop/fuzz-corpus/seed1";
 
-enum class LSPAction : uint8_t
+namespace
 {
-	CodeCompletion = 0,
-	Hover = 1,
-	GoToDefinition = 2,
-	FindReferences = 3,
-	DocumentSymbols = 4,
-	// All values >= 5 fall through to CodeCompletion (default).
+class InputReader
+{
+	public:
+	InputReader(const uint8_t *data, size_t size) : data(data), size(size) {}
+
+	bool empty() const { return cursor >= size; }
+
+	uint8_t next()
+	{
+		if (cursor >= size)
+			return 0;
+		return data[cursor++];
+	}
+
+	private:
+	const uint8_t *data;
+	size_t size;
+	size_t cursor = 0;
 };
 
-
-static std::string mutateFile(const uint8_t *Data, size_t Size)
+mlir::lsp::Position positionFromInput(
+		InputReader &reader, llvm::StringRef program)
 {
-	if (Size == 0)
-		return "";
+	size_t offset = 0;
+	if (not program.empty())
+	{
+		uint16_t raw = static_cast<uint16_t>(reader.next()) << 8;
+		raw |= reader.next();
+		offset = raw % program.size();
+	}
 
-	std::string mutated(reinterpret_cast<const char *>(Data), Size);
-	// Use the last byte to pick the mutation position.
-	size_t mutPos = static_cast<size_t>(Data[Size - 1]) % Size;
-	// Flip all bits at that position.
-	mutated[mutPos] ^= 0xFF;
-	return mutated;
+	mlir::lsp::Position pos;
+	pos.line = 0;
+	pos.character = 0;
+	for (size_t i = 0; i < offset; i++)
+	{
+		if (program[i] == '\n')
+		{
+			pos.line++;
+			pos.character = 0;
+		}
+		else
+			pos.character++;
+	}
+	return pos;
 }
+
+std::string applyEdit(
+		InputReader &reader, const std::string &program)
+{
+	if (program.empty())
+		return program;
+
+	uint16_t raw = static_cast<uint16_t>(reader.next()) << 8;
+	raw |= reader.next();
+	size_t pos = raw % program.size();
+	char replacement = static_cast<char>(reader.next());
+
+	std::string edited = program;
+	edited[pos] = replacement;
+	return edited;
+}
+}	 // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 {
-	// Need at least 2 bytes: 1 for the action selector, 1 for the file content.
-	if (Size < 2)
+	auto bufferOrErr = llvm::MemoryBuffer::getFile(baseProgramPath);
+	if (not bufferOrErr)
 		return 0;
 
-	// First byte: selects which LSP action to invoke at each position.
-	LSPAction action = static_cast<LSPAction>(Data[0] % 5);
+	std::string program = (*bufferOrErr)->getBuffer().str();
 
-	// Remaining bytes: the .rl file content to load into the server.
-	const uint8_t *fileData = Data + 1;
-	size_t fileSize = Size - 1;
-
-	
 	mlir::rlc::lsp::LSPContext context;
 	mlir::rlc::lsp::RLCServer server(context);
+	auto uri = llvm::cantFail(mlir::lsp::URIForFile::fromFile(baseProgramPath));
 
-	auto uri = llvm::cantFail(mlir::lsp::URIForFile::fromFile("/dev/null"));
-
+	int64_t version = 0;
 	std::vector<mlir::lsp::Diagnostic> diagnostics;
-	server.addOrUpdateDocument(
-			uri, llvm::StringRef((char *) fileData, fileSize), 0, diagnostics);
+	server.addOrUpdateDocument(uri, program, version, diagnostics);
 
-	// Validate that all diagnostics have valid ranges. A diagnostic
-	// with a -1 position means the server produced an internal error.
-	for (auto &diag : diagnostics)
-	{
-		bool okMsg = diag.range.start.character != -1 &&
-								 diag.range.start.line != -1 &&
-								 diag.range.end.character != -1 &&
-								 diag.range.end.line != -1;
-		if (!okMsg)
+	const auto checkDiagnostics = [&]() {
+		for (auto diag : diagnostics)
 		{
-			llvm::outs() << diag.message;
-			abort();
-		}
-	}
-
-
-	mlir::lsp::Position position;
-	position.character = 0;
-	position.line = 0;
-
-	for (size_t i = 0; i != fileSize; i++)
-	{
-		position.character++;
-		if (((char *) fileData)[i] == '\n')
-		{
-			position.character = 1;
-			position.line++;
-		}
-
-		switch (action)
-		{
-			case LSPAction::CodeCompletion:
-				server.getCodeCompletion(uri, position);
-				break;
-
-			case LSPAction::Hover:
-				server.findHover(uri, position);
-				break;
-
-			case LSPAction::GoToDefinition:
+			auto valid = diag.range.start.character != -1 and
+									 diag.range.start.line != -1 and
+									 diag.range.end.character != -1 and
+									 diag.range.end.line != -1;
+			if (not valid)
 			{
-				std::vector<mlir::lsp::Location> locs;
-				server.getLocationsOf(uri, position, locs);
+				llvm::outs() << diag.message;
+				abort();
+			}
+		}
+	};
+	checkDiagnostics();
+
+	InputReader reader(Data, Size);
+	while (not reader.empty())
+	{
+		switch (reader.next() % 6)
+		{
+			case 0:
+			{
+				auto pos = positionFromInput(reader, program);
+				server.getCodeCompletion(uri, pos);
 				break;
 			}
-
-			case LSPAction::FindReferences:
+			case 1:
 			{
-				std::vector<mlir::lsp::Location> refs;
-				server.findReferencesOf(uri, position, refs);
+				auto pos = positionFromInput(reader, program);
+				server.findHover(uri, pos);
 				break;
 			}
-
-			case LSPAction::DocumentSymbols:
+			case 2:
 			{
-				// Exercise our new findDocumentSymbols implementation.
+				auto pos = positionFromInput(reader, program);
+				std::vector<mlir::lsp::Location> locations;
+				server.getLocationsOf(uri, pos, locations);
+				break;
+			}
+			case 3:
+			{
+				auto pos = positionFromInput(reader, program);
+				std::vector<mlir::lsp::Location> references;
+				server.findReferencesOf(uri, pos, references);
+				break;
+			}
+			case 4:
+			{
 				std::vector<mlir::lsp::DocumentSymbol> symbols;
 				server.findDocumentSymbols(uri, symbols);
 				break;
 			}
+			case 5:
+			{
+				program = applyEdit(reader, program);
+				diagnostics.clear();
+				server.addOrUpdateDocument(uri, program, ++version, diagnostics);
+				checkDiagnostics();
+				break;
+			}
 		}
 	}
-
-	
-	std::string mutated = mutateFile(fileData, fileSize);
-	server.addOrUpdateDocument(uri, mutated, 1, diagnostics);
-
-	// Run document symbols on the mutated file to stress the new code.
-	std::vector<mlir::lsp::DocumentSymbol> symbols;
-	server.findDocumentSymbols(uri, symbols);
-
-	// Run completion at position (0,0) on the mutated file.
-	mlir::lsp::Position origin;
-	origin.line = 0;
-	origin.character = 0;
-	server.getCodeCompletion(uri, origin);
 
 	return 0;
 }

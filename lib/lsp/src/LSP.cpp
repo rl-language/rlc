@@ -676,11 +676,13 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		module.walk([&](mlir::Operation *op) {
 			if (not op->hasTrait<trait>())
 				return;
-		mlir::Location loc = op->getLoc();
-			if (loc == nullptr)
+			// A pass can leave an op without a location; mlir::Location is a
+			// non-nullable wrapper, so check the raw LocationAttr (an Attribute,
+			// which may be null) before materializing a Location.
+			mlir::LocationAttr locAttr = op->getLoc();
+			if (not locAttr || not mlir::isa<mlir::FileLineColLoc>(locAttr))
 				return;
-			if (not mlir::isa<mlir::FileLineColLoc>(loc))
-				return;
+			mlir::Location loc = locAttr;
 
 			auto pos = locToPos(loc);
 
