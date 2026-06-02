@@ -13,7 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+#include <cstdlib>
+
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -32,11 +35,11 @@ limitations under the License.
 
 #define DEBUG_TYPE "rlc-lsp-server"
 
-static const char *baseProgramPath =
-		"/home/emanuele/Desktop/fuzz-corpus/seed1";
-
 namespace
 {
+
+std::vector<std::pair<std::string, std::string>> gPrograms;
+
 class InputReader
 {
 	public:
@@ -84,34 +87,68 @@ mlir::lsp::Position positionFromInput(
 	return pos;
 }
 
-std::string applyEdit(
-		InputReader &reader, const std::string &program)
+
+std::string applyEdit(InputReader &reader, const std::string &program)
 {
 	if (program.empty())
 		return program;
 
+	uint8_t kind = reader.next() % 3;
 	uint16_t raw = static_cast<uint16_t>(reader.next()) << 8;
 	raw |= reader.next();
 	size_t pos = raw % program.size();
-	char replacement = static_cast<char>(reader.next());
 
 	std::string edited = program;
-	edited[pos] = replacement;
+	switch (kind)
+	{
+		case 0: // replace one character
+			edited[pos] = static_cast<char>(reader.next());
+			break;
+		case 1: // insert one character before pos
+			edited.insert(edited.begin() + pos, static_cast<char>(reader.next()));
+			break;
+		case 2: // delete the character at pos
+			edited.erase(edited.begin() + pos);
+			break;
+	}
 	return edited;
 }
-}	 // namespace
+}	
+extern "C" int LLVMFuzzerInitialize(int *, char ***)
+{
+	const char *dir = getenv("RLC_FUZZ_PROGRAM_DIR");
+	if (not dir)
+	{
+		llvm::errs() << "set RLC_FUZZ_PROGRAM_DIR to a directory of .rl programs\n";
+		return 0;
+	}
+
+	std::error_code ec;
+	for (llvm::sys::fs::directory_iterator it(dir, ec), end;
+			 it != end and not ec; it.increment(ec))
+	{
+		auto buffer = llvm::MemoryBuffer::getFile(it->path());
+		if (buffer)
+			gPrograms.emplace_back(it->path(), (*buffer)->getBuffer().str());
+	}
+	return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 {
-	auto bufferOrErr = llvm::MemoryBuffer::getFile(baseProgramPath);
-	if (not bufferOrErr)
+	if (gPrograms.empty())
 		return 0;
 
-	std::string program = (*bufferOrErr)->getBuffer().str();
+	InputReader reader(Data, Size);
+
+	// First byte selects which of the loaded programs to operate on.
+	const auto &chosen = gPrograms[reader.next() % gPrograms.size()];
+	std::string program = chosen.second;
 
 	mlir::rlc::lsp::LSPContext context;
 	mlir::rlc::lsp::RLCServer server(context);
-	auto uri = llvm::cantFail(mlir::lsp::URIForFile::fromFile(baseProgramPath));
+	auto uri =
+			llvm::cantFail(mlir::lsp::URIForFile::fromFile(chosen.first));
 
 	int64_t version = 0;
 	std::vector<mlir::lsp::Diagnostic> diagnostics;
@@ -133,11 +170,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 	};
 	checkDiagnostics();
 
-	InputReader reader(Data, Size);
 	while (not reader.empty())
 	{
 		switch (reader.next() % 6)
-		{
+		{/*
 			case 0:
 			{
 				auto pos = positionFromInput(reader, program);
@@ -163,13 +199,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 				std::vector<mlir::lsp::Location> references;
 				server.findReferencesOf(uri, pos, references);
 				break;
-			}
+			} 
+			
+
 			case 4:
 			{
 				std::vector<mlir::lsp::DocumentSymbol> symbols;
 				server.findDocumentSymbols(uri, symbols);
 				break;
 			}
+				   */
 			case 5:
 			{
 				program = applyEdit(reader, program);
@@ -179,6 +218,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 				break;
 			}
 		}
+			
+
 	}
 
 	return 0;
