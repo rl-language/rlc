@@ -173,7 +173,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 	while (not reader.empty())
 	{
 		switch (reader.next() % 6)
-		{/*
+		{
 			case 0:
 			{
 				auto pos = positionFromInput(reader, program);
@@ -208,7 +208,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 				server.findDocumentSymbols(uri, symbols);
 				break;
 			}
-				 	*/  
+				  
 			case 5:
 			{
 				program = applyEdit(reader, program);
