@@ -312,7 +312,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
 				registerArgument(
-						name, type, nullptr, "0_");
+						name, type, nullptr, "0");
 			}
 		}
 
@@ -323,7 +323,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
 				registerArgument(
-						name, type, nullptr, "0_");
+						name, type, nullptr, "0");
 			}
 		}
 
@@ -331,20 +331,20 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			auto loc = mlir::cast<mlir::FileLineColLoc>(statement.getLoc());
 			if (static_cast<int>(loc.getLine()) - 1 <= completePos.line)
 				registerArgument(
-						statement.getSymName(), statement.getType(), nullptr, "1_");
+						statement.getSymName(), statement.getType(), nullptr, "1");
 		});
 
 		for (auto op : module.getOps<mlir::rlc::ActionFunction>())
 			registerArgument(
-					op.getUnmangledName(), op.getType(), nullptr, "2_");
+					op.getUnmangledName(), op.getType(), nullptr, "2");
 
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
 			if (not op.getIsMemberFunction())
 				registerArgument(
-						op.getUnmangledName(), op.getType(), op.getInfo(), "3_");
+						op.getUnmangledName(), op.getType(), op.getInfo(), "3");
 
 		for (auto op : module.getOps<mlir::rlc::ConstantGlobalOp>())
-			registerArgument(op.getName(), op.getType(), nullptr, "4_");
+			registerArgument(op.getName(), op.getType(), nullptr, "4");
 
 		return mlir::success();
 	}
@@ -597,7 +597,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.kind = mlir::lsp::CompletionItemKind::Field;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail = prettyType(field.getType());
-				item.sortText = ("0_" + field.getName()).str();
+				item.sortText = ("0" + field.getName()).str();
 				list.items.push_back(item);
 			}
 		}
@@ -627,7 +627,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fun.getType(), fun.getInfo());
-				item.sortText = ("1_" + fun.getUnmangledName()).str();
+				item.sortText = ("1" + fun.getUnmangledName()).str();
 				list.items.push_back(item);
 			}
 		}
@@ -653,7 +653,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fType, statemet.getInfo());
-				item.sortText = ("2_" + statemet.getName()).str();
+				item.sortText = ("2" + statemet.getName()).str();
 				list.items.push_back(item);
 			});
 
