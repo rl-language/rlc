@@ -588,7 +588,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 
 		auto type = memberAccess->getOperand(0).getType();
 
-		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type);
+				casted and casted.isInitialized())
 		{
 			for (auto field : casted.getMembers())
 			{
@@ -879,9 +880,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			sym.kind = mlir::lsp::SymbolKind::Class;
 			sym.range = safeRange(cls);
 			sym.selectionRange = sym.range;
-
-			if (auto classType =
-							mlir::dyn_cast<mlir::rlc::ClassType>(cls.getDeclaredType()))
+            if (auto classType =
+					mlir::dyn_cast<mlir::rlc::ClassType>(cls.getDeclaredType());
+					classType and classType.isInitialized())
 			{
 				for (auto field : classType.getMembers())
 				{
