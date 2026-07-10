@@ -13,6 +13,9 @@ release
 .clangd
 .cache
 .idea
+logs
+.hypothesis/
+python/test/uigen/fuzz/results
 
 # User-specific stuff
 .idea/**/workspace.xml
