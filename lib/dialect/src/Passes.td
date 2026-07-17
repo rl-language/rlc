@@ -209,8 +209,21 @@ def PrintPythonPass: Pass<"rlc-python-pass", "mlir::ModuleOp"> {
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def PrintJavascriptPass: Pass<"rlc-javascript-pass", "mlir::ModuleOp"> {
+  let summary = "prints the javascript header on the provided stream";
+  let options = [
+    Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
+           "stream on which to print the module">,
+    Option<"isMac", "true if target platform is mac", "bool", /*default=*/"false",
+           "true if target platform is mac">,
+    Option<"isWindows", "true if target platform is windows", "bool", /*default=*/"false",
+           "true if target platform is windows">,
+  ];
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def PrintRubyPass: Pass<"rlc-ruby-pass", "mlir::ModuleOp"> {
-  let summary = "prints the python header on the provided stream";
+  let summary = "prints the ruby header on the provided stream";
   let options = [
     Option<"OS", "output stream", "llvm::raw_ostream*", /*default=*/"nullptr",
            "stream on which to print the module">,

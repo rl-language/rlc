@@ -202,6 +202,12 @@ static cl::opt<bool> dumpPythonWrapper(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> dumpJavascriptWrapper(
+		"javascript",
+		cl::desc("dumps the javascript wrapper and exits"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpAfterImplicit(
 		"after-implicit",
 		cl::desc("dumps the ast after implicit function expansions and exits"),
@@ -399,6 +405,8 @@ static mlir::rlc::Driver::Request getRequest()
 		return Driver::Request::dumpGodotWrapper;
 	if (dumpPythonWrapper)
 		return Driver::Request::dumpPythonWrapper;
+	if (dumpJavascriptWrapper)
+		return Driver::Request::dumpJavascriptWrapper;
 	if (dumpRubyWrapper)
 		return Driver::Request::dumpRubyWrapper;
 	if (dumpRLC)

@@ -22,6 +22,7 @@ namespace mlir::rlc
 			dumpBeforeTemplate,
 			dumpGodotWrapper,
 			dumpPythonWrapper,
+			dumpJavascriptWrapper,
 			dumpRubyWrapper,
 			dumpRLC,
 			dumpAfterImplicit,
