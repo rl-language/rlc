@@ -13,9 +13,8 @@
 #include "rlc/dialect/Visits.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
 
-// TODO: Come gestire i varargs?
 // TODO: Come gestire gli alias?
-
+// TODO: Le alternative usate dentro le funzioni compaiono comunque...
 namespace mlir::rlc
 {
 
@@ -29,12 +28,20 @@ namespace mlir::rlc
 			private:
 			std::string unformattedBuffer{};
 			llvm::raw_string_ostream printer{ unformattedBuffer };
-			bool isWasm64{};
+			const bool isWasm64{};
 			llvm::raw_ostream* OS{};
+			MemberFunctionsTable table;
+			llvm::DenseSet<mlir::rlc::ArrayType> arrays{};
+			//TODO: Dubito che alternatives ci serve...o forse sì...?
+			//Magari al posto di quel ciclo nel main, così escludiamo le alternative
+			//definite all'interno delle funzioni.
+			llvm::DenseSet<mlir::rlc::AlternativeType> alternatives{};
+			llvm::DenseSet<mlir::rlc::OwningPtrType> pointers{};
 
 			public:
-			JavascriptCodeGenerator(bool isWasm64, llvm::raw_ostream* OS)
-					: isWasm64(isWasm64), OS(OS)
+			JavascriptCodeGenerator(
+					bool isWasm64, llvm::raw_ostream* OS, mlir::ModuleOp operation)
+					: isWasm64(isWasm64), OS(OS), table(MemberFunctionsTable{ operation })
 			{
 				if (this->isWasm64)
 				{
@@ -72,6 +79,32 @@ namespace mlir::rlc
 
 			void generateGeneralWrapper() { printer << standardJavascriptWrapper; }
 
+			// TODO: Rendere questa funzione privata?
+			std::pair<llvm::SmallVector<int, 2>, mlir::Type> getSizeAndTypeFromArray(
+					mlir::rlc::ArrayType currentType)
+			{
+				llvm::SmallVector<int, 2> sizes{};
+
+				while (true)
+				{
+					const int value =
+							cast<mlir::rlc::IntegerLiteralType>(currentType.getSize())
+									.getValue();
+					sizes.insert(sizes.begin(), value);
+
+					auto newType =
+							mlir::dyn_cast<mlir::rlc::ArrayType>(currentType.getUnderlying());
+					if (newType)
+					{
+						currentType = newType;
+					}
+					else
+					{
+						return { sizes, currentType.getUnderlying() };
+					}
+				}
+			}
+
 			void emitJavascriptType(mlir::Type type)
 			{
 				if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(type))
@@ -107,23 +140,53 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
-					// TODO:
-					printer << "";
+					alternatives.insert(casted);
+
+					printer << "Alternative";
+					for (auto enumeration : llvm::enumerate(casted.getUnderlying()))
+					{
+						printer << "_";
+						emitJavascriptType(enumeration.value());
+					}
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 				{
+					arrays.insert(casted);
+
 					printer << "Array_";
-					emitJavascriptType(casted.getUnderlying());
-					printer << "_" << casted.getSize();
+
+					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{
+						getSizeAndTypeFromArray(casted)
+					};
+					emitJavascriptType(result.second);
+
+					for (int x : result.first)
+					{
+						printer << "_" << x;
+					}
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
 				{
+					pointers.insert(casted);
+
 					printer << "Ptr_";
 					emitJavascriptType(casted.getUnderlying());
+					/*
+					TODO:
+					Metti casted.getUnderlying() e casted.getSize() dentro un set.
+					Dopo che hai generato tutte le funzioni membro o non membro, le
+					classi, le enum e le alternative, iteri su questo set e generi le
+					classi javascript Array.
+					*/
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(type))
 				{
 					emitJavascriptType(casted.getUnderlying());
+				}
+				else if (
+						auto casted = mlir::dyn_cast<mlir::rlc::IntegerLiteralType>(type))
+				{
+					printer << casted.getValue();
 				}
 				else
 				{
@@ -153,7 +216,6 @@ namespace mlir::rlc
 				{
 					printer << "[\"" << mangledName(name, isMethod, overload) << "\", [";
 
-					llvm::SmallVector<std::string, 4> vector{};
 					for (auto type : overload.getInputs())
 					{
 						emitJavascriptType(type);
@@ -207,32 +269,30 @@ namespace mlir::rlc
 				}
 			}
 
-			// TODO: Rendere MemberFunctionsTable un member field?
-			void emitMemberFunctions(
-					mlir::Type classType, MemberFunctionsTable& table)
+			void emitMemberFunctions(mlir::Type classType)
 			{
 				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
-				for (auto memberFunction : table.getMemberFunctionsOf(classType))
+				for (auto memberFunction : this->table.getMemberFunctionsOf(classType))
 				{
 					sortedOverloads[memberFunction.getUnmangledName()].push_back(
 							memberFunction.getType());
 				}
 
-				if (not table.isTriviallyInitializable(classType))
+				if (not this->table.isTriviallyInitializable(classType))
 				{
 					auto fun = mlir::FunctionType::get(
 							classType.getContext(), { classType }, {});
 					sortedOverloads["init"].push_back(fun);
 				}
 
-				if (not table.isTriviallyDestructible(classType))
+				if (not this->table.isTriviallyDestructible(classType))
 				{
 					auto fun = mlir::FunctionType::get(
 							classType.getContext(), { classType }, {});
 					sortedOverloads["drop"].push_back(fun);
 				}
 
-				if (not table.isTriviallyCopiable(classType))
+				if (not this->table.isTriviallyCopiable(classType))
 				{
 					auto fun = mlir::FunctionType::get(
 							classType.getContext(), { classType, classType }, {});
@@ -245,10 +305,12 @@ namespace mlir::rlc
 				}
 			}
 
-			void emitClassDeclaration(
-					mlir::rlc::ClassType type, MemberFunctionsTable& table)
+			void emitClassDeclaration(mlir::rlc::ClassType type)
 			{
-				printer << "class " << type.getName() << " extends ClassWrapper{";
+				printer << "class ";
+				emitJavascriptType(type);
+				printer << " extends ClassWrapper{";
+
 				printer << "static _getSize() { return TODO;}";
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
@@ -258,15 +320,17 @@ namespace mlir::rlc
 
 				printer << "]; }";
 				emitGettersAndSetters(type);
-				emitMemberFunctions(type, table);
+				emitMemberFunctions(type);
 				printer << "}";
 			}
 
 			void emitEnumDeclaration(
-				mlir::rlc::ClassType type,
-					mlir::rlc::EnumDeclarationOp enumDecl, MemberFunctionsTable& table)
+					mlir::rlc::ClassType type, mlir::rlc::EnumDeclarationOp enumDecl)
 			{
-				printer << "enum " << type.getName() << " extends EnumWrapper{";
+				printer << "class ";
+				emitJavascriptType(type);
+				printer << " extends EnumWrapper{";
+
 				int i{ 0 };
 				for (auto value :
 						 llvm::enumerate(enumDecl.getBody()
@@ -276,8 +340,70 @@ namespace mlir::rlc
 					i++;
 				}
 
-				emitMemberFunctions(type, table);
+				emitMemberFunctions(type);
 				printer << "}";
+			}
+
+			void emitAlternativeDeclaration(mlir::rlc::AlternativeType type)
+			{
+				printer << "class ";
+				emitJavascriptType(type);
+				printer << " extends AlternativeWrapper{";
+
+				printer << "static _getSize() { return TODO;}";
+				printer << "static _getAlternativeClasses() { return [";
+
+				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+				{
+					emitJavascriptType(enumeration.value());
+					printer << ", ";
+				}
+
+				printer << "];}";
+
+				emitMemberFunctions(type);
+				printer << "}";
+			}
+
+			void emitArrayDeclarations()
+			{
+				for (auto type : arrays)
+				{
+					printer << "class ";
+					emitJavascriptType(type);
+					printer << " extends ArrayWrapper{";
+
+					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{getSizeAndTypeFromArray(type)};
+
+					printer << "static _getDimensions(){ return [";
+					for(int x : result.first){
+						printer << x << ", ";
+					}
+					printer << "];}";
+
+					printer << "static _getElementClass() { return ";
+					emitJavascriptType(result.second);
+					printer << ";}";
+
+					printer << "}";
+				}
+			}
+
+
+			void emitPointerDeclarations()
+			{
+				for (auto type : pointers)
+				{
+					printer << "class ";
+					emitJavascriptType(type);
+					printer << " extends PtrWrapper{";
+
+					printer << "static _getElementClass() { return ";
+					emitJavascriptType(type.getUnderlying());
+					printer << ";}";
+
+					printer << "}";
+				}
 			}
 		};
 
@@ -290,11 +416,9 @@ namespace mlir::rlc
 
 		void runOnOperation() override
 		{
-			MemberFunctionsTable table(this->getOperation());
-			mlir::rlc::ModuleBuilder builder(this->getOperation());
-
-			// TODO: Passare table e builder qui?
-			JavascriptCodeGenerator codeGenerator{ this->isWasm64, this->OS };
+			JavascriptCodeGenerator codeGenerator{ this->isWasm64,
+																						 this->OS,
+																						 this->getOperation() };
 
 			codeGenerator.generateGeneralWrapper();
 
@@ -310,14 +434,21 @@ namespace mlir::rlc
 				{
 					if (enums.count(casted.getName()) == 0)
 					{
-						codeGenerator.emitClassDeclaration(casted, table);
+						codeGenerator.emitClassDeclaration(casted);
 					}
 					else
 					{
-						codeGenerator.emitEnumDeclaration(casted, enums[casted.getName()], table);
+						codeGenerator.emitEnumDeclaration(casted, enums[casted.getName()]);
 					}
 				}
+				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
+				{
+					codeGenerator.emitAlternativeDeclaration(casted);
+				}
 			}
+
+			codeGenerator.emitArrayDeclarations();
+			codeGenerator.emitPointerDeclarations();
 
 			codeGenerator.autoIndentMyCode();
 		}
