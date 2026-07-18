@@ -12,9 +12,20 @@
 #include "rlc/dialect/Types.hpp"
 #include "rlc/dialect/Visits.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
+#include <iostream>
 
-// TODO: Come gestire gli alias?
+// TODO: Rimettere il file build.sh com'era all'inizio.
 // TODO: Le alternative usate dentro le funzioni compaiono comunque...
+// TODO: extern keyword
+// TODO: Action functions
+// TODO: Per le member functions non generiamo le precondizioni? Nel wrapper di
+// python non viene fatto (vengono generate solo per le non-member funcitons).
+// TODO: Calcolare le sizes per le struct e gli offset per i field
+// TODO: Aggiungere i dollari per evitare le collisioni
+// TODO: Scrivere la funzione javascript getAddressSize(), che completiamo in
+// base a isWasm64
+// TODO: Vedere se puoi evitare di usare std::string
+
 namespace mlir::rlc
 {
 
@@ -32,9 +43,9 @@ namespace mlir::rlc
 			llvm::raw_ostream* OS{};
 			MemberFunctionsTable table;
 			llvm::DenseSet<mlir::rlc::ArrayType> arrays{};
-			//TODO: Dubito che alternatives ci serve...o forse sì...?
-			//Magari al posto di quel ciclo nel main, così escludiamo le alternative
-			//definite all'interno delle funzioni.
+			// TODO: Dubito che alternatives ci serve...o forse sì...?
+			// Magari al posto di quel ciclo nel main, così escludiamo le alternative
+			// definite all'interno delle funzioni.
 			llvm::DenseSet<mlir::rlc::AlternativeType> alternatives{};
 			llvm::DenseSet<mlir::rlc::OwningPtrType> pointers{};
 
@@ -105,6 +116,102 @@ namespace mlir::rlc
 				}
 			}
 
+			std::pair<int, int> getSizeAndAlignmentByType(mlir::Type type)
+			{
+				if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(type))
+				{
+					if (casted.getSize() == 64)
+					{
+						return { 8, 8 };
+					}
+
+					return { 1, 1 };
+				}
+
+				if (mlir::isa<mlir::rlc::FloatType>(type))
+				{
+					return { 8, 8 };
+				}
+
+				if (mlir::isa<mlir::rlc::BoolType>(type))
+				{
+					return { 1, 1 };
+				}
+
+				if (mlir::isa<mlir::rlc::StringLiteralType>(type))
+				{
+					int addressSize = isWasm64 ? 8 : 4;
+					return { addressSize, addressSize };
+				}
+
+				if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
+				{
+					const int structSize = getSizeAndOffsetsOfStruct(casted).first;
+					return {structSize, structSize};
+				}
+
+				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
+				{
+					// TODO
+				}
+
+				if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
+				{
+					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{
+						getSizeAndTypeFromArray(casted)
+					};
+
+					int linearLength = 1;
+					for (int x : result.first)
+					{
+						linearLength *= x;
+					}
+
+					int underlyingSize = getSizeAndAlignmentByType(result.second).first;
+
+					return { linearLength * underlyingSize, underlyingSize };
+				}
+
+				if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
+				{
+					int addressSize = isWasm64 ? 8 : 4;
+					return { addressSize, addressSize };
+				}
+
+				std::cerr << "Can't compute size of type ";
+				type.dump();
+				std::abort();
+			}
+
+			std::pair<int, llvm::SmallVector<std::pair<llvm::StringRef, int>, 4>> getSizeAndOffsetsOfStruct(mlir::rlc::ClassType classType)
+			{
+				llvm::SmallVector<std::pair<llvm::StringRef, int>, 4> offsets{};
+				llvm::SmallVector<mlir::Type, 4> memberTypes{classType.getMemberTypes()};
+				llvm::SmallVector<llvm::StringRef, 4> memberNames{classType.getMemberNames()};
+
+				const int length = memberTypes.size();
+				int structSize = 0;
+				int maxAlignment = -1;
+
+				for (int i{0}; i<length; i++)
+				{
+					const std::pair<int, int> memberSizeAndAlignment = getSizeAndAlignmentByType(memberTypes[i]);
+					const int memberSize = memberSizeAndAlignment.first;
+					const int memberAlignment = memberSizeAndAlignment.second;
+
+					structSize += structSize % memberAlignment;
+					offsets.push_back({memberNames[i], structSize});
+					structSize += memberSize;
+
+					if(memberAlignment > maxAlignment){
+						maxAlignment = memberAlignment;
+					}
+				}
+				structSize += structSize % maxAlignment;
+
+				return {structSize, offsets};
+			}
+
 			void emitJavascriptType(mlir::Type type)
 			{
 				if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(type))
@@ -171,13 +278,6 @@ namespace mlir::rlc
 
 					printer << "Ptr_";
 					emitJavascriptType(casted.getUnderlying());
-					/*
-					TODO:
-					Metti casted.getUnderlying() e casted.getSize() dentro un set.
-					Dopo che hai generato tutte le funzioni membro o non membro, le
-					classi, le enum e le alternative, iteri su questo set e generi le
-					classi javascript Array.
-					*/
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(type))
 				{
@@ -190,6 +290,8 @@ namespace mlir::rlc
 				}
 				else
 				{
+					std::cerr << "Can't emit an equivalent Javascript type for ";
+					type.dump();
 					std::abort();
 				}
 			}
@@ -201,7 +303,7 @@ namespace mlir::rlc
 			{
 				if (isMethod == false)
 				{
-					printer << "function ";
+					printer << "export function ";
 				}
 				printer << name << "(...args){";
 
@@ -254,10 +356,11 @@ namespace mlir::rlc
 				printer << "return generalFunction(args, signatures);}";
 			}
 
-			void emitGettersAndSetters(mlir::rlc::ClassType classType)
+			//TODO: Togliere il nome dai pair, non ci serve
+			void emitGettersAndSetters(mlir::rlc::ClassType classType, llvm::SmallVector<std::pair<llvm::StringRef, int>, 4> offsets)
 			{
-				for (auto [type, name] :
-						 llvm::zip(classType.getMemberTypes(), classType.getMemberNames()))
+				for (auto [type, name, offset] :
+						 llvm::zip(classType.getMemberTypes(), classType.getMemberNames(), offsets))
 				{
 					printer << "get " << name << "(){return this._get(";
 					emitJavascriptType(type);
@@ -292,6 +395,7 @@ namespace mlir::rlc
 					sortedOverloads["drop"].push_back(fun);
 				}
 
+				// TODO: C'è davvero bisogno di generare l'assign?
 				if (not this->table.isTriviallyCopiable(classType))
 				{
 					auto fun = mlir::FunctionType::get(
@@ -307,11 +411,14 @@ namespace mlir::rlc
 
 			void emitClassDeclaration(mlir::rlc::ClassType type)
 			{
-				printer << "class ";
+				printer << "export class ";
 				emitJavascriptType(type);
 				printer << " extends ClassWrapper{";
 
-				printer << "static _getSize() { return TODO;}";
+				//printer << "static _getSize() { return TODO;}";
+				printer << "static _getSize() { return ";
+				auto sizeAndOffsets = getSizeAndOffsetsOfStruct(type);
+				printer << sizeAndOffsets.first << ";}";
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
 				{
@@ -319,7 +426,7 @@ namespace mlir::rlc
 				}
 
 				printer << "]; }";
-				emitGettersAndSetters(type);
+				emitGettersAndSetters(type, sizeAndOffsets.second);
 				emitMemberFunctions(type);
 				printer << "}";
 			}
@@ -327,7 +434,7 @@ namespace mlir::rlc
 			void emitEnumDeclaration(
 					mlir::rlc::ClassType type, mlir::rlc::EnumDeclarationOp enumDecl)
 			{
-				printer << "class ";
+				printer << "export class ";
 				emitJavascriptType(type);
 				printer << " extends EnumWrapper{";
 
@@ -346,7 +453,7 @@ namespace mlir::rlc
 
 			void emitAlternativeDeclaration(mlir::rlc::AlternativeType type)
 			{
-				printer << "class ";
+				printer << "export class ";
 				emitJavascriptType(type);
 				printer << " extends AlternativeWrapper{";
 
@@ -369,14 +476,17 @@ namespace mlir::rlc
 			{
 				for (auto type : arrays)
 				{
-					printer << "class ";
+					printer << "export class ";
 					emitJavascriptType(type);
 					printer << " extends ArrayWrapper{";
 
-					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{getSizeAndTypeFromArray(type)};
+					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{
+						getSizeAndTypeFromArray(type)
+					};
 
 					printer << "static _getDimensions(){ return [";
-					for(int x : result.first){
+					for (int x : result.first)
+					{
 						printer << x << ", ";
 					}
 					printer << "];}";
@@ -389,12 +499,11 @@ namespace mlir::rlc
 				}
 			}
 
-
 			void emitPointerDeclarations()
 			{
 				for (auto type : pointers)
 				{
-					printer << "class ";
+					printer << "export class ";
 					emitJavascriptType(type);
 					printer << " extends PtrWrapper{";
 
@@ -420,8 +529,10 @@ namespace mlir::rlc
 																						 this->OS,
 																						 this->getOperation() };
 
-			codeGenerator.generateGeneralWrapper();
+			// TODO: Spostare tutto questo qui sotto dentro codeGenerator.generate();
+			// ?
 
+			codeGenerator.generateGeneralWrapper();
 			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
 			for (auto op : getOperation().getOps<mlir::rlc::EnumDeclarationOp>())
 			{
@@ -445,6 +556,26 @@ namespace mlir::rlc
 				{
 					codeGenerator.emitAlternativeDeclaration(casted);
 				}
+			}
+
+			llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
+			for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
+			{
+				if (op.getIsMemberFunction())
+					continue;
+
+				sortedOverloads[op.getUnmangledName()].push_back(op.getType());
+				if (not op.getPrecondition().empty())
+					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+							mlir::FunctionType::get(
+									op.getContext(),
+									op.getType().getInputs(),
+									{ mlir::rlc::BoolType::get(op.getContext()) }));
+			}
+
+			for (auto& pair : sortedOverloads)
+			{
+				codeGenerator.emitOverloadDispatcher(pair.first(), pair.second, false);
 			}
 
 			codeGenerator.emitArrayDeclarations();
