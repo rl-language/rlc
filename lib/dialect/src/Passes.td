@@ -218,6 +218,8 @@ def PrintJavascriptPass: Pass<"rlc-javascript-pass", "mlir::ModuleOp"> {
            "true if target platform is mac">,
     Option<"isWindows", "true if target platform is windows", "bool", /*default=*/"false",
            "true if target platform is windows">,
+    Option<"isWasm64", "true if the javascript wrapper was produced for wasm64", "bool", /*default=*/"false",
+           "true if the javascript wrapper was produced for wasm64">,
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }
