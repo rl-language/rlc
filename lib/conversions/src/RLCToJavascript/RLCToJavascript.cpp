@@ -16,41 +16,19 @@
 #include "rlc/utils/PatternMatcher.hpp"
 
 // TODO: extern keyword
-// TODO: Action functions
 // TODO: Per le member functions non generiamo le precondizioni? Nel wrapper di
 // python non viene fatto (vengono generate solo per le non-member funcitons).
 // TODO: Aggiungere i dollari per evitare le collisioni
 // TODO: Vedere se puoi evitare di usare std::string e std::vector
 // TODO: Scrivere test
 // TODO: Vedere se il wrapper originale funziona
-// TODO: Se scrivi @classes sopra un'action function, ti vengono generate delle
-// alternative. L'array alternatives non le prende di base.
+// TODO: Decidere se generare le alternative tramite l'array alternatives
+// oppure ciclando dentro postOrderTypes
+//TODO: Da quando le alternative hanno un init?
 
 /*
-1) Le variabili marcate come "frm" (a, b, c nell'esempio)
-vanno in automatico come member fields delle classi:
-
-#Le rispettive funzioni can hanno gli stessi parametri
-act sequence(frm Int a) ->Sequence:
-	act first() #Funzione wrapper: first(this)
-		act second(frm Int b) #Funzione wrapper: second(this, b)
-	act third() #Funzione wrapper: third(this)
-		frm c = 3
-	act forth() #Funzione wrapper: forth(this)
-
-2) Variabili marcate come "ctx":
-
-#Le rispettive funzioni can hanno gli stessi parametri
-#Non si può scrivere ctx c = ...
-act sequence(ctx Int a) ->Sequence:
-	act first() #Funzione wrapper: first(this, a)
-		act second(ctx Int b) #Funzione wrapper: second(this, a, b)
-	act third() #Funzione wrapper: third(this, a)
-
-Onestamente penso che questo sia fatto tutto in automatico.
-Le free "action functions" sarebbero soltanto delle funzioni top-level che
+2) Le free "action functions" sarebbero soltanto delle funzioni top-level che
 restituiscono un oggetto, tutto qui.
-
 
 3) Le action functions NON possono stare dentro le classi, devono essere solo
 top-level.
@@ -60,15 +38,16 @@ parametri dell'altra, altrimenti è "multiple definitions":
 
 act sequence() ->Sequence:
 	act first()
-		act first()
+	act first()
 
 Ad esempio, questo sotto NON è concesso:
 act sequence() ->Sequence:
 	act first()
-		act first(Int x)
+	act first(Int x)
 Quindi non c'è overloading...
 Nota che i member fields e le member functions per le action functions (classi)
 possono comunque collidere, a meno che non usi i $.
+
 */
 
 namespace mlir::rlc
@@ -401,6 +380,14 @@ namespace mlir::rlc
 				{
 					printer << casted.getValue();
 				}
+				else if (auto casted = mlir::dyn_cast<mlir::rlc::ContextType>(type))
+				{
+					emitJavascriptType(casted.getUnderlying());
+				}
+				else if (auto casted = mlir::dyn_cast<mlir::rlc::FrameType>(type))
+				{
+					emitJavascriptType(casted.getUnderlying());
+				}
 				else
 				{
 					std::cerr << "Can't emit an equivalent Javascript type for ";
@@ -510,7 +497,6 @@ namespace mlir::rlc
 					sortedOverloads["drop"].push_back(fun);
 				}
 
-				// TODO: C'è davvero bisogno di generare l'assign?
 				if (not this->table.isTriviallyCopiable(classType))
 				{
 					auto fun = mlir::FunctionType::get(
@@ -733,6 +719,21 @@ namespace mlir::rlc
 							mlir::FunctionType::get(
 									op.getContext(),
 									op.getType().getInputs(),
+									{ mlir::rlc::BoolType::get(op.getContext()) }));
+			}
+			// TODO: Unire i 2 cicli, dato che sono praticamente uguali
+			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
+			{
+				if (op.getIsMemberFunction())
+					continue;
+
+				sortedOverloads[op.getUnmangledName()].push_back(
+						op.getMainActionType());
+				if (not op.getPrecondition().empty())
+					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+							mlir::FunctionType::get(
+									op.getContext(),
+									op.getMainActionType().getInputs(),
 									{ mlir::rlc::BoolType::get(op.getContext()) }));
 			}
 
