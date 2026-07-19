@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "JavascriptWrapperStandard.h"
 #include "clang/Format/Format.h"
 #include "clang/Tooling/Core/Replacement.h"
@@ -12,7 +14,6 @@
 #include "rlc/dialect/Types.hpp"
 #include "rlc/dialect/Visits.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
-#include <iostream>
 
 // TODO: Rimettere il file build.sh com'era all'inizio.
 // TODO: Le alternative usate dentro le funzioni compaiono comunque...
@@ -20,7 +21,6 @@
 // TODO: Action functions
 // TODO: Per le member functions non generiamo le precondizioni? Nel wrapper di
 // python non viene fatto (vengono generate solo per le non-member funcitons).
-// TODO: Calcolare le sizes per le struct e gli offset per i field
 // TODO: Aggiungere i dollari per evitare le collisioni
 // TODO: Scrivere la funzione javascript getAddressSize(), che completiamo in
 // base a isWasm64
@@ -146,13 +146,20 @@ namespace mlir::rlc
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 				{
-					const int structSize = getSizeAndOffsetsOfStruct(casted).first;
-					return {structSize, structSize};
+					const auto result = getSizeAlignmentAndOffsetsOfStruct(casted);
+					return { std::get<0>(result), std::get<1>(result) };
 				}
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
-					// TODO
+					llvm::SmallVector<std::pair<int, int>, 4> structFieldData{};
+					structFieldData.push_back(getSizeAndAlignmentOfUnion(casted));
+					structFieldData.push_back(getSizeAndAlignmentByType(
+							mlir::rlc::IntegerType::get(type.getContext(), 64)));
+
+					const auto result =
+							getSizeAlignmentAndOffsetsOfStruct(structFieldData);
+					return { std::get<0>(result), std::get<1>(result) };
 				}
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
@@ -183,33 +190,75 @@ namespace mlir::rlc
 				std::abort();
 			}
 
-			std::pair<int, llvm::SmallVector<std::pair<llvm::StringRef, int>, 4>> getSizeAndOffsetsOfStruct(mlir::rlc::ClassType classType)
+			std::pair<int, int> getSizeAndAlignmentOfUnion(
+					mlir::rlc::AlternativeType type)
 			{
-				llvm::SmallVector<std::pair<llvm::StringRef, int>, 4> offsets{};
-				llvm::SmallVector<mlir::Type, 4> memberTypes{classType.getMemberTypes()};
-				llvm::SmallVector<llvm::StringRef, 4> memberNames{classType.getMemberNames()};
+				int maxSize = -1;
+				int maxAlignment = -1;
 
-				const int length = memberTypes.size();
+				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+				{
+					std::pair<int, int> currentSizeAndAlignment =
+							getSizeAndAlignmentByType(enumeration.value());
+
+					if (currentSizeAndAlignment.first > maxSize)
+					{
+						maxSize = currentSizeAndAlignment.first;
+					}
+
+					if (currentSizeAndAlignment.second > maxAlignment)
+					{
+						maxAlignment = currentSizeAndAlignment.second;
+					}
+				}
+
+				return { maxSize, maxAlignment };
+			}
+
+			std::tuple<int, int, llvm::SmallVector<int, 4>>
+			getSizeAlignmentAndOffsetsOfStruct(
+					mlir::rlc::ClassType classType
+
+			)
+			{
+				llvm::SmallVector<std::pair<int, int>, 4> output{};
+				auto memberTypes = classType.getMemberTypes();
+				std::transform(
+						memberTypes.begin(),
+						memberTypes.end(),
+						std::back_inserter(output),
+						[this](mlir::Type type) {
+							return getSizeAndAlignmentByType(type);
+						});
+				return getSizeAlignmentAndOffsetsOfStruct(output);
+			}
+
+			std::tuple<int, int, llvm::SmallVector<int, 4>>
+			getSizeAlignmentAndOffsetsOfStruct(
+					llvm::SmallVector<std::pair<int, int>, 4> structFieldData)
+			{
+				llvm::SmallVector<int, 4> offsets{};
+
 				int structSize = 0;
 				int maxAlignment = -1;
 
-				for (int i{0}; i<length; i++)
+				for (size_t i{ 0 }; i < structFieldData.size(); i++)
 				{
-					const std::pair<int, int> memberSizeAndAlignment = getSizeAndAlignmentByType(memberTypes[i]);
-					const int memberSize = memberSizeAndAlignment.first;
-					const int memberAlignment = memberSizeAndAlignment.second;
+					const int memberSize = structFieldData[i].first;
+					const int memberAlignment = structFieldData[i].second;
 
 					structSize += structSize % memberAlignment;
-					offsets.push_back({memberNames[i], structSize});
+					offsets.push_back(structSize);
 					structSize += memberSize;
 
-					if(memberAlignment > maxAlignment){
+					if (memberAlignment > maxAlignment)
+					{
 						maxAlignment = memberAlignment;
 					}
 				}
 				structSize += structSize % maxAlignment;
 
-				return {structSize, offsets};
+				return { structSize, maxAlignment, offsets };
 			}
 
 			void emitJavascriptType(mlir::Type type)
@@ -356,19 +405,21 @@ namespace mlir::rlc
 				printer << "return generalFunction(args, signatures);}";
 			}
 
-			//TODO: Togliere il nome dai pair, non ci serve
-			void emitGettersAndSetters(mlir::rlc::ClassType classType, llvm::SmallVector<std::pair<llvm::StringRef, int>, 4> offsets)
+			void emitGettersAndSetters(
+					mlir::rlc::ClassType classType, llvm::SmallVector<int, 4> offsets)
 			{
-				for (auto [type, name, offset] :
-						 llvm::zip(classType.getMemberTypes(), classType.getMemberNames(), offsets))
+				for (auto [type, name, offset] : llvm::zip(
+								 classType.getMemberTypes(),
+								 classType.getMemberNames(),
+								 offsets))
 				{
 					printer << "get " << name << "(){return this._get(";
 					emitJavascriptType(type);
-					printer << ", TODO);}";
+					printer << ", " << offset << ");}";
 
 					printer << "set " << name << "(value){this._set(";
 					emitJavascriptType(type);
-					printer << ", TODO, value);}";
+					printer << ", " << offset << ", value);}";
 				}
 			}
 
@@ -415,10 +466,9 @@ namespace mlir::rlc
 				emitJavascriptType(type);
 				printer << " extends ClassWrapper{";
 
-				//printer << "static _getSize() { return TODO;}";
 				printer << "static _getSize() { return ";
-				auto sizeAndOffsets = getSizeAndOffsetsOfStruct(type);
-				printer << sizeAndOffsets.first << ";}";
+				auto result = getSizeAlignmentAndOffsetsOfStruct(type);
+				printer << std::get<0>(result) << ";}";
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
 				{
@@ -426,7 +476,7 @@ namespace mlir::rlc
 				}
 
 				printer << "]; }";
-				emitGettersAndSetters(type, sizeAndOffsets.second);
+				emitGettersAndSetters(type, std::get<2>(result));
 				emitMemberFunctions(type);
 				printer << "}";
 			}
@@ -451,25 +501,29 @@ namespace mlir::rlc
 				printer << "}";
 			}
 
-			void emitAlternativeDeclaration(mlir::rlc::AlternativeType type)
+			void emitAlternativeDeclarations()
 			{
-				printer << "export class ";
-				emitJavascriptType(type);
-				printer << " extends AlternativeWrapper{";
-
-				printer << "static _getSize() { return TODO;}";
-				printer << "static _getAlternativeClasses() { return [";
-
-				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+				for (auto type : alternatives)
 				{
-					emitJavascriptType(enumeration.value());
-					printer << ", ";
+					printer << "export class ";
+					emitJavascriptType(type);
+					printer << " extends AlternativeWrapper{";
+
+					printer << "static _getSize() { return "
+									<< getSizeAndAlignmentByType(type).first << ";}";
+					printer << "static _getAlternativeClasses() { return [";
+
+					for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+					{
+						emitJavascriptType(enumeration.value());
+						printer << ", ";
+					}
+
+					printer << "];}";
+
+					emitMemberFunctions(type);
+					printer << "}";
 				}
-
-				printer << "];}";
-
-				emitMemberFunctions(type);
-				printer << "}";
 			}
 
 			void emitArrayDeclarations()
@@ -552,10 +606,6 @@ namespace mlir::rlc
 						codeGenerator.emitEnumDeclaration(casted, enums[casted.getName()]);
 					}
 				}
-				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(t))
-				{
-					codeGenerator.emitAlternativeDeclaration(casted);
-				}
 			}
 
 			llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
@@ -580,6 +630,7 @@ namespace mlir::rlc
 
 			codeGenerator.emitArrayDeclarations();
 			codeGenerator.emitPointerDeclarations();
+			codeGenerator.emitAlternativeDeclarations();
 
 			codeGenerator.autoIndentMyCode();
 		}
