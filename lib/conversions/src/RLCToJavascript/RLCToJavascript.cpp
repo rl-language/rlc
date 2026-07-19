@@ -15,16 +15,61 @@
 #include "rlc/dialect/Visits.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
 
-// TODO: Rimettere il file build.sh com'era all'inizio.
-// TODO: Le alternative usate dentro le funzioni compaiono comunque...
 // TODO: extern keyword
 // TODO: Action functions
 // TODO: Per le member functions non generiamo le precondizioni? Nel wrapper di
 // python non viene fatto (vengono generate solo per le non-member funcitons).
 // TODO: Aggiungere i dollari per evitare le collisioni
-// TODO: Scrivere la funzione javascript getAddressSize(), che completiamo in
-// base a isWasm64
-// TODO: Vedere se puoi evitare di usare std::string
+// TODO: Vedere se puoi evitare di usare std::string e std::vector
+// TODO: Scrivere test
+// TODO: Vedere se il wrapper originale funziona
+// TODO: Se scrivi @classes sopra un'action function, ti vengono generate delle
+// alternative. L'array alternatives non le prende di base.
+
+/*
+1) Le variabili marcate come "frm" (a, b, c nell'esempio)
+vanno in automatico come member fields delle classi:
+
+#Le rispettive funzioni can hanno gli stessi parametri
+act sequence(frm Int a) ->Sequence:
+	act first() #Funzione wrapper: first(this)
+		act second(frm Int b) #Funzione wrapper: second(this, b)
+	act third() #Funzione wrapper: third(this)
+		frm c = 3
+	act forth() #Funzione wrapper: forth(this)
+
+2) Variabili marcate come "ctx":
+
+#Le rispettive funzioni can hanno gli stessi parametri
+#Non si può scrivere ctx c = ...
+act sequence(ctx Int a) ->Sequence:
+	act first() #Funzione wrapper: first(this, a)
+		act second(ctx Int b) #Funzione wrapper: second(this, a, b)
+	act third() #Funzione wrapper: third(this, a)
+
+Onestamente penso che questo sia fatto tutto in automatico.
+Le free "action functions" sarebbero soltanto delle funzioni top-level che
+restituiscono un oggetto, tutto qui.
+
+
+3) Le action functions NON possono stare dentro le classi, devono essere solo
+top-level.
+
+4) Se chiami un'action function con lo stesso nome, deve avere gli stessi
+parametri dell'altra, altrimenti è "multiple definitions":
+
+act sequence() ->Sequence:
+	act first()
+		act first()
+
+Ad esempio, questo sotto NON è concesso:
+act sequence() ->Sequence:
+	act first()
+		act first(Int x)
+Quindi non c'è overloading...
+Nota che i member fields e le member functions per le action functions (classi)
+possono comunque collidere, a meno che non usi i $.
+*/
 
 namespace mlir::rlc
 {
@@ -42,22 +87,39 @@ namespace mlir::rlc
 			const bool isWasm64{};
 			llvm::raw_ostream* OS{};
 			MemberFunctionsTable table;
+			mlir::rlc::ModuleBuilder builder;
+
 			llvm::DenseSet<mlir::rlc::ArrayType> arrays{};
-			// TODO: Dubito che alternatives ci serve...o forse sì...?
-			// Magari al posto di quel ciclo nel main, così escludiamo le alternative
-			// definite all'interno delle funzioni.
 			llvm::DenseSet<mlir::rlc::AlternativeType> alternatives{};
 			llvm::DenseSet<mlir::rlc::OwningPtrType> pointers{};
+
+			struct SizeAlignment
+			{
+				int size{};
+				int alignment{};
+			};
+
+			struct SizeAlignmentOffsets
+			{
+				int size{};
+				int alignment{};
+				llvm::SmallVector<int, 4> offsets{};
+			};
+
+			struct ArrayTypeAndDimensions
+			{
+				mlir::Type type{};
+				llvm::SmallVector<int, 2> dimensions{};
+			};
 
 			public:
 			JavascriptCodeGenerator(
 					bool isWasm64, llvm::raw_ostream* OS, mlir::ModuleOp operation)
-					: isWasm64(isWasm64), OS(OS), table(MemberFunctionsTable{ operation })
+					: isWasm64(isWasm64),
+						OS(OS),
+						table(MemberFunctionsTable{ operation }),
+						builder(ModuleBuilder{ operation })
 			{
-				if (this->isWasm64)
-				{
-					// Rimuovi questo if
-				}
 			}
 
 			void autoIndentMyCode()
@@ -88,10 +150,13 @@ namespace mlir::rlc
 				}
 			}
 
-			void generateGeneralWrapper() { printer << standardJavascriptWrapper; }
+			void generateGeneralWrapper()
+			{
+				printer << "const pointerSize = " << (isWasm64 ? 8 : 4) << ";";
+				printer << standardJavascriptWrapper;
+			}
 
-			// TODO: Rendere questa funzione privata?
-			std::pair<llvm::SmallVector<int, 2>, mlir::Type> getSizeAndTypeFromArray(
+			ArrayTypeAndDimensions getTypeAndDimensionsOfArray(
 					mlir::rlc::ArrayType currentType)
 			{
 				llvm::SmallVector<int, 2> sizes{};
@@ -111,12 +176,12 @@ namespace mlir::rlc
 					}
 					else
 					{
-						return { sizes, currentType.getUnderlying() };
+						return { currentType.getUnderlying(), sizes };
 					}
 				}
 			}
 
-			std::pair<int, int> getSizeAndAlignmentByType(mlir::Type type)
+			SizeAlignment getSizeAndAlignmentByType(mlir::Type type)
 			{
 				if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(type))
 				{
@@ -146,35 +211,28 @@ namespace mlir::rlc
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 				{
-					const auto result = getSizeAlignmentAndOffsetsOfStruct(casted);
-					return { std::get<0>(result), std::get<1>(result) };
+					const SizeAlignmentOffsets result =
+							getSizeAlignmentAndOffsetsOfStruct(casted);
+					return { result.size, result.alignment };
 				}
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
-					llvm::SmallVector<std::pair<int, int>, 4> structFieldData{};
-					structFieldData.push_back(getSizeAndAlignmentOfUnion(casted));
-					structFieldData.push_back(getSizeAndAlignmentByType(
-							mlir::rlc::IntegerType::get(type.getContext(), 64)));
-
-					const auto result =
-							getSizeAlignmentAndOffsetsOfStruct(structFieldData);
-					return { std::get<0>(result), std::get<1>(result) };
+					const auto result = getSizeAlignmentAndOffsetsOfAlternative(casted);
+					return { result.size, result.alignment };
 				}
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 				{
-					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{
-						getSizeAndTypeFromArray(casted)
-					};
+					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(casted) };
 
 					int linearLength = 1;
-					for (int x : result.first)
+					for (int x : result.dimensions)
 					{
 						linearLength *= x;
 					}
 
-					int underlyingSize = getSizeAndAlignmentByType(result.second).first;
+					int underlyingSize = getSizeAndAlignmentByType(result.type).size;
 
 					return { linearLength * underlyingSize, underlyingSize };
 				}
@@ -190,38 +248,47 @@ namespace mlir::rlc
 				std::abort();
 			}
 
-			std::pair<int, int> getSizeAndAlignmentOfUnion(
-					mlir::rlc::AlternativeType type)
+			SizeAlignment getSizeAndAlignmentOfUnion(mlir::rlc::AlternativeType type)
 			{
 				int maxSize = -1;
 				int maxAlignment = -1;
 
 				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
 				{
-					std::pair<int, int> currentSizeAndAlignment =
+					SizeAlignment currentSizeAndAlignment =
 							getSizeAndAlignmentByType(enumeration.value());
 
-					if (currentSizeAndAlignment.first > maxSize)
+					if (currentSizeAndAlignment.size > maxSize)
 					{
-						maxSize = currentSizeAndAlignment.first;
+						maxSize = currentSizeAndAlignment.size;
 					}
 
-					if (currentSizeAndAlignment.second > maxAlignment)
+					if (currentSizeAndAlignment.alignment > maxAlignment)
 					{
-						maxAlignment = currentSizeAndAlignment.second;
+						maxAlignment = currentSizeAndAlignment.alignment;
 					}
 				}
 
 				return { maxSize, maxAlignment };
 			}
 
-			std::tuple<int, int, llvm::SmallVector<int, 4>>
-			getSizeAlignmentAndOffsetsOfStruct(
+			SizeAlignmentOffsets getSizeAlignmentAndOffsetsOfAlternative(
+					mlir::rlc::AlternativeType type)
+			{
+				llvm::SmallVector<SizeAlignment, 4> structFieldData{};
+				structFieldData.push_back(getSizeAndAlignmentOfUnion(type));
+				structFieldData.push_back(getSizeAndAlignmentByType(
+						mlir::rlc::IntegerType::get(type.getContext(), 64)));
+
+				return getSizeAlignmentAndOffsetsOfStruct(structFieldData);
+			}
+
+			SizeAlignmentOffsets getSizeAlignmentAndOffsetsOfStruct(
 					mlir::rlc::ClassType classType
 
 			)
 			{
-				llvm::SmallVector<std::pair<int, int>, 4> output{};
+				llvm::SmallVector<SizeAlignment, 4> output{};
 				auto memberTypes = classType.getMemberTypes();
 				std::transform(
 						memberTypes.begin(),
@@ -233,9 +300,8 @@ namespace mlir::rlc
 				return getSizeAlignmentAndOffsetsOfStruct(output);
 			}
 
-			std::tuple<int, int, llvm::SmallVector<int, 4>>
-			getSizeAlignmentAndOffsetsOfStruct(
-					llvm::SmallVector<std::pair<int, int>, 4> structFieldData)
+			SizeAlignmentOffsets getSizeAlignmentAndOffsetsOfStruct(
+					llvm::SmallVector<SizeAlignment, 4> structFieldData)
 			{
 				llvm::SmallVector<int, 4> offsets{};
 
@@ -244,8 +310,8 @@ namespace mlir::rlc
 
 				for (size_t i{ 0 }; i < structFieldData.size(); i++)
 				{
-					const int memberSize = structFieldData[i].first;
-					const int memberAlignment = structFieldData[i].second;
+					const int memberSize = structFieldData[i].size;
+					const int memberAlignment = structFieldData[i].alignment;
 
 					structSize += structSize % memberAlignment;
 					offsets.push_back(structSize);
@@ -311,12 +377,10 @@ namespace mlir::rlc
 
 					printer << "Array_";
 
-					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{
-						getSizeAndTypeFromArray(casted)
-					};
-					emitJavascriptType(result.second);
+					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(casted) };
+					emitJavascriptType(result.type);
 
-					for (int x : result.first)
+					for (int x : result.dimensions)
 					{
 						printer << "_" << x;
 					}
@@ -460,6 +524,22 @@ namespace mlir::rlc
 				}
 			}
 
+			void emitActionFunction(
+					mlir::rlc::ClassType frameType,
+					llvm::StringRef actionName,
+					mlir::TypeRange argTypes,
+					mlir::Type resultType)
+			{
+				llvm::SmallVector<mlir::Type> args = { frameType };
+				for (auto arg : argTypes)
+					args.push_back(arg);
+				auto fType = mlir::FunctionType::get(
+						resultType.getContext(), args, { resultType });
+
+				llvm::SmallVector<mlir::FunctionType> overloads = { fType };
+				emitOverloadDispatcher(actionName, overloads, true);
+			}
+
 			void emitClassDeclaration(mlir::rlc::ClassType type)
 			{
 				printer << "export class ";
@@ -467,8 +547,8 @@ namespace mlir::rlc
 				printer << " extends ClassWrapper{";
 
 				printer << "static _getSize() { return ";
-				auto result = getSizeAlignmentAndOffsetsOfStruct(type);
-				printer << std::get<0>(result) << ";}";
+				SizeAlignmentOffsets result = getSizeAlignmentAndOffsetsOfStruct(type);
+				printer << result.size << ";}";
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
 				{
@@ -476,8 +556,39 @@ namespace mlir::rlc
 				}
 
 				printer << "]; }";
-				emitGettersAndSetters(type, std::get<2>(result));
+				emitGettersAndSetters(type, result.offsets);
 				emitMemberFunctions(type);
+
+				if (builder.isClassOfAction(type))
+				{
+					auto action = mlir::cast<mlir::rlc::ActionFunction>(
+							builder.getActionOf(type).getDefiningOp());
+
+					for (auto value : action.getActions())
+					{
+						mlir::Operation* statement =
+								builder.actionFunctionValueToActionStatement(value).front();
+						auto actionStatement =
+								mlir::cast<mlir::rlc::ActionStatement>(statement);
+						emitActionFunction(
+								action.getClassType(),
+								actionStatement.getName(),
+								actionStatement.getResultTypes(),
+								mlir::rlc::VoidType::get(action.getContext()));
+						emitActionFunction(
+								action.getClassType(),
+								("can_" + actionStatement.getName()).str(),
+								actionStatement.getResultTypes(),
+								mlir::rlc::BoolType::get(action.getContext()));
+					}
+
+					emitActionFunction(
+							action.getClassType(),
+							"is_done",
+							{},
+							mlir::rlc::BoolType::get(action.getContext()));
+				}
+
 				printer << "}";
 			}
 
@@ -509,8 +620,12 @@ namespace mlir::rlc
 					emitJavascriptType(type);
 					printer << " extends AlternativeWrapper{";
 
-					printer << "static _getSize() { return "
-									<< getSizeAndAlignmentByType(type).first << ";}";
+					const auto result = getSizeAlignmentAndOffsetsOfAlternative(type);
+					printer << "static _getSize() { return " << result.size << ";}";
+
+					printer << "static _getIndexOffset(){ return " << result.offsets[1]
+									<< ";}";
+
 					printer << "static _getAlternativeClasses() { return [";
 
 					for (auto enumeration : llvm::enumerate(type.getUnderlying()))
@@ -534,19 +649,17 @@ namespace mlir::rlc
 					emitJavascriptType(type);
 					printer << " extends ArrayWrapper{";
 
-					std::pair<llvm::SmallVector<int, 2>, mlir::Type> result{
-						getSizeAndTypeFromArray(type)
-					};
+					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(type) };
 
 					printer << "static _getDimensions(){ return [";
-					for (int x : result.first)
+					for (int x : result.dimensions)
 					{
 						printer << x << ", ";
 					}
 					printer << "];}";
 
 					printer << "static _getElementClass() { return ";
-					emitJavascriptType(result.second);
+					emitJavascriptType(result.type);
 					printer << ";}";
 
 					printer << "}";

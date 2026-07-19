@@ -112,7 +112,7 @@ def build_llvm(
         "-DCMAKE_INSTALL_PREFIX={}".format(install_dir),
         "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;mlir;compiler-rt;lld;",
         "-DLLVM_USE_LINKER=lld" if use_lld else "",
-        "-DLLVM_USE_STATIC_ZSTD=OFF",
+        "-DLLVM_USE_STATIC_ZSTD=ON",
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=True",
         f"-DCMAKE_C_COMPILER={clang}",
         f"-DCMAKE_CXX_COMPILER={clang_plus_plus}",
@@ -128,10 +128,10 @@ def build_llvm(
 
 
 def install(execution_dir: str, ninja_path, run_tests=False):
-    assert_run_program(execution_dir, ninja_path, "-j", "4", "all")
-    assert_run_program(execution_dir, ninja_path, "-j", "4", "install")
+    assert_run_program(execution_dir, ninja_path, "all")
+    assert_run_program(execution_dir, ninja_path, "install")
     if run_tests:
-        assert_run_program(execution_dir, ninja_path, "-j", "4", "test")
+        assert_run_program(execution_dir, ninja_path, "test")
 
 
 def assert_run_program(execution_dir: str, command: str, *args: str):
@@ -302,7 +302,7 @@ def main():
             is_mac=is_mac,
             sdkroot=sdkroot,
         )
-        install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=False)
+        install(execution_dir=rlc_build_dir, ninja_path=ninja, run_tests=True)
 
     build_rlc(
         execution_dir=rlc_release_dir,
@@ -318,7 +318,7 @@ def main():
         is_mac=is_mac,
         sdkroot=sdkroot,
     )
-    install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=False)
+    install(execution_dir=rlc_release_dir, ninja_path=ninja, run_tests=True)
 
     assert_run_program(
         rlc_release_dir,
