@@ -15,38 +15,16 @@
 #include "rlc/dialect/Visits.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
 
-// TODO: extern keyword
+
 // TODO: Per le member functions non generiamo le precondizioni? Nel wrapper di
 // python non viene fatto (vengono generate solo per le non-member funcitons).
-// TODO: Aggiungere i dollari per evitare le collisioni
+
 // TODO: Vedere se puoi evitare di usare std::string e std::vector
 // TODO: Scrivere test
-// TODO: Vedere se il wrapper originale funziona
+
 // TODO: Decidere se generare le alternative tramite l'array alternatives
 // oppure ciclando dentro postOrderTypes
 
-/*
-2) Le free "action functions" sarebbero soltanto delle funzioni top-level che
-restituiscono un oggetto, tutto qui.
-
-3) Le action functions NON possono stare dentro le classi, devono essere solo
-top-level.
-
-4) Se chiami un'action function con lo stesso nome, deve avere gli stessi
-parametri dell'altra, altrimenti è "multiple definitions":
-
-act sequence() ->Sequence:
-	act first()
-	act first()
-
-Ad esempio, questo sotto NON è concesso:
-act sequence() ->Sequence:
-	act first()
-	act first(Int x)
-Quindi non c'è overloading...
-
-
-*/
 
 namespace mlir::rlc
 {
@@ -160,7 +138,7 @@ namespace mlir::rlc
 										op.getType().getInputs(),
 										{ mlir::rlc::BoolType::get(op.getContext()) }));
 				}
-				// TODO: Unire i 2 cicli, dato che sono praticamente uguali
+				
 				for (auto op : moduleOp.getOps<mlir::rlc::ActionFunction>())
 				{
 					if (op.getIsMemberFunction())

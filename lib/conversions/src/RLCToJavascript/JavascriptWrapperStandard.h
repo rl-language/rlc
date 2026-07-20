@@ -2,8 +2,7 @@
 
 namespace mlir::rlc {
     constexpr const char* standardJavascriptWrapper = R"JSWrapper(
-import createModule from './glueCode.mjs';
-
+import createModule from "./glueCode.mjs";
 let module = await createModule();
 
 const garbageCollectorRegistry = new FinalizationRegistry((address) => {
@@ -141,7 +140,7 @@ class ObjectWrapper {
     }
 
     _initUninitialized() {
-        //Emtpy, but other classes may override it
+        //It's empty, but it can be overridden
     }
 
     _drop() {
@@ -179,7 +178,7 @@ class CompositeWrapper extends ObjectWrapper {
 
 
 
-class PtrWrapper extends CompositeWrapper {
+export class PtrWrapper extends CompositeWrapper {
     constructor(symbol) {
         super(symbol);
         ObjectWrapper._assertCreatable(this.constructor, PtrWrapper);
@@ -206,7 +205,7 @@ class PtrWrapper extends CompositeWrapper {
     }
 
     _drop() {
-        //Empty
+        //Always empty
     }
 
     static malloc(howMany) {
@@ -253,6 +252,8 @@ class PtrWrapper extends CompositeWrapper {
         this.constructor._getElementClass()._assignCopy(this.#computeActualAddress(i), value);
     }
 }
+
+
 
 export function free(ptr, howMany) {
     PtrWrapper._assertWrapper(ptr);
@@ -570,6 +571,9 @@ class ArrayWrapper extends CompositeWrapper {
 }
 
 
+
+
+
 export class StringPool {
     static #map = new Map();
 
@@ -615,7 +619,7 @@ class PrimitiveWrapper extends ObjectWrapper {
     }
 
     _drop() {
-        //Empty
+        //Always empty
     }
 
     static _unbox(value) {
@@ -693,7 +697,7 @@ class NumWrapper extends PrimitiveWrapper {
         ObjectWrapper._assertCreatable(this.constructor, NumWrapper);
     }
 
-    //BoolWrapper overrides this
+    //BoolWrapper overrides this function
     static _getValueFromAddress(address) {
         return Number(module.getValue(address, this._getStringSize()));
     }
@@ -704,7 +708,7 @@ class NumWrapper extends PrimitiveWrapper {
         module.setValue(leftAddress, rightValue, this._getStringSize());
     }
 
-    //BoolWrapper overrides this
+    //BoolWrapper overrides this function
     static _getDefaultValue() {
         return 0;
     }
@@ -713,6 +717,8 @@ class NumWrapper extends PrimitiveWrapper {
         throw new Error("Method '_getStringSize()' must be implemented.");
     }
 }
+
+
 
 export class IntWrapper extends NumWrapper {
     static _getSize() {
@@ -798,15 +804,6 @@ export class ByteWrapper extends NumWrapper {
     }
 }
 
-
-
-
-
-
-
-
-
-
 class NoFunctionFoundError extends Error {
     constructor(message) {
         super(message);
@@ -832,6 +829,9 @@ function generalFunction(actualArgs, signatures) {
     }
 
     function callFunction(functionName, params, modifiedParams) {
+        if (AddressWrapper._getSize() === 8) {
+            params = params.map((x) => BigInt(x));
+        }
         module[`_${functionName}`](...params);
         for (const obj of modifiedParams) {
             obj._free();
