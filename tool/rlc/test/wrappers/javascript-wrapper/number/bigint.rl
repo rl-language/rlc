@@ -8,12 +8,17 @@
 import assert from 'assert';
 import * as wrapper from './wrapper.mjs';
 
+//Checking if IntWrapper also works with BigInt (e.g. 3n)
+
 let int = wrapper.IntWrapper.create(3n);
 assert.strictEqual(int.value, 3);
+
 int.value = 123n;
 assert.strictEqual(int.value, 123);
+
 int.value = 100;
 assert.strictEqual(int.value, 100);
+
 int._free();
 
 wrapper._detectMemoryLeaksDoNotUse();
