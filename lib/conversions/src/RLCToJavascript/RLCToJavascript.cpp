@@ -24,7 +24,7 @@
 // TODO: Vedere se il wrapper originale funziona
 // TODO: Decidere se generare le alternative tramite l'array alternatives
 // oppure ciclando dentro postOrderTypes
-//TODO: Da quando le alternative hanno un init?
+// TODO: Da quando le alternative hanno un init?
 
 /*
 2) Le free "action functions" sarebbero soltanto delle funzioni top-level che
@@ -67,6 +67,7 @@ namespace mlir::rlc
 			llvm::raw_ostream* OS{};
 			MemberFunctionsTable table;
 			mlir::rlc::ModuleBuilder builder;
+			mlir::ModuleOp moduleOp;
 
 			llvm::DenseSet<mlir::rlc::ArrayType> arrays{};
 			llvm::DenseSet<mlir::rlc::AlternativeType> alternatives{};
@@ -93,12 +94,164 @@ namespace mlir::rlc
 
 			public:
 			JavascriptCodeGenerator(
-					bool isWasm64, llvm::raw_ostream* OS, mlir::ModuleOp operation)
+					bool isWasm64, llvm::raw_ostream* OS, mlir::ModuleOp moduleOp)
 					: isWasm64(isWasm64),
 						OS(OS),
-						table(MemberFunctionsTable{ operation }),
-						builder(ModuleBuilder{ operation })
+						table(MemberFunctionsTable{ moduleOp }),
+						builder(ModuleBuilder{ moduleOp }),
+						moduleOp(moduleOp)
 			{
+			}
+
+			void generateCode()
+			{
+				emitGeneralWrapper();
+				emitClassesAndEnums();
+				emitFreeFunctions();
+				emitArrayDeclarations();
+				emitPointerDeclarations();
+				emitAlternativeDeclarations();
+
+				autoIndentMyCode();
+			}
+
+			private:
+			void emitGeneralWrapper()
+			{
+				printer << "const pointerSize = " << (isWasm64 ? 8 : 4) << ";";
+				printer << standardJavascriptWrapper;
+			}
+
+			void emitClassesAndEnums()
+			{
+				llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
+				for (auto op : moduleOp.getOps<mlir::rlc::EnumDeclarationOp>())
+				{
+					enums[op.getName()] = op;
+				}
+
+				for (auto t : ::rlc::postOrderTypes(moduleOp))
+				{
+					if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
+					{
+						if (enums.count(casted.getName()) == 0)
+						{
+							emitClassDeclaration(casted);
+						}
+						else
+						{
+							emitEnumDeclaration(casted, enums[casted.getName()]);
+						}
+					}
+				}
+			}
+
+			void emitFreeFunctions()
+			{
+				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
+				for (auto op : moduleOp.getOps<mlir::rlc::FunctionOp>())
+				{
+					if (op.getIsMemberFunction())
+						continue;
+
+					sortedOverloads[op.getUnmangledName()].push_back(op.getType());
+					if (not op.getPrecondition().empty())
+						sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+								mlir::FunctionType::get(
+										op.getContext(),
+										op.getType().getInputs(),
+										{ mlir::rlc::BoolType::get(op.getContext()) }));
+				}
+				// TODO: Unire i 2 cicli, dato che sono praticamente uguali
+				for (auto op : moduleOp.getOps<mlir::rlc::ActionFunction>())
+				{
+					if (op.getIsMemberFunction())
+						continue;
+
+					sortedOverloads[op.getUnmangledName()].push_back(
+							op.getMainActionType());
+					if (not op.getPrecondition().empty())
+						sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
+								mlir::FunctionType::get(
+										op.getContext(),
+										op.getMainActionType().getInputs(),
+										{ mlir::rlc::BoolType::get(op.getContext()) }));
+				}
+
+				for (auto& pair : sortedOverloads)
+				{
+					emitOverloadDispatcher(pair.first(), pair.second, false);
+				}
+			}
+
+			void emitArrayDeclarations()
+			{
+				for (auto type : arrays)
+				{
+					printer << "export class ";
+					emitJavascriptType(type);
+					printer << " extends ArrayWrapper{";
+
+					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(type) };
+
+					printer << "static _getDimensions(){ return [";
+					for (int x : result.dimensions)
+					{
+						printer << x << ", ";
+					}
+					printer << "];}";
+
+					printer << "static _getElementClass() { return ";
+					emitJavascriptType(result.type);
+					printer << ";}";
+
+					printer << "}";
+				}
+			}
+
+			void emitPointerDeclarations()
+			{
+				for (auto type : pointers)
+				{
+					printer << "export class ";
+					emitJavascriptType(type);
+					printer << " extends PtrWrapper{";
+
+					printer << "static _getElementClass() { return ";
+					emitJavascriptType(type.getUnderlying());
+					printer << ";}";
+
+					printer << "}";
+				}
+			}
+
+			void emitAlternativeDeclarations()
+			{
+				for (auto type : alternatives)
+				{
+					printer << "export class ";
+					emitJavascriptType(type);
+					printer << " extends AlternativeWrapper{";
+
+					const auto result = getSizeAlignmentAndOffsetsOfAlternative(type);
+					printer << "static _getSize() { return " << result.size << ";}";
+
+					printer << "static _getIndexOffset(){ return " << result.offsets[1]
+									<< ";}";
+
+					printer << "static _getAlternativeClasses() { return [";
+
+					for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+					{
+						emitJavascriptType(enumeration.value());
+						printer << ", ";
+					}
+
+					printer << "];}";
+
+					emitMemberFunctions(type);
+					printer << "}";
+				}
 			}
 
 			void autoIndentMyCode()
@@ -129,11 +282,7 @@ namespace mlir::rlc
 				}
 			}
 
-			void generateGeneralWrapper()
-			{
-				printer << "const pointerSize = " << (isWasm64 ? 8 : 4) << ";";
-				printer << standardJavascriptWrapper;
-			}
+			/////////////////////////////////////////////////////////////////////////
 
 			ArrayTypeAndDimensions getTypeAndDimensionsOfArray(
 					mlir::rlc::ArrayType currentType)
@@ -456,6 +605,53 @@ namespace mlir::rlc
 				printer << "return generalFunction(args, signatures);}";
 			}
 
+			void emitEnumDeclaration(
+					mlir::rlc::ClassType type, mlir::rlc::EnumDeclarationOp enumDecl)
+			{
+				printer << "export class ";
+				emitJavascriptType(type);
+				printer << " extends EnumWrapper{";
+
+				int i{ 0 };
+				for (auto value :
+						 llvm::enumerate(enumDecl.getBody()
+																 .getOps<mlir::rlc::EnumFieldDeclarationOp>()))
+				{
+					printer << "static " << value.value().getName() << " = " << i << ";";
+					i++;
+				}
+
+				emitMemberFunctions(type);
+				printer << "}";
+			}
+
+			void emitClassDeclaration(mlir::rlc::ClassType type)
+			{
+				printer << "export class ";
+				emitJavascriptType(type);
+				printer << " extends ClassWrapper{";
+
+				printer << "static _getSize() { return ";
+				SizeAlignmentOffsets result = getSizeAlignmentAndOffsetsOfStruct(type);
+				printer << result.size << ";}";
+				printer << "static _getMemberFieldNames(){ return [";
+				for (auto name : type.getMemberNames())
+				{
+					printer << "\"" << name << "\", ";
+				}
+
+				printer << "]; }";
+				emitGettersAndSetters(type, result.offsets);
+				emitMemberFunctions(type);
+
+				if (builder.isClassOfAction(type))
+				{
+					emitActionFunctions(type);
+				}
+
+				printer << "}";
+			}
+
 			void emitGettersAndSetters(
 					mlir::rlc::ClassType classType, llvm::SmallVector<int, 4> offsets)
 			{
@@ -510,7 +706,37 @@ namespace mlir::rlc
 				}
 			}
 
-			void emitActionFunction(
+			void emitActionFunctions(mlir::rlc::ClassType type)
+			{
+				auto action = mlir::cast<mlir::rlc::ActionFunction>(
+						builder.getActionOf(type).getDefiningOp());
+
+				for (auto value : action.getActions())
+				{
+					mlir::Operation* statement =
+							builder.actionFunctionValueToActionStatement(value).front();
+					auto actionStatement =
+							mlir::cast<mlir::rlc::ActionStatement>(statement);
+					emitSingleActionFunction(
+							action.getClassType(),
+							actionStatement.getName(),
+							actionStatement.getResultTypes(),
+							mlir::rlc::VoidType::get(action.getContext()));
+					emitSingleActionFunction(
+							action.getClassType(),
+							("can_" + actionStatement.getName()).str(),
+							actionStatement.getResultTypes(),
+							mlir::rlc::BoolType::get(action.getContext()));
+				}
+
+				emitSingleActionFunction(
+						action.getClassType(),
+						"is_done",
+						{},
+						mlir::rlc::BoolType::get(action.getContext()));
+			}
+
+			void emitSingleActionFunction(
 					mlir::rlc::ClassType frameType,
 					llvm::StringRef actionName,
 					mlir::TypeRange argTypes,
@@ -524,148 +750,6 @@ namespace mlir::rlc
 
 				llvm::SmallVector<mlir::FunctionType> overloads = { fType };
 				emitOverloadDispatcher(actionName, overloads, true);
-			}
-
-			void emitClassDeclaration(mlir::rlc::ClassType type)
-			{
-				printer << "export class ";
-				emitJavascriptType(type);
-				printer << " extends ClassWrapper{";
-
-				printer << "static _getSize() { return ";
-				SizeAlignmentOffsets result = getSizeAlignmentAndOffsetsOfStruct(type);
-				printer << result.size << ";}";
-				printer << "static _getMemberFieldNames(){ return [";
-				for (auto name : type.getMemberNames())
-				{
-					printer << "\"" << name << "\", ";
-				}
-
-				printer << "]; }";
-				emitGettersAndSetters(type, result.offsets);
-				emitMemberFunctions(type);
-
-				if (builder.isClassOfAction(type))
-				{
-					auto action = mlir::cast<mlir::rlc::ActionFunction>(
-							builder.getActionOf(type).getDefiningOp());
-
-					for (auto value : action.getActions())
-					{
-						mlir::Operation* statement =
-								builder.actionFunctionValueToActionStatement(value).front();
-						auto actionStatement =
-								mlir::cast<mlir::rlc::ActionStatement>(statement);
-						emitActionFunction(
-								action.getClassType(),
-								actionStatement.getName(),
-								actionStatement.getResultTypes(),
-								mlir::rlc::VoidType::get(action.getContext()));
-						emitActionFunction(
-								action.getClassType(),
-								("can_" + actionStatement.getName()).str(),
-								actionStatement.getResultTypes(),
-								mlir::rlc::BoolType::get(action.getContext()));
-					}
-
-					emitActionFunction(
-							action.getClassType(),
-							"is_done",
-							{},
-							mlir::rlc::BoolType::get(action.getContext()));
-				}
-
-				printer << "}";
-			}
-
-			void emitEnumDeclaration(
-					mlir::rlc::ClassType type, mlir::rlc::EnumDeclarationOp enumDecl)
-			{
-				printer << "export class ";
-				emitJavascriptType(type);
-				printer << " extends EnumWrapper{";
-
-				int i{ 0 };
-				for (auto value :
-						 llvm::enumerate(enumDecl.getBody()
-																 .getOps<mlir::rlc::EnumFieldDeclarationOp>()))
-				{
-					printer << "static " << value.value().getName() << " = " << i << ";";
-					i++;
-				}
-
-				emitMemberFunctions(type);
-				printer << "}";
-			}
-
-			void emitAlternativeDeclarations()
-			{
-				for (auto type : alternatives)
-				{
-					printer << "export class ";
-					emitJavascriptType(type);
-					printer << " extends AlternativeWrapper{";
-
-					const auto result = getSizeAlignmentAndOffsetsOfAlternative(type);
-					printer << "static _getSize() { return " << result.size << ";}";
-
-					printer << "static _getIndexOffset(){ return " << result.offsets[1]
-									<< ";}";
-
-					printer << "static _getAlternativeClasses() { return [";
-
-					for (auto enumeration : llvm::enumerate(type.getUnderlying()))
-					{
-						emitJavascriptType(enumeration.value());
-						printer << ", ";
-					}
-
-					printer << "];}";
-
-					emitMemberFunctions(type);
-					printer << "}";
-				}
-			}
-
-			void emitArrayDeclarations()
-			{
-				for (auto type : arrays)
-				{
-					printer << "export class ";
-					emitJavascriptType(type);
-					printer << " extends ArrayWrapper{";
-
-					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(type) };
-
-					printer << "static _getDimensions(){ return [";
-					for (int x : result.dimensions)
-					{
-						printer << x << ", ";
-					}
-					printer << "];}";
-
-					printer << "static _getElementClass() { return ";
-					emitJavascriptType(result.type);
-					printer << ";}";
-
-					printer << "}";
-				}
-			}
-
-			void emitPointerDeclarations()
-			{
-				for (auto type : pointers)
-				{
-					printer << "export class ";
-					emitJavascriptType(type);
-					printer << " extends PtrWrapper{";
-
-					printer << "static _getElementClass() { return ";
-					emitJavascriptType(type.getUnderlying());
-					printer << ";}";
-
-					printer << "}";
-				}
 			}
 		};
 
@@ -681,72 +765,7 @@ namespace mlir::rlc
 			JavascriptCodeGenerator codeGenerator{ this->isWasm64,
 																						 this->OS,
 																						 this->getOperation() };
-
-			// TODO: Spostare tutto questo qui sotto dentro codeGenerator.generate();
-			// ?
-
-			codeGenerator.generateGeneralWrapper();
-			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
-			for (auto op : getOperation().getOps<mlir::rlc::EnumDeclarationOp>())
-			{
-				enums[op.getName()] = op;
-			}
-
-			for (auto t : ::rlc::postOrderTypes(this->getOperation()))
-			{
-				if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(t))
-				{
-					if (enums.count(casted.getName()) == 0)
-					{
-						codeGenerator.emitClassDeclaration(casted);
-					}
-					else
-					{
-						codeGenerator.emitEnumDeclaration(casted, enums[casted.getName()]);
-					}
-				}
-			}
-
-			llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
-			for (auto op : getOperation().getOps<mlir::rlc::FunctionOp>())
-			{
-				if (op.getIsMemberFunction())
-					continue;
-
-				sortedOverloads[op.getUnmangledName()].push_back(op.getType());
-				if (not op.getPrecondition().empty())
-					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
-							mlir::FunctionType::get(
-									op.getContext(),
-									op.getType().getInputs(),
-									{ mlir::rlc::BoolType::get(op.getContext()) }));
-			}
-			// TODO: Unire i 2 cicli, dato che sono praticamente uguali
-			for (auto op : getOperation().getOps<mlir::rlc::ActionFunction>())
-			{
-				if (op.getIsMemberFunction())
-					continue;
-
-				sortedOverloads[op.getUnmangledName()].push_back(
-						op.getMainActionType());
-				if (not op.getPrecondition().empty())
-					sortedOverloads["can_" + op.getUnmangledName().str()].push_back(
-							mlir::FunctionType::get(
-									op.getContext(),
-									op.getMainActionType().getInputs(),
-									{ mlir::rlc::BoolType::get(op.getContext()) }));
-			}
-
-			for (auto& pair : sortedOverloads)
-			{
-				codeGenerator.emitOverloadDispatcher(pair.first(), pair.second, false);
-			}
-
-			codeGenerator.emitArrayDeclarations();
-			codeGenerator.emitPointerDeclarations();
-			codeGenerator.emitAlternativeDeclarations();
-
-			codeGenerator.autoIndentMyCode();
+			codeGenerator.generateCode();
 		}
 	};
 }	 // namespace mlir::rlc
