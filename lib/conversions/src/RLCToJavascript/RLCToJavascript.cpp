@@ -283,6 +283,231 @@ namespace mlir::rlc
 			}
 
 			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+
+			void emitOverloadDispatcher(
+					llvm::StringRef name,
+					llvm::ArrayRef<mlir::FunctionType> overloads,
+					bool isMethod)
+			{
+				if (isMethod == false)
+				{
+					printer << "export function ";
+				}
+				printer << name << "(...args){";
+
+				if (isMethod)
+				{
+					printer << "this._assertAddress();";
+				}
+
+				printer << "const signatures = [";
+
+				for (auto overload : overloads)
+				{
+					printer << "[\"" << mangledName(name, isMethod, overload) << "\", [";
+
+					for (auto type : overload.getInputs())
+					{
+						emitJavascriptType(type);
+						printer << ", ";
+					}
+
+					mlir::Type result{};
+					if (overload.getNumResults() == 0)
+					{
+						result = mlir::rlc::VoidType::get(overload.getContext());
+					}
+					else
+					{
+						result = overload.getResults()[0];
+					}
+					printer << "], ";
+					emitJavascriptType(result);
+					printer << ", ";
+					if (mlir::dyn_cast<mlir::rlc::ReferenceType>(result))
+					{
+						printer << "true";
+					}
+					else
+					{
+						printer << "false";
+					}
+					printer << "], ";
+				}
+				printer << "];";
+
+				if (isMethod)
+				{
+					printer << "args.unshift(this);";
+				}
+
+				printer << "return generalFunction(args, signatures);}";
+			}
+
+			void emitEnumDeclaration(
+					mlir::rlc::ClassType type, mlir::rlc::EnumDeclarationOp enumDecl)
+			{
+				printer << "export class ";
+				emitJavascriptType(type);
+				printer << " extends EnumWrapper{";
+
+				int i{ 0 };
+				for (auto value :
+						 llvm::enumerate(enumDecl.getBody()
+																 .getOps<mlir::rlc::EnumFieldDeclarationOp>()))
+				{
+					printer << "static " << value.value().getName() << " = " << i << ";";
+					i++;
+				}
+
+				emitMemberFunctions(type);
+				printer << "}";
+			}
+
+			void emitClassDeclaration(mlir::rlc::ClassType type)
+			{
+				printer << "export class ";
+				emitJavascriptType(type);
+				printer << " extends ClassWrapper{";
+
+				printer << "static _getSize() { return ";
+				SizeAlignmentOffsets result = getSizeAlignmentAndOffsetsOfStruct(type);
+				printer << result.size << ";}";
+				printer << "static _getMemberFieldNames(){ return [";
+				for (auto name : type.getMemberNames())
+				{
+					printer << "\"" << name << "\", ";
+				}
+
+				printer << "]; }";
+				emitGettersAndSetters(type, result.offsets);
+				emitMemberFunctions(type);
+
+				if (builder.isClassOfAction(type))
+				{
+					emitActionFunctions(type);
+				}
+
+				printer << "}";
+			}
+
+			void emitGettersAndSetters(
+					mlir::rlc::ClassType classType, llvm::SmallVector<int, 4> offsets)
+			{
+				for (auto [type, name, offset] : llvm::zip(
+								 classType.getMemberTypes(),
+								 classType.getMemberNames(),
+								 offsets))
+				{
+					printer << "get " << name << "(){return this._get(";
+					emitJavascriptType(type);
+					printer << ", " << offset << ");}";
+
+					printer << "set " << name << "(value){this._set(";
+					emitJavascriptType(type);
+					printer << ", " << offset << ", value);}";
+				}
+			}
+
+			void emitMemberFunctions(mlir::Type classType)
+			{
+				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
+				for (auto memberFunction : this->table.getMemberFunctionsOf(classType))
+				{
+					sortedOverloads[memberFunction.getUnmangledName()].push_back(
+							memberFunction.getType());
+				}
+
+				if (not this->table.isTriviallyInitializable(classType))
+				{
+					auto fun = mlir::FunctionType::get(
+							classType.getContext(), { classType }, {});
+					sortedOverloads["init"].push_back(fun);
+				}
+
+				if (not this->table.isTriviallyDestructible(classType))
+				{
+					auto fun = mlir::FunctionType::get(
+							classType.getContext(), { classType }, {});
+					sortedOverloads["drop"].push_back(fun);
+				}
+
+				if (not this->table.isTriviallyCopiable(classType))
+				{
+					auto fun = mlir::FunctionType::get(
+							classType.getContext(), { classType, classType }, {});
+					sortedOverloads["assign"].push_back(fun);
+				}
+
+				for (auto& pair : sortedOverloads)
+				{
+					emitOverloadDispatcher(pair.first(), pair.second, true);
+				}
+			}
+
+			void emitActionFunctions(mlir::rlc::ClassType type)
+			{
+				auto action = mlir::cast<mlir::rlc::ActionFunction>(
+						builder.getActionOf(type).getDefiningOp());
+
+				for (auto value : action.getActions())
+				{
+					mlir::Operation* statement =
+							builder.actionFunctionValueToActionStatement(value).front();
+					auto actionStatement =
+							mlir::cast<mlir::rlc::ActionStatement>(statement);
+					emitSingleActionFunction(
+							action.getClassType(),
+							actionStatement.getName(),
+							actionStatement.getResultTypes(),
+							mlir::rlc::VoidType::get(action.getContext()));
+					emitSingleActionFunction(
+							action.getClassType(),
+							("can_" + actionStatement.getName()).str(),
+							actionStatement.getResultTypes(),
+							mlir::rlc::BoolType::get(action.getContext()));
+				}
+
+				emitSingleActionFunction(
+						action.getClassType(),
+						"is_done",
+						{},
+						mlir::rlc::BoolType::get(action.getContext()));
+			}
+
+			void emitSingleActionFunction(
+					mlir::rlc::ClassType frameType,
+					llvm::StringRef actionName,
+					mlir::TypeRange argTypes,
+					mlir::Type resultType)
+			{
+				llvm::SmallVector<mlir::Type> args = { frameType };
+				for (auto arg : argTypes)
+					args.push_back(arg);
+				auto fType = mlir::FunctionType::get(
+						resultType.getContext(), args, { resultType });
+
+				llvm::SmallVector<mlir::FunctionType> overloads = { fType };
+				emitOverloadDispatcher(actionName, overloads, true);
+			}
+
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
 
 			ArrayTypeAndDimensions getTypeAndDimensionsOfArray(
 					mlir::rlc::ArrayType currentType)
@@ -543,213 +768,6 @@ namespace mlir::rlc
 					type.dump();
 					std::abort();
 				}
-			}
-
-			void emitOverloadDispatcher(
-					llvm::StringRef name,
-					llvm::ArrayRef<mlir::FunctionType> overloads,
-					bool isMethod)
-			{
-				if (isMethod == false)
-				{
-					printer << "export function ";
-				}
-				printer << name << "(...args){";
-
-				if (isMethod)
-				{
-					printer << "this._assertAddress();";
-				}
-
-				printer << "const signatures = [";
-
-				for (auto overload : overloads)
-				{
-					printer << "[\"" << mangledName(name, isMethod, overload) << "\", [";
-
-					for (auto type : overload.getInputs())
-					{
-						emitJavascriptType(type);
-						printer << ", ";
-					}
-
-					mlir::Type result{};
-					if (overload.getNumResults() == 0)
-					{
-						result = mlir::rlc::VoidType::get(overload.getContext());
-					}
-					else
-					{
-						result = overload.getResults()[0];
-					}
-					printer << "], ";
-					emitJavascriptType(result);
-					printer << ", ";
-					if (mlir::dyn_cast<mlir::rlc::ReferenceType>(result))
-					{
-						printer << "true";
-					}
-					else
-					{
-						printer << "false";
-					}
-					printer << "], ";
-				}
-				printer << "];";
-
-				if (isMethod)
-				{
-					printer << "args.unshift(this);";
-				}
-
-				printer << "return generalFunction(args, signatures);}";
-			}
-
-			void emitEnumDeclaration(
-					mlir::rlc::ClassType type, mlir::rlc::EnumDeclarationOp enumDecl)
-			{
-				printer << "export class ";
-				emitJavascriptType(type);
-				printer << " extends EnumWrapper{";
-
-				int i{ 0 };
-				for (auto value :
-						 llvm::enumerate(enumDecl.getBody()
-																 .getOps<mlir::rlc::EnumFieldDeclarationOp>()))
-				{
-					printer << "static " << value.value().getName() << " = " << i << ";";
-					i++;
-				}
-
-				emitMemberFunctions(type);
-				printer << "}";
-			}
-
-			void emitClassDeclaration(mlir::rlc::ClassType type)
-			{
-				printer << "export class ";
-				emitJavascriptType(type);
-				printer << " extends ClassWrapper{";
-
-				printer << "static _getSize() { return ";
-				SizeAlignmentOffsets result = getSizeAlignmentAndOffsetsOfStruct(type);
-				printer << result.size << ";}";
-				printer << "static _getMemberFieldNames(){ return [";
-				for (auto name : type.getMemberNames())
-				{
-					printer << "\"" << name << "\", ";
-				}
-
-				printer << "]; }";
-				emitGettersAndSetters(type, result.offsets);
-				emitMemberFunctions(type);
-
-				if (builder.isClassOfAction(type))
-				{
-					emitActionFunctions(type);
-				}
-
-				printer << "}";
-			}
-
-			void emitGettersAndSetters(
-					mlir::rlc::ClassType classType, llvm::SmallVector<int, 4> offsets)
-			{
-				for (auto [type, name, offset] : llvm::zip(
-								 classType.getMemberTypes(),
-								 classType.getMemberNames(),
-								 offsets))
-				{
-					printer << "get " << name << "(){return this._get(";
-					emitJavascriptType(type);
-					printer << ", " << offset << ");}";
-
-					printer << "set " << name << "(value){this._set(";
-					emitJavascriptType(type);
-					printer << ", " << offset << ", value);}";
-				}
-			}
-
-			void emitMemberFunctions(mlir::Type classType)
-			{
-				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
-				for (auto memberFunction : this->table.getMemberFunctionsOf(classType))
-				{
-					sortedOverloads[memberFunction.getUnmangledName()].push_back(
-							memberFunction.getType());
-				}
-
-				if (not this->table.isTriviallyInitializable(classType))
-				{
-					auto fun = mlir::FunctionType::get(
-							classType.getContext(), { classType }, {});
-					sortedOverloads["init"].push_back(fun);
-				}
-
-				if (not this->table.isTriviallyDestructible(classType))
-				{
-					auto fun = mlir::FunctionType::get(
-							classType.getContext(), { classType }, {});
-					sortedOverloads["drop"].push_back(fun);
-				}
-
-				if (not this->table.isTriviallyCopiable(classType))
-				{
-					auto fun = mlir::FunctionType::get(
-							classType.getContext(), { classType, classType }, {});
-					sortedOverloads["assign"].push_back(fun);
-				}
-
-				for (auto& pair : sortedOverloads)
-				{
-					emitOverloadDispatcher(pair.first(), pair.second, true);
-				}
-			}
-
-			void emitActionFunctions(mlir::rlc::ClassType type)
-			{
-				auto action = mlir::cast<mlir::rlc::ActionFunction>(
-						builder.getActionOf(type).getDefiningOp());
-
-				for (auto value : action.getActions())
-				{
-					mlir::Operation* statement =
-							builder.actionFunctionValueToActionStatement(value).front();
-					auto actionStatement =
-							mlir::cast<mlir::rlc::ActionStatement>(statement);
-					emitSingleActionFunction(
-							action.getClassType(),
-							actionStatement.getName(),
-							actionStatement.getResultTypes(),
-							mlir::rlc::VoidType::get(action.getContext()));
-					emitSingleActionFunction(
-							action.getClassType(),
-							("can_" + actionStatement.getName()).str(),
-							actionStatement.getResultTypes(),
-							mlir::rlc::BoolType::get(action.getContext()));
-				}
-
-				emitSingleActionFunction(
-						action.getClassType(),
-						"is_done",
-						{},
-						mlir::rlc::BoolType::get(action.getContext()));
-			}
-
-			void emitSingleActionFunction(
-					mlir::rlc::ClassType frameType,
-					llvm::StringRef actionName,
-					mlir::TypeRange argTypes,
-					mlir::Type resultType)
-			{
-				llvm::SmallVector<mlir::Type> args = { frameType };
-				for (auto arg : argTypes)
-					args.push_back(arg);
-				auto fType = mlir::FunctionType::get(
-						resultType.getContext(), args, { resultType });
-
-				llvm::SmallVector<mlir::FunctionType> overloads = { fType };
-				emitOverloadDispatcher(actionName, overloads, true);
 			}
 		};
 
