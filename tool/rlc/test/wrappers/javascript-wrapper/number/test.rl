@@ -2,12 +2,18 @@
 # RUN: %run_wasm64_test
 
 #--- main.rl
-fun foo() -> Int:
-    return 42
+
 
 #--- test.mjs
 import assert from 'assert';
 import * as wrapper from './wrapper.mjs';
 
-assert.strictEqual(wrapper.fun$foo(), 42);
-console.log("SUCCESS");
+let int = wrapper.IntWrapper.create(3n);
+assert.strictEqual(int.value, 3);
+int.value = 123n;
+assert.strictEqual(int.value, 123);
+int.value = 100;
+assert.strictEqual(int.value, 100);
+int._free();
+
+wrapper._detectMemoryLeaksDoNotUse();

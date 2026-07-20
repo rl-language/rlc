@@ -3,7 +3,19 @@
 namespace mlir::rlc {
     constexpr const char* standardJavascriptWrapper = R"JSWrapper(
 import createModule from "./glueCode.mjs";
-let module = await createModule();
+const module = await createModule();
+
+export function _detectMemoryLeaksDoNotUse() {
+    if (typeof module.___lsan_do_leak_check === "function") {
+        module.___lsan_do_leak_check();
+    }
+    else if (typeof module._lsan_do_leak_check === "function") {
+        module._lsan_do_leak_check();
+    }
+    else {
+        console.warn("Address sanitizer is not enabled");
+    }
+}
 
 const garbageCollectorRegistry = new FinalizationRegistry((address) => {
     if (address !== 0) {
