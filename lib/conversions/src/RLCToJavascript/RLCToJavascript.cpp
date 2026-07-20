@@ -24,7 +24,6 @@
 // TODO: Vedere se il wrapper originale funziona
 // TODO: Decidere se generare le alternative tramite l'array alternatives
 // oppure ciclando dentro postOrderTypes
-// TODO: Da quando le alternative hanno un init?
 
 /*
 2) Le free "action functions" sarebbero soltanto delle funzioni top-level che
@@ -45,8 +44,7 @@ act sequence() ->Sequence:
 	act first()
 	act first(Int x)
 Quindi non c'è overloading...
-Nota che i member fields e le member functions per le action functions (classi)
-possono comunque collidere, a meno che non usi i $.
+
 
 */
 
@@ -118,8 +116,8 @@ namespace mlir::rlc
 			private:
 			void emitGeneralWrapper()
 			{
-				printer << "const pointerSize = " << (isWasm64 ? 8 : 4) << ";";
-				printer << standardJavascriptWrapper;
+				printer << standardJavascriptWrapper
+								<< "const pointerSize = " << (isWasm64 ? 8 : 4) << ";";
 			}
 
 			void emitClassesAndEnums()
@@ -301,7 +299,7 @@ namespace mlir::rlc
 				{
 					printer << "export function ";
 				}
-				printer << name << "(...args){";
+				printer << "fun$" << name << "(...args){";
 
 				if (isMethod)
 				{
@@ -407,11 +405,11 @@ namespace mlir::rlc
 								 classType.getMemberNames(),
 								 offsets))
 				{
-					printer << "get " << name << "(){return this._get(";
+					printer << "get " << "var$" << name << "(){return this._get(";
 					emitJavascriptType(type);
 					printer << ", " << offset << ");}";
 
-					printer << "set " << name << "(value){this._set(";
+					printer << "set " << "var$" << name << "(value){this._set(";
 					emitJavascriptType(type);
 					printer << ", " << offset << ", value);}";
 				}
@@ -711,13 +709,13 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 				{
-					printer << casted.getName();
+					printer << "Class$" << casted.getName();
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
 					alternatives.insert(casted);
 
-					printer << "Alternative";
+					printer << "Alt";
 					for (auto enumeration : llvm::enumerate(casted.getUnderlying()))
 					{
 						printer << "_";
