@@ -13,7 +13,7 @@ import * as $ from './wrapper.mjs';
 //Checking if strings are correctly returned by ref
 
 let input = $.StringLiteral.create("From Javascript");
-const ref = $.foo_f(input);
+const ref = $.f_foo(input);
 assert.strictEqual(input._owner, true);
 assert.strictEqual(ref._owner, false);
 assert.strictEqual(input._address, ref._address);

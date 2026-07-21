@@ -19,9 +19,9 @@ import assert from 'assert';
 import * as $ from './wrapper.mjs';
 
 //Checking if numbers are correctly returned by value
-assert.strictEqual($.foo1_f(), 5);
-assert.strictEqual($.foo2_f(), 0.97);
-assert.strictEqual($.foo3_f(), true);
-assert.strictEqual($.foo4_f(), -128);
+assert.strictEqual($.f_foo1(), 5);
+assert.strictEqual($.f_foo2(), 0.97);
+assert.strictEqual($.f_foo3(), true);
+assert.strictEqual($.f_foo4(), -128);
 
 $._detectMemoryLeaksDoNotUse();

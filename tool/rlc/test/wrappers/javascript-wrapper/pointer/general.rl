@@ -120,24 +120,24 @@ ptr._free();
 
 
 //Pointer to BigBox
-ptr = $.Ptr_BigBox_c.create();
+ptr = $.Ptr_Cls_BigBox.create();
 assert.strictEqual(ptr.value, 0);
 
-ptr.value = $.Ptr_BigBox_c.malloc();
+ptr.value = $.Ptr_Cls_BigBox.malloc();
 assert.notStrictEqual(ptr.value, 0);
-assert.strictEqual(ptr.get().value_v, 0);
-assert.strictEqual(ptr.get().smallBox_v.value_v, 0);
-assert.strictEqual(ptr.get().smallBox_v.name_v, "Unknown");
+assert.strictEqual(ptr.get().v_value, 0);
+assert.strictEqual(ptr.get().v_smallBox.v_value, 0);
+assert.strictEqual(ptr.get().v_smallBox.v_name, "Unknown");
 
-ptr.get().smallBox_v.name_v = "Hello";
-assert.strictEqual(ptr.get().smallBox_v.name_v, "Hello");
+ptr.get().v_smallBox.v_name = "Hello";
+assert.strictEqual(ptr.get().v_smallBox.v_name, "Hello");
 
-smallBox = $.SmallBox_c.create({ value_v: 5, name_v: "Ciao" });
-bigBox = $.BigBox_c.create({ smallBox_v: smallBox, value_v: 123 });
+smallBox = $.Cls_SmallBox.create({ v_value: 5, v_name: "Ciao" });
+bigBox = $.Cls_BigBox.create({ v_smallBox: smallBox, v_value: 123 });
 ptr.set(bigBox);
-assert.strictEqual(ptr.get().value_v, 123);
-assert.strictEqual(ptr.get().smallBox_v.value_v, 5);
-assert.strictEqual(ptr.get().smallBox_v.name_v, "Ciao");
+assert.strictEqual(ptr.get().v_value, 123);
+assert.strictEqual(ptr.get().v_smallBox.v_value, 5);
+assert.strictEqual(ptr.get().v_smallBox.v_name, "Ciao");
 
 smallBox._free();
 bigBox._free();
@@ -147,34 +147,33 @@ ptr._free();
 
 
 //Pointer to array of BigBox
-ptr = $.Ptr_BigBox_c.create();
+ptr = $.Ptr_Cls_BigBox.create();
 assert.strictEqual(ptr.value, 0);
 
 arrSize = 3;
-ptr.value = $.Ptr_BigBox_c.malloc(arrSize);
+ptr.value = $.Ptr_Cls_BigBox.malloc(arrSize);
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < arrSize; i++) {
-    assert.strictEqual(ptr.get(i).value_v, 0);
-    assert.strictEqual(ptr.get(i)._secretValue_v, 0);
-    assert.strictEqual(ptr.get(i).smallBox_v.value_v, 0);
-    assert.strictEqual(ptr.get(i).smallBox_v.name_v, "Unknown");
+    assert.strictEqual(ptr.get(i).v_value, 0);
+    assert.strictEqual(ptr.get(i).v__secretValue, undefined);
+    assert.strictEqual(ptr.get(i).v_smallBox.v_value, 0);
+    assert.strictEqual(ptr.get(i).v_smallBox.v_name, "Unknown");
 }
 
-bigBox = $.BigBox_c.create();
-bigBox.value_v = 4;
-bigBox._secretValue_v = 8;
-bigBox.smallBox_v.value_v = 16;
-bigBox.smallBox_v.name_v = "Hello";
+bigBox = $.Cls_BigBox.create();
+bigBox.v_value = 4;
+bigBox.v_smallBox.v_value = 16;
+bigBox.v_smallBox.v_name = "Hello";
 
 for (let i = 0; i < arrSize; i++) {
     ptr.set(bigBox, i);
 }
 
 for (let i = 0; i < arrSize; i++) {
-    assert.strictEqual(ptr.get(i).value_v, 4);
-    assert.strictEqual(ptr.get(i)._secretValue_v, 8);
-    assert.strictEqual(ptr.get(i).smallBox_v.value_v, 16);
-    assert.strictEqual(ptr.get(i).smallBox_v.name_v, "Hello");
+    assert.strictEqual(ptr.get(i).v_value, 4);
+    assert.strictEqual(ptr.get(i).v__secretValue, undefined);
+    assert.strictEqual(ptr.get(i).v_smallBox.v_value, 16);
+    assert.strictEqual(ptr.get(i).v_smallBox.v_name, "Hello");
 }
 
 bigBox._free();
@@ -184,17 +183,17 @@ ptr._free();
 
 
 //Pointer to Alternative
-ptr = $.Ptr_Alt3_Int_BigBox_c_StringLiteral.create();
+ptr = $.Ptr_Alt3_Int_Cls_BigBox_StringLiteral.create();
 assert.strictEqual(ptr.value, 0);
 
-ptr.value = $.Ptr_Alt3_Int_BigBox_c_StringLiteral.malloc();
+ptr.value = $.Ptr_Alt3_Int_Cls_BigBox_StringLiteral.malloc();
 assert.notStrictEqual(ptr.value, 0);
 assert.strictEqual(ptr.get().value, 0);
 
 ptr.get().value = "Hello"
 assert.strictEqual(ptr.get().value, "Hello");
 
-alt = $.Alt3_Int_BigBox_c_StringLiteral.create("Ciao");
+alt = $.Alt3_Int_Cls_BigBox_StringLiteral.create("Ciao");
 ptr.set(alt);
 assert.strictEqual(ptr.get().value, "Ciao");
 
@@ -205,23 +204,22 @@ ptr._free();
 
 
 //Pointer to array of Alternative
-ptr = $.Ptr_Alt3_Int_BigBox_c_StringLiteral.create();
+ptr = $.Ptr_Alt3_Int_Cls_BigBox_StringLiteral.create();
 assert.strictEqual(ptr.value, 0);
 
 arrSize = 3;
-ptr.value = $.Ptr_Alt3_Int_BigBox_c_StringLiteral.malloc(arrSize);
+ptr.value = $.Ptr_Alt3_Int_Cls_BigBox_StringLiteral.malloc(arrSize);
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < arrSize; i++) {
     assert.strictEqual(ptr.get(i).value, 0);
 }
 
-bigBox = $.BigBox_c.create();
-bigBox.value_v = 4;
-bigBox._secretValue_v = 8;
-bigBox.smallBox_v.value_v = 16;
-bigBox.smallBox_v.name_v = "Hello";
+bigBox = $.Cls_BigBox.create();
+bigBox.v_value = 4;
+bigBox.v_smallBox.v_value = 16;
+bigBox.v_smallBox.v_name = "Hello";
 
-alt = $.Alt3_Int_BigBox_c_StringLiteral.create(bigBox);
+alt = $.Alt3_Int_Cls_BigBox_StringLiteral.create(bigBox);
 
 for (let i = 0; i < arrSize; i++) {
     ptr.set(alt, i);
@@ -232,10 +230,10 @@ ptr.set(alt, 0);
 
 assert.strictEqual(ptr.get(0).value, "Ciao");
 for (let i = 1; i < arrSize; i++) {
-    assert.strictEqual(ptr.get(i).value.value_v, 4);
-    assert.strictEqual(ptr.get(i).value._secretValue_v, 8);
-    assert.strictEqual(ptr.get(i).value.smallBox_v.value_v, 16);
-    assert.strictEqual(ptr.get(i).value.smallBox_v.name_v, "Hello");
+    assert.strictEqual(ptr.get(i).value.v_value, 4);
+    assert.strictEqual(ptr.get(i).value.v__secretValue, undefined);
+    assert.strictEqual(ptr.get(i).value.v_smallBox.v_value, 16);
+    assert.strictEqual(ptr.get(i).value.v_smallBox.v_name, "Hello");
 }
 
 bigBox._free();

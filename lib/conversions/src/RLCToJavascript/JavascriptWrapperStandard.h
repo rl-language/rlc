@@ -295,14 +295,14 @@ class ClassLikeWrapper extends CompositeWrapper {
         ObjectWrapper._assertCreatable(this.constructor, ClassLikeWrapper);
     }
 
-    init_f() {
-        throw new Error("Method 'init_f()' must be implemented.");
+    f_init() {
+        throw new Error("Method 'f_init()' must be implemented.");
     }
 
     _drop() {
         try {
-            if ((typeof this.drop_f) === "function") {
-                this.drop_f();
+            if ((typeof this.f_drop) === "function") {
+                this.f_drop();
             }
         }
         catch (e) {
@@ -324,7 +324,7 @@ class EnumWrapper extends ClassLikeWrapper {
     }
 
     _init(value) {
-        this.init_f();
+        this.f_init();
         this.value = value;
     }
 
@@ -353,7 +353,7 @@ class ClassWrapper extends ClassLikeWrapper {
     }
 
     _init(value) {
-        this.init_f();
+        this.f_init();
         for (const fieldName of this.constructor._getMemberFieldNames()) {
             //value !== null && value !== undefined
             if (value[fieldName] != null) {

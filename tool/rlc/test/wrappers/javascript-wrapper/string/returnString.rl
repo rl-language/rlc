@@ -11,7 +11,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if strings are correctly returned by functions
 
-const result = $.foo_f();
+const result = $.f_foo();
 assert.strictEqual(result, "String from Rulebook");
 
 $.StringPool.free();

@@ -15,7 +15,6 @@
 #include "rlc/dialect/Visits.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
 
-
 // TODO: Per le member functions non generiamo le precondizioni? Nel wrapper di
 // python non viene fatto (vengono generate solo per le non-member funcitons).
 
@@ -24,7 +23,6 @@
 
 // TODO: Decidere se generare le alternative tramite l'array alternatives
 // oppure ciclando dentro postOrderTypes
-
 
 namespace mlir::rlc
 {
@@ -138,7 +136,7 @@ namespace mlir::rlc
 										op.getType().getInputs(),
 										{ mlir::rlc::BoolType::get(op.getContext()) }));
 				}
-				
+
 				for (auto op : moduleOp.getOps<mlir::rlc::ActionFunction>())
 				{
 					if (op.getIsMemberFunction())
@@ -273,11 +271,18 @@ namespace mlir::rlc
 					llvm::ArrayRef<mlir::FunctionType> overloads,
 					bool isMethod)
 			{
+				if (isPrivate(name))
+				{
+					return;
+				}
+
 				if (isMethod == false)
 				{
 					printer << "export function ";
 				}
-				printer << name << "_f" << "(...args){";
+
+				emitMangledFunctionName(name);
+				printer << "(...args){";
 
 				if (isMethod)
 				{
@@ -360,7 +365,9 @@ namespace mlir::rlc
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
 				{
-					printer << "\"" << name << "_v" << "\", ";
+					printer << "\"";
+					emitMangledVariableName(name);
+					printer << "\", ";
 				}
 
 				printer << "]; }";
@@ -375,6 +382,8 @@ namespace mlir::rlc
 				printer << "}";
 			}
 
+			bool isPrivate(llvm::StringRef str) { return str[0] == '_'; }
+
 			void emitGettersAndSetters(
 					mlir::rlc::ClassType classType, llvm::SmallVector<int, 4> offsets)
 			{
@@ -383,11 +392,20 @@ namespace mlir::rlc
 								 classType.getMemberNames(),
 								 offsets))
 				{
-					printer << "get " << name << "_v" << "(){return this._get(";
+					if (isPrivate(name))
+					{
+						continue;
+					}
+
+					printer << "get ";
+					emitMangledVariableName(name);
+					printer << "(){return this._get(";
 					emitJavascriptType(type);
 					printer << ", " << offset << ");}";
 
-					printer << "set " << name << "_v" << "(value){this._set(";
+					printer << "set ";
+					emitMangledVariableName(name);
+					printer << "(value){this._set(";
 					emitJavascriptType(type);
 					printer << ", " << offset << ", value);}";
 				}
@@ -473,6 +491,60 @@ namespace mlir::rlc
 
 				llvm::SmallVector<mlir::FunctionType> overloads = { fType };
 				emitOverloadDispatcher(actionName, overloads, true);
+			}
+
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+			/////////////////////////////////////////////////////////////////////////
+
+			void emitMangledFunctionName(llvm::StringRef name)
+			{
+				printer << "f_" << name;
+			}
+
+			void emitMangledVariableName(llvm::StringRef name)
+			{
+				printer << "v_" << name;
+			}
+
+			void emitMangledClassName(mlir::rlc::ClassType type)
+			{
+				printer << "Cls_" << type.getName();
+			}
+
+			void emitMangledAlternativeName(mlir::rlc::AlternativeType type)
+			{
+				printer << "Alt" << type.getUnderlying().size();
+				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
+				{
+					printer << "_";
+					emitJavascriptType(enumeration.value());
+				}
+			}
+
+			void emitMangledArrayName(mlir::rlc::ArrayType type)
+			{
+				printer << "Arr_";
+
+				ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(type) };
+				emitJavascriptType(result.type);
+
+				for (int x : result.dimensions)
+				{
+					printer << "_" << x;
+				}
+			}
+
+			void emitMangledPointerName(mlir::rlc::OwningPtrType type)
+			{
+				printer << "Ptr_";
+				emitJavascriptType(type.getUnderlying());
 			}
 
 			/////////////////////////////////////////////////////////////////////////
@@ -687,39 +759,22 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 				{
-					printer << casted.getName() << "_c";
+					emitMangledClassName(casted);
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
 					alternatives.insert(casted);
-
-					printer << "Alt" << casted.getUnderlying().size();
-					for (auto enumeration : llvm::enumerate(casted.getUnderlying()))
-					{
-						printer << "_";
-						emitJavascriptType(enumeration.value());
-					}
+					emitMangledAlternativeName(casted);
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 				{
 					arrays.insert(casted);
-
-					printer << "Arr_";
-
-					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(casted) };
-					emitJavascriptType(result.type);
-
-					for (int x : result.dimensions)
-					{
-						printer << "_" << x;
-					}
+					emitMangledArrayName(casted);
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
 				{
 					pointers.insert(casted);
-
-					printer << "Ptr_";
-					emitJavascriptType(casted.getUnderlying());
+					emitMangledPointerName(casted);
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(type))
 				{
