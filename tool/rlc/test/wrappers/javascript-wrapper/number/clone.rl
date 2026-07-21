@@ -6,22 +6,22 @@
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
 //Checking if the clone function works for numbers
 
-const int = wrapper.IntWrapper.create(3);
-const clonedInt = wrapper.IntWrapper.clone(int);
+const int = $.Int.create(3);
+const clonedInt = $.Int.clone(int);
 assert.strictEqual(int.value, clonedInt.value);
 int._free();
 clonedInt._free();
 
-const other = wrapper.IntWrapper.create(4);
-const other2 = wrapper.IntWrapper.create(8);
+const other = $.Int.create(4);
+const other2 = $.Int.create(8);
 other.value = other2;
 assert.strictEqual(other.value, 8);
 
 other._free();
 other2._free();
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();

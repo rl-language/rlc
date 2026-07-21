@@ -7,13 +7,13 @@ fun foo() ->StringLiteral:
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
 //Checking if strings are correctly returned by functions
 
-const result = wrapper.fun$foo();
+const result = $.foo_f();
 assert.strictEqual(result, "String from Rulebook");
 
-wrapper.StringPool.free();
+$.StringPool.free();
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();

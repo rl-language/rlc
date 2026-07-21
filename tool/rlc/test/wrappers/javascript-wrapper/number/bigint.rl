@@ -6,11 +6,11 @@
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
-//Checking if IntWrapper also works with BigInt (e.g. 3n)
+//Checking if Int also works with BigInt (e.g. 3n)
 
-let int = wrapper.IntWrapper.create(3n);
+let int = $.Int.create(3n);
 assert.strictEqual(int.value, 3);
 
 int.value = 123n;
@@ -21,4 +21,4 @@ assert.strictEqual(int.value, 100);
 
 int._free();
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();

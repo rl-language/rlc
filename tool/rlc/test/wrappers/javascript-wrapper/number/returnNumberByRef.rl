@@ -16,7 +16,7 @@ fun foo4(Byte byte) ->ref Byte:
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
 //Checking if numbers are correctly returned by ref
 function check(fun, input, newValue, otherNewValue) {
@@ -42,16 +42,16 @@ function check(fun, input, newValue, otherNewValue) {
 
 let input;
 
-input = wrapper.IntWrapper.create();
-check(wrapper.fun$foo1, input, 7, 50);
+input = $.Int.create();
+check($.foo1_f, input, 7, 50);
 
-input = wrapper.FloatWrapper.create();
-check(wrapper.fun$foo2, input, 0.76, -50605.43);
+input = $.Float.create();
+check($.foo2_f, input, 0.76, -50605.43);
 
-input = wrapper.BoolWrapper.create();
-check(wrapper.fun$foo3, input, false, true);
+input = $.Bool.create();
+check($.foo3_f, input, false, true);
 
-input = wrapper.ByteWrapper.create();
-check(wrapper.fun$foo4, input, 16, 32);
+input = $.Byte.create();
+check($.foo4_f, input, 16, 32);
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();

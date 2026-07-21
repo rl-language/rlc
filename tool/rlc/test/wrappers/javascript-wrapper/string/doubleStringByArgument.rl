@@ -7,20 +7,20 @@ fun foo(StringLiteral s1, StringLiteral s2):
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
 //Checking if strings are correctly passed as function arguments
 
 let s1;
 let s2;
     
-s1 = wrapper.StringLiteralWrapper.create("S1");
+s1 = $.StringLiteral.create("S1");
 assert.strictEqual(s1.value, "S1");
 
-s2 = wrapper.StringLiteralWrapper.create("S2");
+s2 = $.StringLiteral.create("S2");
 assert.strictEqual(s2.value, "S2");
 
-wrapper.fun$foo(s1, s2);
+$.foo_f(s1, s2);
 assert.strictEqual(s1.value, "S1");
 assert.strictEqual(s2.value, "S1");
 assert.notStrictEqual(s1._address, s2._address);
@@ -34,6 +34,6 @@ assert.strictEqual(s2.value, "ABC");
 s1._free();
 s2._free();
 
-wrapper.StringPool.free();
+$.StringPool.free();
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();

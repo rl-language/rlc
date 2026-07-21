@@ -277,7 +277,7 @@ namespace mlir::rlc
 				{
 					printer << "export function ";
 				}
-				printer << "fun$" << name << "(...args){";
+				printer << name << "_f" << "(...args){";
 
 				if (isMethod)
 				{
@@ -360,7 +360,7 @@ namespace mlir::rlc
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
 				{
-					printer << "\"" << name << "\", ";
+					printer << "\"" << name << "_v" << "\", ";
 				}
 
 				printer << "]; }";
@@ -383,11 +383,11 @@ namespace mlir::rlc
 								 classType.getMemberNames(),
 								 offsets))
 				{
-					printer << "get " << "var$" << name << "(){return this._get(";
+					printer << "get " << name << "_v" << "(){return this._get(";
 					emitJavascriptType(type);
 					printer << ", " << offset << ");}";
 
-					printer << "set " << "var$" << name << "(value){this._set(";
+					printer << "set " << name << "_v" << "(value){this._set(";
 					emitJavascriptType(type);
 					printer << ", " << offset << ", value);}";
 				}
@@ -662,24 +662,24 @@ namespace mlir::rlc
 				{
 					if (casted.getSize() == 64)
 					{
-						printer << "IntWrapper";
+						printer << "Int";
 					}
 					else
 					{
-						printer << "ByteWrapper";
+						printer << "Byte";
 					}
 				}
 				else if (mlir::isa<mlir::rlc::FloatType>(type))
 				{
-					printer << "FloatWrapper";
+					printer << "Float";
 				}
 				else if (mlir::isa<mlir::rlc::BoolType>(type))
 				{
-					printer << "BoolWrapper";
+					printer << "Bool";
 				}
 				else if (mlir::isa<mlir::rlc::StringLiteralType>(type))
 				{
-					printer << "StringLiteralWrapper";
+					printer << "StringLiteral";
 				}
 				else if (mlir::isa<mlir::rlc::VoidType>(type))
 				{
@@ -687,13 +687,13 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 				{
-					printer << "Class$" << casted.getName();
+					printer << casted.getName() << "_c";
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
 					alternatives.insert(casted);
 
-					printer << "Alt";
+					printer << "Alt" << casted.getUnderlying().size();
 					for (auto enumeration : llvm::enumerate(casted.getUnderlying()))
 					{
 						printer << "_";
@@ -704,7 +704,7 @@ namespace mlir::rlc
 				{
 					arrays.insert(casted);
 
-					printer << "Array_";
+					printer << "Arr_";
 
 					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(casted) };
 					emitJavascriptType(result.type);

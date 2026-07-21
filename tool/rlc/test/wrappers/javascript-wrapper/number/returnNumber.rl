@@ -16,12 +16,12 @@ fun foo4() ->Byte:
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
 //Checking if numbers are correctly returned by value
-assert.strictEqual(wrapper.fun$foo1(), 5);
-assert.strictEqual(wrapper.fun$foo2(), 0.97);
-assert.strictEqual(wrapper.fun$foo3(), true);
-assert.strictEqual(wrapper.fun$foo4(), -128);
+assert.strictEqual($.foo1_f(), 5);
+assert.strictEqual($.foo2_f(), 0.97);
+assert.strictEqual($.foo3_f(), true);
+assert.strictEqual($.foo4_f(), -128);
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();

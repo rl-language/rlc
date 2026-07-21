@@ -197,7 +197,7 @@ export class PtrWrapper extends CompositeWrapper {
     }
 
     static _getSize() {
-        return AddressWrapper._getSize();
+        return Address._getSize();
     }
 
     _init(value) {
@@ -209,11 +209,11 @@ export class PtrWrapper extends CompositeWrapper {
     }
 
     get value() {
-        return this._get(AddressWrapper, 0);
+        return this._get(Address, 0);
     }
 
     set value(value) {
-        this._set(AddressWrapper, 0, value);
+        this._set(Address, 0, value);
     }
 
     _drop() {
@@ -225,7 +225,7 @@ export class PtrWrapper extends CompositeWrapper {
         if (howMany == null) {
             howMany = 1;
         }
-        IntWrapper._assertPrimitive(howMany);
+        Int._assertPrimitive(howMany);
         if (howMany <= 0) {
             throw new Error("This number can't be zero or negative");
         }
@@ -250,7 +250,7 @@ export class PtrWrapper extends CompositeWrapper {
         if (i == null) {
             i = 0;
         }
-        IntWrapper._assertPrimitive(i);
+        Int._assertPrimitive(i);
         return this.value + this.constructor._getElementClass()._getSize() * i;
     }
 
@@ -274,7 +274,7 @@ export function free(ptr, howMany) {
     if (howMany == null) {
         howMany = 1;
     }
-    IntWrapper._assertPrimitive(howMany);
+    Int._assertPrimitive(howMany);
     if (howMany <= 0) {
         throw new Error("This number can't be zero or negative");
     }
@@ -295,14 +295,14 @@ class ClassLikeWrapper extends CompositeWrapper {
         ObjectWrapper._assertCreatable(this.constructor, ClassLikeWrapper);
     }
 
-    fun$init() {
-        throw new Error("Method 'fun$init()' must be implemented.");
+    init_f() {
+        throw new Error("Method 'init_f()' must be implemented.");
     }
 
     _drop() {
         try {
-            if ((typeof this.fun$drop) === "function") {
-                this.fun$drop();
+            if ((typeof this.drop_f) === "function") {
+                this.drop_f();
             }
         }
         catch (e) {
@@ -324,7 +324,7 @@ class EnumWrapper extends ClassLikeWrapper {
     }
 
     _init(value) {
-        this.fun$init();
+        this.init_f();
         this.value = value;
     }
 
@@ -333,11 +333,11 @@ class EnumWrapper extends ClassLikeWrapper {
     }
 
     get value() {
-        return this._get(IntWrapper, 0);
+        return this._get(Int, 0);
     }
 
     set value(value) {
-        this._set(IntWrapper, 0, value);
+        this._set(Int, 0, value);
     }
 }
 
@@ -353,7 +353,7 @@ class ClassWrapper extends ClassLikeWrapper {
     }
 
     _init(value) {
-        this.fun$init();
+        this.init_f();
         for (const fieldName of this.constructor._getMemberFieldNames()) {
             //value !== null && value !== undefined
             if (value[fieldName] != null) {
@@ -418,11 +418,11 @@ class AlternativeWrapper extends CompositeWrapper {
     }
 
     set _index(index) {
-        this._set(IntWrapper, this.constructor._getIndexOffset(), index);
+        this._set(Int, this.constructor._getIndexOffset(), index);
     }
 
     get _index() {
-        return this._get(IntWrapper, this.constructor._getIndexOffset());
+        return this._get(Int, this.constructor._getIndexOffset());
     }
 
     set value(element) {
@@ -549,7 +549,7 @@ class ArrayWrapper extends CompositeWrapper {
     set(value, indexes) {
         this._assertAddress();
 
-        if (IntWrapper._isPrimitive(indexes)) {
+        if (Int._isPrimitive(indexes)) {
             indexes = [indexes];
         }
 
@@ -590,7 +590,7 @@ export class StringPool {
     static #map = new Map();
 
     static _writeString(str) {
-        StringLiteralWrapper._assertPrimitive(str);
+        StringLiteral._assertPrimitive(str);
 
         if (this.#map.has(str) === false) {
             this.#map.set(str, module.stringToNewUTF8(str))
@@ -673,7 +673,7 @@ class PrimitiveWrapper extends ObjectWrapper {
     }
 }
 
-export class StringLiteralWrapper extends PrimitiveWrapper {
+export class StringLiteral extends PrimitiveWrapper {
 
     static _getValueFromAddress(address) {
         const actualAddress = module.getValue(address, '*');
@@ -687,7 +687,7 @@ export class StringLiteralWrapper extends PrimitiveWrapper {
     }
 
     static _getSize() {
-        return AddressWrapper._getSize();
+        return Address._getSize();
     }
 
     static _getDefaultValue() {
@@ -732,7 +732,7 @@ class NumWrapper extends PrimitiveWrapper {
 
 
 
-export class IntWrapper extends NumWrapper {
+export class Int extends NumWrapper {
     static _getSize() {
         return 8;
     }
@@ -746,7 +746,7 @@ export class IntWrapper extends NumWrapper {
     }
 }
 
-class AddressWrapper extends NumWrapper {
+class Address extends NumWrapper {
     static _getSize() {
         return pointerSize;
     }
@@ -761,11 +761,11 @@ class AddressWrapper extends NumWrapper {
         }
 
         return (this._getSize() === 4 && Number.isInteger(value))
-            || (this._getSize() === 8 && IntWrapper._isPrimitive(value));
+            || (this._getSize() === 8 && Int._isPrimitive(value));
     }
 }
 
-export class BoolWrapper extends NumWrapper {
+export class Bool extends NumWrapper {
     static _getSize() {
         return 1;
     }
@@ -787,7 +787,7 @@ export class BoolWrapper extends NumWrapper {
     }
 }
 
-export class FloatWrapper extends NumWrapper {
+export class Float extends NumWrapper {
     static _getSize() {
         return 8;
     }
@@ -802,7 +802,7 @@ export class FloatWrapper extends NumWrapper {
 }
 
 
-export class ByteWrapper extends NumWrapper {
+export class Byte extends NumWrapper {
     static _getSize() {
         return 1;
     }
@@ -812,7 +812,7 @@ export class ByteWrapper extends NumWrapper {
     }
 
     static _isPrimitive(value) {
-        return IntWrapper._isPrimitive(value);
+        return Int._isPrimitive(value);
     }
 }
 
@@ -841,7 +841,7 @@ function generalFunction(actualArgs, signatures) {
     }
 
     function callFunction(functionName, params, modifiedParams) {
-        if (AddressWrapper._getSize() === 8) {
+        if (Address._getSize() === 8) {
             params = params.map((x) => BigInt(x));
         }
         module[`_${functionName}`](...params);
@@ -873,10 +873,10 @@ function generalFunction(actualArgs, signatures) {
 
             if (isRef) {
                 const currentStackPointer = module.stackSave();
-                const resultAddress = module.stackAlloc(AddressWrapper._getSize());
+                const resultAddress = module.stackAlloc(Address._getSize());
                 params.unshift(resultAddress);
                 callFunction(functionName, params, modifiedParams);
-                const addressRef = AddressWrapper._getValueFromAddress(resultAddress);
+                const addressRef = Address._getValueFromAddress(resultAddress);
                 const returnedObject = returnType._createByRef(addressRef);
                 module.stackRestore(currentStackPointer);
                 return returnedObject;

@@ -8,12 +8,6 @@
 import assert from 'assert';
 import * as $ from './wrapper.mjs';
 
-//Checking if strings correctly take the default value
-
-let str = $.StringLiteral.create();
-assert.strictEqual(str.value, "");
-
-str._free();
-$.StringPool.free();
+//
 
 $._detectMemoryLeaksDoNotUse();

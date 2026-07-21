@@ -10,7 +10,7 @@ fun foo(Int int, Float float, Bool bool, Byte byte):
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
 //Checking if the numbers are correctly passed as function arguments and changed
 
@@ -20,10 +20,10 @@ let bool;
 let byte;
 
 function createObjects() {
-    int = wrapper.IntWrapper.create(7);
-    float = wrapper.FloatWrapper.create(0.54);
-    bool = wrapper.BoolWrapper.create(false);
-    byte = wrapper.ByteWrapper.create(127);
+    int = $.Int.create(7);
+    float = $.Float.create(0.54);
+    bool = $.Bool.create(false);
+    byte = $.Byte.create(127);
 }
 
 function freeObjects() {
@@ -41,7 +41,7 @@ assert.strictEqual(byte.value, 127);
 freeObjects();
 
 createObjects()
-wrapper.fun$foo(int, float, bool, byte);
+$.foo_f(int, float, bool, byte);
 assert.strictEqual(int.value, 25);
 assert.strictEqual(float.value, 0.003);
 assert.strictEqual(bool.value, true);
@@ -50,11 +50,11 @@ assert.strictEqual(byte.value, -128);
 assert.throws(() => foo(int, float));
 
 byte.value = 0;
-wrapper.fun$foo(3, 1.2, true, byte);
+$.foo_f(3, 1.2, true, byte);
 assert.strictEqual(byte.value, -128);
 
-assert.throws(() => new IntWrapper(3));
+assert.throws(() => new Int(3));
 
 freeObjects();
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();

@@ -7,37 +7,37 @@ fun foo(StringLiteral stringLiteral):
 
 #--- test.mjs
 import assert from 'assert';
-import * as wrapper from './wrapper.mjs';
+import * as $ from './wrapper.mjs';
 
 //Checking if strings are correctly passed by function argument
 
 let string;
 
-string = wrapper.StringLiteralWrapper.create("Hello");
+string = $.StringLiteral.create("Hello");
 assert.strictEqual(string.value, "Hello");
 string._free();
 
-string = wrapper.StringLiteralWrapper.create("Hello");
-wrapper.fun$foo(string);
+string = $.StringLiteral.create("Hello");
+$.foo_f(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string._free();
 
-string = wrapper.StringLiteralWrapper.create("Hello");
-wrapper.fun$foo(string);
+string = $.StringLiteral.create("Hello");
+$.foo_f(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string.value = "NewString";
 assert.strictEqual(string.value, "NewString");
 string._free();
 
-string = wrapper.StringLiteralWrapper.create("Hello");
-wrapper.fun$foo(string);
+string = $.StringLiteral.create("Hello");
+$.foo_f(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string.value = "NewString";
 assert.strictEqual(string.value, "NewString");
-wrapper.fun$foo(string);
+$.foo_f(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string._free();
 
-wrapper.StringPool.free();
+$.StringPool.free();
 
-wrapper._detectMemoryLeaksDoNotUse();
+$._detectMemoryLeaksDoNotUse();
