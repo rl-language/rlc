@@ -226,8 +226,40 @@ class ViewType(ABC):
     def on_changed(self, obj, *args):
         if hasattr(obj, "contents"):
             obj = obj.contents
-        if self._layout and self._layout.update_fn:
-            self._layout.update_fn(obj)
+        if not self._layout:
+            return
+
+        if not args:
+            if self._layout.update_fn:
+                self._layout.update_fn(obj)
+                self._layout.is_dirty = True
+            return
+
+        node = self._layout
+        value = obj
+
+        for arg in args:
+            cm = getattr(node, "children_mapping", None)
+            if cm is None:
+                if self._layout.update_fn:
+                    self._layout.update_fn(obj)
+                    self._layout.is_dirty = True
+                return
+            if isinstance(arg, str) and arg in cm:
+                node = cm[arg]
+                value = getattr(value, arg, None)
+            elif isinstance(arg, int) and arg in cm:
+                node = cm[arg]
+                value = value[arg]
+            else:
+                if self._layout.update_fn:
+                    self._layout.update_fn(obj)
+                    self._layout.is_dirty = True
+                return
+
+        if getattr(node, "update_fn", None):
+            node.update_fn(value)
+            node.is_dirty = True
 
     def __call__(self, obj, parent_path=None, **kwds):
         if parent_path is None:
