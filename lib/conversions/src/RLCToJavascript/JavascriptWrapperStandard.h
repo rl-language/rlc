@@ -935,22 +935,31 @@ function generalFunction(actualArgs, signatures) {
 
                 //Returning by copy
                 let returnedObject = undefined;
-                if (returnType != null) {
-                    returnedObject = returnType.create();
-                    params.unshift(returnedObject._address);
+
+                try {
+                    if (returnType != null) {
+                        returnedObject = returnType.create();
+                        params.unshift(returnedObject._address);
+
+                        if (returnedObject instanceof PrimitiveWrapper) {
+                            modifiedParams.unshift(returnedObject);
+                        }
+                    }
+
+                    callFunction(functionName, params);
 
                     if (returnedObject instanceof PrimitiveWrapper) {
-                        modifiedParams.unshift(returnedObject);
+                        return returnedObject.value;
                     }
+
+                    return returnedObject;
                 }
-
-                callFunction(functionName, params);
-
-                if (returnedObject instanceof PrimitiveWrapper) {
-                    return returnedObject.value;
+                catch (e) {
+                    if (returnedObject instanceof CompositeWrapper) {
+                        returnedObject._free();
+                    }
+                    throw e;
                 }
-
-                return returnedObject;
             }
             finally {
                 for (const obj of modifiedParams) {
