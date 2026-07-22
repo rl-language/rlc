@@ -14,9 +14,10 @@ FOCUS = object()
 
 def resolve_click(layout, x, y, focus_mode: bool):
     target = layout.find_target(x, y)
-    interactive = target is not None and getattr(target, "on_click", None)
     if focus_mode:
-        return target if interactive else None, FOCUS
+        focusable = target is not None and getattr(target, "on_focus", None)
+        return target if focusable else None, FOCUS
+    interactive = target is not None and getattr(target, "on_click", None)
     if interactive and getattr(target, "enabled", True):
         meta = target.on_click
         return target, Intent(meta["handler"], dict(meta["args"]),

@@ -50,6 +50,7 @@ class Layout:
             on_click=None,
             on_hover=None,
             on_key=None,
+            on_focus=None,
             align: str = "start"):
         self.sizing : Tuple[SizePolicy, SizePolicy] = sizing
         self.direction : Direction = direction
@@ -66,6 +67,7 @@ class Layout:
         self.on_click = on_click
         self.on_hover = on_hover
         self.on_key = on_key
+        self.on_focus = on_focus
         self.enabled = True
         self._children_sized = False
         self.render_path = None

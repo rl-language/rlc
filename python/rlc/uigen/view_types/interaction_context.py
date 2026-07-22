@@ -4,7 +4,7 @@ from enum import Enum
 import yaml
 import os
 
-_VALID_EVENTS = {"on_click", "on_hover", "on_key"} 
+_VALID_EVENTS = {"on_click", "on_hover", "on_key", "on_focus"}
 
 
 class SegmentKind(str, Enum):
