@@ -47,6 +47,8 @@ namespace mlir::rlc
 			llvm::DenseSet<mlir::rlc::AlternativeType> alternatives{};
 			llvm::DenseSet<mlir::rlc::OwningPtrType> pointers{};
 
+			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums{};
+
 			struct SizeAlignment
 			{
 				int size{};
@@ -98,7 +100,6 @@ namespace mlir::rlc
 
 			void emitClassesAndEnums()
 			{
-				llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums;
 				for (auto op : moduleOp.getOps<mlir::rlc::EnumDeclarationOp>())
 				{
 					enums[op.getName()] = op;
@@ -365,6 +366,10 @@ namespace mlir::rlc
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
 				{
+					if(isPrivate(name)){
+						continue;
+					}
+					
 					printer << "\"";
 					emitMangledVariableName(name);
 					printer << "\", ";
@@ -516,6 +521,11 @@ namespace mlir::rlc
 			void emitMangledClassName(mlir::rlc::ClassType type)
 			{
 				printer << "Cls_" << type.getName();
+			}
+
+			void emitMangledEnumName(mlir::rlc::ClassType type)
+			{
+				printer << "Enum_" << type.getName();
 			}
 
 			void emitMangledAlternativeName(mlir::rlc::AlternativeType type)
@@ -759,7 +769,14 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 				{
-					emitMangledClassName(casted);
+					if (enums.count(casted.getName()) == 0)
+					{
+						emitMangledClassName(casted);
+					}
+					else
+					{
+						emitMangledEnumName(casted);
+					}
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{

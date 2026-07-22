@@ -34,6 +34,7 @@ class ObjectWrapper {
             throw new Error("Please don't use the constructor to create an object. Use the static method '.create(...)");
         }
         ObjectWrapper._assertCreatable(this.constructor, ObjectWrapper);
+        Object.seal(this);
     }
 
     static _createEmpty() {
@@ -354,10 +355,14 @@ class ClassWrapper extends ClassLikeWrapper {
 
     _init(value) {
         this.f_init();
-        for (const fieldName of this.constructor._getMemberFieldNames()) {
-            //value !== null && value !== undefined
-            if (value[fieldName] != null) {
-                this[fieldName] = value[fieldName];
+
+        const memberFieldsNames = this.constructor._getMemberFieldNames();
+        for (const [k, v] of Object.entries(value)) {
+            if(memberFieldsNames.includes(k)){
+                this[k] = v;
+            }
+            else{
+                throw new Error(`Property ${k} doesn't exist on this object`)
             }
         }
     }
@@ -588,6 +593,10 @@ class ArrayWrapper extends CompositeWrapper {
 
 export class StringPool {
     static #map = new Map();
+
+    constructor() {
+        throw new Error("You can't instantiate a StringPool: it's a static class");
+    }
 
     static _writeString(str) {
         StringLiteral._assertPrimitive(str);
