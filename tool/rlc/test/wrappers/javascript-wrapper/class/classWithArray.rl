@@ -29,7 +29,7 @@ import * as $ from './wrapper.mjs';
 
 let bigBox = $.Cls_BigBox.create();
 bigBox.v_smallBox.v_name = "Small";
-let arr = $.Arr_Cls_BigBox_2_3.create([[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]]);
+let arr = $.Arr_2_3_Cls_BigBox.create([[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]]);
 bigBox.v_smallBox.v_name = "Big";
 let myObj = $.Cls_ClassWithArray.create({ v_arr: arr});
 for (let i = 0; i < myObj.v_arr.length[0]; i++) {

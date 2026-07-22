@@ -47,7 +47,7 @@ assert.throws(() => $.Int.create("Hello"));
 assert.throws(() => $.StringLiteral.create(4));
 assert.throws(() => $.Cls_SmallBox.create({v_name: 5}));
 assert.throws(() => $.Alt3_Int_Cls_BigBox_StringLiteral.create(0.5));
-assert.throws(() => $.Arr_StringLiteral_4.create(["Hello"]));
+assert.throws(() => $.Arr_4_StringLiteral.create(["Hello"]));
 assert.throws(() => $.Enum_ColorEnum.create("Hello"));
 assert.throws(() => $.Ptr_Int.create("Hello"));
 
@@ -70,11 +70,11 @@ assert.throws(() => obj.v_smallBox = obj);
 obj._free();
 
 obj = $.Alt3_Int_Cls_BigBox_StringLiteral.create();
-assert.throws(() => $.Arr_StringLiteral_4._assertWrapper(obj));
+assert.throws(() => $.Arr_4_StringLiteral._assertWrapper(obj));
 assert.throws(() => obj.value = obj);
 obj._free();
 
-obj = $.Arr_StringLiteral_4.create();
+obj = $.Arr_4_StringLiteral.create();
 assert.throws(() => $.Alt3_Int_Cls_BigBox_StringLiteral._assertWrapper(obj));
 assert.throws(() => obj.set(0, obj));
 obj._free();

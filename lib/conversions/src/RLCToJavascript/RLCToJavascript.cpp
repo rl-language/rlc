@@ -543,12 +543,13 @@ namespace mlir::rlc
 				printer << "Arr_";
 
 				ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(type) };
-				emitJavascriptType(result.type);
 
 				for (int x : result.dimensions)
 				{
-					printer << "_" << x;
+					printer << x << "_";
 				}
+
+				emitJavascriptType(result.type);
 			}
 
 			void emitMangledPointerName(mlir::rlc::OwningPtrType type)

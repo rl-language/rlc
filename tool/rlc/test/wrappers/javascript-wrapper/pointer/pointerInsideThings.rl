@@ -59,7 +59,7 @@ obj2._free();
 
 
 //Array of objects with pointers
-const arr = $.Arr_Cls_SmartPointer_2._createUninitialized();
+const arr = $.Arr_2_Cls_SmartPointer._createUninitialized();
 arr.get(0).v_ptr.value = $.Ptr_Int.malloc();
 arr.get(1).v_ptr.value = $.Ptr_Int.malloc();
 
