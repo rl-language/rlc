@@ -69,6 +69,7 @@ class Layout:
         self.on_key = on_key
         self.on_focus = on_focus
         self.enabled = True
+        self.collapsed = False
         self._children_sized = False
         self.render_path = None
         self.focused = False
@@ -131,6 +132,10 @@ class Layout:
      # Sizing  
     
     def compute_size(self, available_width=None, available_height=None, logger: Optional['LayoutLogger']=None, backend: Optional[ViewBackend] = None) -> None:
+        if self.collapsed:
+            self.width = 0
+            self.height = 0
+            return
         self._children_sized = False
         if logger: logger.snapshot(self, "before_compute")
         available = (available_width, available_height)

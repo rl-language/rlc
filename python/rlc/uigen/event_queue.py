@@ -126,6 +126,9 @@ class UpdateController:
                     self.renderer.update(self.layout, state_obj)
                     self._needs_relayout = True
 
+            if _refresh_visibility(self.layout, state_obj):
+                self._needs_relayout = True
+
             if self._needs_relayout or _any_child_dirty(self.layout):
                 self.relayout_fn()
 
@@ -207,3 +210,17 @@ def _any_child_dirty(layout):
         for c in layout.children
         if hasattr(c, "children")
     )
+
+
+def _refresh_visibility(layout, state_obj):
+    changed = False
+    predicate = getattr(layout, "_visible_when", None)
+    if predicate is not None:
+        collapsed = not predicate(state_obj)
+        if collapsed != getattr(layout, "collapsed", False):
+            layout.collapsed = collapsed
+            changed = True
+    for child in getattr(layout, "children", []):
+        if _refresh_visibility(child, state_obj):
+            changed = True
+    return changed

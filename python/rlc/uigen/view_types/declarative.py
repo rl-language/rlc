@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field as dataclass_field
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from rlc.uigen.layout import (
     Layout, Direction, FIT, GROW, Padding, SizePolicy, SizePolicies,
 )
 from rlc.uigen.view_types.view_type import (
-    ViewType, register_renderer, get_field, seq_at,
+    ViewType, register_renderer, get_field, has_field, seq_at,
     ViewTypeDumper, ViewTypeLoader,
 )
 from rlc.uigen.view_types.struct_renderer import ContainerViewType
@@ -119,6 +119,8 @@ class Field(Spec):
     bg: Optional[str] = None
     index: Optional[int] = None
     cell: Optional["Widget"] = None
+    button: bool = False
+    visible_when: Optional[Callable] = None
 
 
 @dataclass
@@ -157,6 +159,7 @@ class DeclarativeRenderer(ViewType):
             root = self._build_field(self.spec, obj, parent_path, index_bindings)
             root.children_mapping[self.spec.name] = root
             root.render_path = parent_path
+            root.update_fn = lambda v: self.update(root, v)
             return root
 
         if isinstance(self.spec, Widget):
@@ -195,8 +198,16 @@ class DeclarativeRenderer(ViewType):
         for child in panel.child_specs():
             if isinstance(child, Field):
                 value = self._build_field(child, obj, parent_path, index_bindings)
-                built = self._chip(child, value) if child.label else value
+                if child.button:
+                    built = self._button(child, value)
+                elif child.label:
+                    built = self._chip(child, value)
+                else:
+                    built = value
                 self._register_field(root_map, child, value)
+                if child.visible_when is not None:
+                    built._visible_when = child.visible_when
+                    built.collapsed = not child.visible_when(obj)
             elif isinstance(child, Widget):
                 built = self._build_widget(child, obj)
                 if child.field:
@@ -215,6 +226,33 @@ class DeclarativeRenderer(ViewType):
                                       field.label_font_size, field.label_color))
         chip.add_child(value)
         return chip
+
+    def _button(self, field, value):
+        click = self._find_on_click(value)
+        value.sizing = (FIT(), FIT())
+        value.direction = Direction.ROW
+        value.color = field.bg or "#3B7A57"
+        value.border = 2
+        value.padding = Padding(10, 20, 10, 20)
+        value.align = "center"
+        value._no_blend = True
+        value.children = []
+        value.children_mapping = {}
+        if click is not None:
+            value.on_click = click
+            value.interactive = True
+        value.add_child(self.make_text(field.label or field.name, "Arial",
+                                       field.label_font_size + 2, "#FFFFFF"))
+        return value
+
+    def _find_on_click(self, node):
+        if getattr(node, "on_click", None):
+            return node.on_click
+        for child in getattr(node, "children", []):
+            found = self._find_on_click(child)
+            if found is not None:
+                return found
+        return None
 
     def _register_field(self, root_map, field, value):
         if field.index is None:
@@ -301,7 +339,8 @@ class DeclarativeRenderer(ViewType):
         if isinstance(spec, Field):
             renderer = self._field_renderer(spec.name)
             if renderer is not None:
-                renderer.update(layout, get_field(obj, spec.name))
+                value = get_field(obj, spec.name) if has_field(obj, spec.name) else obj
+                renderer.update(layout, value)
         elif isinstance(spec, Widget):
             spec.refresh(layout, self._widget_value(spec, obj))
         elif isinstance(spec, Panel):
@@ -313,6 +352,8 @@ class DeclarativeRenderer(ViewType):
             if built is None:
                 continue
             if isinstance(child, Field):
+                if child.button:
+                    continue
                 renderer = self._field_renderer(child.name)
                 target = built.children[-1] if child.label else built
                 value = get_field(obj, child.name)

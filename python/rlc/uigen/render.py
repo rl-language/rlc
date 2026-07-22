@@ -46,6 +46,8 @@ def render(backend, node):
         _write_text(node, backend)
         return
     if isinstance(node, Layout):
+        if getattr(node, "collapsed", False):
+            return
         color = node.color if node.enabled else _dim_color(node.color)
         backend.draw_rectangle((node.x, node.y), (node.width, node.height), color, node.border)
         for child in node.children:
