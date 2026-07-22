@@ -262,6 +262,9 @@ class DeclarativeRenderer(ViewType):
 
     def _install_cell(self, renderer, cell):
         parent = renderer
+        while getattr(parent, "element_renderer", None) is None and \
+                getattr(parent, "vector_view_type", None) is not None:
+            parent = parent.vector_view_type
         leaf = getattr(parent, "element_renderer", None)
         if leaf is None:
             raise TypeError("cell= requires a collection field")
