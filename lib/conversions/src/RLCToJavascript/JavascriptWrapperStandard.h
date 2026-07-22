@@ -40,18 +40,30 @@ class ObjectWrapper {
     static _createEmpty() {
         const myObj = new this(ObjectWrapper.#authorizedSymbol);
         myObj._address = module._malloc(this._getSize());
-        garbageCollectorRegistry.register(myObj, myObj._address);
-        myObj._owner = true;
 
-        return myObj;
+        try {
+            myObj._owner = true;
+            garbageCollectorRegistry.register(myObj, myObj._address);
+            return myObj;
+        }
+        catch (e) {
+            myObj._free();
+            throw e;
+        }
     }
 
     static clone(toBeCloned) {
         this._assertWrapper(toBeCloned);
         const myObj = this._createEmpty();
-        this._assignCopy(myObj._address, toBeCloned);
 
-        return myObj;
+        try {
+            this._assignCopy(myObj._address, toBeCloned);
+            return myObj;
+        }
+        catch (e) {
+            myObj._free();
+            throw e;
+        }
     }
 
     static create(value) {
@@ -65,19 +77,26 @@ class ObjectWrapper {
             else {
                 myObj._initDefault();
             }
+
+            return myObj;
         }
         catch (e) {
             myObj._free();
             throw e;
         }
-
-        return myObj;
     }
 
     static _createUninitialized() {
         const myObj = this._createEmpty();
-        myObj._initUninitialized();
-        return myObj;
+
+        try {
+            myObj._initUninitialized();
+            return myObj;
+        }
+        catch (e) {
+            myObj._free();
+            throw e;
+        }
     }
 
     static _createByRef(address) {
@@ -191,7 +210,7 @@ class CompositeWrapper extends ObjectWrapper {
 
 
 
-export class PtrWrapper extends CompositeWrapper {
+class PtrWrapper extends CompositeWrapper {
     constructor(symbol) {
         super(symbol);
         ObjectWrapper._assertCreatable(this.constructor, PtrWrapper);
@@ -233,11 +252,16 @@ export class PtrWrapper extends CompositeWrapper {
         const elementClass = this._getElementClass();
         const actualAddress = module._malloc(elementClass._getSize() * howMany);
 
-        for (let i = 0; i < howMany; i++) {
-            elementClass._createByRef(actualAddress + elementClass._getSize() * i)._initDefault();
+        try {
+            for (let i = 0; i < howMany; i++) {
+                elementClass._createByRef(actualAddress + elementClass._getSize() * i)._initDefault();
+            }
+            return actualAddress;
         }
-
-        return actualAddress;
+        catch (e) {
+            free(actualAddress, howMany);
+            throw e;
+        }
     }
 
     static _getElementClass() {
@@ -358,11 +382,11 @@ class ClassWrapper extends ClassLikeWrapper {
 
         const memberFieldsNames = this.constructor._getMemberFieldNames();
         for (const [k, v] of Object.entries(value)) {
-            if(memberFieldsNames.includes(k)){
+            if (memberFieldsNames.includes(k)) {
                 this[k] = v;
             }
-            else{
-                throw new Error(`Property ${k} doesn't exist on this object`)
+            else {
+                throw new Error(`Property "${k}" doesn't exist on this object`)
             }
         }
     }
@@ -395,12 +419,18 @@ class AlternativeWrapper extends CompositeWrapper {
     }
 
     _initDefault() {
+        this._index = -1;
+
         const classes = this.constructor._getAlternativeClasses();
         const defaultObject = classes[0].create();
-        this._init(defaultObject);
 
-        //Potential double free if used incorrectly
-        defaultObject._free();
+        try {
+            this._init(defaultObject);
+        }
+        finally {
+            //Potential double free if used incorrectly
+            defaultObject._free();
+        }
     }
 
     _initUninitialized() {
@@ -534,13 +564,16 @@ class ArrayWrapper extends CompositeWrapper {
     _initDefault() {
         const defaultObject = this.constructor._getElementClass().create();
 
-        let linearLength = this.constructor._getLinearLength();
-        for (let i = 0; i < linearLength; i++) {
-            this.constructor._getElementClass()._assignCopy(this.#getAddressByLinearIndex(i), defaultObject);
+        try {
+            let linearLength = this.constructor._getLinearLength();
+            for (let i = 0; i < linearLength; i++) {
+                this.constructor._getElementClass()._assignCopy(this.#getAddressByLinearIndex(i), defaultObject);
+            }
         }
-
-        //Potential double free if used incorrectly
-        defaultObject._free();
+        finally {
+            //Potential double free if used incorrectly
+            defaultObject._free();
+        }
     }
 
     _drop() {
@@ -849,14 +882,12 @@ function generalFunction(actualArgs, signatures) {
         return true;
     }
 
-    function callFunction(functionName, params, modifiedParams) {
+    function callFunction(functionName, params) {
         if (Address._getSize() === 8) {
             params = params.map((x) => BigInt(x));
         }
+
         module[`_${functionName}`](...params);
-        for (const obj of modifiedParams) {
-            obj._free();
-        }
     }
 
     for (const signature of signatures) {
@@ -867,46 +898,65 @@ function generalFunction(actualArgs, signatures) {
             const params = [];
             const modifiedParams = [];
 
-            for (let i = 0; i < actualArgs.length; i++) {
-                const currentArg = actualArgs[i];
+            try {
 
-                if (ObjectWrapper.prototype.isPrototypeOf(currentArg)) {
-                    params.push(currentArg._address);
-                }
-                else {
-                    const modified = expectedTypes[i].create(currentArg);
-                    modifiedParams.push(modified);
-                    params.push(modified._address);
-                }
-            }
+                for (let i = 0; i < actualArgs.length; i++) {
+                    const currentArg = actualArgs[i];
 
-            if (isRef) {
-                const currentStackPointer = module.stackSave();
-                const resultAddress = module.stackAlloc(Address._getSize());
-                params.unshift(resultAddress);
-                callFunction(functionName, params, modifiedParams);
-                const addressRef = Address._getValueFromAddress(resultAddress);
-                const returnedObject = returnType._createByRef(addressRef);
-                module.stackRestore(currentStackPointer);
+                    if (ObjectWrapper.prototype.isPrototypeOf(currentArg)) {
+                        params.push(currentArg._address);
+                    }
+                    else {
+                        const modified = expectedTypes[i].create(currentArg);
+                        modifiedParams.push(modified);
+                        params.push(modified._address);
+                    }
+                }
+
+
+
+                //Returning by ref
+                if (isRef) {
+                    const currentStackPointer = module.stackSave();
+                    try {
+                        const resultAddress = module.stackAlloc(Address._getSize());
+                        params.unshift(resultAddress);
+                        callFunction(functionName, params);
+                        const addressRef = Address._getValueFromAddress(resultAddress);
+                        const returnedObject = returnType._createByRef(addressRef);
+                        return returnedObject;
+                    }
+                    finally {
+                        module.stackRestore(currentStackPointer);
+                    }
+                }
+
+
+
+                //Returning by copy
+                let returnedObject = undefined;
+                if (returnType != null) {
+                    returnedObject = returnType.create();
+                    params.unshift(returnedObject._address);
+
+                    if (returnedObject instanceof PrimitiveWrapper) {
+                        modifiedParams.unshift(returnedObject);
+                    }
+                }
+
+                callFunction(functionName, params);
+
+                if (returnedObject instanceof PrimitiveWrapper) {
+                    return returnedObject.value;
+                }
+
                 return returnedObject;
             }
-
-            let returnedObject;
-
-            if (returnType != null) {
-                returnedObject = returnType.create();
-                params.unshift(returnedObject._address);
+            finally {
+                for (const obj of modifiedParams) {
+                    obj._free();
+                }
             }
-
-            callFunction(functionName, params, modifiedParams);
-
-            if (returnedObject instanceof PrimitiveWrapper) {
-                const returnedValue = returnedObject.value;
-                returnedObject._free();
-                return returnedValue;
-            }
-
-            return returnedObject;
         }
     }
 

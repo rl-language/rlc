@@ -660,6 +660,14 @@ namespace mlir::rlc
 				std::abort();
 			}
 
+			int correctSizeWithAlignment(int size, int alignment){
+				const int remainder{size % alignment};
+				if(remainder != 0){
+					size += alignment - remainder;
+				}
+				return size;
+			}
+
 			SizeAlignment getSizeAndAlignmentOfUnion(mlir::rlc::AlternativeType type)
 			{
 				int maxSize = -1;
@@ -680,6 +688,8 @@ namespace mlir::rlc
 						maxAlignment = currentSizeAndAlignment.alignment;
 					}
 				}
+
+				maxSize = correctSizeWithAlignment(maxSize, maxAlignment);
 
 				return { maxSize, maxAlignment };
 			}
@@ -725,7 +735,7 @@ namespace mlir::rlc
 					const int memberSize = structFieldData[i].size;
 					const int memberAlignment = structFieldData[i].alignment;
 
-					structSize += structSize % memberAlignment;
+					structSize = correctSizeWithAlignment(structSize, memberAlignment);
 					offsets.push_back(structSize);
 					structSize += memberSize;
 
@@ -734,7 +744,7 @@ namespace mlir::rlc
 						maxAlignment = memberAlignment;
 					}
 				}
-				structSize += structSize % maxAlignment;
+				structSize = correctSizeWithAlignment(structSize, maxAlignment);
 
 				return { structSize, maxAlignment, offsets };
 			}
