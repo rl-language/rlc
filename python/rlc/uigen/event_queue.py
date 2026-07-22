@@ -119,8 +119,7 @@ class UpdateController:
             if self._state_changed:
                 can_target = (self._last_state is not None
                               and self._program_module is not None
-                              and hasattr(self._program_module, 'diff')
-                              and hasattr(self._program_module, 'VectorTStringT'))
+                              )
                 if can_target:
                     self._targeted_update(state_obj)
                 else:

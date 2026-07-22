@@ -99,13 +99,13 @@ class State:
         return self.program.module.can_apply(action, self.state)
 
     def as_byte_vector(self):
-        return self.program.module.as_byte_vector(obj, self.state)
+        return self.program.as_byte_vector(self.state)
 
     def load_string(self, string: str) -> bool:
-        return self.program.module.load_string(string, self.state)
+        return self.program.load_string(string, self.state)
 
     def load_byte_vector(self, byte_vector):
-        self.program.module.load_byte_vector(byte_vector, self.state)
+        self.program.load_byte_vector(byte_vector, self.state)
 
     def write_binary(self, path: str):
         self.program.module.write_binary(path, self.state)
@@ -133,6 +133,8 @@ class Program:
     def __init__(self, module_path: str, tmp_dir=None):
         if not isinstance(module_path, ModuleType):
             self.module_path = module_path
+            if tmp_dir and tmp_dir not in sys.path:
+                sys.path.insert(0, tmp_dir)
             self.module = import_file(module_path, module_path)
         else:
             self.module = module_path
