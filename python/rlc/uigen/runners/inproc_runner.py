@@ -68,7 +68,7 @@ def run(cfg: GameConfig, window, backend, args):
                             kind=SignalKind.ACTION,
                             handler_name=intent.handler, args=intent.args))
                 elif isinstance(event, KeyEvent) and cfg.handles_keys:
-                    _focused, intent = resolve_key(layout, event.key)
+                    _focused, intent = resolve_key(layout, event.char)
                     if intent is not None:
                         controller.enqueue(UpdateSignal(
                             kind=SignalKind.ACTION,

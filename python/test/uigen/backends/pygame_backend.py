@@ -133,7 +133,7 @@ class PygameWindow:
                 mx, my = pygame.mouse.get_pos()
                 yield ClickEvent(mx, my)
             elif event.type == pygame.KEYDOWN:
-                yield KeyEvent(event.key)
+                yield KeyEvent(event.key, event.unicode)
 
     def begin_frame(self):
         self._screen.fill("white")

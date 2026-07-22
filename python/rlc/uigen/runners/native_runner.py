@@ -65,7 +65,7 @@ def run(cfg: GameConfig, window, backend, args):
                         rlc_dispatch(intent.handler, program, state, intent.args)
                         needs_relayout = True
                 elif isinstance(event, KeyEvent) and cfg.handles_keys and not state.is_done():
-                    _focused, intent = resolve_key(layout, event.key)
+                    _focused, intent = resolve_key(layout, event.char)
                     if intent is not None:
                         rlc_dispatch(intent.handler, program, state, intent.args)
                         needs_relayout = True

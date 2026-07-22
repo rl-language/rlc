@@ -172,7 +172,7 @@ def run_ui(cfg: GameConfig, window, backend, transport: Transport, args):
                                     "name": intent.handler, "args": intent.args})
                     next_action_id += 1
             elif isinstance(event, KeyEvent) and not game_over and cfg.handles_keys:
-                _focused, intent = resolve_key(layout, event.key)
+                _focused, intent = resolve_key(layout, event.char)
                 if intent is not None:
                     transport.send({"type": "action", "id": next_action_id,
                                     "name": intent.handler, "args": intent.args})

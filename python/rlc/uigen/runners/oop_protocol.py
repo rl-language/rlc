@@ -11,15 +11,20 @@ class ProtocolError(Exception):
 
 def _enc_scalar(v):
     if isinstance(v, bool):
-        return "true" if v else "false"
-    return str(v)
+        return "b:" + ("true" if v else "false")
+    if isinstance(v, int):
+        return "i:" + str(v)
+    return "s:" + str(v)
 
 
 def _dec_scalar(s: str):
-    if s == "true":
-        return True
-    if s == "false":
-        return False
+    tag, _, body = s.partition(":")
+    if tag == "b":
+        return body == "true"
+    if tag == "i":
+        return int(body)
+    if tag == "s":
+        return body
     try:
         return int(s)
     except ValueError:

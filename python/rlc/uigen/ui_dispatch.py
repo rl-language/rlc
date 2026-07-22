@@ -25,7 +25,7 @@ def resolve_click(layout, x, y, focus_mode: bool):
     return target, None
 
 
-def resolve_key(layout, key):
+def resolve_key(layout, value):
     focused = layout.find_focused_node()
     if not (focused and getattr(focused, "on_key", None) and
             getattr(focused, "enabled", True)):
@@ -34,5 +34,5 @@ def resolve_key(layout, key):
     args = dict(meta["args"])
     for param_name in meta.get("params", []):
         if param_name == "value":
-            args["value"] = key
+            args["value"] = value
     return focused, Intent(meta["handler"], args, list(meta.get("params", [])))

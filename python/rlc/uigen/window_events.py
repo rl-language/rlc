@@ -23,3 +23,4 @@ class ClickEvent:
 @dataclass
 class KeyEvent:
     key: int
+    char: str = ""
