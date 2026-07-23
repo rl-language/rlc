@@ -427,11 +427,13 @@ namespace mlir::rlc
 
 					if (not memberFunction.getPrecondition().empty())
 					{
-						sortedOverloads["can_" + memberFunction.getUnmangledName().str()].push_back(
-								mlir::FunctionType::get(
-										memberFunction.getContext(),
-										memberFunction.getType().getInputs(),
-										{ mlir::rlc::BoolType::get(memberFunction.getContext()) }));
+						sortedOverloads["can_" + memberFunction.getUnmangledName().str()]
+								.push_back(
+										mlir::FunctionType::get(
+												memberFunction.getContext(),
+												memberFunction.getType().getInputs(),
+												{ mlir::rlc::BoolType::get(
+														memberFunction.getContext()) }));
 					}
 				}
 
@@ -536,6 +538,11 @@ namespace mlir::rlc
 			void emitMangledEnumName(mlir::rlc::ClassType type)
 			{
 				printer << "Enum_" << type.getName();
+			}
+
+			void emitMangledActionFunctionName(mlir::rlc::ClassType type)
+			{
+				printer << "Act_" << type.getName();
 			}
 
 			void emitMangledAlternativeName(mlir::rlc::AlternativeType type)
@@ -794,7 +801,14 @@ namespace mlir::rlc
 				{
 					if (enums.count(casted.getName()) == 0)
 					{
-						emitMangledClassName(casted);
+						if (builder.isClassOfAction(casted))
+						{
+							emitMangledActionFunctionName(casted);
+						}
+						else
+						{
+							emitMangledClassName(casted);
+						}
 					}
 					else
 					{
