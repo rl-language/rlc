@@ -53,6 +53,6 @@ container._free();
 
 assert.throws(() => $.f_foo4(5));
 
-//assert.throws(() => $.Ptr_Cls_Bad.malloc(5));
+assert.throws(() => $.Ptr_Cls_Bad.malloc(5));
 
 $._detectMemoryLeaksDoNotUse();

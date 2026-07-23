@@ -15,5 +15,8 @@ import * as $ from './wrapper.mjs';
 assert.strictEqual($.f_positiveSum(1,2), 3);
 assert.throws(() => $.f_positiveSum(0,2));
 
+assert.strictEqual($.f_can_positiveSum(1,2), true);
+assert.strictEqual($.f_can_positiveSum(0,2), false);
+
 $.StringPool.free();
 $._detectMemoryLeaksDoNotUse();

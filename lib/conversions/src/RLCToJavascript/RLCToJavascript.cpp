@@ -366,10 +366,11 @@ namespace mlir::rlc
 				printer << "static _getMemberFieldNames(){ return [";
 				for (auto name : type.getMemberNames())
 				{
-					if(isPrivate(name)){
+					if (isPrivate(name))
+					{
 						continue;
 					}
-					
+
 					printer << "\"";
 					emitMangledVariableName(name);
 					printer << "\", ";
@@ -423,6 +424,15 @@ namespace mlir::rlc
 				{
 					sortedOverloads[memberFunction.getUnmangledName()].push_back(
 							memberFunction.getType());
+
+					if (not memberFunction.getPrecondition().empty())
+					{
+						sortedOverloads["can_" + memberFunction.getUnmangledName().str()].push_back(
+								mlir::FunctionType::get(
+										memberFunction.getContext(),
+										memberFunction.getType().getInputs(),
+										{ mlir::rlc::BoolType::get(memberFunction.getContext()) }));
+					}
 				}
 
 				if (not this->table.isTriviallyInitializable(classType))
@@ -660,9 +670,11 @@ namespace mlir::rlc
 				std::abort();
 			}
 
-			int correctSizeWithAlignment(int size, int alignment){
-				const int remainder{size % alignment};
-				if(remainder != 0){
+			int correctSizeWithAlignment(int size, int alignment)
+			{
+				const int remainder{ size % alignment };
+				if (remainder != 0)
+				{
 					size += alignment - remainder;
 				}
 				return size;

@@ -252,14 +252,20 @@ class PtrWrapper extends CompositeWrapper {
         const elementClass = this._getElementClass();
         const actualAddress = module._malloc(elementClass._getSize() * howMany);
 
+        let i = 0;
+
         try {
-            for (let i = 0; i < howMany; i++) {
+            for (; i < howMany; i++) {
                 elementClass._createByRef(actualAddress + elementClass._getSize() * i)._initDefault();
             }
             return actualAddress;
         }
         catch (e) {
-            free(actualAddress, howMany);
+            for (let k = 0; k < i; k++) {
+                elementClass._createByRef(actualAddress + elementClass._getSize() * k)._drop();
+            }
+            module._free(actualAddress);
+
             throw e;
         }
     }
