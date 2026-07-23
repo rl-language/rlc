@@ -15,15 +15,6 @@
 #include "rlc/dialect/Visits.hpp"
 #include "rlc/utils/PatternMatcher.hpp"
 
-// TODO: Per le member functions non generiamo le precondizioni? Nel wrapper di
-// python non viene fatto (vengono generate solo per le non-member funcitons).
-
-// TODO: Vedere se puoi evitare di usare std::string e std::vector
-// TODO: Scrivere test
-
-// TODO: Decidere se generare le alternative tramite l'array alternatives
-// oppure ciclando dentro postOrderTypes
-
 namespace mlir::rlc
 {
 
@@ -661,9 +652,9 @@ namespace mlir::rlc
 						linearLength *= x;
 					}
 
-					int underlyingSize = getSizeAndAlignmentByType(result.type).size;
+					SizeAlignment underlyingSizeAndAlignment = getSizeAndAlignmentByType(result.type);
 
-					return { linearLength * underlyingSize, underlyingSize };
+					return { linearLength * underlyingSizeAndAlignment.size, underlyingSizeAndAlignment.alignment };
 				}
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
