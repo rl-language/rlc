@@ -523,7 +523,26 @@ namespace mlir::rlc
 
 			void emitMangledClassName(mlir::rlc::ClassType type)
 			{
-				printer << "Cls_" << type.getName();
+				const auto templateParameters = type.getExplicitTemplateParameters();
+				if (templateParameters.size() == 0)
+				{
+					printer << "Cls_" << type.getName();
+				}
+				else
+				{
+					printer << "ClsT_" << type.getName() << "$";
+					bool comma = false;
+					for (const auto t : templateParameters)
+					{
+						if (comma)
+						{
+							printer << "_";
+						}
+						comma = true;
+						emitJavascriptType(t);
+					}
+					printer << "$";
+				}
 			}
 
 			void emitMangledEnumName(mlir::rlc::ClassType type)
@@ -652,9 +671,11 @@ namespace mlir::rlc
 						linearLength *= x;
 					}
 
-					SizeAlignment underlyingSizeAndAlignment = getSizeAndAlignmentByType(result.type);
+					SizeAlignment underlyingSizeAndAlignment =
+							getSizeAndAlignmentByType(result.type);
 
-					return { linearLength * underlyingSizeAndAlignment.size, underlyingSizeAndAlignment.alignment };
+					return { linearLength * underlyingSizeAndAlignment.size,
+									 underlyingSizeAndAlignment.alignment };
 				}
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))

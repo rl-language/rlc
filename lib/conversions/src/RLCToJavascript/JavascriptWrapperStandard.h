@@ -17,9 +17,9 @@ export function _detectMemoryLeaksDoNotUse() {
     }
 }
 
-const garbageCollectorRegistry = new FinalizationRegistry((address) => {
-    if (address !== 0) {
-        module._free(address);
+const garbageCollectorRegistry = new FinalizationRegistry((fakeObj) => {
+    if (fakeObj._address !== 0) {
+        fakeObj._free();
     }
 });
 
@@ -40,10 +40,10 @@ class ObjectWrapper {
     static _createEmpty() {
         const myObj = new this(ObjectWrapper.#authorizedSymbol);
         myObj._address = module._malloc(this._getSize());
+        myObj._owner = true;
 
         try {
-            myObj._owner = true;
-            garbageCollectorRegistry.register(myObj, myObj._address);
+            garbageCollectorRegistry.register(myObj, myObj._fakeClone());
             return myObj;
         }
         catch (e) {
@@ -133,6 +133,16 @@ class ObjectWrapper {
         this._drop();
         module._free(this._address);
         this._address = 0;
+    }
+
+    _fakeClone() {
+        this._assertAddress();
+
+        const fakeObj = new this.constructor(ObjectWrapper.#authorizedSymbol);
+        fakeObj._address = this._address;
+        fakeObj._owner = this._owner;
+
+        return fakeObj;
     }
 
     static _assertWrapper(input) {
