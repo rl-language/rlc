@@ -7,8 +7,8 @@ from rlc.uigen.view_types.factory import ViewTypeTreeFactory
 from rlc.uigen.view_types.interaction_context import InteractionContext
 from rlc.uigen.view_types.dispatch_actions import ActionGate, dispatch_action as rlc_dispatch
 from rlc.uigen.ui_dispatch import resolve_click, resolve_key, FOCUS
-from rlc.uigen.event_queue import _rlc_string_to_python, _refresh_visibility
-from rlc.uigen.render import render, relayout
+from rlc.uigen.event_queue import _rlc_string_to_python
+from rlc.uigen.render import render, relayout, refresh_view
 from rlc.uigen.game_config import GameConfig
 from rlc.uigen.runners.oop_protocol import (
     Transport, connect, listen_one, walk_layout, resolve_value,
@@ -180,7 +180,7 @@ def run_ui(cfg: GameConfig, window, backend, transport: Transport, args):
 
         gate.apply_valid(layout, valid_keys)
 
-        if _refresh_visibility(layout, state.state):
+        if refresh_view(layout, state.state):
             needs_relayout = True
 
         if needs_relayout:

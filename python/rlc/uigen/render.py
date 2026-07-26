@@ -64,13 +64,15 @@ def render(backend, node):
 def _draw_image_node(node, backend):
     pos = (node.x, node.y)
     size = (node.width, node.height)
-    if node.image_path and backend.draw_image(node.image_path, pos, size):
-        return
-    if hasattr(backend, "draw_card"):
-        backend.draw_card(pos, size, tint=node.tint or "white",
-                          label=node.label, sub_label=node.sub_label)
-    else:
-        backend.draw_rectangle(pos, size, node.tint or "white")
+    drew_image = node.image_path and backend.draw_image(node.image_path, pos, size)
+    if not drew_image:
+        if hasattr(backend, "draw_card"):
+            backend.draw_card(pos, size, tint=node.tint or "white",
+                              label=node.label, sub_label=node.sub_label)
+        else:
+            backend.draw_rectangle(pos, size, node.tint or "white")
+    if getattr(node, "selected_highlight", False):
+        backend.draw_border(pos, size, "yellow", border_size=4)
 
 
 def _write_text(node, backend):
@@ -107,3 +109,31 @@ def relayout(window_size, backend, layout, scroll, margin=20):
                         logger=None, backend=backend)
     clamp_scroll(layout, view_w, view_h, scroll)
     layout.layout(margin + scroll["x"], margin + scroll["y"], logger=None)
+
+
+def refresh_visibility(layout, state_obj):
+    changed = False
+    predicate = getattr(layout, "_visible_when", None)
+    if predicate is not None:
+        collapsed = not predicate(state_obj)
+        if collapsed != getattr(layout, "collapsed", False):
+            layout.collapsed = collapsed
+            changed = True
+    for child in getattr(layout, "children", []):
+        if refresh_visibility(child, state_obj):
+            changed = True
+    return changed
+
+
+def refresh_highlight(layout, state_obj):
+    predicate = getattr(layout, "_highlight_when", None)
+    if predicate is not None:
+        layout.selected_highlight = bool(predicate(state_obj, layout))
+    for child in getattr(layout, "children", []):
+        refresh_highlight(child, state_obj)
+
+
+def refresh_view(layout, state_obj):
+    needs_relayout = refresh_visibility(layout, state_obj)
+    refresh_highlight(layout, state_obj)
+    return needs_relayout

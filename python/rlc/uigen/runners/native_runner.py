@@ -5,8 +5,8 @@ from rlc.uigen.view_types.factory import ViewTypeTreeFactory
 from rlc.uigen.view_types.interaction_context import InteractionContext
 from rlc.uigen.view_types.dispatch_actions import ActionGate, dispatch_action as rlc_dispatch
 from rlc.uigen.ui_dispatch import resolve_click, resolve_key, FOCUS
-from rlc.uigen.event_queue import _any_child_dirty, _refresh_visibility
-from rlc.uigen.render import render, relayout
+from rlc.uigen.event_queue import _any_child_dirty
+from rlc.uigen.render import render, relayout, refresh_view
 from rlc.uigen.game_config import GameConfig
 from rlc.uigen.window_events import QuitEvent, ResizeEvent, ScrollEvent, ClickEvent, KeyEvent
 
@@ -78,7 +78,7 @@ def run(cfg: GameConfig, window, backend, args):
 
             gate.apply(layout)
 
-            if _refresh_visibility(layout, state.state):
+            if refresh_view(layout, state.state):
                 needs_relayout = True
 
             if needs_relayout or _any_child_dirty(layout):
