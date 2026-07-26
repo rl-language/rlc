@@ -57,10 +57,18 @@ ViewTypeLoader.add_constructor("!Direction", _direction_constructor)
 ViewTypeLoader.add_constructor("!SizePolicy", _sizepolicy_constructor)
 
 
+def _stamp_highlight(node, predicate):
+    if getattr(node, "on_click", None):
+        node._highlight_when = predicate
+    for child in getattr(node, "children", []):
+        _stamp_highlight(child, predicate)
+
+
 class _ElementHolder:
     def __init__(self):
         self.children_mapping = {}
         self.children = []
+        self.full_subscribers = []
 
     @property
     def update_fn(self):
@@ -68,6 +76,9 @@ class _ElementHolder:
             for i, element in self.children_mapping.items():
                 if element.update_fn:
                     element.update_fn(seq_at(collection, i))
+            for node in self.full_subscribers:
+                if node.update_fn:
+                    node.update_fn(collection)
         return _update
 
 
@@ -121,6 +132,7 @@ class Field(Spec):
     cell: Optional["Widget"] = None
     button: bool = False
     visible_when: Optional[Callable] = None
+    highlight_when: Optional[Callable] = None
 
 
 @dataclass
@@ -132,6 +144,25 @@ class Widget(Spec):
 
     def refresh(self, layout, value) -> None:
         pass
+
+
+@dataclass
+class ActionButton(Widget):
+    label: str = ""
+    action: str = ""
+    args: dict = dataclass_field(default_factory=dict)
+    bg: str = "#3B7A57"
+
+    def build(self, value) -> Layout:
+        from rlc.uigen.text import Text as _Text
+        node = Layout(sizing=(FIT(), FIT()), direction=Direction.ROW,
+                      color=self.bg, border=2, padding=Padding(10, 20, 10, 20),
+                      align="center")
+        node._no_blend = True
+        node.on_click = {"handler": self.action, "args": dict(self.args)}
+        node.interactive = True
+        node.add_child(_Text(self.label or self.action, "Arial", 18, "#FFFFFF"))
+        return node
 
 
 @register_renderer
@@ -211,7 +242,7 @@ class DeclarativeRenderer(ViewType):
             elif isinstance(child, Widget):
                 built = self._build_widget(child, obj)
                 if child.field:
-                    root_map[child.field] = built
+                    self._register_widget_field(root_map, child.field, built)
             else:
                 built = self._build_spec(child, obj, parent_path, index_bindings, root_map)
                 if isinstance(child, Text) and child.color is None:
@@ -258,11 +289,25 @@ class DeclarativeRenderer(ViewType):
         if field.index is None:
             root_map[field.name] = value
             return
-        holder = root_map.get(field.name)
-        if holder is None or not isinstance(holder, _ElementHolder):
-            holder = _ElementHolder()
-            root_map[field.name] = holder
+        holder = self._ensure_holder(root_map, field.name)
         holder.children_mapping[field.index] = value
+
+    def _register_widget_field(self, root_map, name, node):
+        if root_map.get(name) is None:
+            root_map[name] = node
+            return
+        holder = self._ensure_holder(root_map, name)
+        holder.full_subscribers.append(node)
+
+    def _ensure_holder(self, root_map, name):
+        existing = root_map.get(name)
+        if isinstance(existing, _ElementHolder):
+            return existing
+        holder = _ElementHolder()
+        if existing is not None:
+            holder.full_subscribers.append(existing)
+        root_map[name] = holder
+        return holder
 
     def _build_field(self, spec, obj, parent_path, index_bindings):
         renderer = self._field_renderer(spec.name)
@@ -296,24 +341,34 @@ class DeclarativeRenderer(ViewType):
         layout = renderer(collection, **kwargs)
         if spec.bg is not None:
             self._blend(layout, spec.bg)
+        if spec.highlight_when is not None:
+            _stamp_highlight(layout, spec.highlight_when)
         return layout
 
+    _CELL_LINKS = ("element_renderer", "vector_view_type", "inner")
+
+    def _cell_link(self, node):
+        for attr in self._CELL_LINKS:
+            child = getattr(node, attr, None)
+            if child is not None:
+                return attr, child
+        return None, None
+
     def _install_cell(self, renderer, cell):
-        parent = renderer
-        while getattr(parent, "element_renderer", None) is None and \
-                getattr(parent, "vector_view_type", None) is not None:
-            parent = parent.vector_view_type
-        leaf = getattr(parent, "element_renderer", None)
-        if leaf is None:
+        parent, attr = None, None
+        node = renderer
+        while True:
+            link_attr, child = self._cell_link(node)
+            if child is None:
+                break
+            parent, attr, node = node, link_attr, child
+        if parent is None:
             raise TypeError("cell= requires a collection field")
-        while getattr(leaf, "element_renderer", None) is not None:
-            parent = leaf
-            leaf = leaf.element_renderer
-        if isinstance(leaf, DeclarativeRenderer) and leaf.spec is cell:
+        if isinstance(node, DeclarativeRenderer) and node.spec is cell:
             return
-        wrapped = DeclarativeRenderer(leaf.rlc_type_name, cell)
-        wrapped.interaction_mappings = leaf.interaction_mappings
-        parent.element_renderer = wrapped
+        wrapped = DeclarativeRenderer(node.rlc_type_name, cell)
+        wrapped.interaction_mappings = node.interaction_mappings
+        setattr(parent, attr, wrapped)
 
     @staticmethod
     def _blend(node, color):
@@ -330,7 +385,10 @@ class DeclarativeRenderer(ViewType):
         return get_field(obj, widget.field) if widget.field else obj
 
     def _build_widget(self, widget, obj):
-        return widget.build(self._widget_value(widget, obj))
+        node = widget.build(self._widget_value(widget, obj))
+        node.update_fn = lambda v: widget.refresh(
+            node, get_field(v, widget.field) if widget.field and has_field(v, widget.field) else v)
+        return node
 
     def update(self, layout, obj):
         self._update_spec(self.spec, layout, obj)
