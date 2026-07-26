@@ -18,9 +18,7 @@ export function _detectMemoryLeaksDoNotUse() {
 }
 
 const garbageCollectorRegistry = new FinalizationRegistry((fakeObj) => {
-    if (fakeObj._address !== 0) {
-        fakeObj._free();
-    }
+    fakeObj._free();
 });
 
 class ObjectWrapper {
@@ -43,7 +41,7 @@ class ObjectWrapper {
         myObj._owner = true;
 
         try {
-            garbageCollectorRegistry.register(myObj, myObj._fakeClone());
+            garbageCollectorRegistry.register(myObj, myObj._fakeClone(), myObj);
             return myObj;
         }
         catch (e) {
@@ -133,6 +131,7 @@ class ObjectWrapper {
         this._drop();
         module._free(this._address);
         this._address = 0;
+        garbageCollectorRegistry.unregister(this);
     }
 
     _fakeClone() {
