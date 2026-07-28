@@ -337,7 +337,9 @@ namespace mlir::rlc
 						 llvm::enumerate(enumDecl.getBody()
 																 .getOps<mlir::rlc::EnumFieldDeclarationOp>()))
 				{
-					printer << "static " << value.value().getName() << " = " << i << ";";
+					printer << "static ";
+					emitMangledVariableName(value.value().getName());
+					printer << " = " << i << ";";
 					i++;
 				}
 

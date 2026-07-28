@@ -23,16 +23,16 @@ import * as $ from './wrapper.mjs';
 
 //Checking if cloning works
 
-const original = $.Enum_ColorEnum.create($.Enum_ColorEnum.red);
+const original = $.Enum_ColorEnum.create($.Enum_ColorEnum.v_red);
 const cloned = $.Enum_ColorEnum.clone(original);
 assert.strictEqual(original.value, cloned.value);
 original._free();
 cloned._free();
 
-const other = $.Enum_ColorEnum.create($.Enum_ColorEnum.green);
-const other2 = $.Enum_ColorEnum.create($.Enum_ColorEnum.blue);
+const other = $.Enum_ColorEnum.create($.Enum_ColorEnum.v_green);
+const other2 = $.Enum_ColorEnum.create($.Enum_ColorEnum.v_blue);
 other.value = other2.value;
-assert.strictEqual(other.value, $.Enum_ColorEnum.blue);
+assert.strictEqual(other.value, $.Enum_ColorEnum.v_blue);
 other._free();
 other2._free();
 
