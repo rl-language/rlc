@@ -14,7 +14,6 @@ release
 .cache
 .idea
 logs
-.hypothesis/
 python/test/uigen/fuzz/results
 
 # User-specific stuff
