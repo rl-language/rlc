@@ -34,8 +34,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking if objects are properly passed as function arguments
 
-let smallBox = $.Cls_SmallBox.create();
-let bigBox = $.Cls_BigBox.create();
+let smallBox = $.SmallBox.create();
+let bigBox = $.BigBox.create();
 
 $.f_foo(smallBox, bigBox);
 assert.strictEqual(smallBox.v_name, "Other small box");

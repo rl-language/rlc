@@ -2,6 +2,9 @@
 
 namespace mlir::rlc {
     constexpr const char* standardJavascriptWrapper = R"JSWrapper(
+//TODO: Scrivere test per questo
+//$.Cls_MyClass.create(4); dovrebbe lanciare eccezione.
+
 import createModule from "./glueCode.mjs";
 const module = await createModule();
 
@@ -21,11 +24,18 @@ const garbageCollectorRegistry = new FinalizationRegistry((fakeObj) => {
     fakeObj._free();
 });
 
+/*
+TODO:
+Se so per certo che tutte le classi, array e alternative hanno sempre il metodo
+assign, allora posso cancellare il metodo _assignCopy.
+Altrimenti, no.
+Guarda, ti conviene rimettere _assignCopy a questo punto, alla peggio è un metodo statico in più.
+*/
+
 class ObjectWrapper {
     static #authorizedSymbol = Symbol("authorizedSymbol");
 
     _address;
-    _owner;
 
     constructor(symbol) {
         if (symbol !== ObjectWrapper.#authorizedSymbol) {
@@ -37,8 +47,7 @@ class ObjectWrapper {
 
     static _createEmpty() {
         const myObj = new this(ObjectWrapper.#authorizedSymbol);
-        myObj._address = module._malloc(this._getSize());
-        myObj._owner = true;
+        myObj._address = module._calloc(1, this._getSize());
 
         try {
             garbageCollectorRegistry.register(myObj, myObj._fakeClone(), myObj);
@@ -55,7 +64,7 @@ class ObjectWrapper {
         const myObj = this._createEmpty();
 
         try {
-            this._assignCopy(myObj._address, toBeCloned);
+            this._createByRef(myObj._address).f_assign(toBeCloned);
             return myObj;
         }
         catch (e) {
@@ -68,12 +77,11 @@ class ObjectWrapper {
         const myObj = this._createEmpty();
 
         try {
+            myObj._init();
+
             //value !== null && value !== undefined
             if (value != null) {
-                myObj._init(value);
-            }
-            else {
-                myObj._initDefault();
+                myObj._setInitialValue(value);
             }
 
             return myObj;
@@ -84,6 +92,7 @@ class ObjectWrapper {
         }
     }
 
+    //TODO: Togliere questo e _initUninitialized?
     static _createUninitialized() {
         const myObj = this._createEmpty();
 
@@ -99,10 +108,7 @@ class ObjectWrapper {
 
     static _createByRef(address) {
         let myObj = new this(ObjectWrapper.#authorizedSymbol);
-
-        myObj._owner = false;
         myObj._address = address;
-
         return myObj;
     }
 
@@ -119,15 +125,14 @@ class ObjectWrapper {
 
     _set(fieldClass, fieldOffset, value) {
         this._assertAddress();
-        fieldClass._assignCopy(this._address + fieldOffset, value);
+        fieldClass._createByRef(this._address + fieldOffset).f_assign(value);
     }
 
+    /*
+    You should call _free only on the objects created via the static method "create"
+    */
     _free() {
-        if (this._owner === false) {
-            return;
-        }
         this._assertAddress();
-
         this._drop();
         module._free(this._address);
         this._address = 0;
@@ -139,9 +144,12 @@ class ObjectWrapper {
 
         const fakeObj = new this.constructor(ObjectWrapper.#authorizedSymbol);
         fakeObj._address = this._address;
-        fakeObj._owner = this._owner;
 
         return fakeObj;
+    }
+
+    f_assign(rightValue) {
+        throw new Error("Method 'f_assign()' must be implemented.");
     }
 
     static _assertWrapper(input) {
@@ -156,10 +164,6 @@ class ObjectWrapper {
         }
     }
 
-    static _assignCopy(leftAddress, rightValue) {
-        throw new Error("Method '_assignCopy()' must be implemented.");
-    }
-
     static _getSize() {
         throw new Error("Method '_getSize()' must be implemented.");
     }
@@ -172,20 +176,20 @@ class ObjectWrapper {
         throw new Error("Method '_is()' must be implemented.");
     }
 
-    _init(value) {
+    _init() {
         throw new Error("Method '_init()' must be implemented.");
-    }
-
-    _initDefault() {
-        throw new Error("Method '_initDefault()' must be implemented.");
-    }
-
-    _initUninitialized() {
-        //It's empty, but it can be overridden
     }
 
     _drop() {
         throw new Error("Method '_drop()' must be implemented.");
+    }
+
+    _setInitialValue(value) {
+        throw new Error("Method '_setInitialValue()' must be implemented.");
+    }
+
+    _initUninitialized() {
+        //It's empty, but it can be overridden
     }
 }
 
@@ -196,16 +200,6 @@ class CompositeWrapper extends ObjectWrapper {
     constructor(symbol) {
         super(symbol);
         ObjectWrapper._assertCreatable(this.constructor, CompositeWrapper);
-    }
-
-    static _assignCopy(leftAddress, rightValue) {
-
-        this._assertWrapper(rightValue);
-
-        const whatWrite = module.HEAP8
-            .subarray(rightValue._address, rightValue._address + rightValue.constructor._getSize());
-
-        module.HEAP8.set(whatWrite, leftAddress);
     }
 
     static _retrieve(address) {
@@ -225,16 +219,26 @@ class PtrWrapper extends CompositeWrapper {
         ObjectWrapper._assertCreatable(this.constructor, PtrWrapper);
     }
 
+    f_assign(rightValue) {
+        this._assertAddress();
+        this.constructor._assertWrapper(rightValue);
+        module.setValue(this._address, rightValue.value, Address._getStringSize());
+    }
+
     static _getSize() {
         return Address._getSize();
     }
 
-    _init(value) {
+    _setInitialValue(value) {
         this.value = value;
     }
 
-    _initDefault() {
-        this._init(0);
+    _init() {
+        //Always empty
+    }
+
+    _drop() {
+        //Always empty
     }
 
     get value() {
@@ -245,11 +249,7 @@ class PtrWrapper extends CompositeWrapper {
         this._set(Address, 0, value);
     }
 
-    _drop() {
-        //Always empty
-    }
-
-    static malloc(howMany) {
+    static calloc(howMany) {
         //howMany === null || howMany === undefined
         if (howMany == null) {
             howMany = 1;
@@ -259,18 +259,20 @@ class PtrWrapper extends CompositeWrapper {
             throw new Error("This number can't be zero or negative");
         }
         const elementClass = this._getElementClass();
-        const actualAddress = module._malloc(elementClass._getSize() * howMany);
+        const actualAddress = module._calloc(howMany, elementClass._getSize());
 
         let i = 0;
 
         try {
             for (; i < howMany; i++) {
-                elementClass._createByRef(actualAddress + elementClass._getSize() * i)._initDefault();
+                //TODO: Si può evitare? Stai copiando il comportamento di Rulebook
+                elementClass._createByRef(actualAddress + elementClass._getSize() * i)._init();
             }
             return actualAddress;
         }
         catch (e) {
             for (let k = 0; k < i; k++) {
+                //TODO: Si può evitare? Stai copiando il comportamento di Rulebook
                 elementClass._createByRef(actualAddress + elementClass._getSize() * k)._drop();
             }
             module._free(actualAddress);
@@ -301,12 +303,11 @@ class PtrWrapper extends CompositeWrapper {
 
     set(value, i) {
         this._assertAddress();
-        this.constructor._getElementClass()._assignCopy(this.#computeActualAddress(i), value);
+        this.constructor._getElementClass()._createByRef(this.#computeActualAddress(i)).f_assign(value);
     }
 }
 
-
-
+//TODO: Queste le tolgo e tanti saluti?
 export function free(ptr, howMany) {
     PtrWrapper._assertWrapper(ptr);
 
@@ -321,6 +322,7 @@ export function free(ptr, howMany) {
 
     const type = ptr.constructor._getElementClass();
     for (let i = 0; i < howMany; i++) {
+        //TODO: Si può evitare? Stai copiando il comportamento di Rulebook
         type._createByRef(ptr.value + type._getSize() * i)._drop();
     }
 
@@ -329,14 +331,26 @@ export function free(ptr, howMany) {
 
 
 
+
+//TODO: Cosa significa "isTriviallyAssignable?"
+//TODO: Le classi, le alternative e gli array hanno SEMPRE il metodo assign?
 class ClassLikeWrapper extends CompositeWrapper {
     constructor(symbol) {
         super(symbol);
         ObjectWrapper._assertCreatable(this.constructor, ClassLikeWrapper);
     }
 
-    f_init() {
-        throw new Error("Method 'f_init()' must be implemented.");
+    _init() {
+        try {
+            if ((typeof this.f_init) === "function") {
+                this.f_init();
+            }
+        }
+        catch (e) {
+            if ((e instanceof NoFunctionFoundError) === false) {
+                throw e;
+            }
+        }
     }
 
     _drop() {
@@ -363,13 +377,8 @@ class EnumWrapper extends ClassLikeWrapper {
         return 8;
     }
 
-    _init(value) {
-        this.f_init();
+    _setInitialValue(value) {
         this.value = value;
-    }
-
-    _initDefault() {
-        this._init(0);
     }
 
     get value() {
@@ -392,8 +401,10 @@ class ClassWrapper extends ClassLikeWrapper {
         throw new Error("Method '_getMemberFieldNames()' must be implemented.");
     }
 
-    _init(value) {
-        this.f_init();
+    _setInitialValue(value) {
+        if (typeof value !== "object") {
+            throw new Error("You must pass a valid dictionary if you want to init this object");
+        }
 
         const memberFieldsNames = this.constructor._getMemberFieldNames();
         for (const [k, v] of Object.entries(value)) {
@@ -405,15 +416,11 @@ class ClassWrapper extends ClassLikeWrapper {
             }
         }
     }
-
-    _initDefault() {
-        this._init({});
-    }
 }
 
 
 
-class AlternativeWrapper extends CompositeWrapper {
+class AlternativeWrapper extends ClassLikeWrapper {
 
     constructor(symbol) {
         super(symbol);
@@ -428,43 +435,12 @@ class AlternativeWrapper extends CompositeWrapper {
         throw new Error("Method '_getIndexOffset()' must be implemented");
     }
 
-    _init(value) {
-        this._index = -1;
+    _setInitialValue(value) {
         this.value = value;
-    }
-
-    _initDefault() {
-        this._index = -1;
-
-        const classes = this.constructor._getAlternativeClasses();
-        const defaultObject = classes[0].create();
-
-        try {
-            this._init(defaultObject);
-        }
-        finally {
-            //Potential double free if used incorrectly
-            defaultObject._free();
-        }
     }
 
     _initUninitialized() {
         this._index = -1;
-    }
-
-    _drop() {
-        if (this._index === -1) {
-            return;
-        }
-
-        const classes = this.constructor._getAlternativeClasses();
-        const index = this._index;
-
-        if (index < 0 || index >= classes.length) {
-            throw new Error(`Invalid element for this alternative: index is ${String(index)}`);
-        }
-
-        classes[index]._createByRef(this._address)._drop();
     }
 
     set _index(index) {
@@ -477,21 +453,7 @@ class AlternativeWrapper extends CompositeWrapper {
 
     set value(element) {
         this._assertAddress();
-        this._drop();
-
-        const classes = this.constructor._getAlternativeClasses();
-
-        for (let i = 0; i < classes.length; i++) {
-            const currentClass = classes[i];
-
-            if (currentClass._is(element)) {
-                this._index = i;
-                currentClass._assignCopy(this._address, element);
-                return;
-            }
-        }
-
-        throw new Error("This alternative can't accept that element");
+        this.f_assign(element);
     }
 
     get value() {
@@ -509,7 +471,7 @@ class AlternativeWrapper extends CompositeWrapper {
     }
 }
 
-class ArrayWrapper extends CompositeWrapper {
+class ArrayWrapper extends ClassLikeWrapper {
 
     constructor(symbol) {
         super(symbol);
@@ -559,7 +521,7 @@ class ArrayWrapper extends CompositeWrapper {
         return this._getLinearLength() * this._getElementClass()._getSize();
     }
 
-    _init(arr) {
+    _setInitialValue(arr) {
         if (Array.isArray(arr) === false) {
             throw new Error("Passed an invalid array in the constructor");
         }
@@ -572,30 +534,7 @@ class ArrayWrapper extends CompositeWrapper {
         }
 
         for (let i = 0; i < linearLength; i++) {
-            this.constructor._getElementClass()._assignCopy(this.#getAddressByLinearIndex(i), arr[i]);
-        }
-    }
-
-    _initDefault() {
-        const defaultObject = this.constructor._getElementClass().create();
-
-        try {
-            let linearLength = this.constructor._getLinearLength();
-            for (let i = 0; i < linearLength; i++) {
-                this.constructor._getElementClass()._assignCopy(this.#getAddressByLinearIndex(i), defaultObject);
-            }
-        }
-        finally {
-            //Potential double free if used incorrectly
-            defaultObject._free();
-        }
-    }
-
-    _drop() {
-        let linearLength = this.constructor._getLinearLength();
-
-        for (let i = 0; i < linearLength; i++) {
-            this.constructor._getElementClass()._createByRef(this.#getAddressByLinearIndex(i))._drop();
+            this.constructor._getElementClass()._createByRef(this.#getAddressByLinearIndex(i)).f_assign(arr[i]);
         }
     }
 
@@ -609,7 +548,7 @@ class ArrayWrapper extends CompositeWrapper {
         this.constructor._assertIndexes(indexes);
 
         const address = this.#getAddressByLinearIndex(this.constructor._linearizeIndex(indexes));
-        this.constructor._getElementClass()._assignCopy(address, value);
+        this.constructor._getElementClass()._createByRef(address).f_assign(value);
     }
 
     get(...args) {
@@ -679,16 +618,16 @@ class PrimitiveWrapper extends ObjectWrapper {
         this._set(this.constructor, 0, value);
     }
 
-    _init(value) {
-        this.value = value;
-    }
-
-    _initDefault() {
-        this._init(this.constructor._getDefaultValue());
+    _init() {
+        //Always empty
     }
 
     _drop() {
         //Always empty
+    }
+
+    _setInitialValue(value) {
+        this.value = value;
     }
 
     static _unbox(value) {
@@ -721,10 +660,6 @@ class PrimitiveWrapper extends ObjectWrapper {
         throw new Error("Method '_getValueFromAddress()' must be implemented.");
     }
 
-    static _getDefaultValue() {
-        throw new Error("Method '_getDefaultValue()' must be implemented.");
-    }
-
     static _isPrimitive(value) {
         throw new Error("Method '_isPrimitive()' must be implemented.");
     }
@@ -737,22 +672,19 @@ export class StringLiteral extends PrimitiveWrapper {
         return module.UTF8ToString(actualAddress);
     }
 
-    static _assignCopy(leftAddress, rightValue) {
-        rightValue = this._unbox(rightValue);
-        const actualAddress = StringPool._writeString(rightValue);
-        module.setValue(leftAddress, actualAddress, '*');
-    }
-
     static _getSize() {
         return Address._getSize();
     }
 
-    static _getDefaultValue() {
-        return "";
-    }
-
     static _isPrimitive(value) {
         return (typeof value === "string");
+    }
+
+    f_assign(rightValue) {
+        this._assertAddress();
+        rightValue = this.constructor._unbox(rightValue);
+        const actualAddress = StringPool._writeString(rightValue);
+        module.setValue(this._address, actualAddress, '*');
     }
 }
 
@@ -771,15 +703,11 @@ class NumWrapper extends PrimitiveWrapper {
         return Number(module.getValue(address, this._getStringSize()));
     }
 
-    static _assignCopy(leftAddress, rightValue) {
-        rightValue = this._unbox(rightValue);
-        this._assertPrimitive(rightValue);
-        module.setValue(leftAddress, rightValue, this._getStringSize());
-    }
-
-    //BoolWrapper overrides this function
-    static _getDefaultValue() {
-        return 0;
+    f_assign(rightValue) {
+        this._assertAddress();
+        rightValue = this.constructor._unbox(rightValue);
+        this.constructor._assertPrimitive(rightValue);
+        module.setValue(this._address, rightValue, this.constructor._getStringSize());
     }
 
     static _getStringSize() {
@@ -833,10 +761,6 @@ export class Bool extends NumWrapper {
 
     static _getValueFromAddress(address) {
         return Boolean(super._getValueFromAddress(address));
-    }
-
-    static _getDefaultValue() {
-        return false;
     }
 
     static _isPrimitive(value) {

@@ -28,12 +28,12 @@ import * as $ from './wrapper.mjs';
 
 //Checking if a class with an alternative as member field works
 
-let strange = $.Cls_StrangeClass.create();
+let strange = $.StrangeClass.create();
 assert.strictEqual(strange.v_smallBox.v_value, 0);
 assert.strictEqual(strange.v_smallBox.v_name, "Unknown");
 assert.strictEqual(strange.v_alt.value, 0);
     
-let alt = $.Alt3_Int_Cls_BigBox_StringLiteral.create("Hello");
+let alt = $.Alt3_Int_BigBox_StringLiteral.create("Hello");
 strange.v_alt = alt;
 assert.strictEqual(strange.v_alt.value, "Hello");
 

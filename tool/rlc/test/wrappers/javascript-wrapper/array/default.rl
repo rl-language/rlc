@@ -71,7 +71,7 @@ let arr;
 arr = $.Arr_4_StringLiteral.create();
 run(arr, checkData1);
 
-arr = $.Arr_2_3_Cls_BigBox.create();
+arr = $.Arr_2_3_BigBox.create();
 run(arr, checkData2);
 
 arr = $.Arr_3_2_4_Int.create();

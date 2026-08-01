@@ -28,11 +28,11 @@ import * as $ from './wrapper.mjs';
 
 //Checking if arrays of alternatives work
 
-let arr = $.Arr_2_Alt3_Int_Cls_BigBox_StringLiteral.create();
+let arr = $.Arr_2_Alt3_Int_BigBox_StringLiteral.create();
 assert.strictEqual(arr.get(0).value, 0);
 assert.strictEqual(arr.get(1).value, 0);
 
-let alt = $.Alt3_Int_Cls_BigBox_StringLiteral.create(3);
+let alt = $.Alt3_Int_BigBox_StringLiteral.create(3);
 arr.set(alt, 0);
 assert.strictEqual(arr.get(0).value, 3);
 

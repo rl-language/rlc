@@ -24,9 +24,9 @@ import * as $ from './wrapper.mjs';
 
 //Checking if cloning an object works
 
-const smallBox = $.Cls_SmallBox.create({v_value: 10, v_name: "Small"});
-const original = $.Cls_BigBox.create({v_value: 248, v_smallBox: smallBox});
-const cloned = $.Cls_BigBox.clone(original);
+const smallBox = $.SmallBox.create({v_value: 10, v_name: "Small"});
+const original = $.BigBox.create({v_value: 248, v_smallBox: smallBox});
+const cloned = $.BigBox.clone(original);
 assert.strictEqual(original.v_value, cloned.v_value);
 assert.strictEqual(original.v_smallBox.v_value, cloned.v_smallBox.v_value);
 assert.strictEqual(original.v_smallBox.v_name, cloned.v_smallBox.v_name);

@@ -33,20 +33,20 @@ import * as $ from './wrapper.mjs';
 
 //Checking if templates work
 
-const objInt = $.ClsT_MyClass$Int$.create({v_value: 7});
+const objInt = $.MyClassTint64_tT.create({v_value: 7});
 assert.strictEqual(objInt.v_value, 7);
 objInt._free();
 
-const objSmallBox = $.ClsT_MyClass$Cls_SmallBox$.create();
+const objSmallBox = $.MyClassTSmallBoxT.create();
 assert.strictEqual(objSmallBox.v_value.v_name, "Unknown");
 objSmallBox._free();
 
-const objMultipleTemplate = $.ClsT_MyClass$ClsT_OtherClass$Arr_2_Int$$.create();
+const objMultipleTemplate = $.MyClassTOtherClassTint64_t_2TT.create();
 assert.strictEqual(objMultipleTemplate.v_value.v_otherValue.get(0), 0);
 assert.strictEqual(objMultipleTemplate.v_value.v_otherValue.get(1), 0);
 objMultipleTemplate._free();
 
-const objDouble = $.ClsT_DoubleTemplate$StringLiteral_Float$.create();
+const objDouble = $.DoubleTemplateTstrlitTdoubleT.create();
 objDouble.v_first = "Hello";
 objDouble.v_second = 0.25;
 assert.strictEqual(objDouble.v_first, "Hello");

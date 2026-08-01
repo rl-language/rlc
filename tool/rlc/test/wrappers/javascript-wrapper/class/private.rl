@@ -23,11 +23,11 @@ import * as $ from './wrapper.mjs';
 
 //Checking that private member functions and variables are inaccessible
 
-assert.throws(() => $.Cls_MyClass.create({v__privateInt: 2}));
-assert.throws(() => $.Cls_MyClass.create({v_privateInt: 2}));
-assert.throws(() => $.Cls_MyClass.create({_privateInt: 2}));
+assert.throws(() => $.MyClass.create({v__privateInt: 2}));
+assert.throws(() => $.MyClass.create({v_privateInt: 2}));
+assert.throws(() => $.MyClass.create({_privateInt: 2}));
 
-const obj = $.Cls_MyClass.create({v_publicInt: 2});
+const obj = $.MyClass.create({v_publicInt: 2});
 assert.strictEqual(obj.v_publicInt, 2);
 assert.strictEqual(obj.f_getPrivateInt(), 0);
 assert.strictEqual(obj.v__privateInt, undefined);

@@ -44,7 +44,7 @@ assert.strictEqual($.f_foo(int, 10), 15);
 assert.strictEqual($.f_foo(5, otherInt), 15);
 assert.strictEqual($.f_foo(5, 10), 15);
 
-const smallBox = $.Cls_SmallBox.create();
+const smallBox = $.SmallBox.create();
 const result = $.f_foo(smallBox);
 assert.strictEqual(result.value, "Unknown");
 result.value = "Hello";

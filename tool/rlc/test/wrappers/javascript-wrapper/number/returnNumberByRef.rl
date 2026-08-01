@@ -21,8 +21,6 @@ import * as $ from './wrapper.mjs';
 //Checking if numbers are correctly returned by ref
 function check(fun, input, newValue, otherNewValue) {
     const ref = fun(input);
-    assert.strictEqual(input._owner, true);
-    assert.strictEqual(ref._owner, false);
     assert.strictEqual(input._address, ref._address);
 
     ref.value = newValue;

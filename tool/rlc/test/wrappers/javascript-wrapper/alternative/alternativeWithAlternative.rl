@@ -31,13 +31,13 @@ import * as $ from './wrapper.mjs';
 
 //Checking that alternatives containing alternatives work
 
-let bigBox = $.Cls_BigBox.create();
-let altWithAlt = $.Alt2_Cls_BigBox_Alt3_Int_Cls_BigBox_StringLiteral.create(bigBox);
+let bigBox = $.BigBox.create();
+let altWithAlt = $.Alt2_BigBox_Alt3_Int_BigBox_StringLiteral.create(bigBox);
 assert.strictEqual(altWithAlt.value.v_value, 0);
 assert.strictEqual(altWithAlt.value.v_smallBox.v_value, 0);
 assert.strictEqual(altWithAlt.value.v_smallBox.v_name, "Unknown");
 
-let alt = $.Alt3_Int_Cls_BigBox_StringLiteral.create("Hello");
+let alt = $.Alt3_Int_BigBox_StringLiteral.create("Hello");
 altWithAlt.value = alt;
 assert.strictEqual(altWithAlt.value.value, "Hello");
     

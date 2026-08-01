@@ -14,8 +14,6 @@ import * as $ from './wrapper.mjs';
 
 let input = $.StringLiteral.create("From Javascript");
 const ref = $.f_foo(input);
-assert.strictEqual(input._owner, true);
-assert.strictEqual(ref._owner, false);
 assert.strictEqual(input._address, ref._address);
 assert.strictEqual(input.value, "Changed from Rulebook");
 assert.strictEqual(ref.value, "Changed from Rulebook");
@@ -25,9 +23,6 @@ assert.strictEqual(ref.value, "Another value");
 assert.strictEqual(input.value, "Another value");
 
 input._free();
-
-//Notice that this has no effect, since you can't free references
-ref._free();
 
 $.StringPool.free();
 

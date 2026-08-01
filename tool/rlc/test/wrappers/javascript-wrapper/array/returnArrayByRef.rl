@@ -30,9 +30,9 @@ import * as $ from './wrapper.mjs';
 
 //Checking if arrays are correctly returned by ref
 
-const smallBox = $.Cls_SmallBox.create();
+const smallBox = $.SmallBox.create();
 smallBox.v_name = "Hello";
-const bigBox = $.Cls_BigBox.create({v_smallBox: smallBox});
+const bigBox = $.BigBox.create({v_smallBox: smallBox});
 const obj = $.Cls_ClassWithArray.create();
 const result = $.f_foo(obj);
 result.set(bigBox, [1, 1]);

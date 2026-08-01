@@ -45,8 +45,8 @@ import * as $ from './wrapper.mjs';
 
 assert.throws(() => $.Int.create("Hello"));
 assert.throws(() => $.StringLiteral.create(4));
-assert.throws(() => $.Cls_SmallBox.create({v_name: 5}));
-assert.throws(() => $.Alt3_Int_Cls_BigBox_StringLiteral.create(0.5));
+assert.throws(() => $.SmallBox.create({v_name: 5}));
+assert.throws(() => $.Alt3_Int_BigBox_StringLiteral.create(0.5));
 assert.throws(() => $.Arr_4_StringLiteral.create(["Hello"]));
 assert.throws(() => $.Enum_ColorEnum.create("Hello"));
 assert.throws(() => $.Ptr_Int.create("Hello"));
@@ -64,23 +64,23 @@ assert.throws(() => $.Int._assertWrapper(obj));
 assert.throws(() => obj.value = 5);
 obj._free();
 
-obj = $.Cls_BigBox.create();
-assert.throws(() => $.Cls_SmallBox._assertWrapper(obj));
+obj = $.BigBox.create();
+assert.throws(() => $.SmallBox._assertWrapper(obj));
 assert.throws(() => obj.v_smallBox = obj);
 obj._free();
 
-obj = $.Alt3_Int_Cls_BigBox_StringLiteral.create();
+obj = $.Alt3_Int_BigBox_StringLiteral.create();
 assert.throws(() => $.Arr_4_StringLiteral._assertWrapper(obj));
 assert.throws(() => obj.value = obj);
 obj._free();
 
 obj = $.Arr_4_StringLiteral.create();
-assert.throws(() => $.Alt3_Int_Cls_BigBox_StringLiteral._assertWrapper(obj));
+assert.throws(() => $.Alt3_Int_BigBox_StringLiteral._assertWrapper(obj));
 assert.throws(() => obj.set(0, obj));
 obj._free();
 
 obj = $.Enum_ColorEnum.create();
-assert.throws(() => $.Cls_BigBox._assertWrapper(obj));
+assert.throws(() => $.BigBox._assertWrapper(obj));
 assert.throws(() => obj.value = obj);
 obj._free();
 
@@ -90,12 +90,12 @@ assert.throws(() => obj.set("Hello"));
 obj._free();
 
 
-obj = $.Cls_BigBox.create();
+obj = $.BigBox.create();
 assert.throws(() => obj.doesNotExist = 3);
 obj._free();
 
 
-assert.throws(() => $.Cls_BigBox.create({doesNotExist: 3}));
+assert.throws(() => $.BigBox.create({doesNotExist: 3}));
 assert.throws(() => new $.StringPool());
 assert.throws(() => new $.Int());
 

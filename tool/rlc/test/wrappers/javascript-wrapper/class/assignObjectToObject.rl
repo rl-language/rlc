@@ -24,8 +24,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking if I can assign objects to object fields
 
-let smallBox = $.Cls_SmallBox.create({v_value: 50, v_name: "Gino"});
-let bigBox = $.Cls_BigBox.create();
+let smallBox = $.SmallBox.create({v_value: 50, v_name: "Gino"});
+let bigBox = $.BigBox.create();
 bigBox.v_smallBox = smallBox;
 assert.strictEqual(bigBox.v_smallBox.v_value, smallBox.v_value);
 assert.strictEqual(bigBox.v_smallBox.v_name, smallBox.v_name);

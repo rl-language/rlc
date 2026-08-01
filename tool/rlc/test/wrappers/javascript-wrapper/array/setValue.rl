@@ -81,12 +81,12 @@ function checkData2() {
     }
 }
 
-let bigBox = $.Cls_BigBox.create();
+let bigBox = $.BigBox.create();
 arrData = [[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]];
-arr = $.Arr_2_3_Cls_BigBox.create(arrData);
+arr = $.Arr_2_3_BigBox.create(arrData);
 checkData2();
 
-let otherBigBox = $.Cls_BigBox.create({ v_value: 123 });
+let otherBigBox = $.BigBox.create({ v_value: 123 });
 arr.set(otherBigBox, [1, 1]);
 arrData[1][1] = otherBigBox;
 checkData2();

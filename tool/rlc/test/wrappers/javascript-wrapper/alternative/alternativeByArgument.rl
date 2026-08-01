@@ -27,7 +27,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking that alternatives are correctly passed as function arguments
 
-let alternative = $.Alt3_Int_Cls_BigBox_StringLiteral.create("Hello");
+let alternative = $.Alt3_Int_BigBox_StringLiteral.create("Hello");
 assert.strictEqual(alternative.value, "Hello");
 
 $.f_foo(alternative);

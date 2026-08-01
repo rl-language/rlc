@@ -24,8 +24,6 @@ $.f_foo(s1, s2);
 assert.strictEqual(s1.value, "S1");
 assert.strictEqual(s2.value, "S1");
 assert.notStrictEqual(s1._address, s2._address);
-assert.strictEqual(s1._owner, true);
-assert.strictEqual(s2._owner, true);
 
 s2.value = "ABC"
 assert.strictEqual(s1.value, "S1");

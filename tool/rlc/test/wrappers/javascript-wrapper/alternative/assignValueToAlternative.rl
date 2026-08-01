@@ -27,10 +27,10 @@ import * as $ from './wrapper.mjs';
 
 //Checking that we can assign values to the alternative
 
-let smallBox = $.Cls_SmallBox.create({v_value: 5, v_name: "Hello"});
-let bigBox = $.Cls_BigBox.create({v_value: 12, v_smallBox: smallBox});
+let smallBox = $.SmallBox.create({v_value: 5, v_name: "Hello"});
+let bigBox = $.BigBox.create({v_value: 12, v_smallBox: smallBox});
 
-let alternative = $.Alt3_Int_Cls_BigBox_StringLiteral.create(5);
+let alternative = $.Alt3_Int_BigBox_StringLiteral.create(5);
 assert.strictEqual(alternative.value, 5);
 
 alternative.value = 9;

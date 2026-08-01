@@ -22,7 +22,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking that alternatives containing arrays work
 
-let alt = $.Alt2_Cls_SmallBox_Arr_4_StringLiteral.create();
+let alt = $.Alt2_SmallBox_Arr_4_StringLiteral.create();
 assert.strictEqual(alt.value.v_value, 0);
 assert.strictEqual(alt.value.v_name, "Unknown");
 

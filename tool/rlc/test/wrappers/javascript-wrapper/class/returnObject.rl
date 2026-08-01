@@ -27,7 +27,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if objects are correctly returned by functions
 
-let bigBox = $.Cls_BigBox.create();
+let bigBox = $.BigBox.create();
 let smallBox = $.f_foo(bigBox);
 
 smallBox.v_name = "Name";

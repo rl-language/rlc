@@ -38,8 +38,6 @@ namespace mlir::rlc
 			llvm::DenseSet<mlir::rlc::AlternativeType> alternatives{};
 			llvm::DenseSet<mlir::rlc::OwningPtrType> pointers{};
 
-			llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums{};
-
 			struct SizeAlignment
 			{
 				int size{};
@@ -91,6 +89,8 @@ namespace mlir::rlc
 
 			void emitClassesAndEnums()
 			{
+				llvm::StringMap<mlir::rlc::EnumDeclarationOp> enums{};
+
 				for (auto op : moduleOp.getOps<mlir::rlc::EnumDeclarationOp>())
 				{
 					enums[op.getName()] = op;
@@ -170,6 +170,8 @@ namespace mlir::rlc
 					printer << "static _getElementClass() { return ";
 					emitJavascriptType(result.type);
 					printer << ";}";
+
+					emitMemberFunctions(type);
 
 					printer << "}";
 				}
@@ -410,10 +412,58 @@ namespace mlir::rlc
 				}
 			}
 
-			void emitMemberFunctions(mlir::Type classType)
+			//TODO: Non c'è bisogno di questa funzione, puoi metterla inline
+			void emitSpecialFunctions(mlir::Type type, llvm::StringMap<llvm::SmallVector<mlir::FunctionType>>& sortedOverloads){
+				mlir::Type underlyingType;
+
+				if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
+				{
+					underlyingType = getTypeAndDimensionsOfArray(casted).type;
+				}
+				else{
+					underlyingType = type;
+				}
+				
+				if (not this->table.isTriviallyInitializable(underlyingType))
+				{
+					auto fun = mlir::FunctionType::get(type.getContext(), { type }, {});
+					sortedOverloads["init"].push_back(fun);
+				}
+				else
+				{
+					// TODO: Togliere
+					llvm::errs() << underlyingType << " is trivially initiazable\n";
+				}
+
+				if (not this->table.isTriviallyDestructible(underlyingType))
+				{
+					auto fun = mlir::FunctionType::get(type.getContext(), { type }, {});
+					sortedOverloads["drop"].push_back(fun);
+				}
+				else
+				{
+					// TODO: Togliere
+					llvm::errs() << underlyingType << " is trivially destructible\n";
+				}
+
+				if (not this->table.isTriviallyCopiable(underlyingType))
+				{
+					auto fun =
+							mlir::FunctionType::get(type.getContext(), { type, type }, {});
+					sortedOverloads["assign"].push_back(fun);
+				}
+				else
+				{
+					// TODO: Togliere
+					llvm::errs() << underlyingType << " is trivially copiable\n";
+				}
+			}
+
+			// TODO: Ci sono le special functions per gli OwningPtr? Credo di no...?
+			void emitMemberFunctions(mlir::Type type)
 			{
 				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
-				for (auto memberFunction : this->table.getMemberFunctionsOf(classType))
+				for (auto memberFunction : this->table.getMemberFunctionsOf(type))
 				{
 					sortedOverloads[memberFunction.getUnmangledName()].push_back(
 							memberFunction.getType());
@@ -430,27 +480,8 @@ namespace mlir::rlc
 					}
 				}
 
-				if (not this->table.isTriviallyInitializable(classType))
-				{
-					auto fun = mlir::FunctionType::get(
-							classType.getContext(), { classType }, {});
-					sortedOverloads["init"].push_back(fun);
-				}
-
-				if (not this->table.isTriviallyDestructible(classType))
-				{
-					auto fun = mlir::FunctionType::get(
-							classType.getContext(), { classType }, {});
-					sortedOverloads["drop"].push_back(fun);
-				}
-
-				if (not this->table.isTriviallyCopiable(classType))
-				{
-					auto fun = mlir::FunctionType::get(
-							classType.getContext(), { classType, classType }, {});
-					sortedOverloads["assign"].push_back(fun);
-				}
-
+				emitSpecialFunctions(type, sortedOverloads);
+				
 				for (auto& pair : sortedOverloads)
 				{
 					emitOverloadDispatcher(pair.first(), pair.second, true);
@@ -521,64 +552,6 @@ namespace mlir::rlc
 			void emitMangledVariableName(llvm::StringRef name)
 			{
 				printer << "v_" << name;
-			}
-
-			void emitMangledClassName(mlir::rlc::ClassType type)
-			{
-				const auto templateParameters = type.getExplicitTemplateParameters();
-				if (templateParameters.size() == 0)
-				{
-					printer << "Cls_" << type.getName();
-				}
-				else
-				{
-					printer << "ClsT_" << type.getName() << "$";
-					bool comma = false;
-					for (const auto t : templateParameters)
-					{
-						if (comma)
-						{
-							printer << "_";
-						}
-						comma = true;
-						emitJavascriptType(t);
-					}
-					printer << "$";
-				}
-			}
-
-			void emitMangledEnumName(mlir::rlc::ClassType type)
-			{
-				printer << "Enum_" << type.getName();
-			}
-
-			void emitMangledActionFunctionName(mlir::rlc::ClassType type)
-			{
-				printer << "Act_" << type.getName();
-			}
-
-			void emitMangledAlternativeName(mlir::rlc::AlternativeType type)
-			{
-				printer << "Alt" << type.getUnderlying().size();
-				for (auto enumeration : llvm::enumerate(type.getUnderlying()))
-				{
-					printer << "_";
-					emitJavascriptType(enumeration.value());
-				}
-			}
-
-			void emitMangledArrayName(mlir::rlc::ArrayType type)
-			{
-				printer << "Arr_";
-
-				ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(type) };
-
-				for (int x : result.dimensions)
-				{
-					printer << x << "_";
-				}
-
-				emitJavascriptType(result.type);
 			}
 
 			void emitMangledPointerName(mlir::rlc::OwningPtrType type)
@@ -813,31 +786,17 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
 				{
-					if (enums.count(casted.getName()) == 0)
-					{
-						if (builder.isClassOfAction(casted))
-						{
-							emitMangledActionFunctionName(casted);
-						}
-						else
-						{
-							emitMangledClassName(casted);
-						}
-					}
-					else
-					{
-						emitMangledEnumName(casted);
-					}
+					printer << casted.mangledName();
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
 					alternatives.insert(casted);
-					emitMangledAlternativeName(casted);
+					printer << casted.getMangledName();
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 				{
 					arrays.insert(casted);
-					emitMangledArrayName(casted);
+					printer << typeToMangled(casted);
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
 				{

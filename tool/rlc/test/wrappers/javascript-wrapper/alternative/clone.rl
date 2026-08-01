@@ -27,9 +27,9 @@ import * as $ from './wrapper.mjs';
 
 //Checking if alternatives are cloned correctly
 
-const original = $.Alt3_Int_Cls_BigBox_StringLiteral.create();
+const original = $.Alt3_Int_BigBox_StringLiteral.create();
 original.value = 8;
-const cloned = $.Alt3_Int_Cls_BigBox_StringLiteral.clone(original);
+const cloned = $.Alt3_Int_BigBox_StringLiteral.clone(original);
 assert.strictEqual(original.value, cloned.value);
     
 cloned.value = "Hello";

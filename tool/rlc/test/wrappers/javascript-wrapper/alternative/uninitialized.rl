@@ -28,7 +28,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking that uninitialized alternatives work
 
-let alt = $.Alt3_Int_Cls_BigBox_StringLiteral._createUninitialized();
+let alt = $.Alt3_Int_BigBox_StringLiteral._createUninitialized();
 assert.strictEqual(alt._index, -1);
     
 alt.value = "Hello";
@@ -36,7 +36,7 @@ assert.strictEqual(alt.value, "Hello");
 
 alt._free();
 
-alt = $.Alt2_Cls_BigBox_Alt3_Int_Cls_BigBox_StringLiteral._createUninitialized();
+alt = $.Alt2_BigBox_Alt3_Int_BigBox_StringLiteral._createUninitialized();
 assert.strictEqual(alt._index, -1);
 
 alt._free();

@@ -50,11 +50,11 @@ arr._free();
 
 
 //Array of objects
-arr = $.Arr_2_3_Cls_BigBox._createUninitialized();
+arr = $.Arr_2_3_BigBox._createUninitialized();
 arr.get(0, 0).v_value = 5;
 assert.strictEqual(arr.get(0,0).v_value, 5);
     
-let bigBox = $.Cls_BigBox.create();
+let bigBox = $.BigBox.create();
 arr.set(bigBox, [1,1]);
 assert.strictEqual(arr.get(1,1).v_smallBox.v_name, "Unknown");
 

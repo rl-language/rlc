@@ -28,7 +28,7 @@ seq._free();
 
 //The resume_index should start from 1, not from 0, that's why you should
 //avoid creating action functions using the constructor.
-const wrongSeq = $.Act_Sequence.create();
+const wrongSeq = $.Sequence.create();
 assert.strictEqual(wrongSeq.v_resume_index, 0); 
 wrongSeq._free();
 
