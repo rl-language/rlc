@@ -18,6 +18,9 @@ cls SmallBox:
     fun multiplyValueBy2():
         self.value = self.value * 2
 
+cls Container:
+    Int value
+
 enum ColorEnum:
     red
     green
@@ -100,6 +103,7 @@ assert.throws(() => $.BigBox.create({doesNotExist: 3}));
 assert.throws(() => new $.StringPool());
 assert.throws(() => new $.Int());
 
+assert.throws(() => $.Container.create(3));
 
 
 $.StringPool.free();

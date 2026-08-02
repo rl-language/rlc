@@ -3,9 +3,6 @@
 namespace mlir::rlc
 {
 	constexpr const char* standardJavascriptWrapper = R"JSWrapper(
-//TODO: Scrivere test per questo
-//$.Cls_MyClass.create(4); dovrebbe lanciare eccezione.
-
 import createModule from "./glueCode.mjs";
 const module = await createModule();
 
@@ -24,14 +21,6 @@ export function _detectMemoryLeaksDoNotUse() {
 const garbageCollectorRegistry = new FinalizationRegistry((fakeObj) => {
     fakeObj._free();
 });
-
-/*
-TODO:
-Se so per certo che tutte le classi, array e alternative hanno sempre il metodo
-assign, allora posso cancellare il metodo _assignCopy.
-Altrimenti, no.
-Guarda, ti conviene rimettere _assignCopy a questo punto, alla peggio è un metodo statico in più.
-*/
 
 class ObjectWrapper {
     static #authorizedSymbol = Symbol("authorizedSymbol");
@@ -250,6 +239,7 @@ class PtrWrapper extends CompositeWrapper {
         this._set(Address, 0, value);
     }
 
+    //TODO: Questo le tolgo?
     static calloc(howMany) {
         //howMany === null || howMany === undefined
         if (howMany == null) {
@@ -308,7 +298,7 @@ class PtrWrapper extends CompositeWrapper {
     }
 }
 
-//TODO: Queste le tolgo e tanti saluti?
+//TODO: Questo lo tolgo?
 export function free(ptr, howMany) {
     PtrWrapper._assertWrapper(ptr);
 
