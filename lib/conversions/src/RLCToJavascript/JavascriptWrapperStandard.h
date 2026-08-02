@@ -54,7 +54,7 @@ class ObjectWrapper {
         const myObj = this._createEmpty();
 
         try {
-            this._createByRef(myObj._address).f_assign(toBeCloned);
+            this._createByRef(myObj._address).assign(toBeCloned);
             return myObj;
         }
         catch (e) {
@@ -115,7 +115,7 @@ class ObjectWrapper {
 
     _set(fieldClass, fieldOffset, value) {
         this._assertAddress();
-        fieldClass._createByRef(this._address + fieldOffset).f_assign(value);
+        fieldClass._createByRef(this._address + fieldOffset).assign(value);
     }
 
     /*
@@ -138,8 +138,8 @@ class ObjectWrapper {
         return fakeObj;
     }
 
-    f_assign(rightValue) {
-        throw new Error("Method 'f_assign()' must be implemented.");
+    assign(rightValue) {
+        throw new Error("Method 'assign()' must be implemented.");
     }
 
     static _assertWrapper(input) {
@@ -209,7 +209,7 @@ class PtrWrapper extends CompositeWrapper {
         ObjectWrapper._assertCreatable(this.constructor, PtrWrapper);
     }
 
-    f_assign(rightValue) {
+    assign(rightValue) {
         this._assertAddress();
         this.constructor._assertWrapper(rightValue);
         module.setValue(this._address, rightValue.value, Address._getStringSize());
@@ -294,7 +294,7 @@ class PtrWrapper extends CompositeWrapper {
 
     set(value, i) {
         this._assertAddress();
-        this.constructor._getElementClass()._createByRef(this.#computeActualAddress(i)).f_assign(value);
+        this.constructor._getElementClass()._createByRef(this.#computeActualAddress(i)).assign(value);
     }
 }
 
@@ -329,13 +329,13 @@ class ClassLikeWrapper extends CompositeWrapper {
     }
 
     _init() {
-        this.f_init();
+        this.init();
     }
 
     _drop() {
         try {
-            if ((typeof this.f_drop) === "function") {
-                this.f_drop();
+            if ((typeof this.drop) === "function") {
+                this.drop();
             }
         }
         catch (e) {
@@ -357,7 +357,7 @@ class EnumWrapper extends ClassLikeWrapper {
     }
 
     _setInitialValue(value) {
-        this.value = value;
+        this.$value = value;
     }
 
     get value() {
@@ -365,6 +365,14 @@ class EnumWrapper extends ClassLikeWrapper {
     }
 
     set value(value) {
+        this._set(Int, 0, value);
+    }
+
+    get $value() {
+        return this._get(Int, 0);
+    }
+
+    set $value(value) {
         this._set(Int, 0, value);
     }
 }
@@ -432,7 +440,7 @@ class AlternativeWrapper extends ClassLikeWrapper {
 
     set value(element) {
         this._assertAddress();
-        this.f_assign(element);
+        this.assign(element);
     }
 
     get value() {
@@ -513,7 +521,7 @@ class ArrayWrapper extends ClassLikeWrapper {
         }
 
         for (let i = 0; i < linearLength; i++) {
-            this.constructor._getElementClass()._createByRef(this.#getAddressByLinearIndex(i)).f_assign(arr[i]);
+            this.constructor._getElementClass()._createByRef(this.#getAddressByLinearIndex(i)).assign(arr[i]);
         }
     }
 
@@ -527,7 +535,7 @@ class ArrayWrapper extends ClassLikeWrapper {
         this.constructor._assertIndexes(indexes);
 
         const address = this.#getAddressByLinearIndex(this.constructor._linearizeIndex(indexes));
-        this.constructor._getElementClass()._createByRef(address).f_assign(value);
+        this.constructor._getElementClass()._createByRef(address).assign(value);
     }
 
     get(...args) {
@@ -659,7 +667,7 @@ export class StringLiteral extends PrimitiveWrapper {
         return (typeof value === "string");
     }
 
-    f_assign(rightValue) {
+    assign(rightValue) {
         this._assertAddress();
         rightValue = this.constructor._unbox(rightValue);
         const actualAddress = StringPool._writeString(rightValue);
@@ -682,7 +690,7 @@ class NumWrapper extends PrimitiveWrapper {
         return Number(module.getValue(address, this._getStringSize()));
     }
 
-    f_assign(rightValue) {
+    assign(rightValue) {
         this._assertAddress();
         rightValue = this.constructor._unbox(rightValue);
         this.constructor._assertPrimitive(rightValue);

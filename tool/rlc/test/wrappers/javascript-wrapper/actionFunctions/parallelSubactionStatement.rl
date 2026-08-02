@@ -23,12 +23,12 @@ import * as $ from './wrapper.mjs';
 
 //Checking if parallel subaction statements work
 
-const game = $.f_playInParallel();
-game.f_move1Chess();
-game.f_move1Dama();
-game.f_move2Dama();
-game.f_move2Chess();
-assert.strictEqual(game.f_is_done(), true);
+const game = $.playInParallel();
+game.move1Chess();
+game.move1Dama();
+game.move2Dama();
+game.move2Chess();
+assert.strictEqual(game.is_done(), true);
 
 game._free();
 $._detectMemoryLeaksDoNotUse();

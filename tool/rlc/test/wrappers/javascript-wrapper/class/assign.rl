@@ -26,11 +26,11 @@ import * as $ from './wrapper.mjs';
 //Checking if the assign function works
 
 let bigBox1 = $.BigBox.create();
-let bigBox2 = $.BigBox.create({v_value: 256});
+let bigBox2 = $.BigBox.create({value: 256});
 
-bigBox1.f_assign(bigBox2);
-assert.strictEqual(bigBox1.v_value, 256);
-assert.strictEqual(bigBox1.v_smallBox.v_name, "Assigned");
+bigBox1.assign(bigBox2);
+assert.strictEqual(bigBox1.value, 256);
+assert.strictEqual(bigBox1.smallBox.name, "Assigned");
 
 bigBox1._free();
 bigBox2._free();

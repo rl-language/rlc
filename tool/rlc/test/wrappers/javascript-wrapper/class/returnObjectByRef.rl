@@ -28,13 +28,13 @@ import * as $ from './wrapper.mjs';
 //Checking if objects are correctly returned by ref
 
 let bigBox = $.BigBox.create();
-let smallBox = $.f_foo(bigBox);
+let smallBox = $.foo(bigBox);
 
-smallBox.v_name = "Name";
-assert.strictEqual(bigBox.v_smallBox.v_name, "Name");
+smallBox.name = "Name";
+assert.strictEqual(bigBox.smallBox.name, "Name");
 
-bigBox.v_smallBox.v_name = "Other name";
-assert.strictEqual(smallBox.v_name, "Other name")
+bigBox.smallBox.name = "Other name";
+assert.strictEqual(smallBox.name, "Other name")
 
 bigBox._free();
 

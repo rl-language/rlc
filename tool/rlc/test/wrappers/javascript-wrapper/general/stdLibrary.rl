@@ -15,16 +15,16 @@ import * as $ from './wrapper.mjs';
 
 const vector = $.VectorTint64_tT.create();
 for(let i=0; i<100; i++){
-    vector.f_append(i);
+    vector.append(i);
 }
 
 for(let i=0; i<100; i++){
-    assert.strictEqual(vector.f_get(i).value, i);
+    assert.strictEqual(vector.get(i).value, i);
 }
 
-assert.strictEqual(vector.v__data, undefined);
-assert.strictEqual(vector.v__size, undefined);
-assert.strictEqual(vector.v__capacity, undefined);
+assert.strictEqual(vector._data, undefined);
+assert.strictEqual(vector._size, undefined);
+assert.strictEqual(vector._capacity, undefined);
 
 
 

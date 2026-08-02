@@ -19,9 +19,9 @@ import * as $ from './wrapper.mjs';
 
 //Checking that function templates work
 
-assert.strictEqual($.f_foo(4), 4);
-assert.strictEqual($.f_foo(0.25), 0.25);
-assert.strictEqual($.f_foo("Hello"), "Hello");
+assert.strictEqual($.foo(4), 4);
+assert.strictEqual($.foo(0.25), 0.25);
+assert.strictEqual($.foo("Hello"), "Hello");
 
 $.StringPool.free();
 $._detectMemoryLeaksDoNotUse();

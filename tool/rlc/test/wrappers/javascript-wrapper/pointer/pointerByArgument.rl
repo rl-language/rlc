@@ -29,10 +29,10 @@ import * as $ from './wrapper.mjs';
 //Checking if pointers are correctly passed as function arguments
 
 const ptr = $.ptr_BigBox.create($.ptr_BigBox.calloc());
-assert.strictEqual(ptr.get().v_smallBox.v_name, "Unknown");
+assert.strictEqual(ptr.get().smallBox.name, "Unknown");
 
-$.f_foo(ptr);
-assert.strictEqual(ptr.get().v_smallBox.v_name, "Hello");
+$.foo(ptr);
+assert.strictEqual(ptr.get().smallBox.name, "Hello");
 
 $.free(ptr);
 ptr._free();

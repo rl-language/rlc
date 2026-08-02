@@ -41,15 +41,15 @@ function check(fun, input, newValue, otherNewValue) {
 let input;
 
 input = $.Int.create();
-check($.f_foo1, input, 7, 50);
+check($.foo1, input, 7, 50);
 
 input = $.Float.create();
-check($.f_foo2, input, 0.76, -50605.43);
+check($.foo2, input, 0.76, -50605.43);
 
 input = $.Bool.create();
-check($.f_foo3, input, false, true);
+check($.foo3, input, false, true);
 
 input = $.Byte.create();
-check($.f_foo4, input, 16, 32);
+check($.foo4, input, 16, 32);
 
 $._detectMemoryLeaksDoNotUse();

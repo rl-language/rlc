@@ -31,15 +31,15 @@ import * as $ from './wrapper.mjs';
 
 let alt = $.alt_int64_t_or_BigBox_or_strlit.create();
 
-alt.f_assign(5);
+alt.assign(5);
 assert.strictEqual(alt.value, 5);
 
-alt.f_assign("Hello");
+alt.assign("Hello");
 assert.strictEqual(alt.value, "Hello");
 
-let tmp = $.BigBox.create({v_value: 1024});
-alt.f_assign(tmp);
-assert.strictEqual(alt.value.v_value, 1024);
+let tmp = $.BigBox.create({value: 1024});
+alt.assign(tmp);
+assert.strictEqual(alt.value.value, 1024);
 
 tmp._free();
 alt._free();
@@ -47,7 +47,7 @@ alt._free();
 let alt1 = $.alt_int64_t_or_BigBox_or_strlit.create();
 let alt2 = $.alt_int64_t_or_BigBox_or_strlit.create();
 alt2.value = "Hello";
-alt1.f_assign(alt2);
+alt1.assign(alt2);
 assert.strictEqual(alt1.value, "Hello");
 
 alt1._free();

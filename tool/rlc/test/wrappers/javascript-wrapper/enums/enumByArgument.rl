@@ -26,13 +26,13 @@ import * as $ from './wrapper.mjs';
 
 //Checking if enums are correctly passed as function arguments
 
-const color = $.ColorEnum.create($.ColorEnum.v_red);
-assert.strictEqual(color.value, $.ColorEnum.v_red);
+const color = $.ColorEnum.create($.ColorEnum.red);
+assert.strictEqual(color.value, $.ColorEnum.red);
 
-$.f_foo(color);
-assert.strictEqual(color.value, $.ColorEnum.v_green);
+$.foo(color);
+assert.strictEqual(color.value, $.ColorEnum.green);
 
-assert.throws(() => $.f_foo($.ColorEnum.v_green));
+assert.throws(() => $.foo($.ColorEnum.green));
 
 color._free();
 

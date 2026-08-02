@@ -19,25 +19,25 @@ import * as $ from './wrapper.mjs';
 //Checking if action statements work
 
 const targetCost = $.Int.create(16);
-const machine = $.f_vending_machine(targetCost);
-assert.strictEqual(machine.v_target_cost, 16);
+const machine = $.vending_machine(targetCost);
+assert.strictEqual(machine.target_cost, 16);
 assert.strictEqual(targetCost.value, 16);
-assert.strictEqual(machine.f_is_done(), false);
+assert.strictEqual(machine.is_done(), false);
 
-machine.f_insert_10_coin();
-assert.strictEqual(machine.v_target_cost, 6);
+machine.insert_10_coin();
+assert.strictEqual(machine.target_cost, 6);
 assert.strictEqual(targetCost.value, 16);
-assert.strictEqual(machine.f_is_done(), false);
+assert.strictEqual(machine.is_done(), false);
 
-machine.f_insert_5_coin();
-assert.strictEqual(machine.v_target_cost, 1);
+machine.insert_5_coin();
+assert.strictEqual(machine.target_cost, 1);
 assert.strictEqual(targetCost.value, 16);
-assert.strictEqual(machine.f_is_done(), false);
+assert.strictEqual(machine.is_done(), false);
 
-machine.f_insert_1_coin();
-assert.strictEqual(machine.v_target_cost, 0);
+machine.insert_1_coin();
+assert.strictEqual(machine.target_cost, 0);
 assert.strictEqual(targetCost.value, 16);
-assert.strictEqual(machine.f_is_done(), true);
+assert.strictEqual(machine.is_done(), true);
 
 
 targetCost._free();

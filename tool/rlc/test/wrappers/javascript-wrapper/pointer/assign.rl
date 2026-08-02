@@ -16,7 +16,7 @@ let ptr1 = $.ptr_Int.create($.ptr_Int.calloc());
 let ptr2 = $.ptr_Int.create($.ptr_Int.calloc());
 
 $.free(ptr1);
-ptr1.f_assign(ptr2);
+ptr1.assign(ptr2);
 assert.strictEqual(ptr1.value, ptr2.value);
 $.free(ptr1);
 

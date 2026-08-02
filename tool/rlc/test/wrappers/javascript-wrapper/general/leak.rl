@@ -42,16 +42,16 @@ assert.throws(() => $.alt_Bad_int8_t_99.create());
 
 let container;
 container = $.Container.create();
-assert.throws(() => $.f_foo1(1,2,container));
+assert.throws(() => $.foo1(1,2,container));
 container._free();
 
-assert.throws(() => $.f_foo2(1,2));
+assert.throws(() => $.foo2(1,2));
 
 container = $.Container.create();
-assert.throws(() => $.f_foo3(container));
+assert.throws(() => $.foo3(container));
 container._free();
 
-assert.throws(() => $.f_foo4(5));
+assert.throws(() => $.foo4(5));
 
 assert.throws(() => $.ptr_Bad.calloc(5));
 

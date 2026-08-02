@@ -41,7 +41,7 @@ assert.strictEqual(byte.value, 127);
 freeObjects();
 
 createObjects()
-$.f_foo(int, float, bool, byte);
+$.foo(int, float, bool, byte);
 assert.strictEqual(int.value, 25);
 assert.strictEqual(float.value, 0.003);
 assert.strictEqual(bool.value, true);
@@ -50,7 +50,7 @@ assert.strictEqual(byte.value, -128);
 assert.throws(() => foo(int, float));
 
 byte.value = 0;
-$.f_foo(3, 1.2, true, byte);
+$.foo(3, 1.2, true, byte);
 assert.strictEqual(byte.value, -128);
 
 assert.throws(() => new Int(3));

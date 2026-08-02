@@ -35,17 +35,17 @@ import * as $ from './wrapper.mjs';
 //Checking if alternatives are correctly returned by ref
 
 const obj = $.StrangeClass.create();
-const result = $.f_foo(obj);
-assert.strictEqual(obj.v_alt.value.v_smallBox.v_name, "Super");
-assert.strictEqual(result.value.v_smallBox.v_name, "Super");
-assert.strictEqual(obj.v_alt._address, result._address);
+const result = $.foo(obj);
+assert.strictEqual(obj.alt.value.smallBox.name, "Super");
+assert.strictEqual(result.value.smallBox.name, "Super");
+assert.strictEqual(obj.alt._address, result._address);
 
-const smallBox = $.SmallBox.create({ v_value: 64, v_name: "Nice" });
-const bigBox = $.BigBox.create({ v_value: 10, v_smallBox: smallBox });
+const smallBox = $.SmallBox.create({ value: 64, name: "Nice" });
+const bigBox = $.BigBox.create({ value: 10, smallBox: smallBox });
 result.value = bigBox;
-assert.strictEqual(obj.v_alt.value.v_value, 10);
-assert.strictEqual(obj.v_alt.value.v_smallBox.v_value, 64);
-assert.strictEqual(obj.v_alt.value.v_smallBox.v_name, "Nice");
+assert.strictEqual(obj.alt.value.value, 10);
+assert.strictEqual(obj.alt.value.smallBox.value, 64);
+assert.strictEqual(obj.alt.value.smallBox.name, "Nice");
 
 smallBox._free();
 bigBox._free();

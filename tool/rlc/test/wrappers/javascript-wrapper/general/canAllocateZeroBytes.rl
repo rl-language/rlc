@@ -27,14 +27,14 @@ import * as $ from './wrapper.mjs';
 
 //Class
 const empty = $.Empty.create();
-assert.strictEqual(empty.f_getThree(), 3);
+assert.strictEqual(empty.getThree(), 3);
 empty._free();
 
 
 
 //Pointer
 const ptr = $.ptr_Empty.create($.ptr_Empty.calloc());
-assert.strictEqual(ptr.get().f_getThree(), 3);
+assert.strictEqual(ptr.get().getThree(), 3);
 $.free(ptr);
 ptr._free();
 
@@ -42,15 +42,15 @@ ptr._free();
 
 //Array
 const arr = $.Empty_2.create();
-assert.strictEqual(arr.get(0).f_getThree(), 3);
-assert.strictEqual(arr.get(1).f_getThree(), 3);
+assert.strictEqual(arr.get(0).getThree(), 3);
+assert.strictEqual(arr.get(1).getThree(), 3);
 arr._free();
 
 
 
 //Alternative
 const alt = $.alt_Empty_or_OtherEmpty.create();
-assert.strictEqual(alt.value.f_getThree(), 3);
+assert.strictEqual(alt.value.getThree(), 3);
 alt._free();
 
 

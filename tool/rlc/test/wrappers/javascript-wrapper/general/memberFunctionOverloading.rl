@@ -27,24 +27,24 @@ import * as $ from './wrapper.mjs';
 //Checking that function overloading works for member functions
 
 const obj = $.ClassFunctionOverloading.create();
-assert.strictEqual(obj.v_value, 5);
+assert.strictEqual(obj.value, 5);
 
 const int = $.Int.create(5);
-assert.strictEqual(obj.f_foo(int), 10);
+assert.strictEqual(obj.foo(int), 10);
 
 const double = $.Float.create(5);
-assert.strictEqual(obj.f_foo(double), 25.0);
-assert.strictEqual(obj.f_foo(0.4), 2.0);
+assert.strictEqual(obj.foo(double), 25.0);
+assert.strictEqual(obj.foo(0.4), 2.0);
 
 const otherInt = $.Int.create(10);
-assert.strictEqual(obj.f_foo(int, otherInt), 20);
-assert.strictEqual(obj.f_foo(int, 10), 20);
-assert.strictEqual(obj.f_foo(5, otherInt), 20);
-assert.strictEqual(obj.f_foo(5, 10), 20);
+assert.strictEqual(obj.foo(int, otherInt), 20);
+assert.strictEqual(obj.foo(int, 10), 20);
+assert.strictEqual(obj.foo(5, otherInt), 20);
+assert.strictEqual(obj.foo(5, 10), 20);
 
-const result = obj.f_foo();
+const result = obj.foo();
 result.value = 32;
-assert.strictEqual(obj.v_value, 32);
+assert.strictEqual(obj.value, 32);
 
 obj._free();
 int._free();

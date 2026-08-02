@@ -24,8 +24,8 @@ import * as $ from './wrapper.mjs';
 //Checking that alternatives containing arrays work
 
 let alt = $.alt_SmallBox_or_strlit_4.create();
-assert.strictEqual(alt.value.v_value, 0);
-assert.strictEqual(alt.value.v_name, "Unknown");
+assert.strictEqual(alt.value.value, 0);
+assert.strictEqual(alt.value.name, "Unknown");
 
 let arr = $.strlit_4.create();
 arr.set("Hello", 1);

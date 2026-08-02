@@ -31,7 +31,7 @@ import * as $ from './wrapper.mjs';
 let alternative = $.alt_int64_t_or_BigBox_or_strlit.create("Hello");
 assert.strictEqual(alternative.value, "Hello");
 
-$.f_foo(alternative);
+$.foo(alternative);
 assert.strictEqual(alternative.value, "Changed by Rulebook");
     
 alternative._free();

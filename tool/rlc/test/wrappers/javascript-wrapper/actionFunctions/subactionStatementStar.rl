@@ -20,22 +20,22 @@ import * as $ from './wrapper.mjs';
 
 let p;
 
-p = $.f_parent();
-p.f_parentAction1();
-p.f_childAction1();
-p.f_childAction2();
-p.f_parentAction2();
-assert.strictEqual(p.f_is_done(), true);
+p = $.parent();
+p.parentAction1();
+p.childAction1();
+p.childAction2();
+p.parentAction2();
+assert.strictEqual(p.is_done(), true);
 p._free();
 
 
 //This is a bit weird
-p = $.f_parent();
-p.f_parentAction1();
-p.f_childAction1();   
-p.v_lol.f_childAction2();
-assert.strictEqual(p.v_lol.f_is_done(), true);
-assert.strictEqual(p.f_can_parentAction2(), false);
+p = $.parent();
+p.parentAction1();
+p.childAction1();   
+p.lol.childAction2();
+assert.strictEqual(p.lol.is_done(), true);
+assert.strictEqual(p.can_parentAction2(), false);
 p._free();  
 
 

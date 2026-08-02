@@ -48,9 +48,9 @@ function checkData2(arr) {
     for (let i = 0; i < arr.length[0]; i++) {
         for (let j = 0; j < arr.length[1]; j++) {
             const myObj = arr.get(i, j);
-            assert.strictEqual(myObj.v_value, 0);
-            assert.strictEqual(myObj.v_smallBox.v_value, 0);
-            assert.strictEqual(myObj.v_smallBox.v_name, "Unknown");
+            assert.strictEqual(myObj.value, 0);
+            assert.strictEqual(myObj.smallBox.value, 0);
+            assert.strictEqual(myObj.smallBox.name, "Unknown");
         }
     }
 }

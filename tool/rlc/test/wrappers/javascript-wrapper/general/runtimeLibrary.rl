@@ -22,7 +22,7 @@ process.stdout.write = (chunk, encoding, callback) => {
 };
 
 try {
-    $.f_foo();
+    $.foo();
 }
 finally {
     process.stdout.write = originalWrite;

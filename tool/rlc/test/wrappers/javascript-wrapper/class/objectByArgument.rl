@@ -37,9 +37,9 @@ import * as $ from './wrapper.mjs';
 let smallBox = $.SmallBox.create();
 let bigBox = $.BigBox.create();
 
-$.f_foo(smallBox, bigBox);
-assert.strictEqual(smallBox.v_name, "Other small box");
-assert.strict(bigBox.v_smallBox.v_name, "Small box inside big box");
+$.foo(smallBox, bigBox);
+assert.strictEqual(smallBox.name, "Other small box");
+assert.strict(bigBox.smallBox.name, "Small box inside big box");
 
 smallBox._free();
 bigBox._free();

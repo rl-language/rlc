@@ -32,23 +32,23 @@ import * as $ from './wrapper.mjs';
 //Checking that function overloading works for top-level function
 
 const int = $.Int.create(5);
-assert.strictEqual($.f_foo(int), 6);
+assert.strictEqual($.foo(int), 6);
 
 const double = $.Float.create(5);
-assert.strictEqual($.f_foo(double), 10.0);
-assert.strictEqual($.f_foo(4.5), 9.0);
+assert.strictEqual($.foo(double), 10.0);
+assert.strictEqual($.foo(4.5), 9.0);
 
 const otherInt = $.Int.create(10);
-assert.strictEqual($.f_foo(int, otherInt), 15);
-assert.strictEqual($.f_foo(int, 10), 15);
-assert.strictEqual($.f_foo(5, otherInt), 15);
-assert.strictEqual($.f_foo(5, 10), 15);
+assert.strictEqual($.foo(int, otherInt), 15);
+assert.strictEqual($.foo(int, 10), 15);
+assert.strictEqual($.foo(5, otherInt), 15);
+assert.strictEqual($.foo(5, 10), 15);
 
 const smallBox = $.SmallBox.create();
-const result = $.f_foo(smallBox);
+const result = $.foo(smallBox);
 assert.strictEqual(result.value, "Unknown");
 result.value = "Hello";
-assert.strictEqual(smallBox.v_name, "Hello");
+assert.strictEqual(smallBox.name, "Hello");
 
 int._free();
 double._free();

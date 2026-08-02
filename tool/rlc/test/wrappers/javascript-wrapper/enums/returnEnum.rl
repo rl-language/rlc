@@ -26,8 +26,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking if enums are properly returned by functions
 
-const color = $.f_foo();
-assert.strictEqual(color.value, $.ColorEnum.v_green);
+const color = $.foo();
+assert.strictEqual(color.value, $.ColorEnum.green);
 
 color._free();
 

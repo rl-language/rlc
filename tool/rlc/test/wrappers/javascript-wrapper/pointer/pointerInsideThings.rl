@@ -52,7 +52,7 @@ obj1._free();
 //ClassWithPointerAsArray
 const obj2 = $.ArraySmartPointer.create();
 for (let i = 0; i < 3; i++) {
-    assert.strict(obj2.v_ptr.get(i).v_ptr.get(), 5);
+    assert.strict(obj2.ptr.get(i).ptr.get(), 5);
 }
 
 obj2._free();
@@ -61,14 +61,14 @@ obj2._free();
 
 //Array of objects with pointers
 const arr = $.SmartPointer_2._createUninitialized();
-arr.get(0).v_ptr.value = $.ptr_Int.calloc();
-arr.get(1).v_ptr.value = $.ptr_Int.calloc();
+arr.get(0).ptr.value = $.ptr_Int.calloc();
+arr.get(1).ptr.value = $.ptr_Int.calloc();
 
-arr.get(0).v_ptr.set(4);
-arr.get(1).v_ptr.set(8);
+arr.get(0).ptr.set(4);
+arr.get(1).ptr.set(8);
 
-assert.strictEqual(arr.get(0).v_ptr.get(), 4);
-assert.strictEqual(arr.get(1).v_ptr.get(), 8);
+assert.strictEqual(arr.get(0).ptr.get(), 4);
+assert.strictEqual(arr.get(1).ptr.get(), 8);
 
 arr._free();
 

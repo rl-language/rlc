@@ -35,9 +35,9 @@ import * as $ from './wrapper.mjs';
 
 let bigBox = $.BigBox.create();
 let altWithAlt = $.alt_BigBox_or_Alt.create(bigBox);
-assert.strictEqual(altWithAlt.value.v_value, 0);
-assert.strictEqual(altWithAlt.value.v_smallBox.v_value, 0);
-assert.strictEqual(altWithAlt.value.v_smallBox.v_name, "Unknown");
+assert.strictEqual(altWithAlt.value.value, 0);
+assert.strictEqual(altWithAlt.value.smallBox.value, 0);
+assert.strictEqual(altWithAlt.value.smallBox.name, "Unknown");
 
 let alt = $.Alt.create("Hello");
 altWithAlt.value = alt;

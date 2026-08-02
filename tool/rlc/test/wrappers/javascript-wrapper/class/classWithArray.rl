@@ -28,13 +28,13 @@ import * as $ from './wrapper.mjs';
 //Checking if a class with an array as member field works
 
 let bigBox = $.BigBox.create();
-bigBox.v_smallBox.v_name = "Small";
+bigBox.smallBox.name = "Small";
 let arr = $.BigBox_2_3.create([[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]]);
-bigBox.v_smallBox.v_name = "Big";
-let myObj = $.ClassWithArray.create({ v_arr: arr});
-for (let i = 0; i < myObj.v_arr.length[0]; i++) {
-    for (let j = 0; j < myObj.v_arr.length[1]; j++) {
-        assert.strictEqual(myObj.v_arr.get(i, j).v_smallBox.v_name, "Small");
+bigBox.smallBox.name = "Big";
+let myObj = $.ClassWithArray.create({ arr: arr});
+for (let i = 0; i < myObj.arr.length[0]; i++) {
+    for (let j = 0; j < myObj.arr.length[1]; j++) {
+        assert.strictEqual(myObj.arr.get(i, j).smallBox.name, "Small");
     }
 }
 

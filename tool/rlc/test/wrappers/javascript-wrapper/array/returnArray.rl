@@ -16,7 +16,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if arrays are correctly returned by functions
 
-const result = $.f_foo();
+const result = $.foo();
 assert.strictEqual(result.get(0), "W");
 assert.strictEqual(result.get(1), "X");
 assert.strictEqual(result.get(2), "Y");

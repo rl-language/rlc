@@ -51,12 +51,12 @@ arr._free();
 
 //Array of objects
 arr = $.BigBox_2_3._createUninitialized();
-arr.get(0, 0).v_value = 5;
-assert.strictEqual(arr.get(0,0).v_value, 5);
+arr.get(0, 0).value = 5;
+assert.strictEqual(arr.get(0,0).value, 5);
     
 let bigBox = $.BigBox.create();
 arr.set(bigBox, [1,1]);
-assert.strictEqual(arr.get(1,1).v_smallBox.v_name, "Unknown");
+assert.strictEqual(arr.get(1,1).smallBox.name, "Unknown");
 
 bigBox._free();
 arr._free();

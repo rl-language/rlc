@@ -22,21 +22,21 @@ import * as $ from './wrapper.mjs';
 
 //Checking if subaction* statements work
 
-const pair = $.f_vending_machine_times_two(16);
-assert.strictEqual(pair.v_target, 16);
-assert.strictEqual(pair.f_is_done(), false);
+const pair = $.vending_machine_times_two(16);
+assert.strictEqual(pair.target, 16);
+assert.strictEqual(pair.is_done(), false);
 
-pair.f_insert_5_coin();
-assert.strictEqual(pair.v_target, 11);
-assert.strictEqual(pair.f_is_done(), false);
+pair.insert_5_coin();
+assert.strictEqual(pair.target, 11);
+assert.strictEqual(pair.is_done(), false);
 
-pair.f_insert_10_coin();
-assert.strictEqual(pair.v_target, 1);
-assert.strictEqual(pair.f_is_done(), false);
+pair.insert_10_coin();
+assert.strictEqual(pair.target, 1);
+assert.strictEqual(pair.is_done(), false);
 
-pair.f_insert_1_coin();
-assert.strictEqual(pair.v_target, 0);
-assert.strictEqual(pair.f_is_done(), true);
+pair.insert_1_coin();
+assert.strictEqual(pair.target, 0);
+assert.strictEqual(pair.is_done(), true);
 
 pair._free();
 $._detectMemoryLeaksDoNotUse();

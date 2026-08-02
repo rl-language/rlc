@@ -23,13 +23,13 @@ import * as $ from './wrapper.mjs';
 
 //Checking if I can access the value of the enum and call member functions
 
-const color = $.ColorEnum.create($.ColorEnum.v_red);
-assert.strictEqual(color.value, $.ColorEnum.v_red);
+const color = $.ColorEnum.create($.ColorEnum.red);
+assert.strictEqual(color.value, $.ColorEnum.red);
 
 color.value = 43;
 assert.strictEqual(color.value, 43);
 
-const name = color.f_getName();
+const name = color.getName();
 assert.strictEqual(name, "Unknown color");
 
 color._free();

@@ -27,30 +27,30 @@ import * as $ from './wrapper.mjs';
 
 
 //Constructor
-let smallBox = $.SmallBox.create({v_value: 123, v_name: "Gino"});
-let bigBox = $.BigBox.create({v_value: 3});
+let smallBox = $.SmallBox.create({value: 123, name: "Gino"});
+let bigBox = $.BigBox.create({value: 3});
 
-assert.strictEqual(smallBox.v_value, 123);
-assert.strictEqual(smallBox.v_name, "Gino");
-assert.strictEqual(bigBox.v_value, 3);
-assert.strictEqual(bigBox.v_smallBox.v_value, 0);
-assert.strictEqual(bigBox.v_smallBox.v_name, "Unknown");
+assert.strictEqual(smallBox.value, 123);
+assert.strictEqual(smallBox.name, "Gino");
+assert.strictEqual(bigBox.value, 3);
+assert.strictEqual(bigBox.smallBox.value, 0);
+assert.strictEqual(bigBox.smallBox.name, "Unknown");
 
 smallBox._free();
 bigBox._free();
 
 smallBox = $.SmallBox.create();
-assert.strictEqual(smallBox.v_value, 0);
-assert.strictEqual(smallBox.v_name, "Unknown");
+assert.strictEqual(smallBox.value, 0);
+assert.strictEqual(smallBox.name, "Unknown");
 
 smallBox._free();
 
 
 
 //Member functions
-let smallBox2 = $.SmallBox.create({v_value: 50});
-smallBox2.f_multiplyValueBy2();
-assert.strictEqual(smallBox2.v_value, 100);
+let smallBox2 = $.SmallBox.create({value: 50});
+smallBox2.multiplyValueBy2();
+assert.strictEqual(smallBox2.value, 100);
 
 smallBox2._free();
 

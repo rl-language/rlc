@@ -13,10 +13,10 @@ import * as $ from './wrapper.mjs';
 let int1 = $.Int.create(64);
 let int2 = $.Int.create(256);
 
-int1.f_assign(int2);
+int1.assign(int2);
 assert.strictEqual(int1.value, 256);
 
-int2.f_assign(1024);
+int2.assign(1024);
 assert.strictEqual(int2.value, 1024);
 
 int1._free();

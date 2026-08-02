@@ -28,11 +28,11 @@ import * as $ from './wrapper.mjs';
 
 //Checking if alternative subaction statements work
 
-const game = $.f_chooseGame();
-game.f_choose(true);
-game.f_move1Chess();
-game.f_move2Chess();
-assert.strictEqual(game.f_is_done(), true);
+const game = $.chooseGame();
+game.choose(true);
+game.move1Chess();
+game.move2Chess();
+assert.strictEqual(game.is_done(), true);
 
 game._free();
 $._detectMemoryLeaksDoNotUse();

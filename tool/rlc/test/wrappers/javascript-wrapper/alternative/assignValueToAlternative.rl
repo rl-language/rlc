@@ -28,8 +28,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking that we can assign values to the alternative
 
-let smallBox = $.SmallBox.create({v_value: 5, v_name: "Hello"});
-let bigBox = $.BigBox.create({v_value: 12, v_smallBox: smallBox});
+let smallBox = $.SmallBox.create({value: 5, name: "Hello"});
+let bigBox = $.BigBox.create({value: 12, smallBox: smallBox});
 
 let alternative = $.alt_int64_t_or_BigBox_or_strlit.create(5);
 assert.strictEqual(alternative.value, 5);
@@ -38,9 +38,9 @@ alternative.value = 9;
 assert.strictEqual(alternative.value, 9);
 
 alternative.value = bigBox;
-assert.strictEqual(alternative.value.v_value, 12);
-assert.strictEqual(alternative.value.v_smallBox.v_value, 5);
-assert.strictEqual(alternative.value.v_smallBox.v_name, "Hello");
+assert.strictEqual(alternative.value.value, 12);
+assert.strictEqual(alternative.value.smallBox.value, 5);
+assert.strictEqual(alternative.value.smallBox.name, "Hello");
 
 alternative.value = "This is a string";
 assert.strictEqual(alternative.value, "This is a string");

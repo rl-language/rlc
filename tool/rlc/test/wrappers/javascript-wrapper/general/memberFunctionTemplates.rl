@@ -23,9 +23,9 @@ import * as $ from './wrapper.mjs';
 //Checking that member function templates work
 
 const obj = $.MyClass.create();
-assert.strictEqual(obj.f_foo(3), 3);
-assert.strictEqual(obj.f_foo(0.25), 0.25);
-assert.strictEqual(obj.f_foo("Hello"), "Hello");
+assert.strictEqual(obj.foo(3), 3);
+assert.strictEqual(obj.foo(0.25), 0.25);
+assert.strictEqual(obj.foo("Hello"), "Hello");
 
 obj._free();
 

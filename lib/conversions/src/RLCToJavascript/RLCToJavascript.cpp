@@ -273,8 +273,7 @@ namespace mlir::rlc
 					printer << "export function ";
 				}
 
-				emitMangledFunctionName(name);
-				printer << "(...args){";
+				printer << name << "(...args){";
 
 				if (isMethod)
 				{
@@ -338,8 +337,22 @@ namespace mlir::rlc
 																 .getOps<mlir::rlc::EnumFieldDeclarationOp>()))
 				{
 					printer << "static ";
-					emitMangledVariableName(value.value().getName());
-					printer << " = " << i << ";";
+					const auto enumValueName = value.value().getName();
+					if (enumValueName[0] == '_')
+					{
+						llvm::errs()
+								<< "Warning: enum values should not start with '_', because "
+									 "they may override existing functionalities of the wrapper.\n";
+					}
+
+					if (enumValueName == "create" || enumValueName == "clone")
+					{
+						llvm::errs() << "Warning: enum values can't be named '"
+												 << enumValueName
+												 << "', otherwise the wrapper will break.\n";
+					}
+
+					printer << enumValueName << " = " << i << ";";
 					i++;
 				}
 
@@ -365,7 +378,11 @@ namespace mlir::rlc
 					}
 
 					printer << "\"";
-					emitMangledVariableName(name);
+					emitVariableName(name, false);
+					printer << "\", ";
+
+					printer << "\"";
+					emitVariableName(name, true);
 					printer << "\", ";
 				}
 
@@ -386,6 +403,8 @@ namespace mlir::rlc
 			void emitGettersAndSetters(
 					mlir::rlc::ClassType classType, llvm::SmallVector<int, 4> offsets)
 			{
+				const llvm::SmallVector<int, 2> isMangledVector = { false, true };
+
 				for (auto [type, name, offset] : llvm::zip(
 								 classType.getMemberTypes(),
 								 classType.getMemberNames(),
@@ -396,17 +415,20 @@ namespace mlir::rlc
 						continue;
 					}
 
-					printer << "get ";
-					emitMangledVariableName(name);
-					printer << "(){return this._get(";
-					emitJavascriptType(type);
-					printer << ", " << offset << ");}";
+					for (bool isMangled : isMangledVector)
+					{
+						printer << "get ";
+						emitVariableName(name, isMangled);
+						printer << "(){return this._get(";
+						emitJavascriptType(type);
+						printer << ", " << offset << ");}";
 
-					printer << "set ";
-					emitMangledVariableName(name);
-					printer << "(value){this._set(";
-					emitJavascriptType(type);
-					printer << ", " << offset << ", value);}";
+						printer << "set ";
+						emitVariableName(name, isMangled);
+						printer << "(value){this._set(";
+						emitJavascriptType(type);
+						printer << ", " << offset << ", value);}";
+					}
 				}
 			}
 
@@ -432,7 +454,8 @@ namespace mlir::rlc
 
 				if (not this->table.isTriviallyDestructible(underlyingType))
 				{
-					auto funDrop = mlir::FunctionType::get(type.getContext(), { type }, {});
+					auto funDrop =
+							mlir::FunctionType::get(type.getContext(), { type }, {});
 					sortedOverloads["drop"].push_back(funDrop);
 				}
 
@@ -444,7 +467,7 @@ namespace mlir::rlc
 
 			void emitMemberFunctions(mlir::Type type)
 			{
-				//Normal member functions
+				// Normal member functions
 				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
 				for (auto memberFunction : this->table.getMemberFunctionsOf(type))
 				{
@@ -463,9 +486,8 @@ namespace mlir::rlc
 					}
 				}
 
-				//Special member functions
+				// Special member functions
 				emitSpecialFunctions(type, sortedOverloads);
-
 
 				for (auto& pair : sortedOverloads)
 				{
@@ -529,14 +551,13 @@ namespace mlir::rlc
 			/////////////////////////////////////////////////////////////////////////
 			/////////////////////////////////////////////////////////////////////////
 
-			void emitMangledFunctionName(llvm::StringRef name)
+			void emitVariableName(llvm::StringRef name, bool isMangled)
 			{
-				printer << "f_" << name;
-			}
-
-			void emitMangledVariableName(llvm::StringRef name)
-			{
-				printer << "v_" << name;
+				if (isMangled)
+				{
+					printer << "$";
+				}
+				printer << name;
 			}
 
 			void emitMangledPointerName(mlir::rlc::OwningPtrType type)

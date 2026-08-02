@@ -24,11 +24,11 @@ import * as $ from './wrapper.mjs';
 
 //Checking if the assign function works
 
-let color1 = $.ColorEnum.create($.ColorEnum.v_red);
-let color2 = $.ColorEnum.create($.ColorEnum.v_green);
+let color1 = $.ColorEnum.create($.ColorEnum.red);
+let color2 = $.ColorEnum.create($.ColorEnum.green);
 
-color1.f_assign(color2);
-assert.strictEqual(color1.value, $.ColorEnum.v_green);
+color1.assign(color2);
+assert.strictEqual(color1.value, $.ColorEnum.green);
 
 color1._free();
 color2._free();

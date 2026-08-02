@@ -32,8 +32,8 @@ import * as $ from './wrapper.mjs';
 
 //Check if a pointer is correctly returned from a function
 
-const ptr = $.f_foo();
-assert.strictEqual(ptr.get().v_smallBox.v_name, "Unknown");
+const ptr = $.foo();
+assert.strictEqual(ptr.get().smallBox.name, "Unknown");
 
 $.free(ptr);
 ptr._free();

@@ -49,7 +49,7 @@ import * as $ from './wrapper.mjs';
 
 assert.throws(() => $.Int.create("Hello"));
 assert.throws(() => $.StringLiteral.create(4));
-assert.throws(() => $.SmallBox.create({v_name: 5}));
+assert.throws(() => $.SmallBox.create({name: 5}));
 assert.throws(() => $.alt_int64_t_or_BigBox_or_strlit.create(0.5));
 assert.throws(() => $.strlit_4.create(["Hello"]));
 assert.throws(() => $.ColorEnum.create("Hello"));
@@ -70,7 +70,7 @@ obj._free();
 
 obj = $.BigBox.create();
 assert.throws(() => $.SmallBox._assertWrapper(obj));
-assert.throws(() => obj.v_smallBox = obj);
+assert.throws(() => obj.smallBox = obj);
 obj._free();
 
 obj = $.alt_int64_t_or_BigBox_or_strlit.create();

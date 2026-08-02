@@ -24,12 +24,12 @@ import * as $ from './wrapper.mjs';
 
 //Checking if I can assign objects to object fields
 
-let smallBox = $.SmallBox.create({v_value: 50, v_name: "Gino"});
+let smallBox = $.SmallBox.create({value: 50, name: "Gino"});
 let bigBox = $.BigBox.create();
-bigBox.v_smallBox = smallBox;
-assert.strictEqual(bigBox.v_smallBox.v_value, smallBox.v_value);
-assert.strictEqual(bigBox.v_smallBox.v_name, smallBox.v_name);
-assert.notStrictEqual(bigBox.v_smallBox._address, smallBox._address);
+bigBox.smallBox = smallBox;
+assert.strictEqual(bigBox.smallBox.value, smallBox.value);
+assert.strictEqual(bigBox.smallBox.name, smallBox.name);
+assert.notStrictEqual(bigBox.smallBox._address, smallBox._address);
 
 smallBox._free();
 bigBox._free();

@@ -24,7 +24,7 @@ import * as $ from './wrapper.mjs';
 //Checking if the default value for enums is correct
 
 let color = $.ColorEnum.create();
-assert.strictEqual(color.value, $.ColorEnum.v_red);
+assert.strictEqual(color.value, $.ColorEnum.red);
 
 color._free();
 

@@ -31,10 +31,10 @@ import * as $ from './wrapper.mjs';
 //Checking if arrays are correctly returned by ref
 
 const smallBox = $.SmallBox.create();
-smallBox.v_name = "Hello";
-const bigBox = $.BigBox.create({v_smallBox: smallBox});
+smallBox.name = "Hello";
+const bigBox = $.BigBox.create({smallBox: smallBox});
 const obj = $.ClassWithArray.create();
-const result = $.f_foo(obj);
+const result = $.foo(obj);
 result.set(bigBox, [1, 1]);
 for (let i = 0; i < result.length[0]; i++) {
     for (let j = 0; j < result.length[1]; j++) {
@@ -46,7 +46,7 @@ for (let i = 0; i < result.length[0]; i++) {
             str = "Unknown";
         }
 
-        assert.strictEqual(obj.v_arr.get(i, j).v_smallBox.v_name, str);
+        assert.strictEqual(obj.arr.get(i, j).smallBox.name, str);
     }
 }
 

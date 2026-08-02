@@ -20,7 +20,7 @@ assert.strictEqual(s1.value, "S1");
 s2 = $.StringLiteral.create("S2");
 assert.strictEqual(s2.value, "S2");
 
-$.f_foo(s1, s2);
+$.foo(s1, s2);
 assert.strictEqual(s1.value, "S1");
 assert.strictEqual(s2.value, "S1");
 assert.notStrictEqual(s1._address, s2._address);

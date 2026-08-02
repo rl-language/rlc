@@ -27,12 +27,12 @@ import * as $ from './wrapper.mjs';
 //Checking if a pointer is correctly returned by ref
 
 const obj = $.SmartPointer.create();
-const ref = $.f_foo(obj);
-assert.strictEqual(obj.v_ptr.get(), 5);
+const ref = $.foo(obj);
+assert.strictEqual(obj.ptr.get(), 5);
 assert.strictEqual(ref.get(), 5);
 
 ref.set(10);
-assert.strictEqual(obj.v_ptr.get(), 10);
+assert.strictEqual(obj.ptr.get(), 10);
 assert.strictEqual(ref.get(), 10);
 
 obj._free();

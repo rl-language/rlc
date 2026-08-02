@@ -16,11 +16,11 @@ import * as $ from './wrapper.mjs';
 
 const obj = $.MyClass.create();
 
-assert.strictEqual(obj.f_positiveSum(1,2), 3);
-assert.throws(() => obj.f_positiveSum(0,2));
+assert.strictEqual(obj.positiveSum(1,2), 3);
+assert.throws(() => obj.positiveSum(0,2));
 
-assert.strictEqual(obj.f_can_positiveSum(1,2), true);
-assert.strictEqual(obj.f_can_positiveSum(0,2), false);
+assert.strictEqual(obj.can_positiveSum(1,2), true);
+assert.strictEqual(obj.can_positiveSum(0,2), false);
 
 obj._free();
 $._detectMemoryLeaksDoNotUse();

@@ -26,12 +26,12 @@ import * as $ from './wrapper.mjs';
 
 //Checking if enums are properly returned by ref
 
-const color = $.ColorEnum.create($.ColorEnum.v_red);
-const ref = $.f_foo(color);
+const color = $.ColorEnum.create($.ColorEnum.red);
+const ref = $.foo(color);
 
-ref.value = $.ColorEnum.v_blue;
-assert.strictEqual(color.value, $.ColorEnum.v_blue);
-assert.strictEqual(ref.value, $.ColorEnum.v_blue);
+ref.value = $.ColorEnum.blue;
+assert.strictEqual(color.value, $.ColorEnum.blue);
+assert.strictEqual(ref.value, $.ColorEnum.blue);
 
 color._free();
 

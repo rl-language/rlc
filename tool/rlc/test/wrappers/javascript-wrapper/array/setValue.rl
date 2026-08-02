@@ -74,9 +74,9 @@ function checkData2() {
             let fromArr = arr.get(i, j);
             let fromArrData = arrData[i][j];
 
-            assert.strictEqual(fromArr.v_value, fromArrData.v_value);
-            assert.strictEqual(fromArr.v_smallBox.v_value, fromArrData.v_smallBox.v_value);
-            assert.strictEqual(fromArr.v_smallBox.v_name, fromArrData.v_smallBox.v_name);
+            assert.strictEqual(fromArr.value, fromArrData.value);
+            assert.strictEqual(fromArr.smallBox.value, fromArrData.smallBox.value);
+            assert.strictEqual(fromArr.smallBox.name, fromArrData.smallBox.name);
         }
     }
 }
@@ -86,7 +86,7 @@ arrData = [[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]];
 arr = $.BigBox_2_3.create(arrData);
 checkData2();
 
-let otherBigBox = $.BigBox.create({ v_value: 123 });
+let otherBigBox = $.BigBox.create({ value: 123 });
 arr.set(otherBigBox, [1, 1]);
 arrData[1][1] = otherBigBox;
 checkData2();

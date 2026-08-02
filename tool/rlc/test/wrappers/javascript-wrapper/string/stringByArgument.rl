@@ -18,23 +18,23 @@ assert.strictEqual(string.value, "Hello");
 string._free();
 
 string = $.StringLiteral.create("Hello");
-$.f_foo(string);
+$.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string._free();
 
 string = $.StringLiteral.create("Hello");
-$.f_foo(string);
+$.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string.value = "NewString";
 assert.strictEqual(string.value, "NewString");
 string._free();
 
 string = $.StringLiteral.create("Hello");
-$.f_foo(string);
+$.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string.value = "NewString";
 assert.strictEqual(string.value, "NewString");
-$.f_foo(string);
+$.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string._free();
 

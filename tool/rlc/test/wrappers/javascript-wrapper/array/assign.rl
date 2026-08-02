@@ -41,10 +41,10 @@ let arr2;
 arr1 = $.BigBox_2.create();
 arr2 = $.BigBox_2.create();
 
-arr1.f_assign(arr2);
+arr1.assign(arr2);
 
-assert.strictEqual(arr1.get(0).v_smallBox.v_name, "Assigned");
-assert.strictEqual(arr1.get(1).v_smallBox.v_name, "Assigned");
+assert.strictEqual(arr1.get(0).smallBox.name, "Assigned");
+assert.strictEqual(arr1.get(1).smallBox.name, "Assigned");
 
 arr1._free();
 arr2._free();
@@ -60,7 +60,7 @@ arr2.set(10, 0);
 let tmp = $.Int.create(20);
 arr2.set(tmp, 1);
 
-arr1.f_assign(arr2);
+arr1.assign(arr2);
 
 assert.strictEqual(arr1.get(0), 10);
 assert.strictEqual(arr1.get(1), 20);

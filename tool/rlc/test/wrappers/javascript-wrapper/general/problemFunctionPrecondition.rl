@@ -46,12 +46,12 @@ and that function is placed before the original, then that function is wrongly
 considered as the precondition.
 */
 
-assert.strictEqual($.f_can_foo(), false);
-assert.strictEqual($.f_can_bar(), true);
+assert.strictEqual($.can_foo(), false);
+assert.strictEqual($.can_bar(), true);
 
 let obj = $.MyClass.create();
-assert.strictEqual(obj.f_can_foo(), false);
-assert.strictEqual(obj.f_can_bar(), true);
+assert.strictEqual(obj.can_foo(), false);
+assert.strictEqual(obj.can_bar(), true);
 
 obj._free();
 $._detectMemoryLeaksDoNotUse();

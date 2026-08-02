@@ -37,8 +37,8 @@ function check(foo) {
     arr._free();
 }
 
-check($.f_foo1);
-check($.f_foo2);
+check($.foo1);
+check($.foo2);
 
 $.StringPool.free();
 $._detectMemoryLeaksDoNotUse();

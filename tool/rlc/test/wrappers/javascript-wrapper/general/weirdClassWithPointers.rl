@@ -44,19 +44,19 @@ import * as $ from './wrapper.mjs';
 
 const weird = $.WeirdStruct.create();
 
-$.f_foo(weird);
-assert.strictEqual(weird.v_a.v_byte, 10);
-assert.strictEqual(weird.v_a.v_int, 100);
-assert.strictEqual(weird.v_b, -50);
-assert.strictEqual(weird.v_c, "Hello");
-assert.strictEqual(weird.v_d.value, "Ciao");
-assert.strictEqual(weird.v_e.get(0), 0);
-assert.strictEqual(weird.v_e.get(1), 1);
-assert.strictEqual(weird.v_e.get(2), 2);
-assert.strictEqual(weird.v_f.get(0).v_int, 60);
-assert.strictEqual(weird.v_f.get(1).v_int, 120);
-assert.strictEqual(weird.v_g, 8);
-assert.strictEqual(weird.v_h, "Super");
+$.foo(weird);
+assert.strictEqual(weird.a.byte, 10);
+assert.strictEqual(weird.a.int, 100);
+assert.strictEqual(weird.b, -50);
+assert.strictEqual(weird.c, "Hello");
+assert.strictEqual(weird.d.value, "Ciao");
+assert.strictEqual(weird.e.get(0), 0);
+assert.strictEqual(weird.e.get(1), 1);
+assert.strictEqual(weird.e.get(2), 2);
+assert.strictEqual(weird.f.get(0).int, 60);
+assert.strictEqual(weird.f.get(1).int, 120);
+assert.strictEqual(weird.g, 8);
+assert.strictEqual(weird.h, "Super");
 
 weird._free();
 $.StringPool.free();

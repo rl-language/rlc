@@ -13,19 +13,19 @@ import * as $ from './wrapper.mjs';
 
 //Checking if "frm" works
 
-const machine = $.f_vending_machine(16);
-assert.strictEqual(machine.v_target_cost, 16);
+const machine = $.vending_machine(16);
+assert.strictEqual(machine.target_cost, 16);
 
-machine.f_insert_coin(10);
-assert.strictEqual(machine.v_target_cost, 6);
+machine.insert_coin(10);
+assert.strictEqual(machine.target_cost, 6);
 
-machine.f_insert_coin(5);
-assert.strictEqual(machine.v_target_cost, 1);
+machine.insert_coin(5);
+assert.strictEqual(machine.target_cost, 1);
 
-machine.f_insert_coin(1);
-assert.strictEqual(machine.v_target_cost, 0);
+machine.insert_coin(1);
+assert.strictEqual(machine.target_cost, 0);
 
-assert.strictEqual(machine.f_is_done(), true);
+assert.strictEqual(machine.is_done(), true);
 
 machine._free();
 $._detectMemoryLeaksDoNotUse();
