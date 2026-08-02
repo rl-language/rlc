@@ -82,7 +82,6 @@ class ObjectWrapper {
         }
     }
 
-    //TODO: Togliere questo e _initUninitialized?
     static _createUninitialized() {
         const myObj = this._createEmpty();
 
@@ -239,7 +238,6 @@ class PtrWrapper extends CompositeWrapper {
         this._set(Address, 0, value);
     }
 
-    //TODO: Questo le tolgo?
     static calloc(howMany) {
         //howMany === null || howMany === undefined
         if (howMany == null) {
@@ -256,14 +254,14 @@ class PtrWrapper extends CompositeWrapper {
 
         try {
             for (; i < howMany; i++) {
-                //TODO: Si può evitare? Stai copiando il comportamento di Rulebook
+                //Can we avoid this and use a Rulebook function?
                 elementClass._createByRef(actualAddress + elementClass._getSize() * i)._init();
             }
             return actualAddress;
         }
         catch (e) {
             for (let k = 0; k < i; k++) {
-                //TODO: Si può evitare? Stai copiando il comportamento di Rulebook
+                //Can we avoid this and use a Rulebook function?
                 elementClass._createByRef(actualAddress + elementClass._getSize() * k)._drop();
             }
             module._free(actualAddress);
@@ -298,7 +296,7 @@ class PtrWrapper extends CompositeWrapper {
     }
 }
 
-//TODO: Questo lo tolgo?
+//Can we avoid this and use a Rulebook function?
 function free(ptr, howMany) {
     PtrWrapper._assertWrapper(ptr);
 
@@ -313,7 +311,7 @@ function free(ptr, howMany) {
 
     const type = ptr.constructor._getElementClass();
     for (let i = 0; i < howMany; i++) {
-        //TODO: Si può evitare? Stai copiando il comportamento di Rulebook
+        //Can we avoid this and use a Rulebook function?
         type._createByRef(ptr.value + type._getSize() * i)._drop();
     }
 
