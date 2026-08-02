@@ -20,7 +20,7 @@ cls SmallBox:
 
 using Alt = Int | BigBox | StringLiteral
 fun foo(Alt alt1, BigBox | Alt alt2):
-    1+1
+    let x : BigBox | Alt
 
 #--- test.mjs
 import assert from 'assert';

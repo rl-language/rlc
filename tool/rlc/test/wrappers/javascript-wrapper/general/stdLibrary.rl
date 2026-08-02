@@ -13,7 +13,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking that the standard library can be imported and it works
 
-const vector = $.ClsT_Vector$Int$.create();
+const vector = $.VectorTint64_tT.create();
 for(let i=0; i<100; i++){
     vector.f_append(i);
 }

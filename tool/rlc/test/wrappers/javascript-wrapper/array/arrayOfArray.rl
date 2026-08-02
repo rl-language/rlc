@@ -6,7 +6,7 @@
 using Arr = Int[3]
 #This is simply Int[3][2]
 fun foo(Arr[2] arr):
-    1+1
+    let x : Arr[2]
 
 #--- test.mjs
 import assert from 'assert';

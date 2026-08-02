@@ -49,7 +49,7 @@ considered as the precondition.
 assert.strictEqual($.f_can_foo(), false);
 assert.strictEqual($.f_can_bar(), true);
 
-let obj = $.Cls_MyClass.create();
+let obj = $.MyClass.create();
 assert.strictEqual(obj.f_can_foo(), false);
 assert.strictEqual(obj.f_can_bar(), true);
 

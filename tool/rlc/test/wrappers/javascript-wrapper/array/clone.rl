@@ -4,7 +4,8 @@
 #--- main.rl
 #I need this function to generate Arr_4_StringLiteral
 fun foo(StringLiteral[4] arr):
-    1+1
+    let x : StringLiteral[4]
+    arr = x
 
 #--- test.mjs
 import assert from 'assert';

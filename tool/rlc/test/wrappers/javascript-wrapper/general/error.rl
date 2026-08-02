@@ -35,7 +35,8 @@ enum ColorEnum:
 
 #I need this function to generate the alternative and the array
 fun foo(Int | BigBox | StringLiteral alt, StringLiteral[4] arr, OwningPtr<Int> ptr):
-    1+1
+    let x : Int | BigBox | StringLiteral
+    let y : StringLiteral[4]
 
 #--- test.mjs
 import assert from 'assert';

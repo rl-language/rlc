@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "JavascriptWrapperStandard.h"
 #include "clang/Format/Format.h"
 #include "clang/Tooling/Core/Replacement.h"
@@ -412,7 +410,6 @@ namespace mlir::rlc
 				}
 			}
 
-			// TODO: Non c'è bisogno di questa funzione, puoi metterla inline
 			void emitSpecialFunctions(
 					mlir::Type type,
 					llvm::StringMap<llvm::SmallVector<mlir::FunctionType>>&
@@ -429,44 +426,25 @@ namespace mlir::rlc
 					underlyingType = type;
 				}
 
-				if (not this->table.isTriviallyInitializable(underlyingType))
-				{
-					auto fun = mlir::FunctionType::get(type.getContext(), { type }, {});
-					sortedOverloads["init"].push_back(fun);
-				}
-				else
-				{
-					// TODO: Togliere
-					llvm::errs() << underlyingType << " is trivially initiazable\n";
-				}
+				// Arrays, alternative and classes ALWAYS have the init method
+				auto funInit = mlir::FunctionType::get(type.getContext(), { type }, {});
+				sortedOverloads["init"].push_back(funInit);
 
 				if (not this->table.isTriviallyDestructible(underlyingType))
 				{
-					auto fun = mlir::FunctionType::get(type.getContext(), { type }, {});
-					sortedOverloads["drop"].push_back(fun);
-				}
-				else
-				{
-					// TODO: Togliere
-					llvm::errs() << underlyingType << " is trivially destructible\n";
+					auto funDrop = mlir::FunctionType::get(type.getContext(), { type }, {});
+					sortedOverloads["drop"].push_back(funDrop);
 				}
 
-				if (not this->table.isTriviallyCopiable(underlyingType))
-				{
-					auto fun =
-							mlir::FunctionType::get(type.getContext(), { type, type }, {});
-					sortedOverloads["assign"].push_back(fun);
-				}
-				else
-				{
-					// TODO: Togliere
-					llvm::errs() << underlyingType << " is trivially copiable\n";
-				}
+				// Arrays, alternatives and classes ALWAYS have the assign method
+				auto funAssign =
+						mlir::FunctionType::get(type.getContext(), { type, type }, {});
+				sortedOverloads["assign"].push_back(funAssign);
 			}
 
-			// TODO: Ci sono le special functions per gli OwningPtr? Credo di no...?
 			void emitMemberFunctions(mlir::Type type)
 			{
+				//Normal member functions
 				llvm::StringMap<llvm::SmallVector<mlir::FunctionType>> sortedOverloads;
 				for (auto memberFunction : this->table.getMemberFunctionsOf(type))
 				{
@@ -485,7 +463,9 @@ namespace mlir::rlc
 					}
 				}
 
+				//Special member functions
 				emitSpecialFunctions(type, sortedOverloads);
+
 
 				for (auto& pair : sortedOverloads)
 				{
@@ -664,7 +644,7 @@ namespace mlir::rlc
 					return { addressSize, addressSize };
 				}
 
-				std::cerr << "Can't compute size of type ";
+				llvm::errs() << "Can't compute size of type ";
 				type.dump();
 				std::abort();
 			}
@@ -760,7 +740,7 @@ namespace mlir::rlc
 				return { structSize, maxAlignment, offsets };
 			}
 
-			//There's no need for the class templates
+			// There's no need for the class templates
 			void findAlternativesOrArraysOrPointers(mlir::Type type)
 			{
 				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
@@ -853,7 +833,7 @@ namespace mlir::rlc
 				}
 				else
 				{
-					std::cerr << "Can't emit an equivalent Javascript type for ";
+					llvm::errs() << "Can't emit an equivalent Javascript type for ";
 					type.dump();
 					std::abort();
 				}

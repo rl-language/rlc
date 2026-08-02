@@ -31,7 +31,8 @@ cls ArraySmartPointer:
          __builtin_free_do_not_use(self.ptr)
 
 fun foo(Int | SmartPointer x, SmartPointer[2] y):
-    1+1
+    let z : SmartPointer[2]
+    x = 2
 
 #--- test.mjs
 import assert from 'assert';
@@ -42,14 +43,14 @@ import * as $ from './wrapper.mjs';
 
 
 //ClassWithPointer
-const obj1 = $.Cls_SmartPointer.create();
+const obj1 = $.SmartPointer.create();
 
 obj1._free();
 
 
 
 //ClassWithPointerAsArray
-const obj2 = $.Cls_ArraySmartPointer.create();
+const obj2 = $.ArraySmartPointer.create();
 for (let i = 0; i < 3; i++) {
     assert.strict(obj2.v_ptr.get(i).v_ptr.get(), 5);
 }
@@ -59,9 +60,9 @@ obj2._free();
 
 
 //Array of objects with pointers
-const arr = $.Arr_2_Cls_SmartPointer._createUninitialized();
-arr.get(0).v_ptr.value = $.Ptr_Int.malloc();
-arr.get(1).v_ptr.value = $.Ptr_Int.malloc();
+const arr = $.SmartPointer_2._createUninitialized();
+arr.get(0).v_ptr.value = $.ptr_Int.calloc();
+arr.get(1).v_ptr.value = $.ptr_Int.calloc();
 
 arr.get(0).v_ptr.set(4);
 arr.get(1).v_ptr.set(8);
@@ -74,7 +75,7 @@ arr._free();
 
 
 //Alternative with pointers
-const alt = $.Alt2_Int_Cls_SmartPointer._createUninitialized();
+const alt = $.alt_int64_t_or_SmartPointer._createUninitialized();
 assert.strictEqual(alt._index, -1);
 
 alt.value = 8;

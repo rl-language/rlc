@@ -19,6 +19,7 @@ cls SmallBox:
         self.value = self.value * 2
 
 fun foo(Int | BigBox | StringLiteral alt):
+    let x : Int | BigBox | StringLiteral
     alt = "Changed by Rulebook"
 
 #--- test.mjs

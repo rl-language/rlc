@@ -14,7 +14,7 @@ cls SmallBox:
         self.value = self.value * 2
 
 fun foo(SmallBox | StringLiteral[4] alt):
-    let x : SmallBox
+    let x : SmallBox | StringLiteral[4]
     alt = x
 
 #--- test.mjs

@@ -26,7 +26,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking that function overloading works for member functions
 
-const obj = $.Cls_ClassFunctionOverloading.create();
+const obj = $.ClassFunctionOverloading.create();
 assert.strictEqual(obj.v_value, 5);
 
 const int = $.Int.create(5);

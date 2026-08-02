@@ -22,7 +22,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking that member function templates work
 
-const obj = $.Cls_MyClass.create();
+const obj = $.MyClass.create();
 assert.strictEqual(obj.f_foo(3), 3);
 assert.strictEqual(obj.f_foo(0.25), 0.25);
 assert.strictEqual(obj.f_foo("Hello"), "Hello");

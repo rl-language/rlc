@@ -19,13 +19,13 @@ cls SmallBox:
         self.value = self.value * 2
 
 fun foo1(Int[3][2][4] arr):
-    1+1
+    let x : Int[3][2][4]
 
 fun foo2(BigBox[2][3] arr):
     let unused : BigBox[2][3]
 
 fun foo3(StringLiteral[4] arr):
-    1+1
+    let x : StringLiteral[4]
 
 #--- test.mjs
 import assert from 'assert';

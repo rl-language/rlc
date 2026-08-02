@@ -19,7 +19,8 @@ cls SmallBox:
         self.value = self.value * 2
 
 fun foo(Int | BigBox | StringLiteral alt):
-    alt = 3
+    let x : Int | BigBox | StringLiteral
+    alt = x
 
 #--- test.mjs
 import assert from 'assert';

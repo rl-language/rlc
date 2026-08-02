@@ -14,6 +14,7 @@ cls OtherEmpty:
 
 fun foo(OwningPtr<Empty> ptr, Empty[2] arr, Empty | OtherEmpty alt):
     let x : Empty[2]
+    let y : Empty | OtherEmpty
 
 #--- test.mjs
 import assert from 'assert';

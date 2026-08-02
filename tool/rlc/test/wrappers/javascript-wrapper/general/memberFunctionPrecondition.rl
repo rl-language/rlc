@@ -14,7 +14,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if preconditions work and if I can call the "can" functions for member functions
 
-const obj = $.Cls_MyClass.create();
+const obj = $.MyClass.create();
 
 assert.strictEqual(obj.f_positiveSum(1,2), 3);
 assert.throws(() => obj.f_positiveSum(0,2));

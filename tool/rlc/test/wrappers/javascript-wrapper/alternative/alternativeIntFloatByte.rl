@@ -3,6 +3,7 @@
 
 #--- main.rl
 fun foo(Int | Float | Byte alt):
+    let x : Int | Float | Byte
     alt = 3
 
 #--- test.mjs

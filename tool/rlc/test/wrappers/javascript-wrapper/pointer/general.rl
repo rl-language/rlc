@@ -25,7 +25,11 @@ fun foo(Int | BigBox | StringLiteral alt,
     OwningPtr<BigBox> ptr3,
     OwningPtr<Int | BigBox | StringLiteral> ptr4,
     OwningPtr<StringLiteral[4]> ptr5):
-    1+1
+
+    let x : Int | BigBox | StringLiteral
+    x = 3
+    let y : StringLiteral[4]
+    y = y
 
 #--- test.mjs
 import assert from 'assert';
@@ -42,10 +46,10 @@ let bigBox;
 let alt;
 let arr;
 
-ptr = $.Ptr_Int.create();
+ptr = $.ptr_Int.create();
 assert.strictEqual(ptr.value, 0);
 
-ptr.value = $.Ptr_Int.malloc();
+ptr.value = $.ptr_Int.calloc();
 assert.notStrictEqual(ptr.value, 0);
 assert.strictEqual(ptr.get(), 0);
 
@@ -58,12 +62,12 @@ ptr._free();
 
 
 //Pointer to array of Int
-ptr = $.Ptr_Int.create();
+ptr = $.ptr_Int.create();
 assert.strictEqual(ptr.value, 0);
 
 
 arrSize = 3;
-ptr.value = $.Ptr_Int.malloc(arrSize);
+ptr.value = $.ptr_Int.calloc(arrSize);
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < arrSize; i++) {
     assert.strictEqual(ptr.get(i), 0);
@@ -82,10 +86,10 @@ ptr._free();
 
 
 //Pointer to string
-ptr = $.Ptr_StringLiteral.create();
+ptr = $.ptr_StringLiteral.create();
 assert.strictEqual(ptr.value, 0);
 
-ptr.value = $.Ptr_StringLiteral.malloc();
+ptr.value = $.ptr_StringLiteral.calloc();
 assert.notStrictEqual(ptr.value, 0);
 assert.strictEqual(ptr.get(), "");
 
@@ -98,11 +102,11 @@ ptr._free();
 
 
 //Pointer to array of strings
-ptr = $.Ptr_StringLiteral.create();
+ptr = $.ptr_StringLiteral.create();
 assert.strictEqual(ptr.value, 0);
 
 arrSize = 3;
-ptr.value = $.Ptr_StringLiteral.malloc(arrSize);
+ptr.value = $.ptr_StringLiteral.calloc(arrSize);
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < arrSize; i++) {
     assert.strictEqual(ptr.get(i), "");
@@ -120,10 +124,10 @@ ptr._free();
 
 
 //Pointer to BigBox
-ptr = $.Ptr_BigBox.create();
+ptr = $.ptr_BigBox.create();
 assert.strictEqual(ptr.value, 0);
 
-ptr.value = $.Ptr_BigBox.malloc();
+ptr.value = $.ptr_BigBox.calloc();
 assert.notStrictEqual(ptr.value, 0);
 assert.strictEqual(ptr.get().v_value, 0);
 assert.strictEqual(ptr.get().v_smallBox.v_value, 0);
@@ -147,11 +151,11 @@ ptr._free();
 
 
 //Pointer to array of BigBox
-ptr = $.Ptr_BigBox.create();
+ptr = $.ptr_BigBox.create();
 assert.strictEqual(ptr.value, 0);
 
 arrSize = 3;
-ptr.value = $.Ptr_BigBox.malloc(arrSize);
+ptr.value = $.ptr_BigBox.calloc(arrSize);
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < arrSize; i++) {
     assert.strictEqual(ptr.get(i).v_value, 0);
@@ -183,17 +187,17 @@ ptr._free();
 
 
 //Pointer to Alternative
-ptr = $.Ptr_Alt3_Int_BigBox_StringLiteral.create();
+ptr = $.ptr_alt_int64_t_or_BigBox_or_strlit.create();
 assert.strictEqual(ptr.value, 0);
 
-ptr.value = $.Ptr_Alt3_Int_BigBox_StringLiteral.malloc();
+ptr.value = $.ptr_alt_int64_t_or_BigBox_or_strlit.calloc();
 assert.notStrictEqual(ptr.value, 0);
 assert.strictEqual(ptr.get().value, 0);
 
 ptr.get().value = "Hello"
 assert.strictEqual(ptr.get().value, "Hello");
 
-alt = $.Alt3_Int_BigBox_StringLiteral.create("Ciao");
+alt = $.alt_int64_t_or_BigBox_or_strlit.create("Ciao");
 ptr.set(alt);
 assert.strictEqual(ptr.get().value, "Ciao");
 
@@ -204,11 +208,11 @@ ptr._free();
 
 
 //Pointer to array of Alternative
-ptr = $.Ptr_Alt3_Int_BigBox_StringLiteral.create();
+ptr = $.ptr_alt_int64_t_or_BigBox_or_strlit.create();
 assert.strictEqual(ptr.value, 0);
 
 arrSize = 3;
-ptr.value = $.Ptr_Alt3_Int_BigBox_StringLiteral.malloc(arrSize);
+ptr.value = $.ptr_alt_int64_t_or_BigBox_or_strlit.calloc(arrSize);
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < arrSize; i++) {
     assert.strictEqual(ptr.get(i).value, 0);
@@ -219,7 +223,7 @@ bigBox.v_value = 4;
 bigBox.v_smallBox.v_value = 16;
 bigBox.v_smallBox.v_name = "Hello";
 
-alt = $.Alt3_Int_BigBox_StringLiteral.create(bigBox);
+alt = $.alt_int64_t_or_BigBox_or_strlit.create(bigBox);
 
 for (let i = 0; i < arrSize; i++) {
     ptr.set(alt, i);
@@ -244,13 +248,13 @@ ptr._free();
 
 
 //Pointer to Array
-ptr = $.Ptr_Arr_4_StringLiteral.create($.Ptr_Arr_4_StringLiteral.malloc());
+ptr = $.ptr_strlit_4.create($.ptr_strlit_4.calloc());
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < 4; i++) {
     assert.strictEqual(ptr.get().get(i), "");
 }
 
-arr = $.Arr_4_StringLiteral.create(["0", "1", "2", "3"]);
+arr = $.strlit_4.create(["0", "1", "2", "3"]);
 ptr.set(arr);
 for (let i = 0; i < 4; i++) {
     assert.strictEqual(ptr.get().get(i), String(i));
@@ -263,11 +267,11 @@ ptr._free();
 
 
 //Pointer to array of Array
-ptr = $.Ptr_Arr_4_StringLiteral.create();
+ptr = $.ptr_strlit_4.create();
 assert.strictEqual(ptr.value, 0);
 
 arrSize = 3;
-ptr.value = $.Ptr_Arr_4_StringLiteral.malloc(arrSize);
+ptr.value = $.ptr_strlit_4.calloc(arrSize);
 assert.notStrictEqual(ptr.value, 0);
 for (let i = 0; i < arrSize; i++) {
     for (let j = 0; j < 4; j++) {
@@ -275,7 +279,7 @@ for (let i = 0; i < arrSize; i++) {
     }
 }
 
-arr = $.Arr_4_StringLiteral.create(["0", "1", "2", "3"]);
+arr = $.strlit_4.create(["0", "1", "2", "3"]);
 
 for (let i = 0; i < arrSize; i++) {
     ptr.set(arr, i);

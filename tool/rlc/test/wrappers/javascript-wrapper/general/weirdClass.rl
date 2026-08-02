@@ -39,7 +39,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if memory offsets are computed correctly
 
-const weird = $.Cls_WeirdStruct.create();
+const weird = $.WeirdStruct.create();
 assert.strictEqual(weird.constructor._getSize(), 120);
 
 $.f_foo(weird);

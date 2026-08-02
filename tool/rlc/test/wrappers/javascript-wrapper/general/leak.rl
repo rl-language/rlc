@@ -33,26 +33,26 @@ import * as $ from './wrapper.mjs';
 //Check that there are no leaks if instantiation fails
 
 assert.throws(() => $.Int.create("Hello"));
-assert.throws(() => $.Cls_Bad.create());
-assert.throws(() => $.Arr_3_Cls_Bad.create());
-assert.throws(() => $.Alt2_Cls_Bad_Arr_99_Byte.create());
+assert.throws(() => $.Bad.create());
+assert.throws(() => $.Bad_3.create());
+assert.throws(() => $.alt_Bad_int8_t_99.create());
 
 
 //Check that there are no leaks if functions fail
 
 let container;
-container = $.Cls_Container.create();
+container = $.Container.create();
 assert.throws(() => $.f_foo1(1,2,container));
 container._free();
 
 assert.throws(() => $.f_foo2(1,2));
 
-container = $.Cls_Container.create();
+container = $.Container.create();
 assert.throws(() => $.f_foo3(container));
 container._free();
 
 assert.throws(() => $.f_foo4(5));
 
-assert.throws(() => $.Ptr_Cls_Bad.malloc(5));
+assert.throws(() => $.ptr_Bad.calloc(5));
 
 $._detectMemoryLeaksDoNotUse();

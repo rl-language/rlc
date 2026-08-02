@@ -28,7 +28,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if pointers are correctly passed as function arguments
 
-const ptr = $.Ptr_BigBox.create($.Ptr_BigBox.malloc());
+const ptr = $.ptr_BigBox.create($.ptr_BigBox.calloc());
 assert.strictEqual(ptr.get().v_smallBox.v_name, "Unknown");
 
 $.f_foo(ptr);

@@ -20,10 +20,11 @@ cls SmallBox:
 
 using Alt = Int | BigBox | StringLiteral
 fun foo1(Alt alt):
+    let x : Alt
     alt = 3
 
 fun foo2(BigBox | Alt alt):
-    let x : BigBox
+    let x : BigBox | Alt
     alt = x
 
 #--- test.mjs
