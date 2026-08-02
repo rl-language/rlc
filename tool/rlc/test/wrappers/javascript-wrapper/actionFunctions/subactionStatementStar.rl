@@ -39,4 +39,4 @@ assert.strictEqual(p.can_parentAction2(), false);
 p._free();  
 
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

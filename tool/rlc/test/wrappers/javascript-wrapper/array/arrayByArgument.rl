@@ -30,7 +30,7 @@ function check(foo) {
     assert.strictEqual(arr.get(2), "Y");
     assert.strictEqual(arr.get(3), "Z");
 
-    let int = $.Int.create(3);
+    let int = $.Std.Int.create(3);
     assert.throws(() => foo(int));
 
     int._free();
@@ -40,5 +40,5 @@ function check(foo) {
 check($.foo1);
 check($.foo2);
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

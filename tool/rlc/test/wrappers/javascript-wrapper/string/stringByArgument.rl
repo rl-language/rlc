@@ -13,23 +13,23 @@ import * as $ from './wrapper.mjs';
 
 let string;
 
-string = $.StringLiteral.create("Hello");
+string = $.Std.StringLiteral.create("Hello");
 assert.strictEqual(string.value, "Hello");
 string._free();
 
-string = $.StringLiteral.create("Hello");
+string = $.Std.StringLiteral.create("Hello");
 $.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string._free();
 
-string = $.StringLiteral.create("Hello");
+string = $.Std.StringLiteral.create("Hello");
 $.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string.value = "NewString";
 assert.strictEqual(string.value, "NewString");
 string._free();
 
-string = $.StringLiteral.create("Hello");
+string = $.Std.StringLiteral.create("Hello");
 $.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string.value = "NewString";
@@ -38,6 +38,6 @@ $.foo(string);
 assert.strictEqual(string.value, "Modified inside Rulebook");
 string._free();
 
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

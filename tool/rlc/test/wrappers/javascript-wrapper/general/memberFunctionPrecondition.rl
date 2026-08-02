@@ -23,4 +23,4 @@ assert.strictEqual(obj.can_positiveSum(1,2), true);
 assert.strictEqual(obj.can_positiveSum(0,2), false);
 
 obj._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

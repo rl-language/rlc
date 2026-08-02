@@ -57,7 +57,7 @@ arr1 = $.int64_t_2.create();
 arr2 = $.int64_t_2.create();
 
 arr2.set(10, 0);
-let tmp = $.Int.create(20);
+let tmp = $.Std.Int.create(20);
 arr2.set(tmp, 1);
 
 arr1.assign(arr2);
@@ -72,4 +72,4 @@ tmp._free();
 
 
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -34,5 +34,5 @@ assert.strictEqual(name, "Unknown color");
 
 color._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

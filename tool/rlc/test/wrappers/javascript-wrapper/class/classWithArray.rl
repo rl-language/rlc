@@ -42,5 +42,5 @@ bigBox._free();
 arr._free();
 myObj._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

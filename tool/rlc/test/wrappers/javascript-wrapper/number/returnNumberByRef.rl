@@ -40,16 +40,16 @@ function check(fun, input, newValue, otherNewValue) {
 
 let input;
 
-input = $.Int.create();
+input = $.Std.Int.create();
 check($.foo1, input, 7, 50);
 
-input = $.Float.create();
+input = $.Std.Float.create();
 check($.foo2, input, 0.76, -50605.43);
 
-input = $.Bool.create();
+input = $.Std.Bool.create();
 check($.foo3, input, false, true);
 
-input = $.Byte.create();
+input = $.Std.Byte.create();
 check($.foo4, input, 16, 32);
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

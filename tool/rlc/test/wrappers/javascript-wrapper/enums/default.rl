@@ -28,5 +28,5 @@ assert.strictEqual(color.value, $.ColorEnum.red);
 
 color._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

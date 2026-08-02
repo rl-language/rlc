@@ -39,5 +39,5 @@ assert.strictEqual(arr.get(0).value, 3);
 alt._free();
 arr._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

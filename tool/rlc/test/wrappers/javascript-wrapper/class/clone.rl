@@ -34,6 +34,6 @@ assert.strictEqual(original.smallBox.name, cloned.smallBox.name);
 smallBox._free();
 original._free();
 cloned._free();
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

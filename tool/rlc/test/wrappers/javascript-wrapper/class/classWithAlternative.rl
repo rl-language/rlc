@@ -40,5 +40,5 @@ assert.strictEqual(strange.alt.value, "Hello");
 alt._free();
 strange._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

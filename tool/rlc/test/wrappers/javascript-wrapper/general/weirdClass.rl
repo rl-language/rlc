@@ -56,4 +56,4 @@ assert.strictEqual(weird.g.get(1).int, 100);
 assert.strictEqual(weird.h, true);
 
 weird._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

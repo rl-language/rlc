@@ -47,5 +47,5 @@ bigBox._free();
 alt._free();
 altWithAlt._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

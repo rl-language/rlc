@@ -34,4 +34,4 @@ assert.strictEqual(bigBox1.smallBox.name, "Assigned");
 
 bigBox1._free();
 bigBox2._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -40,8 +40,8 @@ import * as $ from './wrapper.mjs';
 //Checking if the garbage collector calls _free on the Javascript objects
 
 function foo(){
-    const int = $.Int.create(5);
-    const strLit = $.StringLiteral.create("Hello");
+    const int = $.Std.Int.create(5);
+    const strLit = $.Std.StringLiteral.create("Hello");
     const smallBox = $.SmallBox.create();
     const bigBox = $.BigBox.create();
     const weird = $.Weird.create();
@@ -58,5 +58,5 @@ if(global.gc){
 //The FinalizationRegistry callback doesn't run immediately with the garbage collector
 await setImmediate();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

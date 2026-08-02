@@ -20,10 +20,10 @@ let bool;
 let byte;
 
 function createObjects() {
-    int = $.Int.create(7);
-    float = $.Float.create(0.54);
-    bool = $.Bool.create(false);
-    byte = $.Byte.create(127);
+    int = $.Std.Int.create(7);
+    float = $.Std.Float.create(0.54);
+    bool = $.Std.Bool.create(false);
+    byte = $.Std.Byte.create(127);
 }
 
 function freeObjects() {
@@ -57,4 +57,4 @@ assert.throws(() => new Int(3));
 
 freeObjects();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

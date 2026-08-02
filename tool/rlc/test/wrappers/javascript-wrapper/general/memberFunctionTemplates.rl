@@ -29,5 +29,5 @@ assert.strictEqual(obj.foo("Hello"), "Hello");
 
 obj._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

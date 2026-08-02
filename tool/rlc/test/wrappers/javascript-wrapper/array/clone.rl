@@ -22,5 +22,5 @@ for(let i=0; i<original.length; i++){
 original._free();
 cloned._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

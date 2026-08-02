@@ -36,5 +36,5 @@ assert.strictEqual(alternative.value, "Changed by Rulebook");
     
 alternative._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

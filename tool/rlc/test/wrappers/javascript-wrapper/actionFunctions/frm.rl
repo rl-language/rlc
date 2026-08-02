@@ -28,4 +28,4 @@ assert.strictEqual(machine.target_cost, 0);
 assert.strictEqual(machine.is_done(), true);
 
 machine._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -52,5 +52,5 @@ assert.strictEqual(alt1.value, "Hello");
 
 alt1._free();
 alt2._free();
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

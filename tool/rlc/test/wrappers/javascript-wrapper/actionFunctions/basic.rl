@@ -32,4 +32,4 @@ const wrongSeq = $.Sequence.create();
 assert.strictEqual(wrongSeq.resume_index, 0); 
 wrongSeq._free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

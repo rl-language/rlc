@@ -39,5 +39,5 @@ assert.notStrictEqual(result._address, alternative._address);
 alternative._free();
 result._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

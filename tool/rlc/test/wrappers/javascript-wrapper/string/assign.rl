@@ -10,8 +10,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking if the assign function works
 
-let str1 = $.StringLiteral.create("Hello");
-let str2 = $.StringLiteral.create("Hi");
+let str1 = $.Std.StringLiteral.create("Hello");
+let str2 = $.Std.StringLiteral.create("Hi");
 
 str1.assign(str2);
 assert.strictEqual(str1.value, "Hi");
@@ -21,5 +21,5 @@ assert.strictEqual(str2.value, "Hey");
 
 str1._free();
 str2._free();
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -32,7 +32,7 @@ import * as $ from './wrapper.mjs';
 
 //Check that there are no leaks if instantiation fails
 
-assert.throws(() => $.Int.create("Hello"));
+assert.throws(() => $.Std.Int.create("Hello"));
 assert.throws(() => $.Bad.create());
 assert.throws(() => $.Bad_3.create());
 assert.throws(() => $.alt_Bad_int8_t_99.create());
@@ -55,4 +55,4 @@ assert.throws(() => $.foo4(5));
 
 assert.throws(() => $.ptr_Bad.calloc(5));
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

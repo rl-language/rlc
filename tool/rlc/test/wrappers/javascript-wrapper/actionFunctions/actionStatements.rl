@@ -18,7 +18,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if action statements work
 
-const targetCost = $.Int.create(16);
+const targetCost = $.Std.Int.create(16);
 const machine = $.vending_machine(targetCost);
 assert.strictEqual(machine.target_cost, 16);
 assert.strictEqual(targetCost.value, 16);
@@ -42,4 +42,4 @@ assert.strictEqual(machine.is_done(), true);
 
 targetCost._free();
 machine._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

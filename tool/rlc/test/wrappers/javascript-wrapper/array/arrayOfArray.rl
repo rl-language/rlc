@@ -27,4 +27,4 @@ for(let i=0; i<3; i++){
 
 arr._free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

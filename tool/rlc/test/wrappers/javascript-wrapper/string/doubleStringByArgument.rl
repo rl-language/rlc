@@ -14,10 +14,10 @@ import * as $ from './wrapper.mjs';
 let s1;
 let s2;
     
-s1 = $.StringLiteral.create("S1");
+s1 = $.Std.StringLiteral.create("S1");
 assert.strictEqual(s1.value, "S1");
 
-s2 = $.StringLiteral.create("S2");
+s2 = $.Std.StringLiteral.create("S2");
 assert.strictEqual(s2.value, "S2");
 
 $.foo(s1, s2);
@@ -32,6 +32,6 @@ assert.strictEqual(s2.value, "ABC");
 s1._free();
 s2._free();
 
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -36,5 +36,5 @@ assert.throws(() => $.foo($.ColorEnum.green));
 
 color._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

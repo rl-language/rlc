@@ -47,8 +47,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking if exceptions are properly thrown
 
-assert.throws(() => $.Int.create("Hello"));
-assert.throws(() => $.StringLiteral.create(4));
+assert.throws(() => $.Std.Int.create("Hello"));
+assert.throws(() => $.Std.StringLiteral.create(4));
 assert.throws(() => $.SmallBox.create({name: 5}));
 assert.throws(() => $.alt_int64_t_or_BigBox_or_strlit.create(0.5));
 assert.throws(() => $.strlit_4.create(["Hello"]));
@@ -58,13 +58,13 @@ assert.throws(() => $.ptr_Int.create("Hello"));
     
 let obj;
 
-obj = $.Int.create();
-assert.throws(() => $.StringLiteral._assertWrapper(obj));
+obj = $.Std.Int.create();
+assert.throws(() => $.Std.StringLiteral._assertWrapper(obj));
 assert.throws(() => obj.value = "Hello");
 obj._free();
 
-obj = $.StringLiteral.create();
-assert.throws(() => $.Int._assertWrapper(obj));
+obj = $.Std.StringLiteral.create();
+assert.throws(() => $.Std.Int._assertWrapper(obj));
 assert.throws(() => obj.value = 5);
 obj._free();
 
@@ -89,7 +89,7 @@ assert.throws(() => obj.value = obj);
 obj._free();
 
 obj = $.ptr_Int.create();
-assert.throws(() => $.Int._assertWrapper(obj));
+assert.throws(() => $.Std.Int._assertWrapper(obj));
 assert.throws(() => obj.set("Hello"));
 obj._free();
 
@@ -100,11 +100,11 @@ obj._free();
 
 
 assert.throws(() => $.BigBox.create({doesNotExist: 3}));
-assert.throws(() => new $.StringPool());
-assert.throws(() => new $.Int());
+assert.throws(() => new $.Std.StringPool());
+assert.throws(() => new $.Std.Int());
 
 assert.throws(() => $.Container.create(3));
 
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

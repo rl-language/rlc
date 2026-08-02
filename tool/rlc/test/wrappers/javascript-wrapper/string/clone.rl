@@ -10,19 +10,19 @@ import * as $ from './wrapper.mjs';
 
 //Checking if strings are correctly cloned
 
-const original = $.StringLiteral.create("Hello");
-const cloned = $.StringLiteral.clone(original);
+const original = $.Std.StringLiteral.create("Hello");
+const cloned = $.Std.StringLiteral.clone(original);
 assert.strictEqual(original.value, cloned.value);
 original._free();
 cloned._free();
 
-const other = $.StringLiteral.create("Hi");
-const other2 = $.StringLiteral.create("Hello");
+const other = $.Std.StringLiteral.create("Hi");
+const other2 = $.Std.StringLiteral.create("Hello");
 other.value = other2;
 assert.strictEqual(other.value, "Hello");
 other._free();
 other2._free();
 
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

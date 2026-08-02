@@ -53,5 +53,5 @@ assert.strictEqual(objDouble.first, "Hello");
 assert.strictEqual(objDouble.second, 0.25);
 objDouble._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

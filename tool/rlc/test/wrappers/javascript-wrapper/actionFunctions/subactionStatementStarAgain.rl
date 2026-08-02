@@ -39,4 +39,4 @@ assert.strictEqual(pair.target, 0);
 assert.strictEqual(pair.is_done(), true);
 
 pair._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

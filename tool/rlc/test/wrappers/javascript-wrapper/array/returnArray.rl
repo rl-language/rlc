@@ -24,5 +24,5 @@ assert.strictEqual(result.get(3), "Z");
 
 result._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

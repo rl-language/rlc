@@ -31,14 +31,14 @@ import * as $ from './wrapper.mjs';
 
 //Checking that function overloading works for top-level function
 
-const int = $.Int.create(5);
+const int = $.Std.Int.create(5);
 assert.strictEqual($.foo(int), 6);
 
-const double = $.Float.create(5);
+const double = $.Std.Float.create(5);
 assert.strictEqual($.foo(double), 10.0);
 assert.strictEqual($.foo(4.5), 9.0);
 
-const otherInt = $.Int.create(10);
+const otherInt = $.Std.Int.create(10);
 assert.strictEqual($.foo(int, otherInt), 15);
 assert.strictEqual($.foo(int, 10), 15);
 assert.strictEqual($.foo(5, otherInt), 15);
@@ -54,6 +54,6 @@ int._free();
 double._free();
 otherInt._free();
 smallBox._free();
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

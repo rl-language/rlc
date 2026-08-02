@@ -15,11 +15,11 @@ import * as $ from './wrapper.mjs';
 let ptr1 = $.ptr_Int.create($.ptr_Int.calloc());
 let ptr2 = $.ptr_Int.create($.ptr_Int.calloc());
 
-$.free(ptr1);
+$.Std.free(ptr1);
 ptr1.assign(ptr2);
 assert.strictEqual(ptr1.value, ptr2.value);
-$.free(ptr1);
+$.Std.free(ptr1);
 
 ptr1._free();
 ptr2._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

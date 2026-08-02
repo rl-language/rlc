@@ -29,4 +29,4 @@ assert.strictEqual(vector._capacity, undefined);
 
 
 vector._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

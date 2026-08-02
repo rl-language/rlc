@@ -40,5 +40,5 @@ assert.strictEqual(original.value, 8);
 original._free();
 cloned._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

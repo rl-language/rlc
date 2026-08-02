@@ -13,7 +13,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if "ctx" works
 
-const targetCost = $.Int.create(16);
+const targetCost = $.Std.Int.create(16);
 const machine = $.vending_machine(targetCost);
 assert.strictEqual(targetCost.value, 16);
 
@@ -30,4 +30,4 @@ assert.strictEqual(machine.is_done(), true);
 
 machine._free();
 targetCost._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

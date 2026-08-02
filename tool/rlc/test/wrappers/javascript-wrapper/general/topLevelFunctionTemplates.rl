@@ -23,5 +23,5 @@ assert.strictEqual($.foo(4), 4);
 assert.strictEqual($.foo(0.25), 0.25);
 assert.strictEqual($.foo("Hello"), "Hello");
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

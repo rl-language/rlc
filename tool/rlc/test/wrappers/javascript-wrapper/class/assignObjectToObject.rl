@@ -34,5 +34,5 @@ assert.notStrictEqual(bigBox.smallBox._address, smallBox._address);
 smallBox._free();
 bigBox._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

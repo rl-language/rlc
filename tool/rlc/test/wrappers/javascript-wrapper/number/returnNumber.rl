@@ -24,4 +24,4 @@ assert.strictEqual($.foo2(), 0.97);
 assert.strictEqual($.foo3(), true);
 assert.strictEqual($.foo4(), -128);
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

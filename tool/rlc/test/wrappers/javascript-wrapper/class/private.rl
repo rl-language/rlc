@@ -40,4 +40,4 @@ assert.strictEqual(obj.getPrivateInt(), 4);
 
 obj._free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

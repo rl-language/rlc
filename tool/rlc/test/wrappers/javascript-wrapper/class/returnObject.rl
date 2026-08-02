@@ -41,5 +41,5 @@ assert.strictEqual(smallBox.name, "Name");
 bigBox._free();
 smallBox._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

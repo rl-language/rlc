@@ -41,5 +41,5 @@ assert.strictEqual(alt.value instanceof $.BigBox, true);
 
 alt._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

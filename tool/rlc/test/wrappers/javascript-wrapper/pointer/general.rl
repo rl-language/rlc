@@ -56,7 +56,7 @@ assert.strictEqual(ptr.get(), 0);
 ptr.set(7);
 assert.strictEqual(ptr.get(), 7);
 
-$.free(ptr);
+$.Std.free(ptr);
 ptr._free();
 
 
@@ -80,7 +80,7 @@ for (let i = 0; i < arrSize; i++) {
     assert.strictEqual(ptr.get(i), i);
 }
 
-$.free(ptr, arrSize);
+$.Std.free(ptr, arrSize);
 ptr._free();
 
 
@@ -96,7 +96,7 @@ assert.strictEqual(ptr.get(), "");
 ptr.set("Hello");
 assert.strictEqual(ptr.get(), "Hello");
 
-$.free(ptr);
+$.Std.free(ptr);
 ptr._free();
 
 
@@ -118,7 +118,7 @@ for (let i = 0; i < arrSize; i++) {
 for (let i = 0; i < arrSize; i++) {
     assert.strictEqual(ptr.get(i), String(i));
 }
-$.free(ptr, arrSize);
+$.Std.free(ptr, arrSize);
 ptr._free();
 
 
@@ -145,7 +145,7 @@ assert.strictEqual(ptr.get().smallBox.name, "Ciao");
 
 smallBox._free();
 bigBox._free();
-$.free(ptr);
+$.Std.free(ptr);
 ptr._free();
 
 
@@ -181,7 +181,7 @@ for (let i = 0; i < arrSize; i++) {
 }
 
 bigBox._free();
-$.free(ptr, arrSize);
+$.Std.free(ptr, arrSize);
 ptr._free();
 
 
@@ -202,7 +202,7 @@ ptr.set(alt);
 assert.strictEqual(ptr.get().value, "Ciao");
 
 alt._free();
-$.free(ptr);
+$.Std.free(ptr);
 ptr._free();
 
 
@@ -242,7 +242,7 @@ for (let i = 1; i < arrSize; i++) {
 
 bigBox._free();
 alt._free();
-$.free(ptr, arrSize);
+$.Std.free(ptr, arrSize);
 ptr._free();
 
 
@@ -261,7 +261,7 @@ for (let i = 0; i < 4; i++) {
 }
 
 arr._free();
-$.free(ptr);
+$.Std.free(ptr);
 ptr._free();
 
 
@@ -299,11 +299,11 @@ for (let i = 1; i < arrSize; i++) {
 }
 
 arr._free();
-$.free(ptr, arrSize);
+$.Std.free(ptr, arrSize);
 ptr._free();
 
 
 
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

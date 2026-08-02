@@ -14,6 +14,6 @@ import * as $ from './wrapper.mjs';
 const result = $.foo();
 assert.strictEqual(result, "String from Rulebook");
 
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

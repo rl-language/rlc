@@ -59,5 +59,5 @@ assert.strictEqual(weird.g, 8);
 assert.strictEqual(weird.h, "Super");
 
 weird._free();
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

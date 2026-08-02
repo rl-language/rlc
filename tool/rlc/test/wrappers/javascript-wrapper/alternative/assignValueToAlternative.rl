@@ -49,5 +49,5 @@ smallBox._free();
 bigBox._free();
 alternative._free();
     
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

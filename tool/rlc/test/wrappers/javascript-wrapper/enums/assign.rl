@@ -32,4 +32,4 @@ assert.strictEqual(color1.value, $.ColorEnum.green);
 
 color1._free();
 color2._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

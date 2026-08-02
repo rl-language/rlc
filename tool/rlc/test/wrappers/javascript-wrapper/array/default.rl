@@ -77,5 +77,5 @@ run(arr, checkData2);
 arr = $.int64_t_3_2_4.create();
 run(arr, checkData3);
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -34,5 +34,5 @@ assert.strictEqual(myEnum.$value, 1);
 myEnum._free();
 
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

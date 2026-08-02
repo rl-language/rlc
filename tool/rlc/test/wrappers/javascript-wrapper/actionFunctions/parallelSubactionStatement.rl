@@ -31,4 +31,4 @@ game.move2Chess();
 assert.strictEqual(game.is_done(), true);
 
 game._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -10,8 +10,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking if the assign function works
 
-let int1 = $.Int.create(64);
-let int2 = $.Int.create(256);
+let int1 = $.Std.Int.create(64);
+let int2 = $.Std.Int.create(256);
 
 int1.assign(int2);
 assert.strictEqual(int1.value, 256);
@@ -21,4 +21,4 @@ assert.strictEqual(int2.value, 1024);
 
 int1._free();
 int2._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

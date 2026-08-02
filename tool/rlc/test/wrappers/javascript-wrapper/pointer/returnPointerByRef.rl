@@ -36,5 +36,5 @@ assert.strictEqual(obj.ptr.get(), 10);
 assert.strictEqual(ref.get(), 10);
 
 obj._free();
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

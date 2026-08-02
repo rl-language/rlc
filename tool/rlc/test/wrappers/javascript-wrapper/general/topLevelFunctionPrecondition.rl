@@ -18,5 +18,5 @@ assert.throws(() => $.positiveSum(0,2));
 assert.strictEqual($.can_positiveSum(1,2), true);
 assert.strictEqual($.can_positiveSum(0,2), false);
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

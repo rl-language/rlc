@@ -38,4 +38,4 @@ assert.strictEqual(p.is_done(), true);
 p._free();
 
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

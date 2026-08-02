@@ -10,20 +10,20 @@ import * as $ from './wrapper.mjs';
 
 //Checking if the numbers get their default value
 
-let int = $.Int.create();
+let int = $.Std.Int.create();
 assert.strictEqual(int.value, 0);
 int._free();
 
-let float = $.Float.create();
+let float = $.Std.Float.create();
 assert.strictEqual(float.value, 0);
 float._free();
 
-let bool = $.Bool.create();
+let bool = $.Std.Bool.create();
 assert.strictEqual(bool.value, false);
 bool._free();
 
-let byte = $.Byte.create();
+let byte = $.Std.Byte.create();
 assert.strictEqual(byte.value, 0);
 byte._free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -29,14 +29,14 @@ import * as $ from './wrapper.mjs';
 const obj = $.ClassFunctionOverloading.create();
 assert.strictEqual(obj.value, 5);
 
-const int = $.Int.create(5);
+const int = $.Std.Int.create(5);
 assert.strictEqual(obj.foo(int), 10);
 
-const double = $.Float.create(5);
+const double = $.Std.Float.create(5);
 assert.strictEqual(obj.foo(double), 25.0);
 assert.strictEqual(obj.foo(0.4), 2.0);
 
-const otherInt = $.Int.create(10);
+const otherInt = $.Std.Int.create(10);
 assert.strictEqual(obj.foo(int, otherInt), 20);
 assert.strictEqual(obj.foo(int, 10), 20);
 assert.strictEqual(obj.foo(5, otherInt), 20);
@@ -50,6 +50,6 @@ obj._free();
 int._free();
 double._free();
 otherInt._free();
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

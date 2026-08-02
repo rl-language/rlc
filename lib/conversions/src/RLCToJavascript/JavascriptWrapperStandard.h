@@ -6,7 +6,7 @@ namespace mlir::rlc
 import createModule from "./glueCode.mjs";
 const module = await createModule();
 
-export function _detectMemoryLeaksDoNotUse() {
+function _detectMemoryLeaksDoNotUse() {
     if (typeof module.___lsan_do_leak_check === "function") {
         module.___lsan_do_leak_check();
     }
@@ -299,7 +299,7 @@ class PtrWrapper extends CompositeWrapper {
 }
 
 //TODO: Questo lo tolgo?
-export function free(ptr, howMany) {
+function free(ptr, howMany) {
     PtrWrapper._assertWrapper(ptr);
 
     //howMany === null || howMany === undefined
@@ -565,7 +565,7 @@ class ArrayWrapper extends ClassLikeWrapper {
 
 
 
-export class StringPool {
+class StringPool {
     static #map = new Map();
 
     constructor() {
@@ -652,7 +652,7 @@ class PrimitiveWrapper extends ObjectWrapper {
     }
 }
 
-export class StringLiteral extends PrimitiveWrapper {
+class StringLiteral extends PrimitiveWrapper {
 
     static _getValueFromAddress(address) {
         const actualAddress = module.getValue(address, '*');
@@ -704,7 +704,7 @@ class NumWrapper extends PrimitiveWrapper {
 
 
 
-export class Int extends NumWrapper {
+class Int extends NumWrapper {
     static _getSize() {
         return 8;
     }
@@ -737,7 +737,7 @@ class Address extends NumWrapper {
     }
 }
 
-export class Bool extends NumWrapper {
+class Bool extends NumWrapper {
     static _getSize() {
         return 1;
     }
@@ -755,7 +755,7 @@ export class Bool extends NumWrapper {
     }
 }
 
-export class Float extends NumWrapper {
+class Float extends NumWrapper {
     static _getSize() {
         return 8;
     }
@@ -770,7 +770,7 @@ export class Float extends NumWrapper {
 }
 
 
-export class Byte extends NumWrapper {
+class Byte extends NumWrapper {
     static _getSize() {
         return 1;
     }
@@ -904,7 +904,16 @@ function generalFunction(actualArgs, signatures) {
     throw new NoFunctionFoundError(`No function found named ${signatures[0][0]} with the given arguments`);
 }
 
-
+export const Std = Object.freeze({
+    _detectMemoryLeaksDoNotUse,
+    free,
+    StringPool,
+    StringLiteral,
+    Int,
+    Float,
+    Bool,
+    Byte
+})
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

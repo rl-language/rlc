@@ -143,5 +143,5 @@ assert.throws(() => arr.set("Hello", [0,0,0]));
 
 arr._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

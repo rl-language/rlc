@@ -35,7 +35,7 @@ empty._free();
 //Pointer
 const ptr = $.ptr_Empty.create($.ptr_Empty.calloc());
 assert.strictEqual(ptr.get().getThree(), 3);
-$.free(ptr);
+$.Std.free(ptr);
 ptr._free();
 
 
@@ -57,4 +57,4 @@ alt._free();
 
 
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

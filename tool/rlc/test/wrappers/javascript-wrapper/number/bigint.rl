@@ -10,7 +10,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if Int also works with BigInt (e.g. 3n)
 
-let int = $.Int.create(3n);
+let int = $.Std.Int.create(3n);
 assert.strictEqual(int.value, 3);
 
 int.value = 123n;
@@ -21,4 +21,4 @@ assert.strictEqual(int.value, 100);
 
 int._free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

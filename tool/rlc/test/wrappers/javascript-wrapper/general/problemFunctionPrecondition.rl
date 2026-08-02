@@ -54,4 +54,4 @@ assert.strictEqual(obj.can_foo(), false);
 assert.strictEqual(obj.can_bar(), true);
 
 obj._free();
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

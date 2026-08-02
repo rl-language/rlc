@@ -30,4 +30,4 @@ finally {
 
 assert.strictEqual(capturedOutput, "Hello\n");
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

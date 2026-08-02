@@ -10,10 +10,10 @@ import * as $ from './wrapper.mjs';
 
 //Checking if strings correctly take the default value
 
-let str = $.StringLiteral.create();
+let str = $.Std.StringLiteral.create();
 assert.strictEqual(str.value, "");
 
 str._free();
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();

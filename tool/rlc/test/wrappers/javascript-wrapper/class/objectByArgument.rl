@@ -44,5 +44,5 @@ assert.strict(bigBox.smallBox.name, "Small box inside big box");
 smallBox._free();
 bigBox._free();
 
-$.StringPool.free();
-$._detectMemoryLeaksDoNotUse();
+$.Std.StringPool.free();
+$.Std._detectMemoryLeaksDoNotUse();

@@ -34,8 +34,8 @@ assert.strictEqual(ptr.get().smallBox.name, "Unknown");
 $.foo(ptr);
 assert.strictEqual(ptr.get().smallBox.name, "Hello");
 
-$.free(ptr);
+$.Std.free(ptr);
 ptr._free();
-$.StringPool.free();
+$.Std.StringPool.free();
 
-$._detectMemoryLeaksDoNotUse();
+$.Std._detectMemoryLeaksDoNotUse();
