@@ -33,7 +33,7 @@ assert.strictEqual(strange.v_smallBox.v_value, 0);
 assert.strictEqual(strange.v_smallBox.v_name, "Unknown");
 assert.strictEqual(strange.v_alt.value, 0);
     
-let alt = $.Alt3_Int_BigBox_StringLiteral.create("Hello");
+let alt = $.alt_int64_t_or_BigBox_or_strlit.create("Hello");
 strange.v_alt = alt;
 assert.strictEqual(strange.v_alt.value, "Hello");
 

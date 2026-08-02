@@ -20,10 +20,11 @@ cls SmallBox:
 
 using Alt = Int | BigBox | StringLiteral
 fun foo1(Alt alt):
-    1+1
+    alt = 3
 
 fun foo2(BigBox | Alt alt):
-    1+1
+    let x : BigBox
+    alt = x
 
 #--- test.mjs
 import assert from 'assert';
@@ -32,12 +33,12 @@ import * as $ from './wrapper.mjs';
 //Checking that alternatives containing alternatives work
 
 let bigBox = $.BigBox.create();
-let altWithAlt = $.Alt2_BigBox_Alt3_Int_BigBox_StringLiteral.create(bigBox);
+let altWithAlt = $.alt_BigBox_or_Alt.create(bigBox);
 assert.strictEqual(altWithAlt.value.v_value, 0);
 assert.strictEqual(altWithAlt.value.v_smallBox.v_value, 0);
 assert.strictEqual(altWithAlt.value.v_smallBox.v_name, "Unknown");
 
-let alt = $.Alt3_Int_BigBox_StringLiteral.create("Hello");
+let alt = $.Alt.create("Hello");
 altWithAlt.value = alt;
 assert.strictEqual(altWithAlt.value.value, "Hello");
     

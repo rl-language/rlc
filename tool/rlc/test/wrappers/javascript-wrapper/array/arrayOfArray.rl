@@ -14,7 +14,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking if arrays of arrays work
 
-const arr = $.Arr_3_2_Int.create();
+const arr = $.int64_t_3_2.create();
 arr.set(64, [0,0]);
 arr.set(64, [1,0]);
 arr.set(64, [2,0]);

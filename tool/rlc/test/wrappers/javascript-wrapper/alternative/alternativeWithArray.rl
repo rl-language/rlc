@@ -14,7 +14,8 @@ cls SmallBox:
         self.value = self.value * 2
 
 fun foo(SmallBox | StringLiteral[4] alt):
-    1+1
+    let x : SmallBox
+    alt = x
 
 #--- test.mjs
 import assert from 'assert';
@@ -22,11 +23,11 @@ import * as $ from './wrapper.mjs';
 
 //Checking that alternatives containing arrays work
 
-let alt = $.Alt2_SmallBox_Arr_4_StringLiteral.create();
+let alt = $.alt_SmallBox_or_strlit_4.create();
 assert.strictEqual(alt.value.v_value, 0);
 assert.strictEqual(alt.value.v_name, "Unknown");
 
-let arr = $.Arr_4_StringLiteral.create();
+let arr = $.strlit_4.create();
 arr.set("Hello", 1);
 alt.value = arr;
 assert.strictEqual(alt.value.get(0), "");

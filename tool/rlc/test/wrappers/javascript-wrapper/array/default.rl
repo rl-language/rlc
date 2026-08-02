@@ -19,13 +19,13 @@ cls SmallBox:
         self.value = self.value * 2
 
 fun foo1(Int[3][2][4] arr):
-    1+1
+    let unused : Int[3][2][4]
 
 fun foo2(BigBox[2][3] arr):
-    1+1
+    let unused : BigBox[2][3]
 
 fun foo3(StringLiteral[4] arr):
-    1+1
+    let unused : StringLiteral[4]
 
 #--- test.mjs
 import assert from 'assert';
@@ -68,13 +68,13 @@ function checkData3(arr) {
 
 let arr;
 
-arr = $.Arr_4_StringLiteral.create();
+arr = $.strlit_4.create();
 run(arr, checkData1);
 
-arr = $.Arr_2_3_BigBox.create();
+arr = $.BigBox_2_3.create();
 run(arr, checkData2);
 
-arr = $.Arr_3_2_4_Int.create();
+arr = $.int64_t_3_2_4.create();
 run(arr, checkData3);
 
 $.StringPool.free();

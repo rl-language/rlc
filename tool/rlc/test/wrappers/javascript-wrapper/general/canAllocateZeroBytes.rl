@@ -13,7 +13,7 @@ cls OtherEmpty:
     pass
 
 fun foo(OwningPtr<Empty> ptr, Empty[2] arr, Empty | OtherEmpty alt):
-    1+1
+    let x : Empty[2]
 
 #--- test.mjs
 import assert from 'assert';
@@ -25,14 +25,14 @@ import * as $ from './wrapper.mjs';
 
 
 //Class
-const empty = $.Cls_Empty.create();
+const empty = $.Empty.create();
 assert.strictEqual(empty.f_getThree(), 3);
 empty._free();
 
 
 
 //Pointer
-const ptr = $.Ptr_Cls_Empty.create($.Ptr_Cls_Empty.malloc());
+const ptr = $.ptr_Empty.create($.ptr_Empty.calloc());
 assert.strictEqual(ptr.get().f_getThree(), 3);
 $.free(ptr);
 ptr._free();
@@ -40,7 +40,7 @@ ptr._free();
 
 
 //Array
-const arr = $.Arr_2_Cls_Empty.create();
+const arr = $.Empty_2.create();
 assert.strictEqual(arr.get(0).f_getThree(), 3);
 assert.strictEqual(arr.get(1).f_getThree(), 3);
 arr._free();
@@ -48,7 +48,7 @@ arr._free();
 
 
 //Alternative
-const alt = $.Alt2_Cls_Empty_Cls_OtherEmpty.create();
+const alt = $.alt_Empty_or_OtherEmpty.create();
 assert.strictEqual(alt.value.f_getThree(), 3);
 alt._free();
 

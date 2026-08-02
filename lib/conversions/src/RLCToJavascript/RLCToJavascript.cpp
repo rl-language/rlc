@@ -412,18 +412,23 @@ namespace mlir::rlc
 				}
 			}
 
-			//TODO: Non c'è bisogno di questa funzione, puoi metterla inline
-			void emitSpecialFunctions(mlir::Type type, llvm::StringMap<llvm::SmallVector<mlir::FunctionType>>& sortedOverloads){
+			// TODO: Non c'è bisogno di questa funzione, puoi metterla inline
+			void emitSpecialFunctions(
+					mlir::Type type,
+					llvm::StringMap<llvm::SmallVector<mlir::FunctionType>>&
+							sortedOverloads)
+			{
 				mlir::Type underlyingType;
 
 				if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 				{
 					underlyingType = getTypeAndDimensionsOfArray(casted).type;
 				}
-				else{
+				else
+				{
 					underlyingType = type;
 				}
-				
+
 				if (not this->table.isTriviallyInitializable(underlyingType))
 				{
 					auto fun = mlir::FunctionType::get(type.getContext(), { type }, {});
@@ -481,7 +486,7 @@ namespace mlir::rlc
 				}
 
 				emitSpecialFunctions(type, sortedOverloads);
-				
+
 				for (auto& pair : sortedOverloads)
 				{
 					emitOverloadDispatcher(pair.first(), pair.second, true);
@@ -556,7 +561,7 @@ namespace mlir::rlc
 
 			void emitMangledPointerName(mlir::rlc::OwningPtrType type)
 			{
-				printer << "Ptr_";
+				printer << "ptr_";
 				emitJavascriptType(type.getUnderlying());
 			}
 
@@ -755,6 +760,32 @@ namespace mlir::rlc
 				return { structSize, maxAlignment, offsets };
 			}
 
+			//There's no need for the class templates
+			void findAlternativesOrArraysOrPointers(mlir::Type type)
+			{
+				if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
+				{
+					alternatives.insert(casted);
+
+					for (auto enumeration : llvm::enumerate(casted.getUnderlying()))
+					{
+						findAlternativesOrArraysOrPointers(enumeration.value());
+					}
+				}
+				else if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
+				{
+					arrays.insert(casted);
+
+					ArrayTypeAndDimensions result{ getTypeAndDimensionsOfArray(casted) };
+					findAlternativesOrArraysOrPointers(result.type);
+				}
+				else if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
+				{
+					pointers.insert(casted);
+					findAlternativesOrArraysOrPointers(casted.getUnderlying());
+				}
+			}
+
 			void emitJavascriptType(mlir::Type type)
 			{
 				if (auto casted = mlir::dyn_cast<mlir::rlc::IntegerType>(type))
@@ -790,17 +821,17 @@ namespace mlir::rlc
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::AlternativeType>(type))
 				{
-					alternatives.insert(casted);
+					findAlternativesOrArraysOrPointers(casted);
 					printer << casted.getMangledName();
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ArrayType>(type))
 				{
-					arrays.insert(casted);
+					findAlternativesOrArraysOrPointers(casted);
 					printer << typeToMangled(casted);
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::OwningPtrType>(type))
 				{
-					pointers.insert(casted);
+					findAlternativesOrArraysOrPointers(casted);
 					emitMangledPointerName(casted);
 				}
 				else if (auto casted = mlir::dyn_cast<mlir::rlc::ReferenceType>(type))

@@ -50,7 +50,6 @@ assert.strictEqual(obj.v_alt.value.v_smallBox.v_name, "Nice");
 smallBox._free();
 bigBox._free();
 obj._free();
-result._free();
 
 $.StringPool.free();
 $._detectMemoryLeaksDoNotUse();

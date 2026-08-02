@@ -12,8 +12,8 @@ import * as $ from './wrapper.mjs';
 
 //Checking if arrays are cloned correctly
 
-const original = $.Arr_4_StringLiteral.create(["A", "B", "C", "D"]);
-const cloned = $.Arr_4_StringLiteral.clone(original);
+const original = $.strlit_4.create(["A", "B", "C", "D"]);
+const cloned = $.strlit_4.clone(original);
 for(let i=0; i<original.length; i++){
     assert.strictEqual(original.get(i).value, cloned.get(i).value);
 }

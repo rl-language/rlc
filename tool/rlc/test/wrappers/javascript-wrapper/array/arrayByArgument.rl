@@ -23,7 +23,7 @@ import * as $ from './wrapper.mjs';
 //Checking if arrays are correctly passed as function arguments
 
 function check(foo) {
-    const arr = $.Arr_4_StringLiteral.create(["A", "B", "C", "D"]);
+    const arr = $.strlit_4.create(["A", "B", "C", "D"]);
     foo(arr);
     assert.strictEqual(arr.get(0), "W");
     assert.strictEqual(arr.get(1), "X");

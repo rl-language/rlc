@@ -3,7 +3,7 @@
 
 #--- main.rl
 fun foo(Int | Float | Byte alt):
-    1+1
+    alt = 3
 
 #--- test.mjs
 import assert from 'assert';
@@ -11,7 +11,7 @@ import * as $ from './wrapper.mjs';
 
 //Checking that an alternative Int | Float | Byte works
 
-let alt = $.Alt3_Int_Float_Byte.create(4);
+let alt = $.alt_int64_t_or_double_or_int8_t.create(4);
 assert.strictEqual(alt.value, 4);
 
 alt.value = 2.3;

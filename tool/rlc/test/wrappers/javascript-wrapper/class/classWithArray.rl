@@ -29,9 +29,9 @@ import * as $ from './wrapper.mjs';
 
 let bigBox = $.BigBox.create();
 bigBox.v_smallBox.v_name = "Small";
-let arr = $.Arr_2_3_BigBox.create([[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]]);
+let arr = $.BigBox_2_3.create([[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]]);
 bigBox.v_smallBox.v_name = "Big";
-let myObj = $.Cls_ClassWithArray.create({ v_arr: arr});
+let myObj = $.ClassWithArray.create({ v_arr: arr});
 for (let i = 0; i < myObj.v_arr.length[0]; i++) {
     for (let j = 0; j < myObj.v_arr.length[1]; j++) {
         assert.strictEqual(myObj.v_arr.get(i, j).v_smallBox.v_name, "Small");

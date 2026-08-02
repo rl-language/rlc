@@ -46,10 +46,10 @@ import * as $ from './wrapper.mjs';
 assert.throws(() => $.Int.create("Hello"));
 assert.throws(() => $.StringLiteral.create(4));
 assert.throws(() => $.SmallBox.create({v_name: 5}));
-assert.throws(() => $.Alt3_Int_BigBox_StringLiteral.create(0.5));
-assert.throws(() => $.Arr_4_StringLiteral.create(["Hello"]));
-assert.throws(() => $.Enum_ColorEnum.create("Hello"));
-assert.throws(() => $.Ptr_Int.create("Hello"));
+assert.throws(() => $.alt_int64_t_or_BigBox_or_strlit.create(0.5));
+assert.throws(() => $.strlit_4.create(["Hello"]));
+assert.throws(() => $.ColorEnum.create("Hello"));
+assert.throws(() => $.ptr_Int.create("Hello"));
 
     
 let obj;
@@ -69,22 +69,22 @@ assert.throws(() => $.SmallBox._assertWrapper(obj));
 assert.throws(() => obj.v_smallBox = obj);
 obj._free();
 
-obj = $.Alt3_Int_BigBox_StringLiteral.create();
-assert.throws(() => $.Arr_4_StringLiteral._assertWrapper(obj));
+obj = $.alt_int64_t_or_BigBox_or_strlit.create();
+assert.throws(() => $.strlit_4._assertWrapper(obj));
 assert.throws(() => obj.value = obj);
 obj._free();
 
-obj = $.Arr_4_StringLiteral.create();
-assert.throws(() => $.Alt3_Int_BigBox_StringLiteral._assertWrapper(obj));
+obj = $.strlit_4.create();
+assert.throws(() => $.alt_int64_t_or_BigBox_or_strlit._assertWrapper(obj));
 assert.throws(() => obj.set(0, obj));
 obj._free();
 
-obj = $.Enum_ColorEnum.create();
+obj = $.ColorEnum.create();
 assert.throws(() => $.BigBox._assertWrapper(obj));
 assert.throws(() => obj.value = obj);
 obj._free();
 
-obj = $.Ptr_Int.create();
+obj = $.ptr_Int.create();
 assert.throws(() => $.Int._assertWrapper(obj));
 assert.throws(() => obj.set("Hello"));
 obj._free();

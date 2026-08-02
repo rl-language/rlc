@@ -20,7 +20,7 @@ cls SmallBox:
 
 using Alt = Int | BigBox | StringLiteral
 fun foo(Alt[2] alt):
-    1+1
+    let x : Alt[2] #Needed to generate rl_m_init__Alt_2
 
 #--- test.mjs
 import assert from 'assert';
@@ -28,11 +28,11 @@ import * as $ from './wrapper.mjs';
 
 //Checking if arrays of alternatives work
 
-let arr = $.Arr_2_Alt3_Int_BigBox_StringLiteral.create();
+let arr = $.Alt_2.create();
 assert.strictEqual(arr.get(0).value, 0);
 assert.strictEqual(arr.get(1).value, 0);
 
-let alt = $.Alt3_Int_BigBox_StringLiteral.create(3);
+let alt = $.Alt.create(3);
 arr.set(alt, 0);
 assert.strictEqual(arr.get(0).value, 3);
 

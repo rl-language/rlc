@@ -33,7 +33,7 @@ import * as $ from './wrapper.mjs';
 const smallBox = $.SmallBox.create();
 smallBox.v_name = "Hello";
 const bigBox = $.BigBox.create({v_smallBox: smallBox});
-const obj = $.Cls_ClassWithArray.create();
+const obj = $.ClassWithArray.create();
 const result = $.f_foo(obj);
 result.set(bigBox, [1, 1]);
 for (let i = 0; i < result.length[0]; i++) {

@@ -22,7 +22,7 @@ fun foo1(Int[3][2][4] arr):
     1+1
 
 fun foo2(BigBox[2][3] arr):
-    1+1
+    let unused : BigBox[2][3]
 
 fun foo3(StringLiteral[4] arr):
     1+1
@@ -49,7 +49,7 @@ function checkData1() {
 }
 
 arrData = ["Str1", "Str2", "Str3", "Str4"];
-arr = $.Arr_4_StringLiteral.create(arrData);
+arr = $.strlit_4.create(arrData);
 checkData1();
 
 arr.set("Hello", 1);
@@ -83,7 +83,7 @@ function checkData2() {
 
 let bigBox = $.BigBox.create();
 arrData = [[bigBox, bigBox, bigBox], [bigBox, bigBox, bigBox]];
-arr = $.Arr_2_3_BigBox.create(arrData);
+arr = $.BigBox_2_3.create(arrData);
 checkData2();
 
 let otherBigBox = $.BigBox.create({ v_value: 123 });
@@ -130,7 +130,7 @@ arrData = [
     ]
 ];
 
-arr = $.Arr_3_2_4_Int.create(arrData);
+arr = $.int64_t_3_2_4.create(arrData);
 checkData3();
 
 arr.set(7, [1, 1, 2]);

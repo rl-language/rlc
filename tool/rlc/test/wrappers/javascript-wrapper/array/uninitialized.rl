@@ -22,7 +22,7 @@ fun foo1(Int[3][2][4] arr):
     1+1
 
 fun foo2(BigBox[2][3] arr):
-    1+1
+    let unused : BigBox[2][3]
 
 fun foo3(StringLiteral[4] arr):
     1+1
@@ -39,7 +39,7 @@ let arr;
 
 
 //Array of StringLiteral
-arr = $.Arr_4_StringLiteral._createUninitialized();
+arr = $.strlit_4._createUninitialized();
 arr.set("Hello", 0);
 assert.strictEqual(arr.get(0), "Hello");
 
@@ -50,7 +50,7 @@ arr._free();
 
 
 //Array of objects
-arr = $.Arr_2_3_BigBox._createUninitialized();
+arr = $.BigBox_2_3._createUninitialized();
 arr.get(0, 0).v_value = 5;
 assert.strictEqual(arr.get(0,0).v_value, 5);
     
@@ -66,7 +66,7 @@ arr._free();
 
 
 //Array of integers
-arr = $.Arr_3_2_4_Int._createUninitialized();
+arr = $.int64_t_3_2_4._createUninitialized();
 arr.set(5, [0,0,0]);
 assert.strictEqual(arr.get(0,0,0), 5);
 

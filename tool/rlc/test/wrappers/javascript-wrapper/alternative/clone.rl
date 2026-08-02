@@ -19,7 +19,7 @@ cls SmallBox:
         self.value = self.value * 2
 
 fun foo(Int | BigBox | StringLiteral alt):
-    1+1
+    alt = 3
 
 #--- test.mjs
 import assert from 'assert';
@@ -27,9 +27,9 @@ import * as $ from './wrapper.mjs';
 
 //Checking if alternatives are cloned correctly
 
-const original = $.Alt3_Int_BigBox_StringLiteral.create();
+const original = $.alt_int64_t_or_BigBox_or_strlit.create();
 original.value = 8;
-const cloned = $.Alt3_Int_BigBox_StringLiteral.clone(original);
+const cloned = $.alt_int64_t_or_BigBox_or_strlit.clone(original);
 assert.strictEqual(original.value, cloned.value);
     
 cloned.value = "Hello";
