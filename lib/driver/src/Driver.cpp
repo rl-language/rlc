@@ -142,6 +142,15 @@ namespace mlir::rlc
 			return;
 		}
 
+		if (request == Request::dumpJavascriptWrapper32 || request == Request::dumpJavascriptWrapper64)
+		{
+			manager.addPass(mlir::rlc::createSortTypeDeclarationsPass());
+			manager.addPass(
+					mlir::rlc::createPrintJavascriptPass(
+							{ OS, targetInfo->isMacOS(), targetInfo->isWindows(), request == Request::dumpJavascriptWrapper64}));
+			return;
+		}
+
 		if (request == Request::dumpRLC)
 		{
 			manager.addPass(mlir::rlc::createPrintIRPass({ OS, hidePosition }));
