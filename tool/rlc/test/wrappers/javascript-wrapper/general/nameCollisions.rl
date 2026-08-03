@@ -15,6 +15,8 @@ enum MyEnum:
     fun value() ->Int:
         return 100
 
+cls MyOtherClass:
+    Int n
 
 #--- test.mjs
 import assert from 'assert';
@@ -32,6 +34,21 @@ const myEnum = $.MyEnum.create($.MyEnum.val2);
 assert.strictEqual(myEnum.value(), 100);
 assert.strictEqual(myEnum.$value, 1);
 myEnum._free();
+
+
+const myOtherClass = $.MyOtherClass.create({$n: 5});
+assert.strictEqual(myOtherClass.n, 5);
+assert.strictEqual(myOtherClass.$n, 5);
+
+myOtherClass.$n = 10;
+assert.strictEqual(myOtherClass.n, 10);
+assert.strictEqual(myOtherClass.$n, 10);
+
+myOtherClass.n = 1024;
+assert.strictEqual(myOtherClass.n, 1024);
+assert.strictEqual(myOtherClass.$n, 1024);
+
+myOtherClass._free();
 
 
 $.Std.StringPool.free();
