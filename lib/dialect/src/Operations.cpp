@@ -1328,6 +1328,9 @@ static bool expressionIsReference(mlir::Value val)
 	if (val.getDefiningOp<mlir::rlc::DeclarationStatement>())
 		return true;
 
+	if (val.getDefiningOp<mlir::rlc::ConstantGlobalOp>())
+		return true;
+
 	if (val.getDefiningOp<mlir::rlc::ActionStatement>())
 		return true;
 

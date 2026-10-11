@@ -11,7 +11,6 @@ from shutil import which
 import argparse
 from rlc import Program, State, compile, get_included_contents
 import pickle
-import torch
 import pathlib
 
 

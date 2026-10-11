@@ -1577,10 +1577,16 @@ class RLC_RelationalOp<string mnemonic> : RLC_Dialect<mnemonic, [TypeCheckable, 
 			mlir::rlc::ModuleBuilder& builder)
 	{
 		llvm::SmallVector<mlir::Type> acceptable;
-		acceptable.push_back(mlir::rlc::IntegerType::getInt64(this->getContext()));
-		acceptable.push_back(mlir::rlc::IntegerType::getInt8(this->getContext()));
-		acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
-		acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
+        if (mlir::isa<mlir::rlc::OwningPtrType>(getLhs().getType())) {
+		    acceptable.push_back(getLhs().getType());
+        }
+        else {
+		    acceptable.push_back(mlir::rlc::IntegerType::getInt64(this->getContext()));
+		    acceptable.push_back(mlir::rlc::IntegerType::getInt8(this->getContext()));
+		    acceptable.push_back(mlir::rlc::BoolType::get(this->getContext()));
+		    acceptable.push_back(mlir::rlc::FloatType::get(this->getContext()));
+        }
+
 		return mlir::rlc::detail::typeCheckInteralOp(*this, builder, acceptable, mlir::rlc::BoolType::get(this->getContext()));
 	}
 
