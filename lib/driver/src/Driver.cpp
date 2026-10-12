@@ -59,6 +59,9 @@ namespace mlir::rlc
 			return;
 		}
 
+        if (mutationInstrumentation){
+		    manager.addPass(mlir::rlc::createMutationTestInstrumentationPass());
+        }
 		manager.addPass(mlir::rlc::createLowerSubActionStatements());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 

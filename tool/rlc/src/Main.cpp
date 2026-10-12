@@ -76,6 +76,12 @@ static cl::opt<bool> dumpTokens(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> instrumentMutation(
+		"mutation-testing",
+		cl::desc("introduce mutations"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> dumpDot(
 		"dot",
 		cl::desc("dump dot of actions"),
@@ -523,6 +529,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setGraphInlineCalls(graphInlineCalls);
 	driver.setGraphKeepOnlyActions(graphKeepOnlyActions);
 	driver.setGraphRegexFilter(graphRegexFilter);
+    driver.setMutationInstrumentation(instrumentMutation);
 
 	return driver;
 }

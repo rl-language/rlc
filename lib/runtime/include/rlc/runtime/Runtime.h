@@ -62,3 +62,8 @@ EXPORT void rl_is_alphanumeric__int8_t_r_bool(
 // fun load_file(String file_path, String out) -> Bool
 EXPORT void rl_load_file__String_r_String(
 		int8_t* result, String* file_name, String* out);
+
+// fun my_mutation(Int res, Int ID)
+EXPORT void rl_mutation_check__int64_t_r_int64_t(int64_t* out, int64_t* ID);
+
+extern int64_t rl_mutation_egine_current_id;

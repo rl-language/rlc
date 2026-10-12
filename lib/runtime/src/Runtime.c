@@ -171,3 +171,10 @@ void rl_load_file__String_String_r_bool(
 	fclose(f);
 	*result = 1;
 }
+
+int64_t rl_mutation_egine_current_id = -1;
+
+void rl_mutation_check__int64_t_r_int64_t(int64_t* res, int64_t* ID)
+{
+	*res = *ID == rl_mutation_egine_current_id ? 100 : 0;
+}

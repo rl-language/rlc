@@ -67,6 +67,11 @@ def RemoveUninitConstructsPass : Pass<"rlc-remove-uninit-constructs", "mlir::Mod
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def MutationTestInstrumentationPass : Pass<"rlc-mutation-test-instrumentation", "mlir::ModuleOp"> {
+  let summary = "Instrument binary for mutation testing";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def EmitMainPass: Pass<"rlc-emit-main", "mlir::ModuleOp"> {
   let summary = "emit rlc main pass";
   let dependentDialects = ["rlc::RLCDialect"];

@@ -78,6 +78,7 @@ namespace mlir::rlc
 		void setKeepComments(bool doIt) { keepComments = doIt; }
 		void setGraphKeepOnlyActions(bool doIt) { graphKeepOnlyActions = doIt; }
 		void setGraphRegexFilter(std::string s) { graphRegexFilter = s; }
+		void setMutationInstrumentation(bool doIt) { mutationInstrumentation= doIt; }
 
 		Driver(
 				llvm::SourceMgr &srcManager,
@@ -103,6 +104,7 @@ namespace mlir::rlc
 		bool skipParsing = false;
 		bool debug = false;
 		bool keepComments = false;
+		bool mutationInstrumentation = false;
 
 		std::string clangPath = "clang";
 
