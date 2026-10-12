@@ -35,6 +35,19 @@ namespace mlir::rlc
 			SerializationContext* ctx;
 		};
 
+		class TemplateGuard
+		{
+			public:
+			TemplateGuard(SerializationContext& ctx, int value = 1): ctx(&ctx)
+			{
+				ctx.isInsideTemplate += value;
+			}
+			~TemplateGuard() { ctx->isInsideTemplate--; }
+
+			private:
+			SerializationContext* ctx;
+		};
+
 		class PreconditionGuard
 		{
 			public:
@@ -49,7 +62,9 @@ namespace mlir::rlc
 		};
 
 		void indent(llvm::raw_ostream& OS) { OS.indent(indentLevel * 2); }
+		bool insideTemplate() const { return isInsideTemplate != 0; }
 		IndentGuard increaseIndent() { return IndentGuard(*this); }
+		TemplateGuard startTemplate() { return TemplateGuard(*this); }
 		PreconditionGuard startEmittingPrecondition()
 		{
 			return PreconditionGuard(*this);
@@ -61,6 +76,7 @@ namespace mlir::rlc
 		private:
 		int indentLevel = 0;
 		int emittingPrecondition = 0;
+		int isInsideTemplate = 0;
 		ModuleBuilder* builder;
 	};
 }	 // namespace mlir::rlc

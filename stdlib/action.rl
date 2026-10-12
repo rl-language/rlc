@@ -27,7 +27,7 @@ trait<FrameType, ActionType> ApplicableTo:
 
 fun<FrameType, ActionType> apply(Vector<ActionType> action, FrameType frame) -> Bool:
   for current in action:
-    if current is ApplicableTo:
+    if current is ApplicableTo<FrameType>:
       if !can apply(current, frame):
         return false
       apply(current, frame)
@@ -37,7 +37,7 @@ fun<FrameType, ActionType> apply(Vector<ActionType> action, FrameType frame) -> 
 fun<FrameType, AllActionsVariant> parse_and_execute(FrameType state, AllActionsVariant variant, Vector<Byte> input, Int read_bytes):
   while read_bytes + 8 <= input.size():
     if from_byte_vector(variant, input, read_bytes):
-      if variant is ApplicableTo:
+      if variant is ApplicableTo<FrameType>:
         if can apply(variant, state):
           apply(variant, state)
 
@@ -108,7 +108,7 @@ fun<FrameType, ActionType> make_valid_actions_vector(Vector<ActionType> all_acti
 fun<FrameType, ActionType> get_valid_actions(Vector<Byte> valid_actions, Vector<ActionType> all_actions, FrameType state):
   let i = 0
   for action in all_actions:
-    if action is ApplicableTo:
+    if action is ApplicableTo<FrameType>:
       if can apply(action, state):
         valid_actions[i] = byte(1)
       else:

@@ -288,7 +288,14 @@ static void typeToPretty(llvm::raw_ostream &OS, mlir::Type t)
 {
 	if (auto maybeType = mlir::dyn_cast<mlir::rlc::TraitMetaType>(t))
 	{
-		OS << maybeType.getName();
+		OS << maybeType.getName() << "<";
+		for (auto subtype : llvm::drop_end(maybeType.getTemplateParameters()))
+		{
+			typeToPretty(OS, subtype);
+			OS << ", ";
+		}
+		typeToPretty(OS, maybeType.getTemplateParameters().back());
+		OS << ">";
 		return;
 	}
 
@@ -500,9 +507,10 @@ namespace mlir::rlc
 			OS << maybeType.getName();
 			return;
 		}
-		if (auto maybeType = mlir::dyn_cast<mlir::rlc::UncheckedTemplateParameterType>(t))
+		if (auto maybeType =
+						mlir::dyn_cast<mlir::rlc::UncheckedTemplateParameterType>(t))
 		{
-			OS << "unchecked_" <<maybeType.getName();
+			OS << "unchecked_" << maybeType.getName();
 			return;
 		}
 		if (auto maybeType = mlir::dyn_cast<mlir::rlc::ContextType>(t))
@@ -969,11 +977,12 @@ int64_t mlir::rlc::ArrayType::getArraySize()
 void mlir::rlc::TraitMetaType::rlc_serialize(
 		llvm::raw_ostream &OS, const mlir::rlc::SerializationContext &ctx) const
 {
-	OS << getName();
+	if (not ctx.insideTemplate())
+		OS << getName();
 	llvm::SmallVector<mlir::Type, 2> nonTemplateTYpes;
-	for (auto type : getTemplateParameters())
+	for (auto type : llvm::drop_end(getTemplateParameters()))
 	{
-		if (mlir::isa<mlir::rlc::TemplateParameterType>(type))
+		if (not mlir::isa<mlir::rlc::TemplateParameterType>(type))
 		{
 			continue;
 		}
@@ -1095,7 +1104,10 @@ void mlir::rlc::TemplateParameterType::rlc_serialize(
 	{
 		mlir::cast<mlir::rlc::RLCSerializable>(getTrait()).rlc_serialize(OS, ctx);
 	}
-	OS << getName();
+	if (getName().starts_with("TraitType"))
+		OS << getName().drop_front(9);
+	else
+		OS << getName();
 }
 
 mlir::Type mlir::rlc::AliasType::rename(llvm::StringRef newName) const
@@ -1137,18 +1149,20 @@ void mlir::rlc::ClassType::rlc_serialize(
 	OS << getName();
 	if (getExplicitTemplateParameters().size() != 0)
 	{
+		auto ctx2 = ctx;
+		auto _ = ctx2.startTemplate();
 		OS << "<";
 		for (auto templateParameter :
 				 llvm::drop_end(getExplicitTemplateParameters()))
 		{
 			mlir::cast<mlir::rlc::RLCSerializable>(templateParameter)
-					.rlc_serialize(OS, ctx);
+					.rlc_serialize(OS, ctx2);
 			OS << ", ";
 		}
 
 		mlir::cast<mlir::rlc::RLCSerializable>(
 				getExplicitTemplateParameters().back())
-				.rlc_serialize(OS, ctx);
+				.rlc_serialize(OS, ctx2);
 		OS << ">";
 	}
 }
