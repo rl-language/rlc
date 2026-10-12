@@ -9,9 +9,9 @@ cls B:
     Int b
 
 fun<T> asd(T a): 
-    let a : T
+    let c : T
     let b : B
-    a = b
+    c = b
 
 fun main() -> Int:
     let a : A
