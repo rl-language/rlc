@@ -158,7 +158,7 @@ set (RUNTIME_LIB ${CMAKE_CURRENT_BINARY_DIR}/lib${target}${CMAKE_STATIC_LIBRARY_
 add_custom_command(
     OUTPUT ${RUNTIME_LIB}
     # compile
-    COMMAND ${CMAKE_C_COMPILER} -std=c11 -O3 -c ${ARGN} -o ${target}.o -I ${CMAKE_CURRENT_SOURCE_DIR}/include
+    COMMAND ${CMAKE_C_COMPILER} -std=c11 -O3 -c ${ARGN} -o ${target}.o -I ${CMAKE_CURRENT_SOURCE_DIR}/include -fPIC
     # archive
     COMMAND ${CMAKE_AR} rcs ${RUNTIME_LIB} ${target}.o
     DEPENDS ${RUNTIME_SRC}
