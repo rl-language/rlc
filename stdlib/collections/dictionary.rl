@@ -261,7 +261,7 @@ cls<KeyType, ValueType> Dict:
         self._capacity = 4
         self._size = 0
         self._entries = __builtin_malloc_do_not_use<Entry<KeyType, ValueType>>(self._capacity)
-        let counter = 0
+        counter = 0
         while counter < self._capacity:
             self._entries[counter].occupied = false
             counter = counter + 1

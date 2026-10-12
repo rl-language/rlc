@@ -38,6 +38,11 @@ namespace mlir::rlc
 			return iter->second.front();
 		}
 
+		bool outermostTableContains(llvm::StringRef name) const
+		{
+			return values.find(name) != values.end();
+		}
+
 		llvm::ArrayRef<T> get(llvm::StringRef name) const
 		{
 			auto iter = values.find(name);

@@ -1361,6 +1361,11 @@ mlir::LogicalResult mlir::rlc::DeclarationStatement::typeCheck(
 		mlir::rlc::ModuleBuilder &builder)
 {
 	auto &rewriter = builder.getRewriter();
+	if (builder.getSymbolTable().outermostTableContains(getSymName()))
+	{
+		return mlir::rlc::logError(
+				getOperation(), "Redeclaration of variable " + getSymName().str());
+	}
 	for (auto *child : ops(getBody()))
 	{
 		if (mlir::rlc::typeCheck(*child, builder).failed())
@@ -1793,8 +1798,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
 			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
-		return logError(
-				op ? op : getOperation(), "Left hand operand of or must be Bool");
+		return logError(getOperation(), "Left hand operand of or must be Bool");
 	}
 
 	for (auto *op : ops(getRhs()))
@@ -1808,8 +1812,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingOr::typeCheck(
 			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
-		return logError(
-				op ? op : getOperation(), "Right hand operand of or must be Bool");
+		return logError(getOperation(), "Right hand operand of or must be Bool");
 	}
 
 	return mlir::success();
@@ -1830,8 +1833,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
 			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
-		return logError(
-				op ? op : getOperation(), "Left hand operand of and must be Bool");
+		return logError(getOperation(), "Left hand operand of and must be Bool");
 	}
 
 	for (auto *op : ops(getRhs()))
@@ -1845,8 +1847,7 @@ mlir::LogicalResult mlir::rlc::ShortCircuitingAnd::typeCheck(
 			!mlir::isa<mlir::rlc::BoolType>(yield.getArguments().front().getType()))
 	{
 		auto op = yield.getArguments().front().getDefiningOp();
-		return logError(
-				op ? op : getOperation(), "Right hand operand of and must be Bool");
+		return logError(getOperation(), "Right hand operand of and must be Bool");
 	}
 
 	return mlir::success();
