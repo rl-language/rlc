@@ -1,7 +1,7 @@
 # RUN: split-file %s %t
 
-# RUN: clang %t/to_run.c -o %t/lib.o -c
 # RUN: rlc %t/source.rl -o %t/header.h -i %stdlib --header
+# RUN: clang %t/to_run.c -o %t/lib.o -c
 # RUN: rlc %t/source.rl %t/lib.o -o %t/result%exeext -i %stdlib  --mutation-testing
 # RUN: %t/result%exeext
 
