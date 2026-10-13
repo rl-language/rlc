@@ -226,6 +226,14 @@ static cl::opt<bool> hidePosition(
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
+static cl::opt<int> jobs(
+		"jobs",
+		cl::desc("number of jobs"),
+		cl::init(1),
+		cl::cat(astDumperCategory));
+
+static cl::alias v2("j", cl::aliasopt(jobs));
+
 static cl::opt<bool> hideDataLayout(
 		"hide-dl",
 		cl::desc("does not the datalayout of the file"),
@@ -524,6 +532,7 @@ static mlir::rlc::Driver configureDriver(
 	driver.setKeepComments(!dropComments);
 	driver.setEmitBoundChecks(emitBoundChecks);
 	driver.setVerbose(verbose);
+	driver.setJobsCount(jobs);
 	driver.setAbortSymbol(abortSymbol);
 	driver.setHideStandardLibFiles(hideStandardLibFiles);
 	driver.setGraphInlineCalls(graphInlineCalls);
@@ -552,7 +561,7 @@ static int run(
 
 	if (not hideDataLayout)
 	{
-		auto mlirDl = mlir::translateDataLayout(info.getDataLayout(), &context);
+		auto mlirDl = mlir::translateDataLayout(info.getDataLayout(0), &context);
 		ast->setAttr("rlc.target_datalayout", mlirDl);
 	}
 
@@ -602,7 +611,7 @@ int main(int argc, char *argv[])
 	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
 	if (customTargetTriple != "")
 		targetTriple = customTargetTriple;
-	mlir::rlc::TargetInfo targetInfo(targetTriple, shared, Optimize);
+	mlir::rlc::TargetInfo targetInfo(targetTriple, shared, Optimize, jobs);
 
 	mlir::registerLLVMDialectTranslation(Registry);
 	context.appendDialectRegistry(Registry);

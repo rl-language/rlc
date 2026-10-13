@@ -207,7 +207,8 @@ namespace mlir::rlc
 																							emitFuzzer,
 																							&rPath,
 																							targetInfo,
-																							verbose }));
+																							verbose, 
+                                                                                            jobsCount }));
 	}
 
 }	 // namespace mlir::rlc

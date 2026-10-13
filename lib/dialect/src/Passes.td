@@ -325,6 +325,8 @@ def RLCBackEndPass : Pass<"rlc-backend-pass", "mlir::ModuleOp"> {
            "info about the target">,
     Option<"verbose", "print sub commands invoked", "bool", /*default=*/"false",
            "prints sub commands invoked">,
+    Option<"jobs", "number of parallel jobs", "int", /*default=*/"1",
+           "number of parallel jobs">,
   ];
   let dependentDialects = ["rlc::RLCDialect"];
 }

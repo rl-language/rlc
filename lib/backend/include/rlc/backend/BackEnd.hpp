@@ -32,7 +32,7 @@ namespace mlir::rlc
 	struct TargetInfo
 	{
 		public:
-		TargetInfo(std::string triple, bool shared, bool optimize);
+		TargetInfo(std::string triple, bool shared, bool optimize, size_t jobs);
 		~TargetInfo();
 		bool optimize() const;
 		bool isShared() const;
@@ -40,7 +40,7 @@ namespace mlir::rlc
 		bool isWindows() const;
 		std::string tripleToString() const;
 		llvm::Triple triple() const;
-		const llvm::DataLayout& getDataLayout() const;
+		const llvm::DataLayout& getDataLayout(size_t threadIndex) const;
 
 		TargetInfo(TargetInfo&& other): pimpl(other.pimpl)
 		{

@@ -24,8 +24,11 @@ limitations under the License.
 #include "clang/Driver/Tool.h"
 #include "lld/Common/Driver.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/Transforms/Utils/SplitModule.h"
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PassManager.h"
@@ -44,6 +47,8 @@ limitations under the License.
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/ThreadPool.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
@@ -198,7 +203,7 @@ static void runOptimizer(
 struct mlir::rlc::TargetInfoImpl
 {
 	public:
-	TargetInfoImpl(std::string triple, bool shared, bool optimize)
+	TargetInfoImpl(std::string triple, bool shared, bool optimize, size_t jobs)
 			: triple(triple),
 				optimize(
 						optimize ? CodeGenOptLevel::Aggressive : CodeGenOptLevel::Default),
@@ -209,7 +214,8 @@ struct mlir::rlc::TargetInfoImpl
 		assert(target);
 		options = llvm::codegen::InitTargetOptionsFromCodeGenFlags(this->triple);
 
-		auto *Ptr = target->createTargetMachine(
+        for (size_t i = 0; i != jobs; i++){
+		    auto *Ptr = target->createTargetMachine(
 				this->triple.getTriple(),
 				"",
 				"",
@@ -217,10 +223,12 @@ struct mlir::rlc::TargetInfoImpl
 				reloc,
 				llvm::CodeModel::Large,
 				this->optimize);
-		targetMachine = unique_ptr<TargetMachine>(Ptr);
+		    targetMachine.push_back( unique_ptr<TargetMachine>(Ptr));
 
-		datalayout =
-				std::make_unique<llvm::DataLayout>(targetMachine->createDataLayout());
+		    datalayout.push_back(
+				std::make_unique<llvm::DataLayout>(targetMachine.back()->createDataLayout()));
+
+        }
 	}
 
 	llvm::Triple triple;
@@ -229,14 +237,14 @@ struct mlir::rlc::TargetInfoImpl
 	llvm::Reloc::Model reloc;
 	const llvm::Target *target;
 	llvm::TargetOptions options;
-	std::unique_ptr<llvm::TargetMachine> targetMachine;
-	std::unique_ptr<llvm::DataLayout> datalayout;
+    llvm::SmallVector<std::unique_ptr<llvm::TargetMachine>>  targetMachine;
+	llvm::SmallVector<std::unique_ptr<llvm::DataLayout>>  datalayout;
 };
 
 mlir::rlc::TargetInfo::TargetInfo(
-		std::string triple, bool shared, bool optimize)
+		std::string triple, bool shared, bool optimize, size_t jobs)
 {
-	pimpl = new TargetInfoImpl(triple, shared, optimize);
+	pimpl = new TargetInfoImpl(triple, shared, optimize, jobs);
 }
 
 mlir::rlc::TargetInfo &mlir::rlc::TargetInfo::operator==(TargetInfo &&other)
@@ -268,9 +276,9 @@ std::string mlir::rlc::TargetInfo::tripleToString() const
 	return pimpl->triple.getTriple();
 }
 
-const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout() const
+const llvm::DataLayout &mlir::rlc::TargetInfo::getDataLayout(size_t threadIndex) const
 {
-	return *pimpl->datalayout;
+	return *pimpl->datalayout[threadIndex];
 }
 
 bool mlir::rlc::TargetInfo::optimize() const
@@ -284,16 +292,17 @@ bool mlir::rlc::TargetInfo::isShared() const
 }
 
 static void compile(
+        size_t threadID,
 		const mlir::rlc::TargetInfo &info,
 		std::unique_ptr<llvm::Module> M,
 		llvm::raw_pwrite_stream &OS)
 {
 	std::string Error;
 
-	M->setDataLayout(*info.pimpl->datalayout);
+	M->setDataLayout(*info.pimpl->datalayout[threadID]);
 	llvm::UpgradeDebugInfo(*M);
 
-	auto &LLVMTM = *info.pimpl->targetMachine;
+	auto &LLVMTM = *info.pimpl->targetMachine[threadID];
 	auto *MMIWP = new MachineModuleInfoWrapperPass(&LLVMTM);
 
 	llvm::legacy::PassManager manager;
@@ -422,7 +431,7 @@ static mlir::LogicalResult getLinkerInvocation(
 }
 
 static int linkLibraries(
-		llvm::ToolOutputFile &library,
+		llvm::MutableArrayRef<std::unique_ptr<llvm::ToolOutputFile>> libraries,
 		llvm::StringRef clangPath,
 		llvm::StringRef outputFile,
 		bool shared,
@@ -458,7 +467,8 @@ static int linkLibraries(
 	std::string Errors;
 	llvm::SmallVector<std::string, 4> argSource;
 	argSource.push_back("clang");
-	argSource.push_back(library.getFilename().str());
+    for (auto& library : libraries)
+	    argSource.push_back(library->getFilename().str());
 	argSource.push_back("--target=" + info.tripleToString());
 	if (info.isWindows())
 	{
@@ -540,6 +550,52 @@ static int linkLibraries(
 	return 0;
 }
 
+static bool optimizeAndCompile(std::unique_ptr<llvm::Module>&  Module, 
+        llvm::ToolOutputFile& library,
+        error_code& errorCompile,
+		const mlir::rlc::TargetInfo* targetInfo,
+        bool emitSanitizer,
+		bool emitFuzzer,
+        bool dumpIR,
+        llvm::raw_ostream* OS,
+        size_t threadID
+        ) {
+			runOptimizer(
+					*Module,
+					targetInfo->optimize(),
+					emitSanitizer,
+					emitFuzzer,
+					targetInfo->isWindows());
+
+			if (dumpIR)
+				return true;
+
+			if (errorCompile)
+				return false;
+
+			compile(threadID, *targetInfo, std::move(Module), library.os());
+			library.os().close();
+            return true;
+}
+
+static llvm::Expected<std::unique_ptr<llvm::Module>>
+cloneModuleToContext(const llvm::Module &Src,
+                     llvm::LLVMContext &DstCtx) {
+    // Serialize into an in-memory buffer.
+    llvm::SmallVector<char, 0> Buffer;
+    llvm::raw_svector_ostream OS(Buffer);
+
+    llvm::WriteBitcodeToFile(Src, OS);
+
+    // Deserialize using the destination context.
+    llvm::MemoryBufferRef MB(
+        llvm::StringRef(Buffer.data(), Buffer.size()),
+        "module.bc"
+    );
+
+    return llvm::parseBitcodeFile(MB, DstCtx);
+}
+
 namespace mlir::rlc
 {
 #define GEN_PASS_DEF_RLCBACKENDPASS
@@ -556,45 +612,73 @@ namespace mlir::rlc
 			assert(Module);
 			Module->setTargetTriple(targetInfo->triple());
 
-			runOptimizer(
-					*Module,
-					targetInfo->optimize(),
-					emitSanitizer,
-					emitFuzzer,
-					targetInfo->isWindows());
-
-			if (dumpIR)
-			{
-				Module->print(*OS, nullptr);
-				return;
-			}
-
-			error_code errorCompile;
 			std::string realOut = outputFile;
 			if (realOut != "-")
 				realOut = compileOnly ? outputFile : outputFile + ".o";
-			llvm::ToolOutputFile library(
-					realOut, errorCompile, llvm::sys::fs::OpenFlags::OF_None);
 
-			error_code error;
-			if (errorCompile)
+            llvm::SmallVector<error_code, 4> errors(jobs);
+            llvm::SmallVector<std::unique_ptr<llvm::ToolOutputFile>, 4> libraries;
+            for (auto i = 0; i != jobs; i++) {
+                errors[i] = error_code();
+                std::string fileName = i!= 0 ? realOut + llvm::Twine(i).str() + ".o" : realOut;
+			    libraries.emplace_back(std::make_unique<llvm::ToolOutputFile>( 
+					fileName, errors[i], llvm::sys::fs::OpenFlags::OF_None));
+            }
+
+            
+            llvm::SmallVector<bool, 4>  success(jobs);
+            if (jobs != 1) {
+                llvm::SmallVector<std::function<void()>, 4> tasks(jobs, +[]{});
+                size_t index = 0;
+                llvm::SmallVector<std::unique_ptr<llvm::LLVMContext>,  4> ctxs;
+                llvm::SmallVector<std::unique_ptr<llvm::Module>, 4> modules(jobs);
+                
+                llvm::SplitModule(*Module, jobs, [&](std::unique_ptr<llvm::Module> Part){
+                    ctxs.emplace_back(std::make_unique<llvm::LLVMContext>());
+                    modules[index] =  llvm::cantFail(cloneModuleToContext(*Part, *ctxs[index]));
+                    tasks[index] = [&, index](){
+                        success[index] = optimizeAndCompile(modules[index], *libraries[index], errors[index], targetInfo, emitSanitizer, emitFuzzer, dumpIR, OS, index);
+                    };
+                    index++;
+                });
+                llvm::ThreadPoolStrategy strategy;
+                strategy.ThreadsRequested = jobs;
+                strategy.Limit = true;
+                llvm::DefaultThreadPool pool(strategy);
+                for (size_t i = 0; i != libraries.size(); i++){
+                    pool.async(tasks[i]);
+                }
+                pool.wait();
+            } else {
+                success[0] = optimizeAndCompile(Module, *libraries[0], errors[0], targetInfo, emitSanitizer, emitFuzzer, dumpIR, OS, 0);
+            }
+
+            
+            for (size_t i = 0; i != libraries.size(); i++){
+                if (!success[i]){
+				    errs() << errors[i].message();
+                    signalPassFailure();
+                    return;
+                }
+            }
+
+			if (dumpIR)
 			{
-				errs() << error.message();
-				signalPassFailure();
-				return;
+                assert(jobs == 1);
+				Module->print(*OS, nullptr);
+                return;
 			}
 
-			compile(*targetInfo, std::move(Module), library.os());
-			library.os().close();
 
 			if (compileOnly)
 			{
-				library.keep();
+                for (auto& library : libraries)
+				    library->keep();
 				return;
 			}
 
 			if (linkLibraries(
-							library,
+							libraries,
 							clangPath,
 							outputFile,
 							targetInfo->isShared(),

@@ -79,6 +79,7 @@ namespace mlir::rlc
 		void setGraphKeepOnlyActions(bool doIt) { graphKeepOnlyActions = doIt; }
 		void setGraphRegexFilter(std::string s) { graphRegexFilter = s; }
 		void setMutationInstrumentation(bool doIt) { mutationInstrumentation= doIt; }
+		void setJobsCount(int jCount) { jobsCount = jCount; }
 
 		Driver(
 				llvm::SourceMgr &srcManager,
@@ -101,6 +102,7 @@ namespace mlir::rlc
 		bool emitFuzzer = false;
 		bool emitSanitizer = false;
 		bool emitDependencyFile = false;
+		int jobsCount = 1;
 		bool skipParsing = false;
 		bool debug = false;
 		bool keepComments = false;
