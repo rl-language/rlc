@@ -182,6 +182,8 @@ namespace mlir
 				solver->load<mlir::dataflow::DeadCodeAnalysis>();
 				solver->load<mlir::dataflow::SparseConstantPropagation>();
 				analysis = solver->load<ReachingDefinitionsAnalysis>();
+
+				registerGlobals(action);
 				auto res = solver->initializeAndRun(action);
 			}
 
@@ -191,6 +193,31 @@ namespace mlir
 			}
 
 			private:
+			void registerGlobals(Operation* action)
+			{
+				action->walk([&](Operation* op) {
+					for (Value operand : op->getOperands())
+					{
+						Operation* def = operand.getDefiningOp();
+
+						if (!def)
+							continue;
+
+						// Skip values defined within the analysis root.
+						if (def == action || action->isAncestor(def))
+							continue;
+
+						// This operand is defined outside the analysis root.
+						auto* lattice = solver->getOrCreateState<
+								mlir::dataflow::Lattice<mlir::dataflow::ConstantValue>>(
+								operand);
+
+						auto _ = lattice->join(
+								mlir::dataflow::ConstantValue::getUnknownConstant());
+					}
+				});
+			}
+
 			DataFlowConfig config;
 			std::unique_ptr<DataFlowSolver> solver;
 			ReachingDefinitionsAnalysis* analysis;

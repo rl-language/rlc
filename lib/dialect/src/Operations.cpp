@@ -3371,6 +3371,12 @@ mlir::LogicalResult mlir::rlc::FunctionOp::isTemplate()
 	return mlir::failure();
 }
 
+mlir::OpFoldResult mlir::rlc::ConstantGlobalOp::fold(
+		mlir::rlc::ConstantGlobalOp::FoldAdaptor attr)
+{
+	return getValuesAttr();
+}
+
 mlir::OpFoldResult mlir::rlc::Constant::fold(
 		mlir::rlc::ConstantGenericAdaptor<llvm::ArrayRef<mlir::Attribute>> attr)
 {

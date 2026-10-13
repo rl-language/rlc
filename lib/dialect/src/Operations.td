@@ -359,13 +359,14 @@ def RLC_UsingTypeOp : RLC_Dialect<"using_type", [DeclareOpInterfaceMethods<TypeC
   }];
 }
 
-def RLC_ConstantGlobalOp : RLC_Dialect<"global", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<Serializable>, DeclareOpInterfaceMethods<TypeUser>]> {
+def RLC_ConstantGlobalOp : RLC_Dialect<"global", [DeclareOpInterfaceMethods<TypeCheckable>, DeclareOpInterfaceMethods<Serializable>, DeclareOpInterfaceMethods<TypeUser>, Pure, ConstantLike]> {
   let summary = "constant global array";
 
   let description = [{
 	expression.
   }];
 
+  let hasFolder = 1;
   let arguments = (ins AnyAttr:$values, StrAttr:$name, OptionalAttr<RLC_ShugarizedTypeAttr>:$shugarized_type);
   let results = (outs AnyType:$result);
 
