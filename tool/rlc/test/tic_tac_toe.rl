@@ -4,16 +4,27 @@
 import serialization.to_byte_vector
 import string
 import action
+import python
+
+cls UICallback:
+  PyObject on_changed
+
 
 cls Board:
-  BInt<0, 3>[9] slots
+  BInt<0, 3>[3][3] slots
   Bool playerTurn
+  UICallback callback
 
   fun get(Int x, Int y) -> Int:
-    return self.slots[x + (y * 3)].value
+    return self.slots[x][y].value
 
   fun set(Int x, Int y, Int val):
-    self.slots[x + (y * 3)].value = val
+    self.slots[x][y].value = val
+    let args : PyObject[3]
+    args[0] = to_pyobject(self)
+    args[1] = to_pyobject(x)
+    args[2] = to_pyobject(y)
+    self.callback.on_changed.call("on_changed", args)
 
   fun full() -> Bool:
     let x = 0
@@ -140,4 +151,6 @@ fun pretty_print(Game g):
       y = y + 1
     print(to_print)
     i = i + 1
+
+
 

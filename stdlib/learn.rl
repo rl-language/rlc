@@ -15,9 +15,15 @@
 #
 
 import action
+import algorithms.diff
 
 fun gen_printer_parser():
     let state : Game
     let any_action :  AnyGameAction
     gen_python_methods(state, any_action)
+
+fun gen_diff_methods():
+    let state : Game
+    let changed : Vector<String>
+    diff(state, state, changed)
 
