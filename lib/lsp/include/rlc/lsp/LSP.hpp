@@ -81,6 +81,9 @@ namespace mlir::rlc::lsp
 				const mlir::lsp::Position &pos,
 				std::vector<mlir::lsp::Location> &references) const;
 
+		void findDocumentSymbols(
+				std::vector<mlir::lsp::DocumentSymbol> &symbols) const;
+
 		[[nodiscard]] int64_t getVersion() const { return version; }
 
 		llvm::ArrayRef<mlir::rlc::lsp::Diagnostic> getDiagnostics() const;
@@ -121,10 +124,11 @@ namespace mlir::rlc::lsp
 				const mlir::lsp::Position &pos,
 				std::vector<mlir::lsp::Location> &references);
 
-		/// Find all of the document symbols within the given file.
+		/// Collect all document symbols (functions, classes, actions, etc.)
+		/// for display in the VS Code Outline panel and Go to Symbol.
 		void findDocumentSymbols(
-				const mlir::lsp::URIForFile &uri,
-				std::vector<mlir::lsp::DocumentSymbol> &symbols);
+				const mlir::lsp::URIForFile &uri, /// The file for which to find symbols.
+				std::vector<mlir::lsp::DocumentSymbol> &symbols); /// The output vector to which symbols should be added.
 
 		/// Find a hover description for the given hover position, or std::nullopt
 		/// if one couldn't be found.
