@@ -1,0 +1,60 @@
+# RUN: %run_wasm32_test
+# RUN: %run_wasm64_test
+
+#--- main.rl
+
+cls Empty:
+    pass
+
+    fun getThree()->Int:
+        return 3
+
+cls OtherEmpty:
+    pass
+
+fun foo(OwningPtr<Empty> ptr, Empty[2] arr, Empty | OtherEmpty alt):
+    let x : Empty[2]
+    let y : Empty | OtherEmpty
+
+#--- test.mjs
+import assert from 'assert';
+import * as $ from './wrapper.mjs';
+
+//Checking that I can allocate zero bytes (i.e. I can have a class with no fields)
+
+
+
+
+//Class
+const empty = $.Empty.create();
+assert.strictEqual(empty.getThree(), 3);
+empty._free();
+
+
+
+//Pointer
+const ptr = $.ptr_Empty.create($.ptr_Empty.calloc());
+assert.strictEqual(ptr.get().getThree(), 3);
+$.Std.free(ptr);
+ptr._free();
+
+
+
+//Array
+const arr = $.Empty_2.create();
+assert.strictEqual(arr.get(0).getThree(), 3);
+assert.strictEqual(arr.get(1).getThree(), 3);
+arr._free();
+
+
+
+//Alternative
+const alt = $.alt_Empty_or_OtherEmpty.create();
+assert.strictEqual(alt.value.getThree(), 3);
+alt._free();
+
+
+
+
+
+$.Std._detectMemoryLeaksDoNotUse();

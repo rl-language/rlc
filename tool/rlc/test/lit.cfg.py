@@ -50,6 +50,12 @@ if shutil.which('mcs') and shutil.which('mono'):
 if shutil.which('ruby'):
     config.available_features.add('has_ruby')
 
+if shutil.which('emcc'):
+    config.available_features.add('emscripten')
+
+if shutil.which('node'):
+    config.available_features.add('node')
+
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
 # Set the LD_LIBRARY_PATH
