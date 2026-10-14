@@ -353,6 +353,70 @@ namespace mlir::rlc
 				inlineCalls(*graph);
 		}
 	}	 // namespace
+
+	static void registerGlobals(Operation *action, DataFlowSolver *solver)
+	{
+		action->walk([&](Operation *op) {
+			for (Value operand : op->getOperands())
+			{
+				Operation *def = operand.getDefiningOp();
+
+				if (!def)
+					continue;
+
+				// Skip values defined within the analysis root.
+				if (def == action || action->isAncestor(def))
+					continue;
+
+				// This operand is defined outside the analysis root.
+				auto *lattice = solver->getOrCreateState<
+						mlir::dataflow::Lattice<mlir::dataflow::ConstantValue>>(operand);
+
+				auto _ =
+						lattice->join(mlir::dataflow::ConstantValue::getUnknownConstant());
+			}
+		});
+	}
+
+	static constexpr const char *const dotColors[] = {
+		"#56BF80", "#85B1F2", "#0CF2AD", "#A67B3A", "#703AA6", "#768C70", "#B836D9",
+		"#708C73", "#F20C51", "#8F95CC", "#A69B3A", "#BC85F2", "#174C4C", "#F20C0C",
+		"#171C4C", "#8BBF56", "#113873", "#174C1C", "#AD8FCC", "#9BF285", "#CC8FA1",
+		"#2EA611", "#732E11", "#11A6A6", "#D93636", "#C40CF2", "#4C1737", "#8FCCBA",
+		"#4C1717", "#5B11A6", "#878C70", "#0CF223", "#8C7070", "#3A0CF2", "#F285E7",
+		"#0CF2F2", "#4C4717", "#C4F20C", "#708C84", "#57D936", "#8C7970", "#0C23F2",
+		"#8FCCCC", "#22174C", "#CCB48F", "#0CF268", "#708C8C", "#A63A9B", "#F2A685",
+		"#257311", "#7E708C", "#D9C836", "#CC8FC6", "#A69711", "#73112E", "#11A679",
+		"#AA56BF", "#85F2B1", "#C08FCC", "#427311", "#4C1747", "#BFB556", "#36A8D9",
+		"#BF7656", "#5661BF", "#56BF61", "#A61111", "#117338", "#BF5656", "#0CADF2",
+		"#BF5676", "#90A63A", "#DC85F2", "#CCC68F", "#BF56B5", "#3AA645", "#173C4C",
+		"#F2510C", "#70738C", "#BCF285", "#172C4C", "#11731B", "#A63A5A", "#C0CC8F",
+		"#731169", "#324C17", "#251173", "#11A64C", "#F28585", "#174C3C", "#503AA6",
+		"#708C7B", "#111B73", "#224C17", "#D93667", "#3A85A6", "#A66A11", "#F285C7",
+		"#85F2F2", "#4C2717", "#3AA665", "#32174C", "#A63D11", "#9B8FCC", "#734C11",
+		"#8811A6", "#7E8C70", "#111FA6", "#8C7081", "#2E11A6", "#A65A3A", "#56BFBF",
+		"#114CA6", "#36D9A8", "#0C68F2", "#36D946", "#CC8FB4", "#70A63A", "#A63A3A",
+		"#3A65A6", "#D99836", "#115573", "#5BA611", "#731111", "#117355", "#BF5695",
+		"#9BCC8F", "#421173", "#BF9556", "#8590F2", "#174C2C", "#8B56BF", "#424C17",
+		"#8736D9", "#707B8C", "#3646D9", "#56A0BF", "#11A61F", "#1179A6", "#F2C785",
+		"#73114C", "#3AA685", "#A6116A", "#ADCC8F", "#A61197", "#85D2F2", "#5F7311",
+		"#F285A6", "#AABF56", "#8FA7CC", "#F20CDB", "#8C8170", "#F20C96", "#8FBACC",
+		"#3AF20C", "#8C7079", "#B8D936", "#D96736", "#50A63A", "#CC8F8F", "#87D936",
+		"#5680BF", "#DCF285", "#76708C", "#6BBF56", "#8C7089", "#85F290", "#4C1727",
+		"#F2E785", "#87708C", "#88A611", "#D93698", "#8C8970", "#5736D9", "#117373",
+		"#7F0CF2", "#85F2D2", "#3677D9", "#F2960C", "#5F1173", "#8FCC95", "#A63A7B",
+		"#8FCCA7", "#F2DB0C", "#A6113D", "#36D977", "#9B85F2", "#4C3717", "#3A45A6",
+		"#CCA18F", "#6B56BF", "#36D9D9", "#D936C8", "#70848C", "#7FF20C", "#56BFA0",
+		"#903AA6", "#3AA6A6", "#42174C", "#736911"
+	};
+
+	const char *ActionFlowForest::getColor(size_t i)
+	{
+		return dotColors[i % std::size(dotColors)];
+	}
+
+	std::string ActionFlowNode::color() const { return getParent()->color(); }
+
 	ActionFlowGraph::ActionFlowGraph(mlir::rlc::ActionFunction action)
 			: entry(action)
 	{
@@ -372,6 +436,7 @@ namespace mlir::rlc
 		solver.load<mlir::dataflow::DeadCodeAnalysis>();
 		solver.load<mlir::dataflow::SparseConstantPropagation>();
 		auto *analsyis = solver.load<mlir::rlc::LastActionAnalysis>();
+		registerGlobals(action, &solver);
 		auto res = solver.initializeAndRun(action);
 
 		action.walk([&](mlir::Operation *op) {

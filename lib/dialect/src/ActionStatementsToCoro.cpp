@@ -88,6 +88,18 @@ static llvm::DenseMap<int64_t, mlir::Block*> splitActionBlocks(
 	return resumePoints;
 }
 
+static void removeCurrentActionResumeIndices(mlir::Operation* root)
+{
+	llvm::SmallVector<mlir::rlc::CurrentActionResumeIndex> indices;
+
+	root->walk([&](mlir::rlc::CurrentActionResumeIndex index) {
+		indices.push_back(index);
+	});
+
+	for (auto index : indices)
+		index.erase();
+}
+
 // pattern matches the pattern
 // resume_index = member_access(state, 0)
 // store resume_index, current
@@ -142,6 +154,89 @@ static void dropUselessDestructors(
 			break;
 		}
 	}
+}
+
+static mlir::rlc::FlatFunctionOp createDispatcher(
+		mlir::rlc::FlatFunctionOp fun, int64_t actionId, mlir::IRRewriter& rewriter)
+{
+	rewriter.setInsertionPointAfter(fun);
+
+	mlir::IRMapping mapping;
+	auto dispatcher = mlir::cast<mlir::rlc::FlatFunctionOp>(
+			rewriter.clone(*fun.getOperation(), mapping));
+
+	std::string name =
+			fun.getUnmangledName().str() + "_dispatch_" + std::to_string(actionId);
+
+	dispatcher.setUnmangledName(rewriter.getStringAttr(name));
+
+	auto switches = dispatcher.getBody().getOps<mlir::rlc::SelectBranch>();
+
+	assert(std::distance(switches.begin(), switches.end()) == 1);
+
+	auto switchOp = *switches.begin();
+
+	assert(actionId >= 0);
+	assert(static_cast<uint64_t>(actionId) < switchOp->getNumSuccessors());
+
+	mlir::Block* target = switchOp.getSuccessor(actionId);
+
+	rewriter.setInsertionPoint(switchOp);
+	rewriter.replaceOpWithNewOp<mlir::rlc::Branch>(switchOp, target);
+
+	mlir::rlc::pruneUnrechableBlocks(dispatcher.getBody(), rewriter);
+
+	return dispatcher;
+}
+
+// rewrite action so that the resume index is loaded from the coroutine frame
+// and then jumps to the action with the given resume index
+static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
+{
+	mlir::IRRewriter rewriter(fun.getContext());
+
+	mlir::Block& entry = *fun.getBlocks().begin();
+	auto* everythingElse = rewriter.splitBlock(&entry, entry.begin());
+
+	rewriter.setInsertionPoint(&entry, entry.begin());
+	auto routineIndex = rewriter.create<mlir::rlc::MemberAccess>(
+			fun.getLoc(), entry.getArgument(0), 0);
+
+	insertTerminatorResumptionIndexStore(fun, rewriter, routineIndex);
+	auto resumePoints = splitActionBlocks(fun, rewriter, routineIndex);
+	resumePoints[0] = everythingElse;
+	llvm::SmallVector<mlir::Block*, 2> sortedResumePoints(resumePoints.size());
+	for (auto& pair : resumePoints)
+		sortedResumePoints[pair.first] = pair.second;
+
+	rewriter.setInsertionPoint(&entry, entry.end());
+	rewriter.create<mlir::rlc::SelectBranch>(
+			fun.getLoc(), routineIndex, sortedResumePoints);
+	return mlir::success();
+}
+
+static llvm::DenseMap<int64_t, mlir::rlc::FlatFunctionOp> createDispatchers(
+		mlir::rlc::FlatFunctionOp fun)
+{
+	mlir::IRRewriter rewriter(fun.getContext());
+
+	llvm::DenseMap<int64_t, mlir::rlc::FlatFunctionOp> dispatchers;
+	llvm::SmallVector<int64_t> actionIds = { 0 };
+
+	// Collect IDs before lowering erases the ActionStatements.
+	fun.walk([&](mlir::rlc::ActionStatement action) {
+		if (mlir::rlc::isSynthetic(action))
+			return;
+		actionIds.push_back(action.getId());
+	});
+
+	if (mlir::failed(actionsToBraches(fun)))
+		return dispatchers;
+
+	for (int64_t actionId : actionIds)
+		dispatchers[actionId] = createDispatcher(fun, actionId, rewriter);
+
+	return dispatchers;
 }
 
 static void inlineInCallers(
@@ -207,29 +302,117 @@ static void inlineInCallers(
 	fun.erase();
 }
 
-// rewrite action so that the resume index is loaded from the coroutine frame
-// and then jumps to the action with the given resume index
-static mlir::LogicalResult actionsToBraches(mlir::rlc::FlatFunctionOp fun)
+static size_t countOps(mlir::Operation* root)
 {
-	mlir::IRRewriter rewriter(fun.getContext());
+	size_t count = 0;
 
-	mlir::Block& entry = *fun.getBlocks().begin();
-	auto* everythingElse = rewriter.splitBlock(&entry, entry.begin());
+	root->walk([&](mlir::Operation* op) { ++count; });
 
-	rewriter.setInsertionPoint(&entry, entry.begin());
-	auto routineIndex = rewriter.create<mlir::rlc::MemberAccess>(
-			fun.getLoc(), entry.getArgument(0), 0);
+	return count;
+}
 
-	insertTerminatorResumptionIndexStore(fun, rewriter, routineIndex);
-	auto resumePoints = splitActionBlocks(fun, rewriter, routineIndex);
-	resumePoints[0] = everythingElse;
-	llvm::SmallVector<mlir::Block*, 2> sortedResumePoints(resumePoints.size());
-	for (auto& pair : resumePoints)
-		sortedResumePoints[pair.first] = pair.second;
+static void printMostDuplicatedLocations(
+		mlir::Operation* root, size_t topN = 30)
+{
+	llvm::DenseMap<mlir::Location, size_t> counts;
 
-	rewriter.setInsertionPoint(&entry, entry.end());
-	rewriter.create<mlir::rlc::SelectBranch>(
-			fun.getLoc(), routineIndex, sortedResumePoints);
+	root->walk([&](mlir::Operation* op) { ++counts[op->getLoc()]; });
+
+	llvm::SmallVector<std::pair<mlir::Location, size_t>> sorted(
+			counts.begin(), counts.end());
+
+	llvm::sort(
+			sorted, [](const auto& a, const auto& b) { return a.second > b.second; });
+
+	llvm::errs() << "\n=== MOST DUPLICATED LOCATIONS ===\n";
+
+	for (size_t i = 0; i < std::min(topN, sorted.size()); ++i)
+	{
+		llvm::errs() << sorted[i].second << " copies | ";
+		sorted[i].first.print(llvm::errs());
+		llvm::errs() << "\n";
+	}
+}
+
+static void cleanupYields(mlir::Operation* root)
+{
+	// at this point the ir is fully flat, except yields that return values,
+	// which include the destructors invocations of variables.
+	// Therefore we move the destructor invocation before the yield, and if
+	// one of those variables was to be returned, we emit the copy first
+	mlir::IRRewriter rewriter(root->getContext());
+
+	llvm::SmallVector<mlir::rlc::Yield, 4> yields;
+	root->walk([&](mlir::rlc::Yield yield) { yields.push_back(yield); });
+
+	for (auto yield : yields)
+	{
+		if (yield.getOnEnd().empty())
+			continue;
+
+		rewriter.setInsertionPoint(yield);
+
+		size_t i = 0;
+		for (auto arg : yield.getOperands())
+		{
+			auto copy = rewriter.create<mlir::rlc::CopyOp>(
+					yield.getLoc(), arg.getType(), arg);
+			yield.setOperand(i++, copy);
+		}
+
+		llvm::SmallVector<mlir::Operation*, 2> operations;
+
+		for (auto& op : llvm::drop_end(yield.getOnEnd().front()))
+			operations.push_back(&op);
+
+		for (auto* op : operations)
+			op->moveBefore(yield);
+
+		while (!yield.getOnEnd().empty())
+			rewriter.eraseBlock(&yield.getOnEnd().front());
+	}
+}
+static mlir::FailureOr<int64_t> getSelectedActionId(mlir::rlc::CallOp call)
+{
+	for (auto& op : llvm::reverse(
+					 llvm::make_range(call->getBlock()->begin(), call->getIterator())))
+	{
+		if (auto index = mlir::dyn_cast<mlir::rlc::CurrentActionResumeIndex>(&op))
+			return index.getIndex();
+	}
+
+	return mlir::failure();
+}
+
+static mlir::LogicalResult redirectReferenceToDispatcher(
+		mlir::rlc::Reference ref,
+		const llvm::DenseMap<int64_t, mlir::rlc::FlatFunctionOp>& dispatchers,
+		llvm::StringRef originalDispatcher)
+{
+	if (!ref.getResult().hasOneUse())
+	{
+		return mlir::rlc::logError(ref, "Multiple uses of");
+	}
+
+	auto call =
+			mlir::dyn_cast<mlir::rlc::CallOp>(*ref.getResult().getUsers().begin());
+
+	if (!call)
+		return mlir::rlc::logError(call, "not a call");
+
+	auto actionId = getSelectedActionId(call);
+	if (mlir::failed(actionId))
+		return mlir::rlc::logError(call, "cannot find action id");
+
+	auto it = dispatchers.find(*actionId);
+	if (it == dispatchers.end())
+	{
+		return mlir::success();
+	}
+
+	auto dispatcher = it->second;
+	ref.setReferred(dispatcher.getMangledName());
+
 	return mlir::success();
 }
 
@@ -244,6 +427,8 @@ namespace mlir::rlc
 		using impl::ActionStatementsToCoroPassBase<
 				ActionStatementsToCoroPass>::ActionStatementsToCoroPassBase;
 
+		using DispatcherMap = llvm::DenseMap<int64_t, mlir::rlc::FlatFunctionOp>;
+
 		void runOnOperation() override
 		{
 			llvm::SmallVector<mlir::rlc::FlatFunctionOp, 4> ops;
@@ -251,49 +436,12 @@ namespace mlir::rlc
 				if (not f.getBody().getOps<mlir::rlc::ActionStatement>().empty())
 					ops.push_back(f);
 
+			llvm::DenseMap<mlir::rlc::FlatFunctionOp, DispatcherMap> dispatchers;
+
 			for (auto f : ops)
-			{
-				if (actionsToBraches(f).failed())
-				{
-					signalPassFailure();
-					return;
-				}
-			}
+				dispatchers[f] = createDispatchers(f);
 
-			mlir::IRRewriter rewriter(getOperation().getContext());
-			llvm::SmallVector<mlir::rlc::Yield, 4> yields;
-			getOperation().walk(
-					[&](mlir::rlc::Yield yield) { yields.push_back(yield); });
-			// at this point the ir is fully flat, except yields that return values,
-			// which include the destructors invocations of variables.
-			// Therefore we move the destructor invocation before the yield, and if
-			// one of those variables was to be returned, we emit the copy first
-			for (auto yield : yields)
-			{
-				if (yield.getOnEnd().empty())
-					continue;
-
-				rewriter.setInsertionPoint(yield);
-				size_t i = 0;
-				for (auto arg : yield.getOperands())
-				{
-					auto copy = rewriter.create<mlir::rlc::CopyOp>(
-							yield.getLoc(), arg.getType(), arg);
-					yield.setOperand(i, copy);
-					i++;
-				}
-
-				llvm::SmallVector<mlir::Operation*, 2> ops;
-
-				for (auto& op : llvm::drop_end(yield.getOnEnd().front()))
-					ops.push_back(&op);
-
-				for (auto* op : ops)
-					op->moveBefore(yield);
-
-				while (not yield.getOnEnd().empty())
-					rewriter.eraseBlock(&yield.getOnEnd().front());
-			}
+			cleanupYields(getOperation());
 
 			llvm::StringMap<llvm::SmallVector<mlir::rlc::Reference, 4>> references;
 			getOperation().walk([&](mlir::rlc::Reference ref) {
@@ -301,7 +449,23 @@ namespace mlir::rlc
 			});
 
 			for (auto f : ops)
-				inlineInCallers(f, references[f.getMangledName()]);
+			{
+				auto& specialized = dispatchers[f];
+				auto& refs = references[f.getMangledName()];
+
+				for (auto ref : refs)
+				{
+					if (mlir::failed(redirectReferenceToDispatcher(
+									ref, specialized, f.getMangledName())))
+					{
+						signalPassFailure();
+						return;
+					}
+				}
+			}
+
+			mlir::IRRewriter rewriter(getOperation().getContext());
+			removeCurrentActionResumeIndices(getOperation());
 		}
 	};
 }	 // namespace mlir::rlc

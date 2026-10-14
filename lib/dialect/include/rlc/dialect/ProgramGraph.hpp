@@ -39,8 +39,8 @@ namespace mlir::rlc
 		using SuccessorContainer = llvm::DenseSet<const ActionFlowNode*>;
 		using CalleesContainer = llvm::DenseSet<
 				std::pair<const ActionFlowNode*, mlir::rlc::ActionFunction>>;
-		ActionFlowNode(mlir::Operation* current)
-				: currentOperation(current), kind(kindFromOp(current))
+		ActionFlowNode(mlir::Operation* current, ActionFlowGraph* parent)
+				: currentOperation(current), kind(kindFromOp(current)), parent(parent)
 		{
 		}
 
@@ -54,7 +54,10 @@ namespace mlir::rlc
 			return currentOperation == nullptr;
 		}
 
-		ActionFlowNode(Kind kind): currentOperation(nullptr), kind(kind) {}
+		ActionFlowNode(Kind kind, ActionFlowGraph* parent)
+				: currentOperation(nullptr), kind(kind), parent(parent)
+		{
+		}
 
 		mlir::Operation* getOperation() const { return currentOperation; }
 
@@ -109,7 +112,8 @@ namespace mlir::rlc
 		void print(llvm::raw_ostream& os) const
 		{
 			os << "\"" << this << "\"[shape=" << shape() << ", label=\"" << name()
-				 << "\", style=" << style() << "]\n";
+				 << "\", style=" << style() << ", style=filled, color=\"" << color()
+				 << "\"]\n";
 			for (const auto* successor : successors)
 			{
 				os << "\"" << this << "\" -> \"" << successor << "\"\n";
@@ -223,6 +227,8 @@ namespace mlir::rlc
 			}
 		}
 
+		[[nodiscard]] std::string color() const;
+
 		std::string name() const
 		{
 			if (currentOperation == nullptr)
@@ -267,6 +273,8 @@ namespace mlir::rlc
 	{
 		public:
 		explicit ActionFlowGraph(mlir::rlc::ActionFunction action);
+
+		void setColor(const char* color) { colorValue = color; }
 
 		void unlinkAndErase(const ActionFlowNode& toErase)
 		{
@@ -345,12 +353,13 @@ namespace mlir::rlc
 
 		using CalleeCacheType = llvm::DenseSet<ActionFlowGraph*>;
 
+		const char* color() const { return colorValue; }
+
 		private:
 		ActionFlowNode* makeNode(mlir::Operation* current)
 		{
-			nodes.push_back(std::make_unique<ActionFlowNode>(current));
+			nodes.push_back(std::make_unique<ActionFlowNode>(current, this));
 			opToMapCache[current] = nodes.back().get();
-			nodes.back()->setParent(this);
 			return nodes.back().get();
 		}
 
@@ -358,6 +367,7 @@ namespace mlir::rlc
 		Content nodes;
 		CalleeCacheType _cacheCallees;
 		llvm::DenseMap<Operation*, ActionFlowNode*> opToMapCache;
+		const char* colorValue;
 	};
 
 	class ActionFlowForest
@@ -365,8 +375,13 @@ namespace mlir::rlc
 		public:
 		ActionFlowForest(mlir::ModuleOp op)
 		{
+			size_t i = 0;
 			for (auto op : op.getOps<mlir::rlc::ActionFunction>())
-				map.emplace(op.getClassType().getAsOpaquePointer(), op);
+			{
+				const auto* id = op.getClassType().getAsOpaquePointer();
+				map.emplace(id, op);
+				map.at(id).setColor(getColor(i++));
+			}
 
 			populateCallGraph();
 		}
@@ -408,6 +423,7 @@ namespace mlir::rlc
 		}
 
 		private:
+		static const char* getColor(size_t index);
 		std::map<const void*, ActionFlowGraph> map;
 	};
 
@@ -464,6 +480,8 @@ namespace llvm
 		{
 			return actionFunction->callee_end();
 		}
+
+		private:
 	};
 
 }	 // end namespace llvm

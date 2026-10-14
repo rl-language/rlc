@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+#include "fstream"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -121,6 +122,12 @@ static cl::opt<bool> dumpUncheckedAST(
 static cl::opt<bool> dumpFlatIR(
 		"flattened",
 		cl::desc("dump ir before lowering to llvm dialect"),
+		cl::init(false),
+		cl::cat(astDumperCategory));
+
+static cl::opt<bool> profileMemory(
+		"profile-memory",
+		cl::desc("mesure memory usage"),
 		cl::init(false),
 		cl::cat(astDumperCategory));
 
@@ -538,10 +545,44 @@ static mlir::rlc::Driver configureDriver(
 	driver.setGraphInlineCalls(graphInlineCalls);
 	driver.setGraphKeepOnlyActions(graphKeepOnlyActions);
 	driver.setGraphRegexFilter(graphRegexFilter);
-    driver.setMutationInstrumentation(instrumentMutation);
+	driver.setMutationInstrumentation(instrumentMutation);
 
 	return driver;
 }
+
+static size_t getRSSKiB()
+{
+	std::ifstream file("/proc/self/status");
+	std::string key;
+
+	while (file >> key)
+	{
+		if (key == "VmRSS:")
+		{
+			size_t value;
+			file >> value;
+			return value;
+		}
+		std::string rest;
+		std::getline(file, rest);
+	}
+	return 0;
+}
+
+struct MemoryInstrumentation: mlir::PassInstrumentation
+{
+	void runBeforePass(mlir::Pass *pass, mlir::Operation *op) override
+	{
+		llvm::errs() << "BEFORE " << pass->getName()
+								 << " RSS=" << getRSSKiB() / 1024 << " MiB\n";
+	}
+
+	void runAfterPass(mlir::Pass *pass, mlir::Operation *op) override
+	{
+		llvm::errs() << "AFTER  " << pass->getName()
+								 << " RSS=" << getRSSKiB() / 1024 << " MiB\n";
+	}
+};
 
 static int run(
 		mlir::MLIRContext &context,
@@ -555,6 +596,9 @@ static int run(
 
 	if (timing)
 		manager.enableTiming();
+
+	if (profileMemory)
+		manager.addInstrumentation(std::make_unique<MemoryInstrumentation>());
 
 	auto ast = mlir::ModuleOp::create(
 			mlir::FileLineColLoc::get(&context, inputFile, 0, 0), inputFile);

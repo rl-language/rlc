@@ -4,5 +4,5 @@ import rng
 @classes
 act play() -> Game:
   subaction* config_rng = configure_rng()
-  return config_rng.seed != 0
+  assert(config_rng.seed != 0, "rng cannot be zero")
 

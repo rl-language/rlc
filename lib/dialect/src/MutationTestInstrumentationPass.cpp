@@ -38,14 +38,12 @@ namespace mlir::rlc
 		{
 			mlir::rlc::IRBuilder builder(getOperation());
 			builder.setInsertionPointToStart(&getOperation().getBodyRegion().front());
+			auto type = mlir::rlc::IntegerType::getInt64(getOperation().getContext());
 			auto extF = builder.createFunctionOp(
 					builder.getUnknownLoc(),
 					"mutation_check",
 					mlir::FunctionType::get(
-							getOperation().getContext(),
-							{ mlir::rlc::IntegerType::getInt64(getOperation().getContext()) },
-							{ mlir::rlc::IntegerType::getInt64(
-									getOperation().getContext()) }),
+							getOperation().getContext(), { type }, { type }),
 					mlir::rlc::FunctionInfoAttr::get(
 							getOperation().getContext(), { "ID" }),
 					false,
@@ -53,12 +51,15 @@ namespace mlir::rlc
 
 			int64_t ID = 0;
 			getOperation().walk([&](mlir::rlc::AddOp op) {
+				if (op.getResult().getType() != type)
+					return;
 				builder.setInsertionPoint(op);
 				auto idOp =
 						builder.createConstant(op.getLoc(), ID++, llvm::Twine(ID).str());
 				auto call = builder.createCallOp(op.getLoc(), extF, false, { idOp });
-				auto result = builder.createAddOp(op.getLoc(), call.getResult(0), op.getLhs());
-                op.setOperand(0, result);
+				auto result =
+						builder.createAddOp(op.getLoc(), call.getResult(0), op.getLhs());
+				op.setOperand(0, result);
 			});
 		}
 	};

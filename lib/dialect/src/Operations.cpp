@@ -1043,6 +1043,7 @@ namespace mlir::rlc
 						mlir::rlc::FunctionInfoAttr::get(referred.getContext(), nameAttrs),
 						referred.getId(),
 						referred.getResumptionPoint());
+				markSynthetic(fixed);
 
 				auto *newBody = rewiter.createBlock(
 						&fixed.getPrecondition(),
