@@ -16,6 +16,7 @@ limitations under the License.
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/IR/Verifier.h"
 #include "rlc/dialect/Operations.hpp"
 #include "rlc/dialect/Passes.hpp"
 #include "rlc/dialect/conversion/TypeConverter.h"
@@ -142,12 +143,13 @@ static void dropUselessDestructors(
 	llvm::SmallVector<mlir::rlc::CallOp, 4> ops;
 	for (auto call : funOp.getBody().getOps<mlir::rlc::CallOp>())
 		ops.push_back(call);
+	mlir::DominanceInfo dominance(funOp);
 
 	for (auto op : ops)
 	{
 		for (auto operand : op.getArgOperands())
 		{
-			if (operand != nullptr)
+			if (operand != nullptr and dominance.properlyDominates(operand, op))
 				continue;
 
 			op.erase();
@@ -463,8 +465,16 @@ namespace mlir::rlc
 					}
 				}
 			}
-
 			mlir::IRRewriter rewriter(getOperation().getContext());
+			for (auto& coro : dispatchers)
+			{
+				dropUselessDestructors(rewriter, coro.getFirst());
+				for (auto& dispatcher : coro.getSecond())
+				{
+					dropUselessDestructors(rewriter, dispatcher.getSecond());
+				}
+			}
+
 			removeCurrentActionResumeIndices(getOperation());
 		}
 	};
