@@ -5,9 +5,6 @@
 The Rulebook language lets you write complex interactive systems with the simplicity of synchronous code while retaining all the advantages and none of the disadvantages of asynchronous code. Projects that benefit from Rulebook include reinforcement-learning environments, video games, sophisticated UIs, and more.
 
 
-[Paper for Reinforcement Learning users](https://arxiv.org/abs/2504.19625)
-
-See Rulebook in action [repo](https://github.com/rl-language/4Hammer) [paper](https://arxiv.org/abs/2505.13638) [doc](https://rl-language.github.io/4hammer.html)
 
 ### Contacts
 
