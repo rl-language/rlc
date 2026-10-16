@@ -17,7 +17,7 @@ limitations under the License.
 
 #include "benchmark/benchmark.h"
 
-constexpr std::size_t minRange = 1 << 2;
+constexpr std::size_t minRange = 1 << 10;
 constexpr std::size_t maxRange = 1 << 10;
 
 template<typename Actions>

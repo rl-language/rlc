@@ -48,3 +48,4 @@ makeProgramBenchmark(Battleship ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/battl
 makeProgramBenchmark(Checkers ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/checkers.rl)
 makeProgramBenchmark(ConnectFour ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/connect_four.rl)
 makeProgramBenchmark(Catch ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/catch.rl)
+makeProgramBenchmark(4Hammer ${CMAKE_SOURCE_DIR}/tool/rlc/test/examples/4Hammer/full_game.rl)
