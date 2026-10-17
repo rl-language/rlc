@@ -67,6 +67,11 @@ def RemoveUninitConstructsPass : Pass<"rlc-remove-uninit-constructs", "mlir::Mod
   let dependentDialects = ["rlc::RLCDialect"];
 }
 
+def WarnUnusedPass : Pass<"rlc-warn-unused", "mlir::ModuleOp"> {
+  let summary = "Emit a warning for each unused global object in the module";
+  let dependentDialects = ["rlc::RLCDialect"];
+}
+
 def MutationTestInstrumentationPass : Pass<"rlc-mutation-test-instrumentation", "mlir::ModuleOp"> {
   let summary = "Instrument binary for mutation testing";
   let dependentDialects = ["rlc::RLCDialect"];

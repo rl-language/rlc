@@ -261,6 +261,12 @@ static cl::opt<bool> hideStandardLibFiles(
 		cl::init(true),
 		cl::cat(astDumperCategory));
 
+static cl::opt<bool> warnUnused(
+		"warn-unused",
+		cl::desc("Emit a warning when a global object exists but has no users"),
+		cl::init(true),
+		cl::cat(astDumperCategory));
+
 static cl::opt<bool> printIncludedFiles(
 		"print-included-files",
 		cl::desc(
@@ -525,6 +531,7 @@ static mlir::rlc::Driver configureDriver(
 	Driver driver(srcManager, inputs, outputFile, OS);
 	driver.setRequest(getRequest());
 	driver.setDebug(debugInfo);
+	driver.setWarnUnused(warnUnused);
 	driver.setEmitDependencyFile(generateDependecyFile);
 	driver.setHidePosition(hidePosition);
 	driver.setEmitPreconditionChecks(emitPreconditionChecks);

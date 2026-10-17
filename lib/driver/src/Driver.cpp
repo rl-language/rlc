@@ -39,6 +39,8 @@ namespace mlir::rlc
 		manager.addPass(mlir::rlc::createMemberFunctionsToRegularFunctionsPass());
 		manager.addPass(mlir::rlc::createTypeCheckEntitiesPass());
 		manager.addPass(mlir::rlc::createTypeCheckPass());
+		if (warnUnused)
+			manager.addPass(mlir::rlc::createWarnUnusedPass());
 		if (request == Request::dumpDot or request == Request::dumpParsableGraph)
 		{
 			manager.addPass(
@@ -59,9 +61,10 @@ namespace mlir::rlc
 			return;
 		}
 
-        if (mutationInstrumentation){
-		    manager.addPass(mlir::rlc::createMutationTestInstrumentationPass());
-        }
+		if (mutationInstrumentation)
+		{
+			manager.addPass(mlir::rlc::createMutationTestInstrumentationPass());
+		}
 		manager.addPass(mlir::rlc::createLowerSubActionStatements());
 		manager.addPass(mlir::rlc::createValidateStorageQualifiersPass());
 
@@ -207,8 +210,8 @@ namespace mlir::rlc
 																							emitFuzzer,
 																							&rPath,
 																							targetInfo,
-																							verbose, 
-                                                                                            jobsCount }));
+																							verbose,
+																							jobsCount }));
 	}
 
 }	 // namespace mlir::rlc

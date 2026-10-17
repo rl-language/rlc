@@ -77,8 +77,12 @@ namespace mlir::rlc
 		void setGraphInlineCalls(bool doIt) { graphInlineCalls = doIt; }
 		void setKeepComments(bool doIt) { keepComments = doIt; }
 		void setGraphKeepOnlyActions(bool doIt) { graphKeepOnlyActions = doIt; }
+		void setWarnUnused(bool doIt) { warnUnused = doIt; }
 		void setGraphRegexFilter(std::string s) { graphRegexFilter = s; }
-		void setMutationInstrumentation(bool doIt) { mutationInstrumentation= doIt; }
+		void setMutationInstrumentation(bool doIt)
+		{
+			mutationInstrumentation = doIt;
+		}
 		void setJobsCount(int jCount) { jobsCount = jCount; }
 
 		Driver(
@@ -124,6 +128,7 @@ namespace mlir::rlc
 		bool verbose = false;
 
 		bool graphInlineCalls = false;
+		bool warnUnused = false;
 		bool graphKeepOnlyActions = false;
 		std::string graphRegexFilter = ".*";
 
