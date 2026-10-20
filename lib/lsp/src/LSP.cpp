@@ -282,7 +282,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		std::set<KeyType> alreadyEmitted;
 		auto registerArgument = [&](llvm::StringRef name,
 																mlir::Type t,
-																mlir::rlc::FunctionInfoAttr info) {
+																mlir::rlc::FunctionInfoAttr info,
+																llvm::StringRef sortPrefix) {
 			KeyType key(name.str(), t.getAsOpaquePointer());
 			if (alreadyEmitted.contains(key))
 				return;
@@ -292,6 +293,8 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			item.label = name.str();
 			item.kind = mlir::lsp::CompletionItemKind::Variable;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
+			
+			item.sortText = (sortPrefix + name).str();
 			if (auto casted = mlir::dyn_cast<mlir::FunctionType>(t);
 					casted and info != nullptr)
 			{
@@ -301,39 +304,47 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.detail = prettyType(t);
 			list.items.push_back(item);
 		};
+
 		if (auto casted = mlir::dyn_cast<mlir::rlc::FunctionOp>(fun);
 				casted and not casted.getBody().empty())
 		{
-			for (auto arg :
+			for (auto &&[name, type] :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
+				registerArgument(
+						name, type, nullptr, "0");
 			}
 		}
 
 		if (auto casted = mlir::dyn_cast<mlir::rlc::ActionFunction>(fun);
 				casted and not casted.getBody().empty())
 		{
-			for (auto arg :
+			for (auto &&[name, type] :
 					 llvm::zip(casted.getArgNames(), casted.getType().getInputs()))
 			{
-				registerArgument(std::get<0>(arg), std::get<1>(arg), nullptr);
+				registerArgument(
+						name, type, nullptr, "0");
 			}
 		}
 
 		fun->walk([&](mlir::rlc::DeclarationStatement statement) {
-			registerArgument(statement.getSymName(), statement.getType(), nullptr);
+			auto loc = mlir::cast<mlir::FileLineColLoc>(statement.getLoc());
+			if (static_cast<int>(loc.getLine()) - 1 <= completePos.line)
+				registerArgument(
+						statement.getSymName(), statement.getType(), nullptr, "1");
 		});
 
 		for (auto op : module.getOps<mlir::rlc::ActionFunction>())
-			registerArgument(op.getUnmangledName(), op.getType(), nullptr);
+			registerArgument(
+					op.getUnmangledName(), op.getType(), nullptr, "2");
 
 		for (auto op : module.getOps<mlir::rlc::FunctionOp>())
 			if (not op.getIsMemberFunction())
-				registerArgument(op.getUnmangledName(), op.getType(), op.getInfo());
+				registerArgument(
+						op.getUnmangledName(), op.getType(), op.getInfo(), "3");
 
 		for (auto op : module.getOps<mlir::rlc::ConstantGlobalOp>())
-			registerArgument(op.getName(), op.getType(), nullptr);
+			registerArgument(op.getName(), op.getType(), nullptr, "4");
 
 		return mlir::success();
 	}
@@ -576,7 +587,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		}
 
 		auto type = memberAccess->getOperand(0).getType();
-		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type))
+
+		if (auto casted = mlir::dyn_cast<mlir::rlc::ClassType>(type);
+				casted and casted.isInitialized())
 		{
 			for (auto field : casted.getMembers())
 			{
@@ -585,6 +598,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.kind = mlir::lsp::CompletionItemKind::Field;
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail = prettyType(field.getType());
+				item.sortText = "0";
 				list.items.push_back(item);
 			}
 		}
@@ -614,6 +628,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fun.getType(), fun.getInfo());
+				item.sortText = "1";
 				list.items.push_back(item);
 			}
 		}
@@ -639,6 +654,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 				item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 				item.detail =
 						prettyPrintFunctionTypeWithNameArgs(fType, statemet.getInfo());
+				item.sortText = "2";
 				list.items.push_back(item);
 			});
 
@@ -647,6 +663,7 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 			item.kind = mlir::lsp::CompletionItemKind::Function;
 			item.insertTextFormat = mlir::lsp::InsertTextFormat::PlainText;
 			item.detail = prettyType(fun.getIsDoneFunctionType());
+			item.sortText = "3_is_done()";
 			list.items.push_back(item);
 		}
 		return mlir::success();
@@ -660,8 +677,9 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 		module.walk([&](mlir::Operation *op) {
 			if (not op->hasTrait<trait>())
 				return;
+			
 			mlir::Location loc = op->getLoc();
-			if (loc == nullptr)
+			if (not mlir::isa<mlir::FileLineColLoc>(loc))
 				return;
 
 			auto pos = locToPos(loc);
@@ -800,7 +818,112 @@ class mlir::rlc::lsp::LSPModuleInfoImpl
 	}
 
 	void clearDiagnostics() { diagnostics.clear(); }
+	void findDocumentSymbols(
+			std::vector<mlir::lsp::DocumentSymbol> &symbols)
+	{
+		auto moduleLoc = mlir::cast<mlir::FileLineColLoc>(module.getLoc());
 
+		auto isInCurrentFile = [&](mlir::Operation *op) -> bool {
+			auto opLoc = mlir::cast<mlir::FileLineColLoc>(op->getLoc());
+			return opLoc.getFilename() == moduleLoc.getFilename();
+		};
+
+		auto safeRange = [](mlir::Operation *op) -> mlir::lsp::Range {
+			auto pos = locToPos(op->getLoc());
+			auto end = pos;
+			end.character += 1;
+			return mlir::lsp::Range(pos, end);
+		};
+
+		for (auto fun : module.getOps<mlir::rlc::FunctionOp>())
+		{
+			if (fun.getBody().empty() || !isInCurrentFile(fun))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = fun.getUnmangledName();
+			sym.kind = mlir::lsp::SymbolKind::Function;
+			sym.detail = prettyType(fun.getType());
+			sym.range = safeRange(fun);
+			sym.selectionRange = sym.range;
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto fun : module.getOps<mlir::rlc::ActionFunction>())
+		{
+			if (fun.getBody().empty() || !isInCurrentFile(fun))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = fun.getUnmangledName();
+			sym.kind = mlir::lsp::SymbolKind::Function;
+			sym.detail = prettyType(fun.getType());
+			sym.range = safeRange(fun);
+			sym.selectionRange = sym.range;
+
+			fun.walk([&](mlir::rlc::ActionStatement stmt) {
+				mlir::lsp::DocumentSymbol child;
+				child.name = stmt.getName();
+				child.kind = mlir::lsp::SymbolKind::Method;
+				child.range = safeRange(stmt);
+				child.selectionRange = child.range;
+				sym.children.push_back(std::move(child));
+			});
+
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto cls : module.getOps<mlir::rlc::ClassDeclaration>())
+		{
+			if (!isInCurrentFile(cls))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = cls.getName().str();
+			sym.kind = mlir::lsp::SymbolKind::Class;
+			sym.range = safeRange(cls);
+			sym.selectionRange = sym.range;
+            if (auto classType =
+					mlir::dyn_cast<mlir::rlc::ClassType>(cls.getDeclaredType());
+					classType and classType.isInitialized())
+			{
+				for (auto field : classType.getMembers())
+				{
+					mlir::lsp::DocumentSymbol child;
+					child.name = field.getName();
+					child.kind = mlir::lsp::SymbolKind::Field;
+					child.detail = prettyType(field.getType());
+					child.range = sym.range;
+					child.selectionRange = sym.range;
+					sym.children.push_back(std::move(child));
+				}
+			}
+
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto alias : module.getOps<mlir::rlc::TypeAliasOp>())
+		{
+			if (!isInCurrentFile(alias))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = alias.getName();
+			sym.kind = mlir::lsp::SymbolKind::TypeParameter;
+			sym.range = safeRange(alias);
+			sym.selectionRange = sym.range;
+			symbols.push_back(std::move(sym));
+		}
+
+		for (auto cst : module.getOps<mlir::rlc::ConstantGlobalOp>())
+		{
+			if (!isInCurrentFile(cst))
+				continue;
+			mlir::lsp::DocumentSymbol sym;
+			sym.name = cst.getName();
+			sym.kind = mlir::lsp::SymbolKind::Constant;
+			sym.detail = prettyType(cst.getType());
+			sym.range = safeRange(cst);
+			sym.selectionRange = sym.range;
+			symbols.push_back(std::move(sym));
+		}
+	}
 	private:
 	llvm::SmallVector<std::pair<mlir::lsp::Range, mlir::Operation *>>
 			declarations;
@@ -888,7 +1011,11 @@ void LSPModuleInfo::findReferencesOf(
 {
 	impl->findReferencesOf(pos, references);
 }
-
+void LSPModuleInfo::findDocumentSymbols(
+		std::vector<mlir::lsp::DocumentSymbol> &symbols) const
+{
+	impl->findDocumentSymbols(symbols);
+}
 llvm::ArrayRef<mlir::rlc::lsp::Diagnostic> LSPModuleInfo::getDiagnostics() const
 {
 	return impl->getDiagnostics();
@@ -992,9 +1119,12 @@ void RLCServer::findDocumentSymbols(
 		const mlir::lsp::URIForFile &uri,
 		std::vector<mlir::lsp::DocumentSymbol> &symbols)
 {
-	// ToDo
-}
+	const auto *maybeInfo = getModuleFromUri(uri);
+	if (maybeInfo == nullptr)
+		return;
 
+	maybeInfo->findDocumentSymbols(symbols);
+}
 void RLCServer::addOrUpdateDocument(
 		const mlir::lsp::URIForFile &uri,
 		llvm::StringRef contents,

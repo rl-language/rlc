@@ -52,6 +52,13 @@ static llvm::cl::opt<std::string> IPC(
 static llvm::cl::list<std::string> IncludeDirs(
 		"i", llvm::cl::desc("<include dirs>"), llvm::cl::cat(Category));
 
+static llvm::cl::opt<std::string> StdlibDir(
+		"stdlib",
+		llvm::cl::desc("path to rlc stdlib directory (overrides auto-detection "
+						"relative to the binary location)"),
+		llvm::cl::init(""),
+		llvm::cl::cat(Category));
+
 namespace mlir::rlc::lsp
 {
 
@@ -278,10 +285,24 @@ int main(int argc, char *argv[])
 	llvm::cl::ParseCommandLineOptions(argc, argv);
 	LSPContext context;
 	llvm::InitLLVM X(argc, argv);
-	auto pathToRlc = llvm::sys::fs::getMainExecutable(argv[0], (void *) &main);
-	auto rlcDirectory =
-			llvm::sys::path::parent_path(pathToRlc).str() + "/../lib/rlc/stdlib";
-	context.addInclude(rlcDirectory);
+
+	// Resolve the stdlib include path.
+	// If --stdlib was provided, use that directly. Otherwise, infer it
+	// relative to the binary location (works for pip-installed layouts
+	// where stdlib lives at <bin>/../lib/rlc/stdlib).
+	if (!StdlibDir.empty())
+	{
+		context.addInclude(StdlibDir);
+	}
+	else
+	{
+		auto pathToRlc =
+				llvm::sys::fs::getMainExecutable(argv[0], (void *) &main);
+		auto rlcDirectory =
+				llvm::sys::path::parent_path(pathToRlc).str() +
+				"/../lib/rlc/stdlib";
+		context.addInclude(rlcDirectory);
+	}
 
 	for (auto include : IncludeDirs)
 		context.addInclude(include);
